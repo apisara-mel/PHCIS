@@ -4,7 +4,7 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import WizardMorphHeader, { WIZARD_MORPH_SHELL_PROPS } from '@/components/layout/WizardMorphHeader';
 import { MIH_CHROME_MORPH_FOOTER } from '@/components/layout/wizardChromeMorphStyles';
 import StepProgress from '@/components/step/StepProgress';
-import RichTextEditor from '@/components/forms/RichTextEditor';
+import RichTextEditor, { sanitizeRichText, richTextToPlain } from '@/components/forms/RichTextEditor';
 import {
   POPUP_MORPH_MOTION_VAR,
   POPUP_MORPH_VAR,
@@ -174,6 +174,20 @@ const COMMON_CLAUSES = [
 const TPL = (name, lead, extra = {}) => ({ name, version: 'V 1.0', ttl: '30', leadClauses: lead, cover: 0, ...extra });
 const TEMPLATE_PREFILL = {
   data: TPL('ใบยินยอมเปิดเผยข้อมูลสุขภาพ (PDPA)', [{ title: 'การเปิดเผยข้อมูลสุขภาพ', detail: 'ข้าพเจ้ายินยอมให้เปิดเผยข้อมูลสุขภาพแก่บุคคล/หน่วยงานที่ระบุ เพื่อวัตถุประสงค์ที่กำหนดไว้' }], { ttl: '365', cover: 1 }),
+};
+
+/* หน้าปกราชการ — ตราสำนักอนามัย กรุงเทพมหานคร (มติผู้ใช้ 25 ส.ค. 69)
+   ใบยินยอมที่ออกในนามหน่วยงานต้องมีตราหน่วยงานบนหน้าปก ภาพประกอบสต็อก
+   20 แบบด้านล่างไม่มีอันไหนสื่อว่าเป็นเอกสารราชการเลย
+   เก็บเป็นคีย์สตริง 'official' ไม่ใช่ index เพื่อไม่ให้เลขหน้าปกของฟอร์มเดิม
+   ที่บันทึกไว้แล้วเลื่อนตำแหน่ง */
+export const OFFICIAL_COVER = {
+  key: 'official',
+  label: 'หน้าปกราชการ (ตราสำนักอนามัย)',
+  official: true,
+  logo: '/images/office-health-logo.png',
+  org: 'สำนักอนามัย',
+  orgSub: 'กรุงเทพมหานคร',
 };
 
 /* Form-cover thumbnails — MIH Consent wizard (356:111486). */
@@ -386,7 +400,7 @@ const SectionCard = ({ children, style }) => (
       borderRadius: 'var(--dim-radius-500)',
       border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
       boxShadow: 'var(--shadow-card)',
-      padding: 'var(--dim-space-600)',
+      paddingTop: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)', paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)',
       gap: 'var(--dim-space-400)',
       ...style,
     }}
@@ -471,7 +485,7 @@ const TemplateCard = ({ tpl, selected, onClick, style }) => {
            border + a 1px inset box-shadow ring (layout-neutral). */
         border: `var(--dim-stroke-100) solid ${selected ? 'var(--border-brandPrimary-default, #007549)' : 'var(--border-brandPrimary-quaternary)'}`,
         borderRadius: 'var(--dim-radius-500)',
-        padding: 'var(--dim-space-600)',
+        paddingTop: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)', paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)',
         boxShadow: selected
           ? 'inset 0 0 0 var(--dim-stroke-100) var(--border-brandPrimary-default, #007549), var(--shadow-brand-drop-bottom-400)'
           : lifted ? 'var(--shadow-brand-drop-bottom-400)' : 'var(--shadow-card)',
@@ -760,13 +774,52 @@ const CoverCard = ({ cover, selected, onClick, style }) => {
         ...(style || {}),
       }}
     >
-      <img
-        src={cover.image}
-        alt={cover.label}
-        draggable={false}
-        className='block w-full h-full'
-        style={{ objectFit: 'cover', borderRadius: 'inherit' }}
-      />
+      {cover.official ? (
+        <span
+          className='flex flex-col items-center justify-center w-full h-full'
+          style={{
+            gap: 'var(--dim-space-150)',
+            background: 'var(--surface-card-100)',
+            borderRadius: 'inherit',
+          }}
+        >
+          <img
+            src={cover.logo}
+            alt=''
+            aria-hidden
+            draggable={false}
+            style={{ height: '46%', width: 'auto', objectFit: 'contain', display: 'block' }}
+          />
+          <span
+            style={{
+              color: 'var(--text-content-default)',
+              fontFamily: 'var(--type-family-heading-graphic2)',
+              fontSize: 'var(--type-size-xs)',
+              lineHeight: 1.3,
+            }}
+          >
+            {cover.org}
+          </span>
+          <span
+            style={{
+              color: 'var(--text-content-tertiary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+              lineHeight: 1.3,
+            }}
+          >
+            {cover.orgSub}
+          </span>
+        </span>
+      ) : (
+        <img
+          src={cover.image}
+          alt={cover.label}
+          draggable={false}
+          className='block w-full h-full'
+          style={{ objectFit: 'cover', borderRadius: 'inherit' }}
+        />
+      )}
       {selected && (
         <span
           aria-hidden
@@ -801,7 +854,7 @@ const UploadDropzone = ({ onFile, style }) => {
         background: 'var(--surface-formbuilder-default, #f4fbf8)',
         borderRadius: 'var(--dim-radius-200)',
         gap: 'var(--dim-space-200)',
-        padding: 'var(--dim-space-600)',
+        paddingTop: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)', paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)',
         color: 'var(--text-formbuilder-text, #007549)',
         cursor: 'pointer',
         transition: 'border-color 0.18s ease',
@@ -1170,7 +1223,7 @@ export default function CreateConsentFormPage() {
           />
         )}
       >
-        <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-400)', gap: 'var(--dim-space-400)', paddingBottom: 'var(--dim-size-1800, 96px)' }}>
+        <div className='flex flex-col flex-1 min-w-0' style={{ paddingTop: 'var(--dim-space-400)', paddingRight: 'var(--dim-space-400)', paddingLeft: 'var(--dim-space-400)', gap: 'var(--dim-space-400)', paddingBottom: 'var(--dim-size-1800, 96px)' }}>
           {step === 0 && (
             <StepBasics
               template={template} setTemplate={setTemplate} applyTemplate={applyTemplate}
@@ -1212,6 +1265,7 @@ export default function CreateConsentFormPage() {
                 name={name} code={code} type={type} version={version} ttl={ttl}
                 docTitle={docTitle} sections={sections} patientFields={patientFields} allowESign={allowESign}
                 signatures={signatures}
+                intro={intro}
                 note={note}
                 fromVersion={prefill?.fromVersion}
                 versionDiff={versionDiff}
@@ -1228,7 +1282,7 @@ export default function CreateConsentFormPage() {
             background: 'var(--surface-card-100)',
             borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
             boxShadow: 'var(--shadow-brand-drop-top-100)',
-            padding: 'var(--dim-space-300) var(--dim-space-400)',
+            paddingTop: 'var(--dim-space-300)', paddingRight: 'var(--dim-space-400)', paddingBottom: 'var(--dim-space-300)', paddingLeft: 'var(--dim-space-400)',
             gap: 'var(--dim-space-300)',
           }}
         >
@@ -1380,9 +1434,18 @@ function StepBasics(props) {
       ) : null}
 
       <SectionCard style={coverCardStyle}>
-        <CardHeading title='เลือกหน้าปกแบบฟอร์ม' subtext='เป็นแม่แบบเบื้องต้น ซึ่งสามารถแก้ไขได้ภายหลัง' badge={`${COVERS.length} หน้าปก`} />
+        <CardHeading title='เลือกหน้าปกแบบฟอร์ม' subtext='เป็นแม่แบบเบื้องต้น ซึ่งสามารถแก้ไขได้ภายหลัง' badge={`${COVERS.length + 1} หน้าปก`} />
         <CardCarousel>
           <UploadDropzone key='upload' onFile={handleCoverFile} style={{ flex: CARD_BASIS }} />
+          {/* หน้าปกราชการมาก่อนภาพประกอบสต็อก — เป็นตัวเลือกที่ถูกต้องสำหรับ
+              เอกสารที่ออกในนามสำนักอนามัย (มติผู้ใช้ 25 ส.ค. 69) */}
+          <CoverCard
+            key='official'
+            cover={OFFICIAL_COVER}
+            selected={cover === 'official'}
+            onClick={() => setCover('official')}
+            style={{ flex: CARD_BASIS }}
+          />
           {customCover && (
             <CoverCard
               key='custom'
@@ -1623,7 +1686,7 @@ const SectionFormatToolbar = ({
     className='flex flex-col w-full min-w-0'
     style={{
       gap: 'var(--dim-space-200, 8px)',
-      padding: 'var(--dim-space-200, 8px)',
+      paddingTop: 'var(--dim-space-200, 8px)', paddingRight: 'var(--dim-space-200, 8px)', paddingBottom: 'var(--dim-space-200, 8px)', paddingLeft: 'var(--dim-space-200, 8px)',
       border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default)',
       borderRadius: 'var(--dim-radius-200, 8px)',
       background: 'var(--surface-card-100)',
@@ -1769,11 +1832,16 @@ function StepContent(props) {
                 onDragEnd={resetDrag}
                 onFocusCapture={() => setFormatSectionId(s.id)}
                 className='flex flex-col'
+                /* ระยะระหว่างแถวในการ์ดข้อ = 24px (มติผู้ใช้ 25 ส.ค. 69) —
+                   32px ทำให้การ์ดสูงจนเห็นได้ทีละข้อเดียวบนจอ 13" */
                 style={{
-                  gap: 'var(--dim-space-800, 32px)',
+                  gap: 'var(--dim-space-600, 24px)',
                   border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
                   borderRadius: 'var(--dim-radius-400)',
-                  padding: 'var(--dim-space-400)',
+                  paddingTop: 'var(--dim-space-400)',
+                  paddingRight: 'var(--dim-space-400)',
+                  paddingBottom: 'var(--dim-space-400)',
+                  paddingLeft: 'var(--dim-space-400)',
                   background: 'var(--surface-neutral-quaternary, #F9FBFB)',
                   opacity: dragIdx === i ? 0.45 : 1,
                   transition: 'opacity 120ms ease',
@@ -1845,10 +1913,10 @@ function StepContent(props) {
                 style={{
                   paddingLeft: SECTION_BODY_INDENT,
                   gridTemplateColumns: 'minmax(0, 1fr)',
-                  rowGap: 'var(--dim-space-800, 32px)',
+                  rowGap: 'var(--dim-space-600, 24px)',
                 }}
               >
-                <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-800, 32px)' }}>
+                <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-600, 24px)' }}>
                   <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
                     <SuggestibleTextarea
                       voice label='รายละเอียด' required
@@ -1995,6 +2063,10 @@ const ConsentChoiceRadios = ({ value = '', name, compact }) => {
 
 export function StepReview({
   name, code, type, version, ttl, docTitle, sections, patientFields, allowESign, note, reviewStepStyle,
+  /* ข้อความนำของเอกสาร (rich text จาก step 2) — preview ต้องมีข้อมูลครบตามที่
+     กรอกไว้จริง (มติผู้ใช้ 25 ส.ค. 69) ของเดิม `intro` ค้างอยู่ที่ step 2
+     ไม่ได้ถูกส่งมาที่นี่เลย ผู้สร้างฟอร์มจึงไม่มีทางเห็นก่อนเผยแพร่ */
+  intro = '',
   /* ผู้ลงนามที่เลือกไว้ — preview ต้องมีช่องเซ็นเท่าจำนวนที่เลือก
      (มติผู้ใช้ 25 ส.ค. 69) ไม่ใช่กล่องเดียวตายตัว */
   signatures,
@@ -2020,6 +2092,22 @@ export function StepReview({
   const Divider = () => (
     <div style={{ height: 'var(--dim-stroke-100)', background: 'var(--border-brandPrimary-quaternary)' }} />
   );
+
+  /* ข้อความนำเป็น rich text — ต้อง sanitize ก่อนเสมอ ห้ามยัด innerHTML ดิบ */
+  const introHtml = sanitizeRichText(intro);
+  const hasIntro = Boolean(richTextToPlain(intro).trim());
+  const IntroBlock = ({ compact }) => (hasIntro ? (
+    <div
+      className='mih-consent-preview-intro min-w-0'
+      style={{
+        color: 'var(--text-content-secondary)',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: compact ? 11 : 'var(--type-size-sm)',
+        lineHeight: 1.6,
+      }}
+      dangerouslySetInnerHTML={{ __html: introHtml }}
+    />
+  ) : null);
 
   const Clause = ({ index, title: ct, detail, detailFormat, compact, clauseId, lite }) => (
     <div className='flex flex-col min-w-0'>
@@ -2101,7 +2189,8 @@ export function StepReview({
 
         <ColumnHeading>ข้อความยินยอม</ColumnHeading>
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-600)' }}>
-          {filledSections.length === 0 ? (
+          <IntroBlock />
+          {filledSections.length === 0 && !hasIntro ? (
             <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>ยังไม่มีข้อความยินยอม</span>
           ) : previewSections.map((s, i) => (
             <Clause key={s.id || `clause-${i}`} index={i + 1} title={s.title} detail={s.detail} detailFormat={s.detailFormat} clauseId={s.id} lite={stackLayout} />
@@ -2132,7 +2221,7 @@ export function StepReview({
                 background: 'var(--surface-formbuilder-default, #F4FBF8)',
                 borderRadius: 'var(--dim-radius-200)',
                 gap: 'var(--dim-space-200)',
-                padding: 'var(--dim-space-600)',
+                paddingTop: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)', paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)',
                 color: 'var(--text-formbuilder-subtext, #858C92)',
               }}
             >
@@ -2148,7 +2237,7 @@ export function StepReview({
             background: 'var(--surface-card-200, #FDFDFD)',
             border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
             borderRadius: 'var(--dim-radius-400)',
-            padding: 'var(--dim-space-400)',
+            paddingTop: 'var(--dim-space-400)', paddingRight: 'var(--dim-space-400)', paddingBottom: 'var(--dim-space-400)', paddingLeft: 'var(--dim-space-400)',
             gap: 'var(--dim-space-100)',
             color: 'var(--text-content-secondary)',
           }}
@@ -2175,7 +2264,7 @@ export function StepReview({
           <div className='flex-1' />
           <span
             className='inline-flex items-center'
-            style={{ gap: 'var(--dim-space-100)', padding: '2px var(--dim-space-200)', borderRadius: 'var(--dim-radius-full)', background: 'var(--surface-statussummarycard-positive, #D1F6EE)', color: 'var(--text-statussummarycard-positive-number, #196C65)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}
+            style={{ gap: 'var(--dim-space-100)', paddingTop: '2px', paddingRight: 'var(--dim-space-200)', paddingBottom: '2px', paddingLeft: 'var(--dim-space-200)', borderRadius: 'var(--dim-radius-full)', background: 'var(--surface-statussummarycard-positive, #D1F6EE)', color: 'var(--text-statussummarycard-positive-number, #196C65)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)' }}
           >
             <span style={{ width: 6, height: 6, borderRadius: 'var(--dim-radius-full)', background: 'currentColor' }} />
             Live
@@ -2190,26 +2279,27 @@ export function StepReview({
             {/* app bar */}
             <div
               className='flex items-center shrink-0'
-              style={{ gap: 'var(--dim-space-200)', padding: '40px var(--dim-space-400) var(--dim-space-300)', borderBottom: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)' }}
+              style={{ gap: 'var(--dim-space-200)', paddingTop: '40px', paddingRight: 'var(--dim-space-400)', paddingBottom: 'var(--dim-space-300)', paddingLeft: 'var(--dim-space-400)', borderBottom: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)' }}
             >
               <Icon name='arrow_back_ios_new' size={16} color='var(--text-content-secondary)' />
               <span style={{ flex: 1, textAlign: 'center', color: 'var(--text-content-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)' }}>ใบยินยอม</span>
               <span style={{ width: 16 }} />
             </div>
             {/* scrollable doc */}
-            <div className='flex flex-col scrollbar-thin' style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 'var(--dim-space-400)', gap: 'var(--dim-space-400)' }}>
-              <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)', padding: 'var(--dim-space-300)', borderRadius: 'var(--dim-radius-200)', background: 'var(--surface-brandPrimary-quaternary)' }}>
+            <div className='flex flex-col scrollbar-thin' style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingTop: 'var(--dim-space-400)', paddingRight: 'var(--dim-space-400)', paddingBottom: 'var(--dim-space-400)', paddingLeft: 'var(--dim-space-400)', gap: 'var(--dim-space-400)' }}>
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)', paddingTop: 'var(--dim-space-300)', paddingRight: 'var(--dim-space-300)', paddingBottom: 'var(--dim-space-300)', paddingLeft: 'var(--dim-space-300)', borderRadius: 'var(--dim-radius-200)', background: 'var(--surface-brandPrimary-quaternary)' }}>
                 <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)', lineHeight: 1.4 }}>{title}</span>
                 <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 11 }}>{code || 'PH-001'} · {version || 'V1.0'}</span>
               </div>
-              {filledSections.length === 0 ? (
+              <IntroBlock compact />
+              {filledSections.length === 0 && !hasIntro ? (
                 <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 11 }}>ยังไม่มีข้อความยินยอม</span>
               ) : filledSections.slice(0, 6).map((s, i) => (
                 <Clause key={s.id} index={i + 1} title={s.title} detail={s.detail} detailFormat={s.detailFormat} compact clauseId={s.id} />
               ))}
             </div>
             {/* sticky confirm */}
-            <div className='shrink-0' style={{ padding: 'var(--dim-space-300) var(--dim-space-400)', borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)' }}>
+            <div className='shrink-0' style={{ paddingTop: 'var(--dim-space-300)', paddingRight: 'var(--dim-space-400)', paddingBottom: 'var(--dim-space-300)', paddingLeft: 'var(--dim-space-400)', borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)' }}>
               {/* ตัวอย่างในเครื่องมือถือ — ปุ่มกดไม่ได้ (ดูเหมือนของจริงแต่ inert) */}
               <BrandButton
                 variant='fill'
@@ -2549,7 +2639,8 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
                 <StepReview
                   name={name} code={code} type={type} version={version} ttl={ttl}
                   docTitle={docTitle} sections={sections} patientFields={patientFields} allowESign={allowESign}
-                signatures={signatures}
+                  signatures={signatures}
+                  intro={intro}
                   note={note}
                   fromVersion={prefill?.fromVersion}
                   versionDiff={versionDiff}

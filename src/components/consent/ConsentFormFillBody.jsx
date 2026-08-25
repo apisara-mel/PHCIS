@@ -109,6 +109,12 @@ export default function ConsentFormFillBody({
       (มติผู้ใช้ 25 ส.ค. 69) เดิมเป็น Alert เต็มความกว้างเหนือฟอร์ม
       ทั้งที่บอกสถานะสั้น ๆ แค่บรรทัดเดียว */
   identityBadge = null,
+  /** โหมด "นำเข้าจากเอกสารกระดาษ" — ลายมือชื่ออยู่บนไฟล์ต้นฉบับที่อัปโหลด
+      จึงไม่ต้องเซ็นซ้ำในระบบ และไม่นับเป็นเงื่อนไขของปุ่มบันทึก
+      (มติผู้ใช้ 25 ส.ค. 69) */
+  hideSignature = false,
+  /** ช่องอัปโหลดไฟล์ต้นฉบับ — ผู้เรียกส่ง JSX เข้ามาวางใต้ข้อมูลผู้ป่วย */
+  uploadSlot = null,
 }) {
   const meta = useMemo(() => getRegistrationConsentForm(formId), [formId]);
 
@@ -149,8 +155,9 @@ export default function ConsentFormFillBody({
       return String(fieldValues[f.key] || '').trim() !== '';
     });
     const clausesOk = meta.clauses.every((c) => answers[c.id] === 'yes' || answers[c.id] === 'no');
-    return Boolean(fieldsOk && clausesOk && signatureRoles.every((r) => signatures[r.key]));
-  }, [answers, fieldValues, meta.clauses, meta.patientFields, signatures, signatureRoles]);
+    const signaturesOk = hideSignature || signatureRoles.every((r) => signatures[r.key]);
+    return Boolean(fieldsOk && clausesOk && signaturesOk);
+  }, [answers, fieldValues, meta.clauses, meta.patientFields, signatures, signatureRoles, hideSignature]);
 
   /* ปุ่มบันทึกอยู่นอก component นี้ — ส่ง submit ให้ผู้เรียกถือไว้ · ไม่ใส่
      onSubmit/onStateChange ใน deps เพราะ callback มักเป็น inline function
@@ -158,10 +165,15 @@ export default function ConsentFormFillBody({
   useEffect(() => {
     onStateChange?.({
       ready: canSave,
+      /* คืน payload ให้ผู้เรียกด้วย — ผู้เรียกที่ต้องส่งข้อมูลเอกสารไปพร้อมกับ
+         ข้อมูลอื่นในคลิกเดียว (เช่น popup อัปโหลดแบบฟอร์มกระดาษ) อ่านจาก
+         onSubmit ไม่ทันใน tick เดียวกัน */
       submit: () => {
-        if (!canSave) return;
+        if (!canSave) return null;
         const outcome = Object.values(answers).some((a) => a === 'no') ? 'declined' : 'signed';
-        onSubmit?.({ formId: meta.id, meta, fullName, nationalId, hn, answers, outcome, signature, signatures });
+        const payload = { formId: meta.id, meta, fullName, nationalId, hn, answers, outcome, signature, signatures };
+        onSubmit?.(payload);
+        return payload;
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -326,8 +338,9 @@ export default function ConsentFormFillBody({
         </section>
 
         <section className='flex flex-col items-center' style={{ ...sectionCardStyle, gap: 'var(--dim-space-400)' }}>
-          <h2 style={sectionTitleStyle}>ลายมือชื่อ</h2>
-          {signatureRoles.map((role) => (
+          <h2 style={sectionTitleStyle}>{hideSignature ? 'เอกสารต้นฉบับที่ลงนามแล้ว' : 'ลายมือชื่อ'}</h2>
+          {hideSignature ? uploadSlot : null}
+          {(hideSignature ? [] : signatureRoles).map((role) => (
             <div key={role.key} className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
               <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-secondary)' }}>
                 {role.label}
@@ -367,7 +380,9 @@ export default function ConsentFormFillBody({
               fontWeight: 'var(--type-weight-regular)',
               lineHeight: 1.5,
             }}>
-              {meta.signatureNote || 'เอกสารนี้มีอายุ 365 วัน นับจากวันที่ลงนาม'}
+              {hideSignature
+                ? 'ลายมือชื่อผู้ลงนามอยู่บนเอกสารต้นฉบับที่แนบไว้ — ไม่ต้องเซ็นซ้ำในระบบ'
+                : (meta.signatureNote || 'เอกสารนี้มีอายุ 365 วัน นับจากวันที่ลงนาม')}
             </span>
           </div>
         </section>

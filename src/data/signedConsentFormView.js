@@ -71,7 +71,13 @@ export const resolveSignedPatientFields = (hn, fallbackName = '') => {
     fullName,
     hn: resolved.hn || hn || '—',
     doctor: roster?.attendingDoctor || MOCK_DOCTORS[seed % MOCK_DOCTORS.length],
-    birth: roster?.birthDateTh || MOCK_BIRTHS[seed % MOCK_BIRTHS.length],
+    /* `mrPatients` เก็บวันเกิดในฟิลด์ `dob` + `age` — ของเดิมอ่าน `birthDateTh`
+       ซึ่งไม่มีอยู่จริง ทุกใบจึงตกไปใช้ MOCK_BIRTHS แสดงวันเกิดผิดคน
+       (มติผู้ใช้ 25 ส.ค. 69) วันเกิดบนใบยินยอมคือตัวระบุตัวตนสำรองของ
+       เจ้าของข้อมูล จึงต้องมาจากเวชระเบียนเท่านั้น */
+    birth: roster?.dob
+      ? [roster.dob, roster.age ? `อายุ ${roster.age} ปี` : ''].filter(Boolean).join(' · ')
+      : MOCK_BIRTHS[seed % MOCK_BIRTHS.length],
     nationalId: nationalIdRaw ? formatNationalId(nationalIdRaw) : '—',
   };
 };

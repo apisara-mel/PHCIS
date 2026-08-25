@@ -1357,7 +1357,7 @@ export default function ConsentManagementPage() {
         onClose={() => setVerifyFor(null)}
         onVerified={handleVerified}
         actionLabel={
-          verifyFor?.next === 'paper' ? 'บันทึกจากเอกสารกระดาษ'
+          verifyFor?.next === 'paper' ? 'อัปโหลดแบบฟอร์มกระดาษ'
             : verifyFor?.next === 'edit' ? 'แก้ไขความยินยอมรายข้อ'
               : 'เพิกถอนความยินยอม'
         }

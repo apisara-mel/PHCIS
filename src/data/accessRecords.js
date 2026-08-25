@@ -3,6 +3,7 @@
    which CTA is enabled) · row data. Local mock; UI copy is Thai. */
 
 import { resolveConsentPatient } from '@/data/consentPatientDisplay';
+import { DATA_SCOPE_VALUES } from '@/data/dataScopeCatalog';
 import { ACCESS_TYPE_DISPLAY_LABEL } from '@/pages/consent/AccessRequestForm';
 import { STAFF_AVATAR } from '@/pages/appointment/appointmentStaffAvatars';
 import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
@@ -206,6 +207,12 @@ export const formatAccessCreatedTime = (time) => {
 };
 
 /* สัดส่วนสถานะ mock ให้ summary / แท็บดูสมจริง (รวม 124 รายการ) */
+/* ขอบเขตข้อมูลที่ขอเข้าถึง — ชุดเดียวกับ SCOPE_OPTIONS ในฟอร์มสร้างคำขอ
+   (AccessRequestForm) mock ตัวเก่าไม่มีฟิลด์นี้ ทั้งที่ฟอร์มจริงบังคับให้เลือก
+   จึงเติมให้ record ที่ generate ขึ้นมาด้วย ไม่งั้นคอลัมน์ "วัตถุประสงค์" ใน
+   ประวัติคำขอจะไม่มีข้อมูลจากตอนสร้างมาแสดง (มติผู้ใช้ 25 ส.ค. 69) */
+const DATA_SCOPES = DATA_SCOPE_VALUES;
+
 const ACCESS_STATUS_PLAN = [
   { status: 'รออนุมัติ', count: 18, momThis: 8, momPrev: 5 },
   { status: 'อนุมัติแล้ว', count: 58, activeCount: 52, momThis: 11, momPrev: 14 },
@@ -269,6 +276,11 @@ export const ACCESS_RECORDS = (() => {
     hn,
     patientName: patient?.name || '',
     purpose: PURPOSES[(i + spread) % PURPOSES.length],
+    /* 1–3 หมวด เลือกแบบกระจายไม่ให้ทุกแถวเหมือนกัน */
+    /* 1-3 หมวดต่อคำขอ เดินด้วย stride 5 บนลิสต์ 19 หมวด (co-prime) จึงไม่ซ้ำ
+       กันเองในแถวเดียว และคำขอแต่ละใบได้หมวดต่างกันจริง */
+    scopes: Array.from({ length: 1 + ((i + spread) % 3) }, (_, k) =>
+      DATA_SCOPES[((i * 7 + spread + k * 5) % DATA_SCOPES.length + DATA_SCOPES.length) % DATA_SCOPES.length]),
     reason: REASONS[i % REASONS.length],
     accessType: 'patient_consent',
     accessTypeLabel: ACCESS_TYPE_DISPLAY_LABEL.patient_consent,

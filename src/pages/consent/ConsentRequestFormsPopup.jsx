@@ -371,7 +371,8 @@ const ConsentRequestFormsPopup = ({
             event={toSignedFormViewEventFromRecord(viewCard.record)}
             patientHn={viewCard.record.hn || hn || ''}
             patientName={viewCard.record.name || fillPatient?.fullName || name || ''}
-            showFormHeader
+            /* หัวแบบฟอร์มซ้ำกับหัวข้อ popup (มติผู้ใช้ 25 ส.ค. 69) */
+            showFormHeader={false}
           />
         )}
 

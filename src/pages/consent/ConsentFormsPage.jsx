@@ -13,6 +13,7 @@ import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Tooltip from '@/components/tooltip/Tooltip';
 import BrandButton from '@/components/button/BrandButton';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import Icon from '@/components/icons/Icon';
@@ -33,9 +34,11 @@ import { downloadConsentFormPdf } from '@/data/consentFormDownload';
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
 import { ConsentFormEditPopup } from '@/pages/consent/CreateConsentFormPage';
+import { PaperConsentRecordPopup } from '@/pages/consent/consentWorkflowPopups';
+import { getConsentRecords, patchConsentRecord, subscribeConsentStore } from '@/data/consentWorkflowStore';
 import { ConsentFormViewPopup } from '@/pages/consent/ConsentFormViewPopup';
 import FormAccessViewPopup from '@/components/consent/FormAccessViewPopup';
-import { CONSENT_SCOPE_DEPTS, resolveRecordPositions } from '@/data/consentFormScopes';
+import { CONSENT_POSITION_OPTIONS, consentPositionLabel, resolveRecordPositions } from '@/data/consentFormScopes';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 
 /* PHCIS | Consent — แบบฟอร์มความยินยอม (Figma 291:113045 · flow 277:150901).
@@ -107,8 +110,8 @@ const AccessCell = ({ row, onView }) => (
   </NeutralSubdueButton>
 );
 
-/* Cover illustration baked from Figma (PHCIS | Consent 356:111486). */
-const GRID_COVER = '/illustration/consent/form-cover-01.png';
+/* ไม่มีรูปหน้าปกบนการ์ดแล้ว (มติผู้ใช้ 25 ส.ค. 69) — ภาพประกอบเดียวกันทุกใบ
+   จึงไม่ช่วยแยกแยะ แถมกินพื้นที่ 132px ทำให้เห็นชื่อฟอร์มได้น้อยลง */
 
 
 /* Grid-view card (Figma 336:170901) — cover illustration + type/version badge,
@@ -120,9 +123,6 @@ const FormGridCard = ({ row, onView, onEdit }) => (
     className='flex flex-col'
     style={{ width: '100%', background: 'var(--surface-card-100)', border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)', borderRadius: 'var(--dim-radius-400)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}
   >
-    <div style={{ width: '100%', height: 132, background: 'var(--surface-brandPrimary-quaternary)' }}>
-      <img src={GRID_COVER} alt='' aria-hidden draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-    </div>
     <div className='flex flex-col' style={{ padding: 'var(--dim-space-400)', gap: 'var(--dim-space-300)' }}>
       <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100)' }}>
         <ColorfulBadge style='orange' size='small' hierarchy='secondary' width='hug'>{row.version.replace(/^V\s*/, '')}</ColorfulBadge>
@@ -149,12 +149,11 @@ export default function ConsentFormsPage() {
   });
   const [search, setSearch] = useState('');
   const [filterGroup, setFilterGroup] = useState('');
-  const [filterDept, setFilterDept] = useState('');
   const [filterCreator, setFilterCreator] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDate, setFilterDate] = useState({ quick: 'thismonth' });
 
-  const filtersActive = search.trim() !== '' || !!filterGroup || !!filterDept || !!filterCreator || !!filterStatus || (filterDate?.quick && filterDate.quick !== 'thismonth');
+  const filtersActive = search.trim() !== '' || !!filterGroup || !!filterCreator || !!filterStatus || (filterDate?.quick && filterDate.quick !== 'thismonth');
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
     setSearch(''); setFilterGroup(''); setFilterDept(''); setFilterCreator(''); setFilterStatus(''); setFilterDate({ quick: 'thismonth' }); setPage(1);
   });
@@ -173,6 +172,11 @@ export default function ConsentFormsPage() {
   const [statusOverrides, setStatusOverrides] = useState({});
   const [statusConfirm, setStatusConfirm] = useState(null);
   const [toast, setToast] = useState(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  /* ป็อปอัปนี้ทำงานกับ "ทะเบียนความยินยอมรายคน" ไม่ใช่ทะเบียนแบบฟอร์มของหน้านี้
+     — คนละชุดข้อมูลกัน ต้องดึงจาก consentWorkflowStore เอง */
+  const [consentRows, setConsentRows] = useState(() => getConsentRecords());
+  useEffect(() => subscribeConsentStore(() => setConsentRows(getConsentRecords())), []);
   const [draftRev, setDraftRev] = useState(0);
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
     useSearchHistory('mih:primarysearch-history:consent-forms');
@@ -232,15 +236,19 @@ export default function ConsentFormsPage() {
       : allRecords.filter((r) => (CONSENT_FORM_STATUS[r.status] || {}).tab === t.value).length,
   })), [allRecords]);
 
-  const groupOptions = useMemo(() => [
-    { value: '', label: 'ทุกบทบาท' },
-    ...[...new Set(allRecords.flatMap((record) => resolveRecordPositions(record)))]
-      .map((role) => ({ value: role, label: role })),
-  ], [allRecords]);
-  const deptOptions = useMemo(() => [
-    { value: '', label: 'ทุกแผนก' },
-    ...CONSENT_SCOPE_DEPTS.map((d) => ({ value: d, label: d })),
-  ], []);
+  /* บทบาท = ตำแหน่งใน CONSENT_POSITION_OPTIONS เท่านั้น (มติผู้ใช้ 25 ส.ค. 69)
+     ของเดิมยัดค่าที่ resolveRecordPositions คืนมาทั้งหมด ซึ่งบางระเบียนเก็บ
+     ชื่อ "แผนก" ปนมาด้วย ("งานเภสัชกรรม", "งานการพยาบาล", …) ตัวกรองบทบาท
+     จึงมีรายการที่ไม่ใช่บทบาทโผล่ขึ้นมา */
+  const groupOptions = useMemo(() => {
+    const known = new Set(allRecords.flatMap((record) => resolveRecordPositions(record)));
+    return [
+      { value: '', label: 'ทุกบทบาท' },
+      ...CONSENT_POSITION_OPTIONS
+        .filter((o) => known.has(o.value) || known.has(o.label))
+        .map((o) => ({ value: o.value, label: o.label })),
+    ];
+  }, [allRecords]);
   const statusOptions = useMemo(() => [
     { value: '', label: 'ทุกสถานะ' },
     ...Object.keys(CONSENT_FORM_STATUS).map((s) => ({ value: s, label: s })),
@@ -254,18 +262,19 @@ export default function ConsentFormsPage() {
     const q = search.trim().toLowerCase();
     return allRecords.filter((r) => {
       const meta = CONSENT_FORM_STATUS[r.status] || {};
-      const scopes = recordScopes(r);
       return (
         (activeTab === 'all' || meta.tab === activeTab) &&
-        (!filterGroup || resolveRecordPositions(r).includes(filterGroup)) &&
-        (!filterDept || scopes.some((s) => s.dept === filterDept)) &&
+        (!filterGroup || (() => {
+          const list = resolveRecordPositions(r);
+          return list.includes(filterGroup) || list.includes(consentPositionLabel(filterGroup));
+        })()) &&
         (!filterStatus || r.status === filterStatus) &&
         (!filterCreator || (r.updatedBy || r.creator) === filterCreator) &&
         matchesDateFilter(r.createdDate, filterDate) &&
         (!q || r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q) || (r.group || '').toLowerCase().includes(q))
       );
     });
-  }, [activeTab, search, filterGroup, filterDept, filterStatus, filterCreator, filterDate, allRecords]);
+  }, [activeTab, search, filterGroup, filterStatus, filterCreator, filterDate, allRecords]);
 
   const handleSort = (key) => setSortConfig((prev) => (
     prev.key === key
@@ -500,10 +509,22 @@ export default function ConsentFormsPage() {
       brandTitle='ระบบจัดการความยินยอม'
       breadcrumb={breadcrumb}
       title='แบบฟอร์มความยินยอม'
+      /* สองทางเข้าของทะเบียนแบบฟอร์ม (มติผู้ใช้ 25 ส.ค. 69) — สร้างใหม่ผ่าน
+         wizard หรือนำใบยินยอมกระดาษที่ใช้อยู่แล้วเข้าระบบเป็นร่าง */
       actions={(
-        <BrandButton variant='fill' size='md' leadingIcon='add' onClick={() => navigate.push('/consent/forms/new')}>
-          สร้างแบบฟอร์มใหม่
-        </BrandButton>
+        <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <BrandSubdueButton
+            variant='outline'
+            size='md'
+            leadingIcon='upload_file'
+            onClick={() => setUploadOpen(true)}
+          >
+            อัปโหลดแบบฟอร์มความยินยอม
+          </BrandSubdueButton>
+          <BrandButton variant='fill' size='md' leadingIcon='add' onClick={() => navigate.push('/consent/forms/new')}>
+            สร้างแบบฟอร์มใหม่
+          </BrandButton>
+        </div>
       )}
       headerInfo={(
         <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
@@ -542,7 +563,6 @@ export default function ConsentFormsPage() {
           <div className='w-full flex items-start' style={{ gap: 'var(--dim-space-300)' }}>
             <div className='flex items-center flex-wrap min-w-0 flex-1' style={{ gap: 'var(--dim-space-200)' }}>
               <FilterDropdown prefix='บทบาท:' options={groupOptions} value={filterGroup} onChange={(v) => { setFilterGroup(v); setPage(1); }} />
-              <FilterDropdown prefix='แผนก:' options={deptOptions} value={filterDept} onChange={(v) => { setFilterDept(v); setPage(1); }} />
               <FilterDropdown prefix='ผู้ที่อัปเดตล่าสุด:' options={creatorOptions} value={filterCreator} onChange={(v) => { setFilterCreator(v); setPage(1); }} />
               {activeTab === 'all' && (
                 <FilterDropdown prefix='สถานะ:' options={statusOptions} value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1); }} />
@@ -704,6 +724,33 @@ export default function ConsentFormsPage() {
       }}
       onCancel={() => setStatusConfirm(null)}
       onClose={() => setStatusConfirm(null)}
+    />
+
+    {/* อัปโหลดแบบฟอร์มกระดาษ — ตัวเดียวกับในหน้าจัดการความยินยอม
+        (มติผู้ใช้ 25 ส.ค. 69) ผลลัพธ์ไปโผล่ที่ทะเบียนความยินยอม ไม่ใช่ที่นี่ */}
+    <PaperConsentRecordPopup
+      open={uploadOpen}
+      records={consentRows}
+      onClose={() => setUploadOpen(false)}
+      onSave={({ record: selectedRecord, fileName, effectiveDate, reason, storageType, verifiedBy, document }) => {
+        setUploadOpen(false);
+        if (!selectedRecord) return;
+        patchConsentRecord(selectedRecord.id, {
+          status: document?.outcome === 'declined' ? 'ไม่ยินยอม' : 'ยินยอมแล้ว',
+          signChannel: 'เอกสารกระดาษ',
+          signedDate: effectiveDate,
+          storageType,
+          verifiedBy,
+          originalFile: fileName,
+          clauseAnswers: document?.answers || null,
+          signature: null,
+        });
+        setToast({
+          id: Date.now(),
+          variant: 'success',
+          message: `บันทึกความยินยอมจากเอกสารกระดาษของ ${selectedRecord.name} แล้ว (${fileName}) · เหตุผล: ${reason.slice(0, 40)}${reason.length > 40 ? '…' : ''}`,
+        });
+      }}
     />
 
     <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />

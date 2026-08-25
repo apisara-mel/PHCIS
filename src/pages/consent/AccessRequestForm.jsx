@@ -34,6 +34,8 @@ import {
 import { CONSENT_FORM_RECORDS, CONSENT_FORM_STATUS } from '@/data/consentFormRecords';
 import PHCIS_CURRENT_USER from '@/data/phcisCurrentUser';
 import StaffProfileAvatar from '@/components/appointment/StaffProfileAvatar';
+import Checkbox from '@/components/checkbox/Checkbox';
+import { DATA_SCOPE_GROUPS, DATA_SCOPE_VALUES } from '@/data/dataScopeCatalog';
 
 /* Shared ด.1.1.17.1 form — อัปโหลด/ถ่ายภาพแบบฟอร์มขอเข้าถึง → mock-OCR → ตรวจแก้ → ส่งคำขอ.
    Used by RequestFormAccessPage (full page), ScanImportPopup, and
@@ -85,8 +87,7 @@ const PURPOSE_OPTIONS = [
   'การเบิกจ่ายค่ารักษา', 'การตรวจสอบคุณภาพ', 'การติดตามอาการ',
 ].map((p) => ({ value: p, label: p }));
 
-const SCOPE_OPTIONS = ['ประวัติการรักษา', 'ผลตรวจ Lab', 'ภาพรังสี', 'ใบสั่งยา', 'ข้อมูลสิทธิ']
-  .map((s) => ({ value: s, label: s }));
+
 
 /** ประเภทสิ่งที่ขอเข้าถึง */
 export const ACCESS_TYPE_OPTIONS = [
@@ -445,6 +446,137 @@ export default function AccessRequestForm({
     });
   }, [ready, dirty, accessType, formId, reason, reasonDetail, needsPatient, hn, fileName]);
 
+  /* การ์ดผู้ขอเป็น section แรกของฟอร์ม (มติผู้ใช้ 25 ส.ค. 69) — ของเดิมอยู่
+     ท้ายสุดในขั้นสรุป ทำให้ต้องเลื่อนจนสุดถึงจะรู้ว่าใครเป็นคนขอ */
+  /* ผู้ขอ = ผู้ใช้ที่ล็อกอินอยู่ แก้ไม่ได้อยู่แล้ว — แสดงเป็นการ์ดพื้นเขียวอ่อน
+     แทนช่องกรอกที่ disabled สองช่องซึ่งดูเหมือนต้องกรอกทั้งที่กรอกไม่ได้ */
+  const requesterCard = (
+  <div
+    className='flex items-center w-full min-w-0'
+    style={{
+      gap: 'var(--dim-space-300)',
+      paddingTop: 'var(--dim-space-300)',
+      paddingRight: 'var(--dim-space-400)',
+      paddingBottom: 'var(--dim-space-300)',
+      paddingLeft: 'var(--dim-space-400)',
+      background: 'var(--surface-brandPrimary-quaternary)',
+      border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+      borderRadius: 'var(--dim-radius-300, 10px)',
+    }}
+  >
+    {/* PHCIS_CURRENT_USER ไม่มีรูป — StaffProfileAvatar จะ fallback
+        เป็นตัวย่อจากชื่อให้เอง */}
+    <StaffProfileAvatar staff={{ name }} size={40} />
+    <div className='flex flex-col min-w-0 flex-1' style={{ gap: 'var(--dim-space-050)' }}>
+      <span
+        className='truncate'
+        style={{
+          color: 'var(--text-content-primary)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+          fontWeight: 'var(--type-weight-medium, 500)',
+          lineHeight: 1.45,
+        }}
+      >
+        {name || '—'}
+      </span>
+      <span
+        className='truncate'
+        style={{
+          color: 'var(--text-content-tertiary)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-xs)',
+          lineHeight: 1.4,
+        }}
+      >
+        {[empCode, PHCIS_CURRENT_USER.department, PHCIS_CURRENT_USER.activity]
+          .filter(Boolean).join(' · ')}
+      </span>
+    </div>
+    <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug'>ผู้ขอ</ColorfulBadge>
+  </div>
+  );
+
+  /* ขอบเขตข้อมูล: เช็กบ็อกซ์เต็มความกว้าง แบ่งซ้าย-ขวา (มติผู้ใช้ 25 ส.ค. 69)
+     dropdown เดิมซ่อนตัวเลือกไว้หลังการคลิก ทำให้ผู้ขอมองไม่เห็นว่ามีหมวด
+     "อ่อนไหว" แยกอยู่ — ซึ่งเป็นข้อมูลที่ผู้อนุมัติต้องพิจารณาเป็นรายกรณี */
+  const toggleScope = (value) => setScopes((prev) => {
+    const list = Array.isArray(prev) ? prev : [];
+    return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+  });
+  const selectedScopes = Array.isArray(scopes) ? scopes : [];
+  const allScopesPicked = selectedScopes.length === DATA_SCOPE_VALUES.length;
+
+  const scopePicker = (
+    <div className='flex flex-col items-start w-full min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
+      <div className='flex items-center justify-between w-full min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
+        <span style={LABEL_TEXT}>
+          ขอบเขตข้อมูลที่ขอเข้าถึง
+          <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}> *</span>
+        </span>
+        <BrandSubdueButton
+          variant='outline'
+          size='sm'
+          onClick={() => setScopes(allScopesPicked ? [] : [...DATA_SCOPE_VALUES])}
+        >
+          {allScopesPicked ? 'ล้างที่เลือก' : 'เลือกทุกหมวด'}
+        </BrandSubdueButton>
+      </div>
+      <div
+        className='grid w-full min-w-0'
+        style={{
+          gridTemplateColumns: 'repeat(auto-fit, minmax(var(--dim-size-2600, 384px), 1fr))',
+          gap: 'var(--dim-space-400)',
+          alignItems: 'start',
+        }}
+      >
+        {DATA_SCOPE_GROUPS.map((group) => (
+          <div
+            key={group.key}
+            className='flex flex-col min-w-0'
+            style={{
+              gap: 'var(--dim-space-200)',
+              paddingTop: 'var(--dim-space-300)',
+              paddingRight: 'var(--dim-space-400)',
+              paddingBottom: 'var(--dim-space-300)',
+              paddingLeft: 'var(--dim-space-400)',
+              background: group.sensitive
+                ? 'var(--surface-alert-warning, #FFF9F0)'
+                : 'var(--surface-neutral-quaternary)',
+              border: `var(--dim-stroke-100) solid ${group.sensitive
+                ? 'var(--border-alert-warning, #FFEDD5)'
+                : 'var(--border-card-default)'}`,
+              borderRadius: 'var(--dim-radius-300)',
+            }}
+          >
+            <span className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+              {group.sensitive ? (
+                <Icon name='lock_person' size={16} color='var(--text-warning-default, #C2410C)' />
+              ) : null}
+              <span style={{ ...LABEL_TEXT, fontWeight: 'var(--type-weight-medium, 500)' }}>
+                {group.title}
+              </span>
+            </span>
+            <span style={{ ...BODY_TEXT, fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+              {group.hint}
+            </span>
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)', marginTop: 'var(--dim-space-100)' }}>
+              {group.scopes.map((scope) => (
+                <Checkbox
+                  key={scope.value}
+                  label={scope.value}
+                  description={scope.hint}
+                  checked={selectedScopes.includes(scope.value)}
+                  onChange={() => toggleScope(scope.value)}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   const evidenceUpload = (
     <>
       <div
@@ -528,7 +660,17 @@ export default function AccessRequestForm({
 
   return (
     <>
-      <div className='flex flex-col items-start' style={{ gap: 'var(--dim-space-800, 32px)', ...FIELD_SHELL_LAYOUT }}>
+      {/* รากฟอร์มกว้างได้ถึง 960px (มติผู้ใช้ 25 ส.ค. 69) — ตารางขอบเขตข้อมูล
+          2 คอลัมน์ต้องการ ~800px ส่วนช่องกรอกอื่นยังถูก FieldShell คุมที่ 640px
+          ของมันเอง จึงไม่ยืดตาม */}
+      <div
+        className='flex flex-col items-start'
+        style={{
+          ...FIELD_SHELL_LAYOUT,
+          gap: 'var(--dim-space-800, 32px)',
+          maxWidth: 'calc(var(--dim-size-2900, 640px) + var(--dim-size-2500, 320px))',
+        }}
+      >
         {/* ประเภท → แบบฟอร์ม / ผู้รับบริการ → เหตุผล */}
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-800, 32px)' }}>
           {!fixedAccessType && (
@@ -611,6 +753,8 @@ export default function AccessRequestForm({
             </div>
           </div>
           )}
+
+          {requesterCard}
 
           {evidenceUpload}
 
@@ -836,92 +980,11 @@ export default function AccessRequestForm({
           {/* ระยะห่างระหว่างฟิลด์ในป็อปอัปต้องเท่ากันทุกช่อง (มติผู้ใช้ 25 ส.ค. 69)
               — เดิมกล่องนอกใช้ space-400 แต่กลุ่มข้างในใช้ space-300 จึงดูไม่สม่ำเสมอ */}
             <div className='flex flex-col items-start w-full' style={{ gap: 'var(--dim-space-400)' }}>
-              {/* ผู้ขอ = ผู้ใช้ที่ล็อกอินอยู่ แก้ไม่ได้อยู่แล้ว — แสดงเป็นการ์ด
-                  พื้นเขียวอ่อนแทนช่องกรอกที่ disabled และยกขึ้นเป็น section แรก
-                  (มติผู้ใช้ 25 ส.ค. 69) ช่อง disabled 2 ช่องดูเหมือนต้องกรอก
-                  ทั้งที่กรอกไม่ได้ */}
-              <div
-                className='flex items-center w-full min-w-0'
-                style={{
-                  gap: 'var(--dim-space-300)',
-                  padding: 'var(--dim-space-300) var(--dim-space-400)',
-                  background: 'var(--surface-brandPrimary-quaternary)',
-                  border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-                  borderRadius: 'var(--dim-radius-300, 10px)',
-                }}
-              >
-                {/* PHCIS_CURRENT_USER ไม่มีรูป — StaffProfileAvatar จะ fallback
-                    เป็นตัวย่อจากชื่อให้เอง */}
-                <StaffProfileAvatar staff={{ name }} size={40} />
-                <div className='flex flex-col min-w-0 flex-1' style={{ gap: 'var(--dim-space-050)' }}>
-                  <span
-                    className='truncate'
-                    style={{
-                      color: 'var(--text-content-primary)',
-                      fontFamily: 'var(--type-family-body)',
-                      fontSize: 'var(--type-size-sm)',
-                      fontWeight: 'var(--type-weight-medium, 500)',
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    {name || '—'}
-                  </span>
-                  <span
-                    className='truncate'
-                    style={{
-                      color: 'var(--text-content-tertiary)',
-                      fontFamily: 'var(--type-family-body)',
-                      fontSize: 'var(--type-size-xs)',
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {[empCode, PHCIS_CURRENT_USER.department, PHCIS_CURRENT_USER.activity]
-                      .filter(Boolean).join(' · ')}
-                  </span>
-                </div>
-                <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug'>ผู้ขอ</ColorfulBadge>
-              </div>
               <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-                {needsPatient && selectedPatient && (
-                  <div
-                    className='flex items-center w-full'
-                    style={{
-                      gap: 'var(--dim-space-200)',
-                      paddingTop: 'var(--dim-space-300)',
-                      paddingRight: 'var(--dim-space-400)',
-                      paddingBottom: 'var(--dim-space-300)',
-                      paddingLeft: 'var(--dim-space-400)',
-                      background: 'var(--surface-brandPrimary-quaternary)',
-                      border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-                      borderRadius: 'var(--dim-radius-300)',
-                    }}
-                  >
-                    <ColorfulBadge style='indigo' size='small' hierarchy='secondary'>
-                      {selectedPatient.hn}
-                    </ColorfulBadge>
-                    <span className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
-                      <span style={{
-                        ...BODY_TEXT,
-                        color: 'var(--text-content-default)',
-                        fontWeight: 'var(--type-weight-medium)',
-                      }}
-                      >
-                        {selectedPatient.label}
-                      </span>
-                      {selectedPatient.nationalId && (
-                        <span style={{
-                          ...BODY_TEXT,
-                          fontSize: 'var(--type-size-xs)',
-                          color: 'var(--text-content-tertiary)',
-                        }}
-                        >
-                          {`เลขบัตร ${selectedPatient.nationalId}`}
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                )}
-                <Select multiple selectAllLabel='เลือกทุกหมวด' label='ขอบเขตข้อมูลที่ขอเข้าถึง' required options={SCOPE_OPTIONS} value={scopes} onChange={setScopes} placeholder='เลือกหมวดข้อมูล' searchable={false} />
+                {/* ไม่มีการ์ดผู้รับบริการซ้ำตรงนี้แล้ว (มติผู้ใช้ 25 ส.ค. 69) —
+                    ผู้รับบริการคนเดียวกันแสดงอยู่ในหัวข้อ "เลือกผู้รับบริการ
+                    ที่ต้องการเข้าถึง" ด้านบนแล้ว */}
+                {scopePicker}
                 <DatePickerRange
                   label='ช่วงวันที่ต้องการเริ่มใช้สิทธิ'
                   required
