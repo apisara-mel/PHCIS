@@ -24,6 +24,7 @@ import BrandCircleSubdueIconButton from '@/components/button/BrandCircleSubdueIc
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import RadioButton from '@/components/radio/RadioButton';
 import AlertDialog from '@/components/popup/AlertDialog';
+import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import ConsentFormCancelEditPopup from '@/components/popup/ConsentFormCancelEditPopup';
 import Popup from '@/components/popup/Popup';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -171,9 +172,9 @@ const COMMON_CLAUSES = [
   { title: 'การคุ้มครองข้อมูลส่วนบุคคล', detail: 'ข้าพเจ้ายินยอมให้สถานพยาบาลเก็บรวบรวมและใช้ข้อมูลสุขภาพเพื่อการรักษาพยาบาล ภายใต้พระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล (PDPA)' },
   { title: 'สิทธิในการเพิกถอนความยินยอม', detail: 'ข้าพเจ้าทราบว่าสามารถเพิกถอนความยินยอมนี้ได้ทุกเมื่อ โดยไม่กระทบต่อสิทธิในการรับบริการอื่น ๆ' },
 ];
-const TPL = (name, lead, extra = {}) => ({ name, version: 'V 1.0', ttl: '30', leadClauses: lead, cover: 0, ...extra });
+const TPL = (name, lead, extra = {}) => ({ name, version: 'V 1.0', ttl: '30', leadClauses: lead, cover: 'official', ...extra });
 const TEMPLATE_PREFILL = {
-  data: TPL('ใบยินยอมเปิดเผยข้อมูลสุขภาพ (PDPA)', [{ title: 'การเปิดเผยข้อมูลสุขภาพ', detail: 'ข้าพเจ้ายินยอมให้เปิดเผยข้อมูลสุขภาพแก่บุคคล/หน่วยงานที่ระบุ เพื่อวัตถุประสงค์ที่กำหนดไว้' }], { ttl: '365', cover: 1 }),
+  data: TPL('ใบยินยอมเปิดเผยข้อมูลสุขภาพ (PDPA)', [{ title: 'การเปิดเผยข้อมูลสุขภาพ', detail: 'ข้าพเจ้ายินยอมให้เปิดเผยข้อมูลสุขภาพแก่บุคคล/หน่วยงานที่ระบุ เพื่อวัตถุประสงค์ที่กำหนดไว้' }], { ttl: '365' }),
 };
 
 /* หน้าปกราชการ — ตราสำนักอนามัย กรุงเทพมหานคร (มติผู้ใช้ 25 ส.ค. 69)
@@ -190,15 +191,9 @@ export const OFFICIAL_COVER = {
   orgSub: 'กรุงเทพมหานคร',
 };
 
-/* Form-cover thumbnails — MIH Consent wizard (356:111486). */
-const COVERS = Array.from({ length: 20 }, (_, i) => {
-  const n = String(i + 1).padStart(2, '0');
-  return {
-    key: `cover-${n}`,
-    label: `หน้าปกแบบฟอร์ม ${i + 1}`,
-    image: `/illustration/consent/form-cover-${n}.png`,
-  };
-});
+/* ไม่มีภาพประกอบสต็อกให้เลือกแล้ว (มติผู้ใช้ 25 ส.ค. 69) — ใบยินยอมออกในนาม
+   สำนักอนามัย หน้าปกจึงมีแบบเดียวคือตราหน่วยงาน ส่วนใครอยากใช้ภาพของตัวเอง
+   ยังอัปโหลดเองได้ผ่านช่อง "เพิ่มรูปจากคอมพิวเตอร์" */
 
 const TYPE_OPTIONS = [
   { value: 'data', label: 'ความยินยอมเปิดเผยข้อมูลสุขภาพ (PDPA)' },
@@ -319,7 +314,7 @@ const consentWizardHasUserInput = ({
   allowESign,
 }) => {
   if (template !== 'blank') return true;
-  if (cover !== 0) return true;
+  if (cover !== 'official') return true;
   if (String(name || '').trim() || String(code || '').trim()
     || String(version || '').trim() || String(ttl || '').trim()) return true;
   if (type !== 'data') return true;
@@ -337,7 +332,7 @@ const consentWizardHasUserInput = ({
 const consentWizardSnapshot = (state) => JSON.stringify({
   step: state.step ?? 0,
   template: state.template ?? 'blank',
-  cover: state.cover ?? 0,
+  cover: state.cover ?? 'official',
   name: state.name ?? '',
   code: state.code ?? '',
   type: state.type ?? 'data',
@@ -364,7 +359,7 @@ const consentWizardSnapshot = (state) => JSON.stringify({
 const buildWizardStateFromPrefill = (prefill) => ({
   step: prefill.step ?? 0,
   template: prefill.template ?? 'blank',
-  cover: prefill.cover ?? 0,
+  cover: prefill.cover ?? 'official',
   name: prefill.name ?? '',
   code: prefill.code ?? '',
   type: prefill.type ?? TYPE_THAI_TO_VALUE[prefill.typeLabel] ?? 'data',
@@ -486,9 +481,11 @@ const TemplateCard = ({ tpl, selected, onClick, style }) => {
         border: `var(--dim-stroke-100) solid ${selected ? 'var(--border-brandPrimary-default, #007549)' : 'var(--border-brandPrimary-quaternary)'}`,
         borderRadius: 'var(--dim-radius-500)',
         paddingTop: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)', paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)',
+        /* default state ไม่มี drop shadow (มติผู้ใช้ 25 ส.ค. 69) — เงายก
+           เก็บไว้ให้ hover กับ selected เท่านั้น จะได้รู้ว่ากดได้ */
         boxShadow: selected
           ? 'inset 0 0 0 var(--dim-stroke-100) var(--border-brandPrimary-default, #007549), var(--shadow-brand-drop-bottom-400)'
-          : lifted ? 'var(--shadow-brand-drop-bottom-400)' : 'var(--shadow-card)',
+          : lifted ? 'var(--shadow-brand-drop-bottom-400)' : 'none',
         outline: 'none',
         cursor: 'pointer',
         transition: 'box-shadow 0.18s ease, border-color 0.18s ease',
@@ -672,14 +669,29 @@ function CardCarousel({ children, showArrows = true }) {
   const hoverTimer = useRef(null);
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(false);
+  /* ลูกศรโผล่เฉพาะตอนการ์ดล้นแถวเดียว (มติผู้ใช้ 25 ส.ค. 69) — เหลือหน้าปก
+     แบบเดียวแล้ว ลูกศรที่กดไม่ได้สองปุ่มลอยอยู่ใต้การ์ดคือขยะสายตาล้วน ๆ */
+  const [overflowing, setOverflowing] = useState(false);
 
   const updateEdges = () => {
     const el = trackRef.current;
     if (!el) return;
     setAtStart(el.scrollLeft <= 1);
     setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1);
+    setOverflowing(el.scrollWidth > el.clientWidth + 1);
   };
   useEffect(() => { updateEdges(); }, [children]);
+
+  /* การ์ดกว้างตาม flex — ต้องวัดใหม่เมื่อ container เปลี่ยนขนาด ไม่ใช่แค่ตอน
+     children เปลี่ยน */
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const el = trackRef.current;
+    if (!el) return undefined;
+    const ro = new ResizeObserver(updateEdges);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const stopHoverSlide = () => {
     if (hoverTimer.current) { clearInterval(hoverTimer.current); hoverTimer.current = null; }
@@ -706,7 +718,7 @@ function CardCarousel({ children, showArrows = true }) {
 
   /* Pointer within the left/right 64px gutter auto-slides that direction. */
   const onMove = (e) => {
-    if (!showArrows) return;
+    if (!showArrows || !overflowing) return;
     const el = trackRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
@@ -729,7 +741,7 @@ function CardCarousel({ children, showArrows = true }) {
       >
         {children}
       </div>
-      {showArrows && (
+      {showArrows && overflowing && (
         <CarouselArrows
           onPrev={() => slide(-1)}
           onNext={() => slide(1)}
@@ -749,9 +761,10 @@ function CardCarousel({ children, showArrows = true }) {
    Selection ring + hover lift are drawn with box-shadow (layout-neutral) so the
    card never jolts on click. Dimension stays flex-1 + aspect-227/113 per the
    section layout (cards fill the row equally). */
-const CoverCard = ({ cover, selected, onClick, style }) => {
+const CoverCard = ({ cover, selected, onClick, style, onRemove, onReplace }) => {
   const [hovered, setHovered] = useState(false);
-  return (
+  const replaceInputRef = useRef(null);
+  const card = (
     <button
       type='button'
       onClick={onClick}
@@ -767,7 +780,13 @@ const CoverCard = ({ cover, selected, onClick, style }) => {
         border: 'none',
         borderRadius: 'var(--dim-radius-400)',
         background: 'var(--surface-info-tertiary, #DBEAFE)',
-        boxShadow: hovered && !selected ? 'var(--shadow-card)' : 'none',
+        /* ทุกการ์ดมีเส้นขอบ (มติผู้ใช้ 25 ส.ค. 69) — หน้าปกที่พื้นหลังขาว
+           (เช่น ตราสำนักอนามัย) กลืนไปกับพื้นการ์ดจนไม่รู้ว่าขอบอยู่ตรงไหน
+           วาดด้วย inset shadow เหมือนวงแหวนตอนถูกเลือก จึงไม่ดันเลย์เอาต์ */
+        boxShadow: [
+          'inset 0 0 0 var(--dim-stroke-100, 1px) var(--border-card-default)',
+          hovered && !selected ? 'var(--shadow-card)' : '',
+        ].filter(Boolean).join(', '),
         outline: 'none',
         cursor: 'pointer',
         transition: 'box-shadow 0.18s ease',
@@ -834,6 +853,72 @@ const CoverCard = ({ cover, selected, onClick, style }) => {
         />
       )}
     </button>
+  );
+
+  if (!onRemove && !onReplace) return card;
+
+  /* ปุ่มลบ/เปลี่ยนรูปต้องอยู่นอก <button> ของการ์ด — ปุ่มซ้อนปุ่มเป็น DOM ที่
+     ไม่ถูกต้อง และคลิกจะทะลุไปเลือกการ์ดแทน (มติผู้ใช้ 25 ส.ค. 69) */
+  /* ปุ่มทับการ์ดใช้ NeutralSubdueIconButton variant='outline' ตาม DS
+     (มติผู้ใช้ 25 ส.ค. 69) — ของเดิมเป็นปุ่มกลมทำมือ ไม่มี state hover/focus
+     ตามคอมโพเนนต์ · พื้นหลังทึบเพื่อให้อ่านออกบนรูปสีเข้ม */
+  const overlayWrap = {
+    background: 'var(--surface-card-100)',
+    borderRadius: 'var(--dim-radius-200, 8px)',
+    lineHeight: 0,
+  };
+
+  return (
+    <span
+      className='relative min-w-0 inline-flex'
+      style={{ flex: '1 0 0', ...(style || {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {React.cloneElement(card, { style: { ...card.props.style, flex: '1 0 0', width: '100%' } })}
+      <span
+        className='absolute inline-flex items-center'
+        style={{ top: 'var(--dim-space-200, 8px)', right: 'var(--dim-space-200, 8px)', gap: 'var(--dim-space-150, 6px)', zIndex: 2 }}
+      >
+        {onReplace ? (
+          <span className='inline-flex' style={overlayWrap}>
+            {/* input ซ่อนไว้แล้วสั่ง .click() เอง — ห่อปุ่มไว้ใน <label> ไม่ได้
+                เพราะคลิกที่ <button> ข้างในไม่ activate label และ DOM ก็ผิด */}
+            <input
+              ref={replaceInputRef}
+              type='file'
+              accept='image/*'
+              className='hidden'
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (file) onReplace(file);
+              }}
+            />
+            <NeutralSubdueIconButton
+              icon='edit'
+              variant='outline'
+              size='sm'
+              onClick={() => replaceInputRef.current?.click()}
+              aria-label={`เปลี่ยน${cover.label}`}
+              title='เปลี่ยนรูปนี้'
+            />
+          </span>
+        ) : null}
+        {onRemove ? (
+          <span className='inline-flex' style={overlayWrap}>
+            <NeutralSubdueIconButton
+              icon='close'
+              variant='outline'
+              size='sm'
+              onClick={onRemove}
+              aria-label={`ลบ${cover.label}`}
+              title='ลบรูปที่อัปโหลด'
+            />
+          </span>
+        ) : null}
+      </span>
+    </span>
   );
 };
 /* Photo upload dropzone — Figma "Photo" (3420:2565) Default/Hover states.
@@ -918,7 +1003,7 @@ export default function CreateConsentFormPage() {
     pendingScrollY.current = null;
   });
   const [template, setTemplate] = useState('blank');
-  const [cover, setCover] = useState(0);
+  const [cover, setCover] = useState('official');
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [type, setType] = useState('data');
@@ -1109,7 +1194,7 @@ export default function CreateConsentFormPage() {
     setType('data');
     setVersion('');
     setTtl(p.ttl);
-    setCover(p.cover ?? 0);
+    setCover(p.cover ?? 'official');
     setDocTitle(p.name);
     setRequireGuardian(!!p.requireGuardian);
     setSections([...p.leadClauses, ...COMMON_CLAUSES].map((c) => ({ ...makeSection(), ...c })));
@@ -1398,10 +1483,42 @@ function StepBasics(props) {
     coverCardStyle,
     basicsCardStyle,
   } = props;
-  const [customCover, setCustomCover] = useState(null);
+  /* อัปโหลดเพิ่มได้หลายรูป — ของเดิมเก็บ url เดียว รูปใหม่จึงทับรูปเก่าเสมอ
+     (มติผู้ใช้ 25 ส.ค. 69) */
+  const [customCovers, setCustomCovers] = useState([]);
+  const coverSeq = useRef(0);
+  const [confirmRemoveCover, setConfirmRemoveCover] = useState(null);
+
   const handleCoverFile = (file) => {
-    setCustomCover((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
-    setCover('custom');
+    coverSeq.current += 1;
+    const key = `custom-${coverSeq.current}`;
+    const url = URL.createObjectURL(file);
+    setCustomCovers((prev) => [...prev, { key, url, name: file.name }]);
+    setCover(key);
+  };
+
+  /* เปลี่ยนรูปเฉพาะใบนั้น — คืน objectURL เดิมทิ้งไม่ให้ค้างในหน่วยความจำ */
+  const replaceCoverFile = (key, file) => {
+    const url = URL.createObjectURL(file);
+    setCustomCovers((prev) => prev.map((c) => {
+      if (c.key !== key) return c;
+      URL.revokeObjectURL(c.url);
+      return { ...c, url, name: file.name };
+    }));
+    setCover(key);
+  };
+
+  const removeCustomCover = () => {
+    const key = confirmRemoveCover;
+    setCustomCovers((prev) => prev.filter((c) => {
+      if (c.key !== key) return true;
+      URL.revokeObjectURL(c.url);
+      return false;
+    }));
+    /* ถ้ากำลังเลือกรูปที่ลบอยู่ ต้องถอยกลับไปหน้าปกราชการ ไม่งั้นค้างชี้ไปที่
+       รูปที่ไม่มีอยู่แล้ว */
+    setCover((prev) => (prev === key ? 'official' : prev));
+    setConfirmRemoveCover(null);
   };
   const scrollSelectIntoView = (node) =>
     node && node.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -1425,16 +1542,25 @@ function StepBasics(props) {
       {showTemplatePicker ? (
         <SectionCard style={templateCardStyle}>
           <CardHeading title='เลือกแม่แบบ' subtext='เป็นแม่แบบเบื้องต้น ซึ่งสามารถแก้ไขได้ภายหลัง' badge={`${TEMPLATES.length} แม่แบบ`} />
-          <div className='grid grid-cols-1 md:grid-cols-2 w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          {/* การ์ดแม่แบบกว้างเท่าการ์ดในหัวข้อ "เลือกหน้าปกแบบฟอร์ม" (มติผู้ใช้
+              25 ส.ค. 69) — ของเดิมเป็น grid 2 คอลัมน์ยืดเต็มความกว้าง สองหัวข้อ
+              ที่วางต่อกันเลยดูเป็นคนละสเกล · CARD_BASIS = 1 ใน 5 ของแถว */}
+          <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
             {TEMPLATES.map((t) => (
-              <TemplateCard key={t.key} tpl={t} selected={template === t.key} onClick={() => applyTemplate(t.key)} style={{ minHeight: 'var(--dim-size-1900, 112px)' }} />
+              <TemplateCard
+                key={t.key}
+                tpl={t}
+                selected={template === t.key}
+                onClick={() => applyTemplate(t.key)}
+                style={{ flex: CARD_BASIS, minHeight: 'var(--dim-size-1900, 112px)' }}
+              />
             ))}
           </div>
         </SectionCard>
       ) : null}
 
       <SectionCard style={coverCardStyle}>
-        <CardHeading title='เลือกหน้าปกแบบฟอร์ม' subtext='เป็นแม่แบบเบื้องต้น ซึ่งสามารถแก้ไขได้ภายหลัง' badge={`${COVERS.length + 1} หน้าปก`} />
+        <CardHeading title='เลือกหน้าปกแบบฟอร์ม' subtext='หน้าปกราชการเป็นค่าเริ่มต้น หรืออัปโหลดรูปของหน่วยงานเองก็ได้' badge='1 หน้าปก' />
         <CardCarousel>
           <UploadDropzone key='upload' onFile={handleCoverFile} style={{ flex: CARD_BASIS }} />
           {/* หน้าปกราชการมาก่อนภาพประกอบสต็อก — เป็นตัวเลือกที่ถูกต้องสำหรับ
@@ -1446,20 +1572,31 @@ function StepBasics(props) {
             onClick={() => setCover('official')}
             style={{ flex: CARD_BASIS }}
           />
-          {customCover && (
+          {customCovers.map((c, i) => (
             <CoverCard
-              key='custom'
-              cover={{ key: 'custom', label: 'รูปที่อัปโหลด', image: customCover }}
-              selected={cover === 'custom'}
-              onClick={() => setCover('custom')}
+              key={c.key}
+              cover={{ key: c.key, label: c.name || `รูปที่อัปโหลด ${i + 1}`, image: c.url }}
+              selected={cover === c.key}
+              onClick={() => setCover(c.key)}
+              onReplace={(file) => replaceCoverFile(c.key, file)}
+              onRemove={() => setConfirmRemoveCover(c.key)}
               style={{ flex: CARD_BASIS }}
             />
-          )}
-          {COVERS.map((c, i) => (
-            <CoverCard key={c.key} cover={c} selected={cover === i} onClick={() => setCover(i)} style={{ flex: CARD_BASIS }} />
           ))}
         </CardCarousel>
       </SectionCard>
+
+      <AlertDialog
+        open={!!confirmRemoveCover}
+        type='warning'
+        title='ลบรูปหน้าปกที่อัปโหลด?'
+        description='รูปนี้จะถูกลบออกจากตัวเลือกหน้าปก และแบบฟอร์มจะกลับไปใช้หน้าปกราชการ'
+        confirmLabel='ลบรูป'
+        cancelLabel='ยกเลิก'
+        onConfirm={removeCustomCover}
+        onCancel={() => setConfirmRemoveCover(null)}
+        onClose={() => setConfirmRemoveCover(null)}
+      />
 
       <SectionCard style={{ gap: 'var(--dim-space-400)', ...basicsCardStyle }}>
         <ColumnHeading>ข้อมูลพื้นฐาน</ColumnHeading>
@@ -2337,7 +2474,7 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
   const [publishVersion, setPublishVersion] = useState('');
 
   const [template, setTemplate] = useState('blank');
-  const [cover, setCover] = useState(0);
+  const [cover, setCover] = useState('official');
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [type, setType] = useState('data');
@@ -2412,7 +2549,7 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
     setType('data');
     setVersion('');
     setTtl(p.ttl);
-    setCover(p.cover ?? 0);
+    setCover(p.cover ?? 'official');
     setDocTitle(p.name);
     setRequireGuardian(!!p.requireGuardian);
     setSections([...p.leadClauses, ...COMMON_CLAUSES].map((c) => ({ ...makeSection(), ...c })));

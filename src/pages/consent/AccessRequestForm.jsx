@@ -33,9 +33,7 @@ import {
 } from '@/data/consentPatientSearch';
 import { CONSENT_FORM_RECORDS, CONSENT_FORM_STATUS } from '@/data/consentFormRecords';
 import PHCIS_CURRENT_USER from '@/data/phcisCurrentUser';
-import StaffProfileAvatar from '@/components/appointment/StaffProfileAvatar';
-import Checkbox from '@/components/checkbox/Checkbox';
-import { DATA_SCOPE_GROUPS, DATA_SCOPE_VALUES } from '@/data/dataScopeCatalog';
+import DoctorProfileAvatar from '@/components/layout/DoctorProfileAvatar';
 
 /* Shared ด.1.1.17.1 form — อัปโหลด/ถ่ายภาพแบบฟอร์มขอเข้าถึง → mock-OCR → ตรวจแก้ → ส่งคำขอ.
    Used by RequestFormAccessPage (full page), ScanImportPopup, and
@@ -453,7 +451,15 @@ export default function AccessRequestForm({
   const requesterCard = (
   <div
     className='flex items-center w-full min-w-0'
+    /* กว้างเท่าช่องกรอก (มติผู้ใช้ 25 ส.ค. 69) — รากฟอร์มกว้างได้ถึง 960px
+       การ์ดจึงยืดยาวกว่าฟิลด์ด้านล่างจนดูไม่เข้าชุดกัน */
     style={{
+      ...FIELD_SHELL_LAYOUT,
+      /* border-box ทับค่า content-box ของ FIELD_SHELL_LAYOUT — การ์ดใบนี้มี
+         padding ของตัวเอง ถ้าเป็น content-box ความกว้างรวมจะเป็น 640 + padding
+         ทำให้ยาวกว่าช่องกรอกอื่นที่ padding อยู่ข้างในอยู่แล้ว
+         (มติผู้ใช้ 25 ส.ค. 69) */
+      boxSizing: 'border-box',
       gap: 'var(--dim-space-300)',
       paddingTop: 'var(--dim-space-300)',
       paddingRight: 'var(--dim-space-400)',
@@ -464,9 +470,10 @@ export default function AccessRequestForm({
       borderRadius: 'var(--dim-radius-300, 10px)',
     }}
   >
-    {/* PHCIS_CURRENT_USER ไม่มีรูป — StaffProfileAvatar จะ fallback
-        เป็นตัวย่อจากชื่อให้เอง */}
-    <StaffProfileAvatar staff={{ name }} size={40} />
+    {/* รูปโปรไฟล์ของผู้ใช้ที่ล็อกอินอยู่ — ตัวเดียวกับที่ Sidebar แสดง
+        (มติผู้ใช้ 25 ส.ค. 69) ของเดิมเป็นไอคอนคนทั่วไปเพราะ PHCIS_CURRENT_USER
+        ไม่มีฟิลด์รูป StaffProfileAvatar เลย fallback เป็นตัวย่อ/ไอคอน */}
+    <DoctorProfileAvatar className='shrink-0' size={40} alt={name || 'ผู้ขอ'} />
     <div className='flex flex-col min-w-0 flex-1' style={{ gap: 'var(--dim-space-050)' }}>
       <span
         className='truncate'
@@ -497,84 +504,38 @@ export default function AccessRequestForm({
   </div>
   );
 
-  /* ขอบเขตข้อมูล: เช็กบ็อกซ์เต็มความกว้าง แบ่งซ้าย-ขวา (มติผู้ใช้ 25 ส.ค. 69)
-     dropdown เดิมซ่อนตัวเลือกไว้หลังการคลิก ทำให้ผู้ขอมองไม่เห็นว่ามีหมวด
-     "อ่อนไหว" แยกอยู่ — ซึ่งเป็นข้อมูลที่ผู้อนุมัติต้องพิจารณาเป็นรายกรณี */
-  const toggleScope = (value) => setScopes((prev) => {
-    const list = Array.isArray(prev) ? prev : [];
-    return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
-  });
-  const selectedScopes = Array.isArray(scopes) ? scopes : [];
-  const allScopesPicked = selectedScopes.length === DATA_SCOPE_VALUES.length;
+  /* "แบบฟอร์มที่ต้องการเข้าถึง" แทนตารางขอบเขตข้อมูล (มติผู้ใช้ 25 ส.ค. 69)
+     — ใช้ลิสต์แบบฟอร์มชุดเดียวกับป็อปอัปอัปโหลดแบบฟอร์มกระดาษ (ชื่อฟอร์ม +
+     รหัส PH-xxx เป็นบรรทัดรอง) สิทธิที่ขอจึงผูกกับ "ใบยินยอมใบไหน" ตรง ๆ
+     ไม่ใช่หมวดข้อมูลลอย ๆ ที่ไม่มีเอกสารรองรับ
+
+     ยังเป็น multi-select เหมือนเดิม เพราะคำขอหนึ่งใบขอได้หลายแบบฟอร์ม และ
+     ค่ายังเก็บใน `scopes` ตัวเดิมเพื่อไม่ให้ payload/ทะเบียนที่อ่านคีย์นี้พัง */
+  const accessFormOptions = useMemo(() => {
+    const seen = new Map();
+    CONSENT_FORM_RECORDS.forEach((r) => {
+      const key = String(r.code || r.name);
+      /* รหัสอยู่หน้าเป็น badge (มติผู้ใช้ 25 ส.ค. 69) — เป็นตัวที่คนจำและ
+         กวาดตาหา ส่วนชื่อฟอร์มยาวและขึ้นต้นด้วย "ใบยินยอม" เหมือนกันหมด */
+      if (!seen.has(key)) {
+        seen.set(key, { value: key, label: r.name, badge: { style: 'indigo', label: r.code } });
+      }
+    });
+    return [...seen.values()];
+  }, []);
 
   const scopePicker = (
-    <div className='flex flex-col items-start w-full min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
-      <div className='flex items-center justify-between w-full min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
-        <span style={LABEL_TEXT}>
-          ขอบเขตข้อมูลที่ขอเข้าถึง
-          <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}> *</span>
-        </span>
-        <BrandSubdueButton
-          variant='outline'
-          size='sm'
-          onClick={() => setScopes(allScopesPicked ? [] : [...DATA_SCOPE_VALUES])}
-        >
-          {allScopesPicked ? 'ล้างที่เลือก' : 'เลือกทุกหมวด'}
-        </BrandSubdueButton>
-      </div>
-      <div
-        className='grid w-full min-w-0'
-        style={{
-          gridTemplateColumns: 'repeat(auto-fit, minmax(var(--dim-size-2600, 384px), 1fr))',
-          gap: 'var(--dim-space-400)',
-          alignItems: 'start',
-        }}
-      >
-        {DATA_SCOPE_GROUPS.map((group) => (
-          <div
-            key={group.key}
-            className='flex flex-col min-w-0'
-            style={{
-              gap: 'var(--dim-space-200)',
-              paddingTop: 'var(--dim-space-300)',
-              paddingRight: 'var(--dim-space-400)',
-              paddingBottom: 'var(--dim-space-300)',
-              paddingLeft: 'var(--dim-space-400)',
-              background: group.sensitive
-                ? 'var(--surface-alert-warning, #FFF9F0)'
-                : 'var(--surface-neutral-quaternary)',
-              border: `var(--dim-stroke-100) solid ${group.sensitive
-                ? 'var(--border-alert-warning, #FFEDD5)'
-                : 'var(--border-card-default)'}`,
-              borderRadius: 'var(--dim-radius-300)',
-            }}
-          >
-            <span className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
-              {group.sensitive ? (
-                <Icon name='lock_person' size={16} color='var(--text-warning-default, #C2410C)' />
-              ) : null}
-              <span style={{ ...LABEL_TEXT, fontWeight: 'var(--type-weight-medium, 500)' }}>
-                {group.title}
-              </span>
-            </span>
-            <span style={{ ...BODY_TEXT, fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
-              {group.hint}
-            </span>
-            <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)', marginTop: 'var(--dim-space-100)' }}>
-              {group.scopes.map((scope) => (
-                <Checkbox
-                  key={scope.value}
-                  label={scope.value}
-                  description={scope.hint}
-                  checked={selectedScopes.includes(scope.value)}
-                  onChange={() => toggleScope(scope.value)}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <Select
+      multiple
+      selectAllLabel='เลือกทุกแบบฟอร์ม'
+      label='แบบฟอร์มที่ต้องการเข้าถึง'
+      required
+      options={accessFormOptions}
+      value={Array.isArray(scopes) ? scopes : []}
+      onChange={setScopes}
+      placeholder='เลือกแบบฟอร์มตามที่ต้องการเข้าถึง'
+      searchable
+    />
   );
 
   const evidenceUpload = (
@@ -980,7 +941,8 @@ export default function AccessRequestForm({
           {/* ระยะห่างระหว่างฟิลด์ในป็อปอัปต้องเท่ากันทุกช่อง (มติผู้ใช้ 25 ส.ค. 69)
               — เดิมกล่องนอกใช้ space-400 แต่กลุ่มข้างในใช้ space-300 จึงดูไม่สม่ำเสมอ */}
             <div className='flex flex-col items-start w-full' style={{ gap: 'var(--dim-space-400)' }}>
-              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+              {/* ระยะระหว่างช่องแบบฟอร์มกับช่วงวันที่ = 24px (มติผู้ใช้ 25 ส.ค. 69) */}
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600, 24px)' }}>
                 {/* ไม่มีการ์ดผู้รับบริการซ้ำตรงนี้แล้ว (มติผู้ใช้ 25 ส.ค. 69) —
                     ผู้รับบริการคนเดียวกันแสดงอยู่ในหัวข้อ "เลือกผู้รับบริการ
                     ที่ต้องการเข้าถึง" ด้านบนแล้ว */}

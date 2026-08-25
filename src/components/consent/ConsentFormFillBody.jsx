@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import InputField from '@/components/forms/InputField';
+import Select from '@/components/forms/Select';
 import RadioButton from '@/components/radio/RadioButton';
 import Signature from '@/components/form-builder/Signature';
 import { consentSignatureRoles } from '@/data/consentFormFieldKeys';
@@ -115,9 +116,20 @@ export default function ConsentFormFillBody({
   hideSignature = false,
   /** ช่องอัปโหลดไฟล์ต้นฉบับ — ผู้เรียกส่ง JSX เข้ามาวางใต้ข้อมูลผู้ป่วย */
   uploadSlot = null,
+  /** เลือกผู้รับบริการจากทะเบียนแทนการพิมพ์ชื่อเอง (มติผู้ใช้ 25 ส.ค. 69)
+      [{ value, label, nationalId, hn }] — ถ้าส่งมา ช่อง "ชื่อตามบัตรประชาชน"
+      จะกลายเป็น dropdown ส่วนเลขบัตรกับ HN ถูกล็อกไว้จนกว่าจะเลือกชื่อ
+      แล้วระบบเติมให้เอง เจ้าหน้าที่จึงพิมพ์เลขผิดคนไม่ได้ */
+  patientOptions = null,
+  /** แจ้งผู้เรียกว่าเลือกใคร — ผู้เรียกใช้หาระเบียนที่ตรงกัน */
+  onPatientChange,
 }) {
   const meta = useMemo(() => getRegistrationConsentForm(formId), [formId]);
+  const onPatientChangeRef = useRef(onPatientChange);
+  onPatientChangeRef.current = onPatientChange;
 
+  const pickMode = Array.isArray(patientOptions);
+  const [pickedPatient, setPickedPatient] = useState('');
   const [fullName, setFullName] = useState(initialFullName);
   const [nationalId, setNationalId] = useState(initialNationalId);
   const [hn, setHn] = useState(initialHn);
@@ -145,6 +157,29 @@ export default function ConsentFormFillBody({
     setNationalId(initialNationalId);
     setHn(initialHn);
   }, [initialFullName, initialNationalId, initialHn]);
+
+  /* เปลี่ยนแบบฟอร์ม = รายชื่อผู้รับบริการชุดใหม่ — ล้างของเดิมทิ้ง ไม่งั้นค้าง
+     ชื่อคนที่ไม่มีในลิสต์ใหม่ไว้ */
+  useEffect(() => {
+    if (!pickMode) return;
+    setPickedPatient('');
+    setFullName('');
+    setNationalId('');
+    setHn('');
+    onPatientChangeRef.current?.('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickMode, patientOptions]);
+
+  const pickPatient = (value) => {
+    setPickedPatient(value);
+    const hit = (patientOptions || []).find((o) => String(o.value) === String(value));
+    /* ลิสต์ตัดคำนำหน้าออกเพื่อให้กวาดตาง่าย แต่ในเอกสารต้องเป็นชื่อเต็ม
+       ตามบัตร — ใช้ `fullName` ที่ผู้เรียกแนบมา ถ้าไม่มีค่อยถอยไปใช้ label */
+    setFullName(hit?.fullName || (hit?.label ? String(hit.label).replace(/\s*·.*$/, '') : ''));
+    setNationalId(hit?.nationalId || '');
+    setHn(hit?.hn || '');
+    onPatientChangeRef.current?.(value);
+  };
 
   const fieldValues = { fullName, nationalId, hn };
   const setFieldValue = { fullName: setFullName, nationalId: setNationalId, hn: setHn };
@@ -263,18 +298,38 @@ export default function ConsentFormFillBody({
             {identityBadge}
           </div>
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-            {(meta.patientFields || []).map((field) => (
-              <InputField
-                key={field.key}
-                label={field.label}
-                required={field.required}
-                value={fieldValues[field.key] || ''}
-                onChange={setFieldValue[field.key]}
-                placeholder={field.placeholder}
-                showHelperText={false}
-                showLeadingIcon={false}
-              />
-            ))}
+            {(meta.patientFields || []).map((field) => {
+              if (pickMode && field.key === 'fullName') {
+                return (
+                  <Select
+                    key={field.key}
+                    label={field.label}
+                    required={field.required}
+                    searchable
+                    value={pickedPatient}
+                    onChange={pickPatient}
+                    options={patientOptions}
+                    placeholder='ค้นหา HN หรือชื่อผู้รับบริการ'
+                  />
+                );
+              }
+              /* เลขบัตร/HN ล็อกไว้จนกว่าจะเลือกชื่อ แล้วระบบเติมให้เอง */
+              const locked = pickMode && field.key !== 'fullName';
+              return (
+                <InputField
+                  key={field.key}
+                  label={field.label}
+                  required={field.required}
+                  value={fieldValues[field.key] || ''}
+                  onChange={setFieldValue[field.key]}
+                  placeholder={locked && !pickedPatient ? 'เลือกชื่อผู้รับบริการก่อน' : field.placeholder}
+                  disabled={locked && !pickedPatient}
+                  readOnly={locked}
+                  showHelperText={false}
+                  showLeadingIcon={false}
+                />
+              );
+            })}
           </div>
         </section>
 
@@ -337,6 +392,10 @@ export default function ConsentFormFillBody({
           ))}
         </section>
 
+        {/* โหมดกระดาษที่ผู้เรียกไม่ได้ส่ง uploadSlot มา = ผู้เรียกวางบล็อกเอกสาร
+            ต้นฉบับไว้ที่อื่นเอง (คอลัมน์ขวาของ popup) — ไม่ต้องเหลือหัวข้อ
+            เปล่า ๆ ไว้ในเอกสาร (มติผู้ใช้ 25 ส.ค. 69) */}
+        {hideSignature && !uploadSlot ? null : (
         <section className='flex flex-col items-center' style={{ ...sectionCardStyle, gap: 'var(--dim-space-400)' }}>
           <h2 style={sectionTitleStyle}>{hideSignature ? 'เอกสารต้นฉบับที่ลงนามแล้ว' : 'ลายมือชื่อ'}</h2>
           {hideSignature ? uploadSlot : null}
@@ -386,6 +445,7 @@ export default function ConsentFormFillBody({
             </span>
           </div>
         </section>
+        )}
       </div>
     </div>
   );

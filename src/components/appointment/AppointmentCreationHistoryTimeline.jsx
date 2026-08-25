@@ -1,77 +1,90 @@
-import React from 'react';
-import ColumnTimeline from '@/components/timeline/ColumnTimeline';
+import React, { useMemo } from 'react';
+import Table from '@/components/table/Table';
+import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import {
   appointmentStatusLabel,
   appointmentStatusTone,
 } from '@/pages/appointment/appointmentCreationHistory';
 
-/* ประวัติสร้างการนัดหมาย — config ของ ColumnTimeline (มติผู้ใช้ 25 ส.ค. 69)
+/* ประวัติสร้างการนัดหมาย — ตารางปกติ (มติผู้ใช้ 25 ส.ค. 69)
+   เหตุผลเดียวกับประวัติคำขอเข้าถึงข้อมูล: timeline แบ่งกลุ่มรายเดือนอ่านยาก
+   กว่าตารางธรรมดาเมื่อข้อมูลมีหลายคอลัมน์ให้เทียบ
 
-   จัดกลุ่มตาม **วันที่กดสร้าง** ไม่ใช่วันนัด เพราะนี่คือ "ประวัติการสร้าง"
-   ของผู้ใช้ วันนัดจริงจึงแยกเป็นคอลัมน์ของตัวเอง — ถ้าเอาสองอย่างมาปนกัน
-   จะอ่านไม่ออกว่าเลขไหนคืออะไร */
+   "สร้างเมื่อ" กับ "วันนัด" แยกคอลัมน์กันเสมอ — ถ้าปนกันจะอ่านไม่ออกว่าเลขไหน
+   คืออะไร */
 
-const COLUMNS = [
-  {
-    key: 'created',
-    label: 'สร้างเมื่อ',
-    track: 'var(--dim-size-2000, 128px)',
-    primary: (r) => r.createdTime,
-    secondary: (r) => r.createdDate,
-  },
-  {
-    key: 'appt',
-    label: 'วันนัด / เวลา',
-    track: 'var(--dim-size-2000, 128px)',
-    primary: (r) => r.time,
-    secondary: (r) => r.apptDateLabel,
-  },
-  {
-    key: 'patient',
-    label: 'ผู้รับบริการ',
-    track: 'minmax(var(--dim-size-2100, 160px), 1.3fr)',
-    primary: (r) => r.patient || '—',
-    secondary: (r) => (r.hn ? `HN ${r.hn}` : '—'),
-  },
-  {
-    key: 'clinic',
-    label: 'คลินิก / แพทย์',
-    track: 'minmax(var(--dim-size-2100, 160px), 1.3fr)',
-    primary: (r) => r.clinic || '—',
-    secondary: (r) => r.doctor || '—',
-  },
-  {
-    key: 'reason',
-    label: 'เหตุผลการนัด',
-    track: 'minmax(var(--dim-size-2100, 160px), 1.4fr)',
-    primary: (r) => r.reason || r.type || '—',
-    secondary: (r) => r.orderingUnit || r.site || '—',
-  },
-  {
-    key: 'status',
-    label: 'สถานะ',
-    track: 'var(--dim-size-2000, 128px)',
-    align: 'end',
-    badge: true,
-    primary: (r) => appointmentStatusLabel(r.status),
-  },
-];
+const MUTED = {
+  color: 'var(--text-content-tertiary)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-xs)',
+  lineHeight: 1.4,
+};
 
-const getDateTime = (r) => `${r.createdDate} · ${r.createdTime}`;
-const getTone = (r) => appointmentStatusTone(r.status);
+const TEXT = {
+  color: 'var(--text-content-primary)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-sm)',
+  lineHeight: 1.45,
+};
+
+const Stacked = ({ primary, secondary }) => (
+  <div className='flex flex-col min-w-0 w-full'>
+    <span className='truncate' style={TEXT} title={typeof primary === 'string' ? primary : undefined}>
+      {primary || '—'}
+    </span>
+    {secondary ? (
+      <span className='truncate' style={MUTED} title={typeof secondary === 'string' ? secondary : undefined}>
+        {secondary}
+      </span>
+    ) : null}
+  </div>
+);
 
 export default function AppointmentCreationHistoryTimeline({ records = [] }) {
+  const columns = useMemo(() => [
+    {
+      key: 'created',
+      header: 'สร้างเมื่อ',
+      render: (r) => <Stacked primary={r.createdDate} secondary={r.createdTime} />,
+    },
+    {
+      key: 'appt',
+      header: 'วันนัด / เวลา',
+      render: (r) => <Stacked primary={r.apptDateLabel} secondary={r.time} />,
+    },
+    {
+      key: 'patient',
+      header: 'ผู้รับบริการ',
+      render: (r) => <Stacked primary={r.patient} secondary={r.hn ? `HN ${r.hn}` : ''} />,
+    },
+    {
+      key: 'clinic',
+      header: 'คลินิก / แพทย์',
+      render: (r) => <Stacked primary={r.clinic} secondary={r.doctor} />,
+    },
+    {
+      key: 'reason',
+      header: 'เหตุผลการนัด',
+      render: (r) => <Stacked primary={r.reason || r.type} secondary={r.orderingUnit || r.site} />,
+    },
+    {
+      key: 'status',
+      header: 'สถานะ',
+      render: (r) => (
+        <ColorfulBadge style={appointmentStatusTone(r.status)} size='small' showDot width='hug'>
+          {appointmentStatusLabel(r.status)}
+        </ColorfulBadge>
+      ),
+    },
+  ], []);
+
   return (
-    <ColumnTimeline
+    <Table
+      columns={columns}
       rows={records}
-      columns={COLUMNS}
-      getDateTime={getDateTime}
-      getTone={getTone}
-      getKey={(r, i) => r.id ?? i}
-      countLabel='นัดหมาย'
-      ariaLabel='ประวัติสร้างการนัดหมาย'
-      emptyTitle='ยังไม่มีประวัติสร้างการนัดหมาย'
-      emptyHint='นัดหมายที่คุณสร้างจากเมนู “สร้างการนัดหมาย” จะมาแสดงที่นี่'
+      rowKey={(r, i) => r.id ?? i}
+      emptyMessage='ยังไม่มีประวัติสร้างการนัดหมาย'
+      emptySubtext='นัดหมายที่คุณสร้างจากเมนู “สร้างการนัดหมาย” จะมาแสดงที่นี่'
     />
   );
 }

@@ -704,18 +704,9 @@ export default function ConsentManagementPage() {
         </BrandSubdueButton>
       )}
 
-      {/* ด.1.1.2 / ด.1.1.1 — เพิกถอนเฉพาะคนที่มีฉบับ "ยินยอมแล้ว" อยู่จริง
-          (ปุ่มไม่ขึ้นเลยเมื่อไม่มี — ไม่ใช่ขึ้นแล้ว disabled ตามแท็บสถานะ) */}
-      {canRevoke && (p.signedRecords || []).length > 0 && (
-        <BrandSubdueButton
-          variant='outline'
-          size='sm'
-          title={`มี ${(p.signedRecords || []).length} ฉบับที่ยินยอมแล้ว — เลือกฉบับที่จะเพิกถอนจากแฟ้ม`}
-          onClick={() => startPatientRevoke(p)}
-        >
-          เพิกถอน
-        </BrandSubdueButton>
-      )}
+      {/* ไม่มีปุ่มเพิกถอนในแท็บนี้แล้ว (มติผู้ใช้ 25 ส.ค. 69) — แถวนี้เป็น "คน"
+          ไม่ใช่ "ฉบับ" การเพิกถอนต้องระบุว่าเพิกถอนใบไหน จึงเป็นงานของแท็บ
+          สถานะที่ 1 แถว = 1 ฉบับ (ปุ่มที่นั่นยังอยู่ครบ) */}
     </div>
   );
 
@@ -1207,6 +1198,9 @@ export default function ConsentManagementPage() {
                 found={displayRows.length}
                 total={displayTotal}
                 unit={isPatientTab ? 'คน' : undefined}
+                /* แท็บที่เลือกไม่นับเป็น "การค้นหา" — ส่งสถานะตัวกรองจริงเข้าไป
+                   ไม่ให้อนุมานเอาจาก found !== total (มติผู้ใช้ 25 ส.ค. 69) */
+                filtered={filtersActive}
               />
 
               <div className='md:hidden flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>

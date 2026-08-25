@@ -2,6 +2,7 @@ import React from 'react';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
 import BrandButton from '@/components/button/BrandButton';
+import OfficialFormCover from '@/components/consent/OfficialFormCover';
 
 /* การ์ด "แบบฟอร์มที่ยังไม่ขอความยินยอม" — Figma Registration 292:104252.
    ย้ายออกมาจาก RegistrationSteps.jsx (StepConsent) เพราะระบบจัดการความยินยอม
@@ -33,20 +34,17 @@ const PendingConsentFormCard = ({
       overflow: 'hidden',
     }}
   >
+    {/* หน้าปกเป็นตราสำนักอนามัยทุกใบ (มติผู้ใช้ 25 ส.ค. 69) — `cover` ยังรับไว้
+        เพื่อไม่ให้ผู้เรียกเดิมพัง แต่ไม่ได้ใช้วาดแล้ว */}
     <div
       className='relative w-full shrink-0 overflow-hidden'
       style={{
         aspectRatio: '227 / 113',
-        background: 'var(--surface-info-tertiary, #DBEAFE)',
+        background: 'var(--surface-card-100)',
+        borderBottom: 'var(--dim-stroke-100) solid var(--border-card-default)',
       }}
     >
-      <img
-        src={cover}
-        alt=''
-        className='absolute inset-0 h-full w-full object-cover object-center'
-        loading='lazy'
-        decoding='async'
-      />
+      <OfficialFormCover compact />
     </div>
     <div
       className='flex flex-col w-full flex-1'

@@ -248,6 +248,12 @@ export const ACCESS_RECORDS = (() => {
   const expired = status === 'หมดอายุ';
   const periodStart = approved ? isoShift(-10 - (i % 5)) : expired ? isoShift(-40) : null;
   const periodEnd = approved ? isoShift(3 + (i % 4) * 9) : expired ? isoShift(-3 - (i % 4)) : null;
+  /* ช่วงวันที่ "ผู้ขอเสนอ" — ฟอร์มขอสิทธิให้ผู้ขอเลือกช่วงนี้เองอยู่แล้ว ทุกใบ
+     จึงต้องมีค่า (มติผู้ใช้ 25 ส.ค. 69) ของเดิม mock ไว้แต่ช่วงที่ Admin อนุมัติ
+     ป็อปอัปรายละเอียดเลยขึ้น "-" ทุกแถว
+     ผู้ขอมักเสนอช่วงกว้างกว่าที่ Admin ให้จริง — จำลองให้เริ่มก่อนและจบหลัง */
+  const requestedPeriodStart = isoShift(-12 - (i % 6));
+  const requestedPeriodEnd = isoShift(18 + (i % 5) * 7);
   const hn = `67-${String(1 + n).padStart(5, '0')}`;
   const patient = resolveConsentPatient(hn);
   /* stride 5 — เดือนเดียวกันได้หลายกลุ่มวิชาชีพ (pie ไม่พังตอน filter รายเดือน) */
@@ -294,6 +300,8 @@ export const ACCESS_RECORDS = (() => {
     /* ด.1.1.17.2 + 17.3 */
     periodStart,
     periodEnd,
+    requestedPeriodStart,
+    requestedPeriodEnd,
     active,
     audit: approved
       ? { by: 'ลดา ดีงาม', at: `${day} ${month} 2569 · 10:2${i % 10}` }

@@ -10,7 +10,6 @@ import { resolveRegistrationConsentFormId } from '@/data/registrationConsentForm
 import PhotoUploadField from '@/components/forms/PhotoUploadField';
 import CameraCapturePopup from '@/components/popup/CameraCapturePopup';
 import { UploadProgressBox, useSmoothUploadProgress } from '@/components/forms/UploadProgressBar';
-import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
 import PatientSummaryCard from '@/components/card/PatientSummaryCard';
@@ -19,6 +18,7 @@ import { getConsentChannelOptions, MOBILE_APP_CHANNEL } from '@/data/consentChan
 import { CONSENT_STATUS } from '@/data/consentRecords';
 import { resolveConsentPatientCard } from '@/data/consentPatientDisplay';
 import { CONSENT_FORM_RECORDS, CONSENT_FORM_STATUS } from '@/data/consentFormRecords';
+import { MR_PATIENTS } from '@/data/mrPatients';
 import AccessRequestForm from '@/pages/consent/AccessRequestForm';
 
 /* Helper popups ของ ConsentManagementPage — แตกไฟล์ตาม playbook (ห้ามรื้อ /
@@ -55,6 +55,30 @@ const ERROR_TEXT = {
   fontFamily: 'var(--type-family-body)',
   fontSize: 'var(--type-size-xs)',
   lineHeight: 1.5,
+};
+
+/* ช่องกรอกระดับ popup จัดกึ่งกลางให้ตรงกับการ์ดเอกสาร (มติผู้ใช้ 25 ส.ค. 69)
+   — เอกสารกว้าง 640px จัดกลางอยู่แล้ว ช่องอื่นชิดซ้ายเต็มความกว้างจึงดูหลุด */
+/* คำนำหน้าไม่ช่วยแยกคนในลิสต์ (มติผู้ใช้ 25 ส.ค. 69) — ตัดออกให้ชื่อจริงขึ้นต้น
+   บรรทัดทุกแถว กวาดตาหาชื่อได้เร็วขึ้น · ชื่อเต็มพร้อมคำนำหน้ายังถูกส่งไปลง
+   ในเอกสารตามเดิม */
+const THAI_TITLE_RE = /^(?:นางสาว|นาง|นาย|น\.ส\.|ด\.ช\.|ด\.ญ\.|เด็กชาย|เด็กหญิง|นพ\.|พญ\.|ทพญ\.|ทพ\.|ภก\.|ภญ\.)\s*/;
+const stripThaiTitle = (name) => String(name || '').replace(THAI_TITLE_RE, '').trim();
+
+const PAPER_SECTION_TITLE = {
+  margin: 0,
+  color: 'var(--text-content-default)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-base, 16px)',
+  fontWeight: 'var(--type-weight-bold)',
+  lineHeight: 'normal',
+};
+
+const PAPER_FIELD_COL = {
+  width: '100%',
+  maxWidth: 'var(--dim-size-2900, 640px)',
+  marginLeft: 'auto',
+  marginRight: 'auto',
 };
 
 /* ป้ายชื่อช่องอัปโหลด — ชุดเดียวกับ LABEL_TEXT ของหน้าสร้างคำขอเข้าถึงข้อมูล */
@@ -350,12 +374,6 @@ export function ReconsentPopup({ open, record, onClose, onConfirm }) {
 }
 
 /* ══ 3) อัปโหลดแบบฟอร์มกระดาษ (ด.1.1.8) ═════════════════════════════════ */
-const REASON_HINTS = [
-  'ผู้ป่วยยื่นเอกสารเพิกถอนความยินยอมด้วยตนเองที่ศูนย์บริการ',
-  'ผู้ปกครองยื่นหนังสือให้ความยินยอมแทนผู้เยาว์',
-  'รับเอกสารความยินยอมฉบับกระดาษจากหน่วยบริการเครือข่าย',
-];
-
 export function PaperConsentRecordPopup({ open, record, records = [], onClose, onSave }) {
   /* ป็อปอัปนี้บันทึก "ให้ความยินยอม" จากเอกสารกระดาษอย่างเดียว (มติผู้ใช้
      25 ส.ค. 69) — การเพิกถอนมีทางเข้าของตัวเองในหน้าจัดการความยินยอม */
@@ -365,7 +383,6 @@ export function PaperConsentRecordPopup({ open, record, records = [], onClose, o
   const [uploading, setUploading] = useState(false);
   const [fileError, setFileError] = useState('');
   const [effectiveDate, setEffectiveDate] = useState(null);
-  const [reason, setReason] = useState('');
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   /* สถานะของ "เอกสารที่กรอก" อยู่ใน ConsentFormFillBody — คุยผ่าน onStateChange
@@ -375,43 +392,90 @@ export function PaperConsentRecordPopup({ open, record, records = [], onClose, o
      ยัดรวมเป็นบรรทัดเดียว "ชื่อ · HN · แบบฟอร์ม" ทำให้คนไข้ที่มีหลายฟอร์ม
      โผล่ซ้ำหลายบรรทัดในลิสต์เดียว หาว่าจะเลือกอันไหนไม่ออก */
   const [selectedHn, setSelectedHn] = useState('');
-  const [selectedRecordId, setSelectedRecordId] = useState('');
+  const [selectedFormKey, setSelectedFormKey] = useState('');
 
   useEffect(() => {
     if (!open) return;
     setFileName(null); setPendingName(null); setUploading(false);
-    setFileError(''); setEffectiveDate(null); setReason(''); setConfirmDiscard(false); setCameraOpen(false);
+    setFileError(''); setEffectiveDate(null); setConfirmDiscard(false); setCameraOpen(false);
     setDocApi({ ready: false, submit: () => {} });
     setSelectedHn(record?.hn != null ? String(record.hn) : '');
-    setSelectedRecordId(record?.id != null ? String(record.id) : '');
+    setSelectedFormKey(record ? String(record.formCode || record.formName || record.type) : '');
   }, [open]);
 
-  /* หนึ่งบรรทัดต่อผู้รับบริการหนึ่งคน — ระเบียนคนเดียวกันหลายใบยุบเป็นแถวเดียว */
-  const patientOptions = useMemo(() => {
+  /* เลือก "แบบฟอร์ม" ที่ด้านบน แล้วเลือกตัวผู้รับบริการในช่องชื่อของเอกสารเอง
+     (มติผู้ใช้ 25 ส.ค. 69) — ของเดิมมีช่องเลือกผู้รับบริการด้านบนซ้ำกับช่อง
+     "ชื่อตามบัตรประชาชน" ในเอกสาร เลือกคนละที่ก็ขัดกันเองได้ */
+  const formOptions = useMemo(() => {
     const seen = new Map();
     records.forEach((item) => {
-      const key = String(item.hn);
-      if (!seen.has(key)) seen.set(key, { value: key, label: `${item.name} · HN ${item.hn}` });
+      const key = String(item.formCode || item.formName || item.type);
+      if (!seen.has(key)) {
+        /* รหัสอยู่หน้าเป็น badge — ชุดเดียวกับลิสต์ในฟอร์มขอสิทธิเข้าถึง */
+        seen.set(key, {
+          value: key,
+          label: item.formName || item.type,
+          badge: item.formCode ? { style: 'indigo', label: item.formCode } : undefined,
+        });
+      }
     });
     return [...seen.values()];
   }, [records]);
 
-  const formOptions = useMemo(() => records
-    .filter((item) => String(item.hn) === selectedHn)
-    .map((item) => ({
-      value: String(item.id),
-      label: item.formName || item.type,
-      subtext: item.formCode || undefined,
-    })), [records, selectedHn]);
+  const formKeyOf = (item) => String(item.formCode || item.formName || item.type);
 
-  const pickPatient = (hn) => {
-    setSelectedHn(hn);
-    /* เลือกให้เลยถ้าคนนั้นมีใบเดียว — ไม่ต้องให้กดซ้ำในช่องที่มีตัวเลือกเดียว */
-    const forHn = records.filter((item) => String(item.hn) === hn);
-    setSelectedRecordId(forHn.length === 1 ? String(forHn[0].id) : '');
-  };
+  /* ผู้รับบริการทุกคนในระบบ ไม่ใช่เฉพาะคนที่มีใบนี้อยู่แล้ว (มติผู้ใช้
+     25 ส.ค. 69) — เอกสารกระดาษที่รับเข้ามามักเป็นของคนที่ยังไม่มีระเบียน
+     ความยินยอมใบนั้นในระบบเลย ถ้ากรองไว้จะบันทึกให้เขาไม่ได้ */
+  const patientOptions = useMemo(() => {
+    const seen = new Map();
+    const add = (hn, fallbackName) => {
+      const key = String(hn);
+      if (!key || seen.has(key)) return;
+      const card = resolveConsentPatientCard(hn, fallbackName);
+      const full = card?.fullName || fallbackName || key;
+      seen.set(key, {
+        value: key,
+        /* แถวหน้าตาเดียวกับผลค้นหาผู้รับบริการ (มติผู้ใช้ 25 ส.ค. 69) —
+           badge HN นำหน้า แล้วตามด้วยชื่อ ไม่มี badge คิวเพราะที่นี่ไม่ใช่คิว */
+        badge: { style: 'indigo', label: key },
+        label: stripThaiTitle(full),
+        fullName: full,
+        nationalId: card?.nationalId && card.nationalId !== '—' ? card.nationalId : '',
+        hn: key,
+      });
+    };
+    MR_PATIENTS.forEach((pt) => add(pt.hn, [pt.prefixTh, pt.firstNameTh, pt.lastNameTh].filter(Boolean).join(' ')));
+    /* ทะเบียนความยินยอมมี HN ที่ไม่อยู่ใน MR_PATIENTS ได้ (ข้อมูล mock คนละชุด) */
+    records.forEach((item) => add(item.hn, item.name));
+    return [...seen.values()];
+  }, [records]);
 
-  const resolvedRecord = record || records.find((item) => String(item.id) === selectedRecordId) || null;
+  const existingRecord = record
+    || records.find((item) => formKeyOf(item) === selectedFormKey && String(item.hn) === selectedHn)
+    || null;
+
+  /* แบบฟอร์มที่เลือก (ใบใดก็ได้ที่รหัสตรง) — ใช้หา formId ก่อนที่จะรู้ว่าเป็นของใคร */
+  const selectedFormSample = record
+    || records.find((item) => formKeyOf(item) === selectedFormKey)
+    || null;
+
+  /* ถ้าคนที่เลือกยังไม่มีระเบียนของใบนี้ ให้ประกอบระเบียนใหม่ขึ้นมา (ไม่มี id)
+     ผู้เรียกดูจาก `id == null` ว่าต้อง "เพิ่มแถวใหม่" ไม่ใช่ "แก้แถวเดิม" */
+  const resolvedRecord = useMemo(() => {
+    if (existingRecord) return existingRecord;
+    if (!selectedFormSample || !selectedHn) return null;
+    const card = resolveConsentPatientCard(selectedHn, '');
+    return {
+      id: null,
+      hn: selectedHn,
+      name: card?.fullName || selectedHn,
+      formCode: selectedFormSample.formCode,
+      formName: selectedFormSample.formName,
+      type: selectedFormSample.type,
+      version: selectedFormSample.version,
+    };
+  }, [existingRecord, selectedFormSample, selectedHn]);
 
   const uploadProgress = useSmoothUploadProgress({
     active: uploading,
@@ -432,20 +496,19 @@ export function PaperConsentRecordPopup({ open, record, records = [], onClose, o
     setUploading(true);
   };
 
-  const dirty = selectedHn || selectedRecordId || fileName || effectiveDate || reason.trim();
+  const dirty = selectedHn || selectedFormKey || fileName || effectiveDate;
   /* ต้องกรอกเอกสารครบเหมือนตอนผู้รับบริการกรอกเอง + แนบต้นฉบับ (มติผู้ใช้
      25 ส.ค. 69) — ลายมือชื่อไม่นับ เพราะอยู่บนกระดาษที่อัปโหลดมาแล้ว */
-  const ready = !!resolvedRecord && !!fileName && !!effectiveDate
-    && reason.trim().length > 0 && docApi.ready;
+  const ready = !!resolvedRecord && !!fileName && !!effectiveDate && docApi.ready;
 
   const fillFormId = useMemo(
-    () => (resolvedRecord
+    () => (selectedFormSample
       ? resolveRegistrationConsentFormId({
-        formCode: resolvedRecord.formCode,
-        type: resolvedRecord.type,
+        formCode: selectedFormSample.formCode,
+        type: selectedFormSample.type,
       })
       : null),
-    [resolvedRecord],
+    [selectedFormSample],
   );
 
   const uploadSlot = (
@@ -457,7 +520,12 @@ export function PaperConsentRecordPopup({ open, record, records = [], onClose, o
         แนบสแกนเอกสารต้นฉบับที่ผู้รับบริการลงนามแล้ว
         <span style={{ color: 'var(--text-danger-default, #B91C1C)' }}> *</span>
       </span>
-      <div className='flex items-stretch w-full min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+      <div
+        className='flex items-stretch w-full min-w-0'
+        /* flexWrap ตั้ง inline — คอลัมน์ขวาแคบกว่าหน้าเต็ม ถ้าไม่ห่อบรรทัด
+           กล่องลากวางจะถูกบีบจนข้อความแตกเป็นคำละบรรทัดและการ์ดล้นขอบ */
+        style={{ flexWrap: 'wrap', gap: 'var(--dim-space-400, 16px)' }}
+      >
         <DragAndDrop
           value={[]}
           onChange={(next) => {
@@ -475,7 +543,17 @@ export function PaperConsentRecordPopup({ open, record, records = [], onClose, o
           ctaLabel='เลือกไฟล์'
           error={!!fileError}
           disabled={uploading}
-          style={{ flex: '1 1 0', minWidth: 0, width: '100%', minHeight: 'var(--dim-size-2000, 128px)', height: 'var(--dim-size-2000, 128px)', boxSizing: 'border-box' }}
+          /* longhand เท่านั้น — CSSOM ทิ้ง shorthand `flex:` ที่มี var() ทำให้
+             basis ไม่ติดและกล่องไม่ยอมห่อบรรทัด (บั๊กเดียวกับ padding shorthand) */
+          style={{
+            flexGrow: 1,
+            flexShrink: 1,
+            flexBasis: 'var(--dim-size-2500, 320px)',
+            minWidth: 'var(--dim-size-2200, 192px)',
+            minHeight: 'var(--dim-size-2000, 128px)',
+            height: 'var(--dim-size-2000, 128px)',
+            boxSizing: 'border-box',
+          }}
         />
         <PhotoUploadField
           label='สแกนเอกสาร'
@@ -542,10 +620,10 @@ export function PaperConsentRecordPopup({ open, record, records = [], onClose, o
       <Popup
         open={open}
         onClose={requestClose}
-        /* กว้างขึ้นให้สองช่องบน (ผู้รับบริการ / แบบฟอร์ม) อยู่ครบในบรรทัดเดียว
-           และช่องเหตุผลไม่ถูกบีบจนพิมพ์ได้ทีละสองสามคำ (มติผู้ใช้ 25 ส.ค. 69) */
-        size='large'
-        width={880}
+        /* เต็มจอ + แบ่งซ้าย-ขวา (มติผู้ใช้ 25 ส.ค. 69) — ซ้ายคือเอกสารที่ต้อง
+           ไล่กดยินยอมรายข้อ ขวาคือหลักฐานกับข้อมูลการบันทึก แยกกันชัดจะได้ไม่
+           ต้องเลื่อนขึ้นลงสลับไปมาระหว่างสองงาน */
+        size='extraLarge'
         title='อัปโหลดแบบฟอร์มกระดาษ'
         subtitle={resolvedRecord ? `${resolvedRecord.name} · HN ${resolvedRecord.hn} · ${resolvedRecord.type}` : 'เลือกผู้รับบริการและแบบฟอร์มตามเอกสารต้นฉบับ'}
         primaryAction={{
@@ -560,7 +638,9 @@ export function PaperConsentRecordPopup({ open, record, records = [], onClose, o
               record: resolvedRecord,
               fileName,
               effectiveDate: thaiDateFormat(effectiveDate),
-              reason,
+              /* ไม่มีช่องเหตุผลแล้ว (มติผู้ใช้ 25 ส.ค. 69) — คงคีย์ไว้ให้ผู้เรียก
+                 เดิมที่อ่านค่านี้ไม่พัง */
+              reason: '',
               storageType: 'Paper',
               verifiedBy: 'original_file',
               signature: null,
@@ -571,75 +651,108 @@ export function PaperConsentRecordPopup({ open, record, records = [], onClose, o
         }}
         secondaryAction={{ label: 'ยกเลิก', onClick: requestClose }}
       >
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+        <div className='flex flex-col items-stretch w-full' style={{ gap: 'var(--dim-space-500)' }}>
           {!record ? (
-            <div
-              className='grid w-full min-w-0'
-              style={{
-                gridTemplateColumns: 'repeat(auto-fit, minmax(var(--dim-size-2400, 240px), 1fr))',
-                gap: 'var(--dim-space-400)',
-              }}
-            >
+            <div style={PAPER_FIELD_COL}>
               <Select
-                label='ผู้รับบริการ'
+                label='เลือกประเภทแบบฟอร์มที่ต้องการอัปโหลด'
                 required
                 searchable
-                value={selectedHn}
-                onChange={pickPatient}
-                options={patientOptions}
-                placeholder='ค้นหา HN หรือชื่อผู้รับบริการ'
-              />
-              <Select
-                label='แบบฟอร์มความยินยอม'
-                required
-                searchable
-                value={selectedRecordId}
-                onChange={setSelectedRecordId}
+                value={selectedFormKey}
+                onChange={setSelectedFormKey}
                 options={formOptions}
-                disabled={!selectedHn}
-                placeholder={selectedHn ? 'เลือกแบบฟอร์มตามเอกสารต้นฉบับ' : 'เลือกผู้รับบริการก่อน'}
+                placeholder='เลือกแบบฟอร์มตามเอกสารต้นฉบับ'
               />
             </div>
           ) : null}
 
-          {/* เอกสารฉบับเต็ม — ตัวเดียวกับที่ผู้รับบริการกรอกเอง (มติผู้ใช้
-              25 ส.ค. 69) เจ้าหน้าที่จึงเลือกความยินยอมรายข้อตามที่เซ็นมาบน
-              กระดาษได้ครบ · ช่องแนบต้นฉบับไปแทนที่บล็อกลายมือชื่อ */}
+          {/* ยังไม่เลือกเอกสาร = ยังไม่รู้ว่าจะให้กรอกอะไร จึงไม่แสดงอะไรเพิ่ม
+              (มติผู้ใช้ 25 ส.ค. 69) ของเดิมโชว์ช่องแนบไฟล์ วันที่ และเหตุผล
+              ค้างไว้ตั้งแต่เปิด popup ทั้งที่ยังกดบันทึกไม่ได้อยู่ดี */}
           {fillFormId ? (
-            <ConsentFormFillBody
-              key={fillFormId}
-              formId={fillFormId}
-              initialFullName={resolvedRecord?.name || ''}
-              initialHn={resolvedRecord?.hn || ''}
-              showSidePanel={false}
-              hideSignature
-              uploadSlot={uploadSlot}
-              onStateChange={setDocApi}
-            />
-          ) : (
-            uploadSlot
-          )}
+            <div
+              className='grid w-full min-w-0'
+              style={{
+                /* สองคอลัมน์กว้างเท่ากัน (มติผู้ใช้ 25 ส.ค. 69) — auto-fit ที่ 640px
+                   ยุบเหลือคอลัมน์เดียวบนจอ 1280px และแตกเป็นสามคอลัมน์ถ้าลด min
+                   ลง จึงกำหนดสัดส่วนตรง ๆ ไปเลย */
+                gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+                gap: 'var(--dim-space-600)',
+                alignItems: 'start',
+              }}
+            >
+              {/* ซ้าย — เอกสารฉบับเต็ม ตัวเดียวกับที่ผู้รับบริการกรอกเอง
+                  เจ้าหน้าที่จึงเลือกความยินยอมรายข้อตามที่เซ็นมาบนกระดาษได้ครบ */}
+              <ConsentFormFillBody
+                key={fillFormId}
+                formId={fillFormId}
+                initialFullName={record?.name || ''}
+                initialHn={record?.hn || ''}
+                patientOptions={record ? null : patientOptions}
+                onPatientChange={setSelectedHn}
+                showSidePanel={false}
+                hideSignature
+                onStateChange={setDocApi}
+              />
 
-          <DatePicker
-            label='วันที่มีผล'
-            required
-            value={effectiveDate}
-            onChange={setEffectiveDate}
-            format={thaiDateFormat}
-            placeholder='เลือกวันที่เอกสารมีผล'
-          />
+              {/* ขวา — หลักฐานต้นฉบับ + ข้อมูลการบันทึก */}
+              <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-500)' }}>
+                <div
+                  className='flex flex-col w-full min-w-0'
+                  style={{
+                    gap: 'var(--dim-space-400)',
+                    paddingTop: 'var(--dim-space-600)',
+                    paddingRight: 'var(--dim-space-600)',
+                    paddingBottom: 'var(--dim-space-600)',
+                    paddingLeft: 'var(--dim-space-600)',
+                    background: 'var(--surface-card-100)',
+                    borderRadius: 'var(--dim-radius-500, 16px)',
+                    boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+                  }}
+                >
+                  <h2 style={PAPER_SECTION_TITLE}>เอกสารต้นฉบับที่ลงนามแล้ว</h2>
+                  {uploadSlot}
+                  <div
+                    className='flex flex-col w-full'
+                    style={{
+                      background: 'var(--surface-card-200, #FDFDFD)',
+                      border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
+                      borderRadius: 'var(--dim-radius-400, 12px)',
+                      paddingTop: 'var(--dim-space-400)',
+                      paddingRight: 'var(--dim-space-400)',
+                      paddingBottom: 'var(--dim-space-400)',
+                      paddingLeft: 'var(--dim-space-400)',
+                      gap: 'var(--dim-space-100)',
+                      color: 'var(--text-content-secondary)',
+                    }}
+                  >
+                    <span style={{ ...PAPER_SECTION_TITLE, fontSize: 'var(--type-size-sm)' }}>หมายเหตุ</span>
+                    <span
+                      style={{
+                        fontFamily: 'var(--type-family-body)',
+                        fontSize: 'var(--type-size-sm)',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      ลายมือชื่อผู้ลงนามอยู่บนเอกสารต้นฉบับที่แนบไว้ — ไม่ต้องเซ็นซ้ำในระบบ
+                    </span>
+                  </div>
 
-          <SuggestibleTextarea
-            voice
-            label='เหตุผล / บันทึกเพิ่มเติม'
-            required
-            value={reason}
-            onChange={(v) => setReason(typeof v === 'string' ? v : v?.target?.value ?? '')}
-            placeholder='พิมพ์หรือกดปุ่มไมโครโฟนเพื่อพูด...'
-            suggestions={REASON_HINTS}
-            minChars={3}
-            height={110}
-          />
+                  {/* วันที่ให้ความยินยอมอยู่ในการ์ดเดียวกับเอกสารต้นฉบับ (มติ
+                      ผู้ใช้ 25 ส.ค. 69) — เป็นข้อมูลของกระดาษใบเดียวกัน แยก
+                      ออกมาลอยข้างนอกทำให้ดูเหมือนคนละเรื่อง */}
+                  <DatePicker
+                    label='วันที่ให้ความยินยอม'
+                    required
+                    value={effectiveDate}
+                    onChange={setEffectiveDate}
+                    format={thaiDateFormat}
+                    placeholder='เลือกวันที่ผู้รับบริการลงนาม'
+                  />
+                </div>
+              </div>
+            </div>
+          ) : null}
 
         </div>
       </Popup>
