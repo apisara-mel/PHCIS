@@ -1752,7 +1752,7 @@ function StepContent(props) {
                     value={s.title}
                     onChange={(v) => updateSection(s.id, { title: v })}
                     placeholder='เช่น ยินยอมรับการรักษา'
-                    helperText='ไม่ต้องใส่เลขข้อ ระบบจะใส่ตามลำดับโดยอัตโนมัติ'
+                    showHelperText={false}
                   />
                   <SuggestibleTextarea
                     voice label='รายละเอียด Section' required
