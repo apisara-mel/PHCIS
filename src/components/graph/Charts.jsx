@@ -284,10 +284,13 @@ export const Donut = ({
             <text
               x='50%' y='52%'
               textAnchor='middle' dominantBaseline='middle'
+              /* ตัวเลขกลางโดนัทเป็นตัวเลขล้วน — Mitr เรนเดอร์ 0 เป็น slashed
+                 zero ที่อ่านเป็นสัญลักษณ์ห้าม จึงใช้ heading-content แทน
+                 (ดู StatTile / docs/awaiting-components.md #68) */
               style={{
                 fontSize: centerLabelSize,
-                fontFamily: 'var(--type-family-heading-graphic2)',
-                fontWeight: 'var(--type-weight-regular, 400)',
+                fontFamily: 'var(--type-family-heading-content)',
+                fontWeight: 'var(--type-weight-bold)',
                 fill: 'var(--text-content-default)',
               }}
             >
