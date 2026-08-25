@@ -3,9 +3,14 @@ import CheckboxButton from '@/components/checkbox/CheckboxButton';
 import FormScopeEditor from '@/components/consent/FormScopeEditor';
 import { consentScopeKey } from '@/data/consentFormScopes';
 
-/* Shared “กิจกรรม ที่มีสิทธิเข้าถึงได้” block — CreateConsentFormPage step 2
+/* Shared “บทบาทที่มีสิทธิเข้าถึงได้” block — CreateConsentFormPage step 2
    and FormScopeViewPopup edit mode use the same layout (heading + select-all +
-   2-column checkbox tree). */
+   checkbox tree)
+
+   คำว่า "กิจกรรม" เปลี่ยนเป็น "บทบาท" (มติผู้ใช้ 25 ส.ค. 69) — การ์ดในบล็อกนี้
+   คือ แพทย์ / พยาบาล ซึ่งเป็นบทบาทวิชาชีพ ส่วนรายการย่อยข้างในถึงจะเป็นกิจกรรม
+   PharmacyPrescriberScopePopup ส่ง allLabel + showHeading ของตัวเองมาอยู่แล้ว
+   จึงไม่กระทบ */
 
 const COLUMN_HEADING_STYLE = {
   margin: 0,
@@ -35,9 +40,11 @@ export default function FormScopeAccessEditor({
   onToggle,
   onToggleMany,
   columns = 2,
+  /** คอลัมน์ของกิจกรรมย่อยภายในการ์ดบทบาท — ส่งต่อให้ FormScopeEditor */
+  branchColumns = 1,
   variant = 'card',
-  heading = 'กิจกรรม ที่มีสิทธิเข้าถึงได้',
-  allLabel = 'ทุก กิจกรรม',
+  heading = 'บทบาทที่มีสิทธิเข้าถึงได้',
+  allLabel = 'ทุกบทบาท',
   readOnly = false,
   showHeading = true,
   style,
@@ -77,6 +84,7 @@ export default function FormScopeAccessEditor({
         onToggle={readOnly ? undefined : onToggle}
         onToggleMany={readOnly ? () => {} : onToggleMany}
         columns={columns}
+        branchColumns={branchColumns}
         readOnly={readOnly}
       />
     </>

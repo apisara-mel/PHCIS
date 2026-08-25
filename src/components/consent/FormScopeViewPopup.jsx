@@ -181,7 +181,7 @@ export default function FormScopeViewPopup({
             />
           ) : (
             <section className='w-full flex flex-col min-w-0' style={VIEW_SECTION_STYLE}>
-              <h3 style={VIEW_HEADING_STYLE}>กิจกรรม ที่มีสิทธิเข้าถึงได้</h3>
+              <h3 style={VIEW_HEADING_STYLE}>บทบาทที่มีสิทธิเข้าถึงได้</h3>
               <FormScopeGrouping scopes={recordScopes} columns={2} variant='panel' />
             </section>
           )}

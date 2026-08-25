@@ -5,6 +5,7 @@
 import { resolveConsentPatient } from '@/data/consentPatientDisplay';
 import { ACCESS_TYPE_DISPLAY_LABEL } from '@/pages/consent/AccessRequestForm';
 import { STAFF_AVATAR } from '@/pages/appointment/appointmentStaffAvatars';
+import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
 
 /* Staff org scope — mirrors ConsentFormsPage กิจกรรม / กิจกรรมย่อย / แผนก. */
 const STAFF_ORG_POOL = [
@@ -227,6 +228,7 @@ export const ACCESS_RECORDS = (() => {
   const plan = ACCESS_STATUS_PLAN.find((p) => p.status === status);
   const slot = bucketSlot[status]++;
   const n = i + 1;
+  const spread = Math.floor(i / MONTHS.length);
   const day = (n % 27) + 1;
   const month = slot < plan.momThis
     ? MONTHS[thisMonthIdx]
@@ -243,25 +245,34 @@ export const ACCESS_RECORDS = (() => {
   const patient = resolveConsentPatient(hn);
   /* stride 5 — เดือนเดียวกันได้หลายกลุ่มวิชาชีพ (pie ไม่พังตอน filter รายเดือน) */
   const org = accessOrgOfIndex(i * 5);
+  /* 1 ใน 7 เป็นคำขอของผู้ใช้ที่ล็อกอินอยู่ — popup "ประวัติคำขอเข้าถึงข้อมูล"
+     และหน้า "รายการคำขอของฉัน" ต้องมีประวัติจริงที่กระจายหลายเดือนและหลาย
+     สถานะ ไม่ใช่มีแต่ 3 รายการ "รออนุมัติ" ที่ hardcode ไว้ (25 ส.ค. 69) */
+  const mine = i % 7 === 3;
   const active = approved && slot < (plan.activeCount ?? plan.count);
   return {
     id: n,
     reqNo: `REQ-2569-${String(40 + n).padStart(4, '0')}`,
-    name: NAMES[i % NAMES.length],
-    empCode: `EMP-${String(100 + n).padStart(4, '0')}`,
-    group: org.group,
-    subBranch: org.subBranch,
-    dept: org.dept,
+    /* เดือนใช้ `i % MONTHS.length` (12) — ถ้าชื่อ/วัตถุประสงค์/รหัสฟอร์ม
+       ใช้ modulus ที่หาร 12 ลงตัว ทุกรายการในเดือนเดียวกันจะได้ค่าเดียวกันหมด
+       (เห็นชัดตอนทำ timeline 25 ส.ค. 69 — ผู้ขอซ้ำกัน 6 แถวรวด)
+       คูณ stride ไม่ช่วย เพราะยังอยู่ residue class เดิม จึงบวก `spread`
+       ที่เดินหน้า 1 ทุกครั้งที่ i ครบรอบ 12 */
+    name: mine ? PHCIS_CURRENT_USER.displayName : NAMES[(i + spread) % NAMES.length],
+    empCode: mine ? PHCIS_CURRENT_USER.employeeCode : `EMP-${String(100 + n).padStart(4, '0')}`,
+    group: mine ? PHCIS_CURRENT_USER.groupPolicy : org.group,
+    subBranch: mine ? PHCIS_CURRENT_USER.subBranch : org.subBranch,
+    dept: mine ? PHCIS_CURRENT_USER.department : org.dept,
     avatarSrc: accessAvatarForGroup(org.group, i),
     createdDate: `${day} ${month} 2569`,
     createdTime: `${String((i % 9) + 1).padStart(2, '0')}:00 น.`,
     hn,
     patientName: patient?.name || '',
-    purpose: PURPOSES[i % PURPOSES.length],
+    purpose: PURPOSES[(i + spread) % PURPOSES.length],
     reason: REASONS[i % REASONS.length],
     accessType: 'patient_consent',
     accessTypeLabel: ACCESS_TYPE_DISPLAY_LABEL.patient_consent,
-    formCode: `PH-${String((i % 12) + 1).padStart(3, '0')}`,
+    formCode: `PH-${String(((i + spread * 5) % 12) + 1).padStart(3, '0')}`,
     formName: 'ใบยินยอมการใช้ข้อมูลส่วนบุคคล (PDPA)',
     period: `${day}-${Math.min(day + 10, 28)} ${month} 2569`,
     periodDays: `${(i % 3) * 5 + 5} วัน`,
@@ -281,6 +292,13 @@ export const ACCESS_RECORDS = (() => {
 
 ACCESS_SUMMARY = buildAccessSummary(ACCESS_RECORDS);
 export { ACCESS_SUMMARY };
+
+/** คำขอนี้เป็นของผู้ใช้ที่ล็อกอินอยู่หรือไม่ — ใช้ร่วมกันทั้ง popup
+    "ประวัติคำขอเข้าถึงข้อมูล" และหน้า "รายการคำขอของฉัน" จะได้ไม่กรองคนละเกณฑ์ */
+export const isMyAccessRequest = (row) => (
+  row?.name === PHCIS_CURRENT_USER.displayName
+  || row?.empCode === PHCIS_CURRENT_USER.employeeCode
+);
 
 /** Display label for HN column / detail rows */
 export const accessPatientLabel = (row) => {

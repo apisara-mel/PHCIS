@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import Icon from '@/components/icons/Icon';
 import Checkbox from '@/components/checkbox/Checkbox';
 import { splitGroupsIntoRows } from '@/components/consent/FormScopeGrouping';
 import { consentScopeKey } from '@/data/consentFormScopes';
@@ -111,17 +112,37 @@ function groupCatalogForEditor(catalog = []) {
 
 function EditorGroupCard({
   group, branches, selectedKeys, onToggle, onToggleMany, stretch = false, readOnly = false,
+  branchColumns = 1,
 }) {
   const allGroupItems = branches.flatMap(({ items }) => items);
   const groupState = selectionState(allGroupItems, selectedKeys);
+  /* หัวข้อบทบาทพับได้ (มติผู้ใช้ 25 ส.ค. 69) — catalog ยาวมาก ถ้ากางหมด
+     ต้อง scroll ผ่านบทบาทที่ไม่เกี่ยวเพื่อไปหาบทบาทที่ต้องการ */
+  const [open, setOpen] = useState(true);
+  const selectedCount = allGroupItems.filter((sc) => selectedKeys.has(consentScopeKey(sc))).length;
 
   return (
     <div
       className={`flex flex-col min-w-0 w-full ${stretch ? 'h-full flex-1' : ''}`}
       style={{ ...PANEL_GROUP, height: stretch ? '100%' : undefined }}
     >
-      <span style={GROUP_TITLE_BAND}>{group}</span>
-      <div style={PANEL_BODY}>
+      <button
+        type='button'
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className='flex items-center w-full text-left'
+        style={{ ...GROUP_TITLE_BAND, display: 'flex', gap: 'var(--dim-space-200)', border: 'none', cursor: 'pointer' }}
+      >
+        <span className='flex-1 min-w-0'>{group}</span>
+        {selectedCount > 0 ? (
+          <span style={{ ...GROUP_LABEL, fontWeight: 'var(--type-weight-regular, 400)' }}>
+            เลือก {selectedCount} รายการ
+          </span>
+        ) : null}
+        {/* chevron อยู่ขวาสุด (มติผู้ใช้ 25 ส.ค. 69) */}
+        <Icon name={open ? 'expand_less' : 'expand_more'} size={20} />
+      </button>
+      <div style={{ ...PANEL_BODY, display: open ? 'flex' : 'none' }}>
       {onToggleMany && allGroupItems.length > 0 && (
         <BulkCheckbox
           checked={groupState.all}
@@ -131,8 +152,19 @@ function EditorGroupCard({
         />
       )}
       <div
-        className='flex flex-col min-w-0'
-        style={{ gap: 'var(--dim-space-600)' }}
+        className='min-w-0'
+        style={branchColumns > 1 ? {
+          /* auto-fill — ได้ 4 คอลัมน์บนการ์ดเต็มความกว้าง และลดลงเองบนจอแคบ
+             (มติผู้ใช้ 25 ส.ค. 69: content ด้านในแบ่งเป็น 4 คอลัมน์) */
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(var(--dim-size-2450, 280px), 1fr))',
+          gap: 'var(--dim-space-600)',
+          alignItems: 'start',
+        } : {
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--dim-space-600)',
+        }}
       >
         {branches.map(({ subBranch, items }) => {
           const branchState = selectionState(items, selectedKeys);
@@ -191,6 +223,8 @@ function EditorGroupCard({
 /** แก้ไข กิจกรรม / กิจกรรมย่อย / แผนก — checkbox ครบ catalog · tick = เข้าถึงได้. */
 export default function FormScopeEditor({
   catalog = [], selectedKeys, onToggle, onToggleMany, columns = 1, readOnly = false,
+  /** จำนวนคอลัมน์ของ "กิจกรรมย่อย" ภายในการ์ดบทบาท (1 = เรียงลงมาแบบเดิม) */
+  branchColumns = 1,
 }) {
   const grouped = useMemo(() => groupCatalogForEditor(catalog), [catalog]);
   const groupRows = useMemo(
@@ -227,6 +261,7 @@ export default function FormScopeEditor({
           onToggleMany={onToggleMany}
           stretch={stretch}
           readOnly={readOnly}
+          branchColumns={branchColumns}
         />
       ))}
     </div>
@@ -255,6 +290,7 @@ export default function FormScopeEditor({
                   onToggleMany={onToggleMany}
                   stretch
                   readOnly={readOnly}
+                  branchColumns={branchColumns}
                 />
               </div>
             ))}

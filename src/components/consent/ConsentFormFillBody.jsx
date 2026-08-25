@@ -102,6 +102,10 @@ export default function ConsentFormFillBody({
   onStateChange,
   /** ส่งผลลัพธ์ตอนบันทึก: { formId, meta, fullName, nationalId, hn, answers, outcome, signature } */
   onSubmit,
+  /** badge สถานะยืนยันตัวตน — วางแถวเดียวกับหัวข้อ "ข้อมูลผู้ป่วย"
+      (มติผู้ใช้ 25 ส.ค. 69) เดิมเป็น Alert เต็มความกว้างเหนือฟอร์ม
+      ทั้งที่บอกสถานะสั้น ๆ แค่บรรทัดเดียว */
+  identityBadge = null,
 }) {
   const meta = useMemo(() => getRegistrationConsentForm(formId), [formId]);
 
@@ -225,7 +229,15 @@ export default function ConsentFormFillBody({
           </div>
         ) : null}
         <section className='flex flex-col items-center' style={{ ...sectionCardStyle, gap: 'var(--dim-space-400)' }}>
-          <h2 style={sectionTitleStyle}>ข้อมูลผู้ป่วย</h2>
+          <div
+            className='flex items-center justify-between flex-wrap w-full min-w-0'
+            style={{ gap: 'var(--dim-space-200)' }}
+          >
+            {/* sectionTitleStyle มี width:100% — ต้อง override เป็น auto
+                ไม่งั้น badge ถูกดันตกไปบรรทัดล่าง */}
+            <h2 style={{ ...sectionTitleStyle, width: 'auto' }}>ข้อมูลผู้ป่วย</h2>
+            {identityBadge}
+          </div>
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
             {(meta.patientFields || []).map((field) => (
               <InputField

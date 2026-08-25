@@ -20,7 +20,7 @@ import StaffProfileAvatar from '@/components/appointment/StaffProfileAvatar';
 import {
   ACCESS_RECORDS, buildAccessSummary, ACCESS_TABS, ACCESS_STATUS,
   thaiDateOfIso, daysLeftOfIso, formatAccessCreatedTime, consumeAccessImports, accessPatientLabel,
-  accessAvatarForGroup,
+  accessAvatarForGroup, isMyAccessRequest,
 } from '@/data/accessRecords';
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import { ApprovePeriodPopup, EditPeriodPopup, AccessDetailPopup } from '@/pages/consent/accessPopups';
@@ -311,9 +311,9 @@ const autoExpire = (r) => {
 };
 
 export default function AccessManagementPage({ mineOnly = false }) {
-  const isMine = (row) => !mineOnly
-    || row?.name === PHCIS_CURRENT_USER.displayName
-    || row?.empCode === PHCIS_CURRENT_USER.employeeCode;
+  /* predicate ตัวเดียวกับ popup "ประวัติคำขอเข้าถึงข้อมูล" — อยู่ใน
+     accessRecords.js จะได้ไม่กรองคนละเกณฑ์ (25 ส.ค. 69) */
+  const isMine = (row) => !mineOnly || isMyAccessRequest(row);
   /* rows เป็น state จริง (mock mutate ใน session) */
   const [rows, setRows] = useState(() => [
     ...(mineOnly ? [...ACCESS_RECORDS, ...MOCK_MY_PENDING_REQUESTS] : ACCESS_RECORDS).map(autoExpire),
@@ -603,7 +603,9 @@ export default function AccessManagementPage({ mineOnly = false }) {
   return (
     <>
       <QueuePageShell
-        activeKey={mineOnly ? 'consent-my-requests' : 'consent-access'}
+        /* mineOnly ไม่มีเมนูของตัวเองแล้ว (ถอดออก 25 ส.ค. 69) — ไฮไลต์
+           "จัดการสิทธิ์ฯ" ซึ่งเป็นหน้าเดียวกัน ไม่งั้น side menu จะไม่มีอะไร active */
+        activeKey='consent-access'
         sidebarItems={CONSENT_NAV}
         sidebarFallbackKey='consent-access'
         brandTitle='ระบบจัดการความยินยอม'

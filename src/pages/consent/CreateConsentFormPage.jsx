@@ -538,6 +538,8 @@ const ConsentWizardHeader = React.memo(function ConsentWizardHeader({
       <div className='hidden md:block w-full min-w-0'>
         <WizardMorphHeader
           title='สร้างแบบฟอร์มจัดการความยินยอมใหม่'
+          /* title กับ step อยู่แถวเดียวกันตั้งแต่ยังไม่ scroll (มติผู้ใช้ 25 ส.ค. 69) */
+          stepperSameRow
           className='min-w-0 overflow-hidden'
           afterTitle={prefill?.fromVersion ? (
             <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
@@ -592,6 +594,10 @@ const ConsentFormEditPopupSteps = React.memo(function ConsentFormEditPopupSteps(
           current={step}
           completedSteps={completedSteps}
           onStepClick={onStepClick}
+          /* ชื่อ step ต้องอยู่บรรทัดเดียว (มติผู้ใช้ 25 ส.ค. 69) — ของเดิม
+             "ตรวจสอบและเผยแพร่" ตัดเป็น 2 บรรทัดเพราะช่อง step กว้างคงที่
+             labelNoWrap เปลี่ยนเป็น width:auto + minWidth เดิม + nowrap */
+          labelNoWrap
           className='justify-center w-full'
         />
       </div>
@@ -1522,7 +1528,13 @@ function StepAccess({ accessScopes, setAccessScopes, position, setPosition, posi
         selectedKeys={selectedScopeKeys}
         onToggle={handleScopeToggle}
         onToggleMany={handleScopeToggleMany}
-        columns={2}
+        /* 1 คอลัมน์ — แต่ละบทบาทกินเต็มแถว แล้วบทบาทถัดไปลงแถวใหม่
+           (มติผู้ใช้ 25 ส.ค. 69) ของเดิม 2 คอลัมน์ทำให้การ์ดสูงไม่เท่ากัน
+           และรายการย่อยในแต่ละบทบาทถูกบีบจนอ่านยาก */
+        columns={1}
+        /* กิจกรรมย่อยข้างในการ์ดแบ่งเป็น 4 คอลัมน์ (มติผู้ใช้ 25 ส.ค. 69)
+           — การ์ดกินเต็มแถวแล้วเหลือที่ว่างขวามือเยอะ */
+        branchColumns={4}
         style={scopeCardStyle}
       />
     </>
