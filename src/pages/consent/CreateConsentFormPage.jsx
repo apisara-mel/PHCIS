@@ -538,6 +538,8 @@ const ConsentWizardHeader = React.memo(function ConsentWizardHeader({
       <div className='hidden md:block w-full min-w-0'>
         <WizardMorphHeader
           title='สร้างแบบฟอร์มจัดการความยินยอมใหม่'
+          /* title กับ step อยู่แถวเดียวกันตั้งแต่ยังไม่ scroll (มติผู้ใช้ 25 ส.ค. 69) */
+          stepperSameRow
           className='min-w-0 overflow-hidden'
           afterTitle={prefill?.fromVersion ? (
             <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
@@ -1522,7 +1524,10 @@ function StepAccess({ accessScopes, setAccessScopes, position, setPosition, posi
         selectedKeys={selectedScopeKeys}
         onToggle={handleScopeToggle}
         onToggleMany={handleScopeToggleMany}
-        columns={2}
+        /* 1 คอลัมน์ — แต่ละบทบาทกินเต็มแถว แล้วบทบาทถัดไปลงแถวใหม่
+           (มติผู้ใช้ 25 ส.ค. 69) ของเดิม 2 คอลัมน์ทำให้การ์ดสูงไม่เท่ากัน
+           และรายการย่อยในแต่ละบทบาทถูกบีบจนอ่านยาก */
+        columns={1}
         style={scopeCardStyle}
       />
     </>

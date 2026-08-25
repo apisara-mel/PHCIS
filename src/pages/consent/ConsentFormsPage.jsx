@@ -11,6 +11,7 @@ import FilterDateTag from '@/components/forms/FilterDateTag';
 import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import Tooltip from '@/components/tooltip/Tooltip';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
@@ -374,17 +375,27 @@ export default function ConsentFormsPage() {
     }
   };
 
+  /* ปุ่มไอคอนล้วนต้องมีคำอธิบายตอน hover (มติผู้ใช้ 25 ส.ค. 69) — title ของ
+     เบราว์เซอร์ขึ้นช้าและสไตล์ไม่ตรงระบบ จึงห่อด้วย <Tooltip> ของ DS
+     (aria-label ยังอยู่ครบสำหรับ screen reader) */
+  const IconAction = ({ hint, ...props }) => (
+    <Tooltip content={hint} position='top'>
+      <span className='inline-flex shrink-0'>
+        <NeutralSubdueIconButton variant='outline' size='sm' aria-label={hint} {...props} />
+      </span>
+    </Tooltip>
+  );
+
   const renderAction = (row) => (
     <div
       className='flex items-center justify-end flex-wrap shrink-0'
       style={{ gap: 'var(--dim-space-150)' }}
     >
-      <NeutralSubdueIconButton icon='visibility' variant='outline' size='sm' aria-label='ดูแบบฟอร์ม' title='ดูแบบฟอร์ม' onClick={() => setViewFor(row)} />
+      <IconAction icon='visibility' hint='ดูแบบฟอร์ม' onClick={() => setViewFor(row)} />
       {/* แชร์/ส่งออกทางอีเมล — ซ่อนไว้จนกว่าฟีเจอร์จะเผยแพร่ */}
-      <NeutralSubdueIconButton icon='history' variant='outline' size='sm' aria-label='ประวัติเวอร์ชัน' title='ประวัติเวอร์ชัน (Version Control)' onClick={() => setVersionFor(row)} />
-      <NeutralSubdueIconButton icon='download' variant='outline' size='sm' aria-label='ดาวน์โหลด PDF' title='ดาวน์โหลด PDF (เก็บ log)' onClick={() => handleDownloadPdf(row)} />
-      <NeutralSubdueIconButton icon='print' variant='outline' size='sm' aria-label='พิมพ์' title='พิมพ์ (ไม่เก็บ log)' onClick={() => window.print?.()} />
-      <AccessCell row={row} onView={setAccessViewFor} />
+      <IconAction icon='history' hint='ประวัติเวอร์ชัน (Version Control)' onClick={() => setVersionFor(row)} />
+      <IconAction icon='download' hint='ดาวน์โหลด PDF (เก็บ log)' onClick={() => handleDownloadPdf(row)} />
+      <IconAction icon='print' hint='พิมพ์ (ไม่เก็บ log)' onClick={() => window.print?.()} />
       <NeutralSubdueButton leadingIcon='edit' size='sm' className='shrink-0' onClick={() => handleEdit(row)}>แก้ไข</NeutralSubdueButton>
     </div>
   );
@@ -428,9 +439,9 @@ export default function ConsentFormsPage() {
           </div>
         ),
       },
-      /* +ปุ่ม "ผู้ที่มีสิทธิ์เข้าถึง" ที่ย้ายมาจากคอลัมน์ "สิทธิ์การเข้าถึง"
-         ที่ถูกลบทิ้ง (มติผู้ใช้ 25 ส.ค. 69) — กว้างขึ้นตามจำนวนปุ่ม */
-      { key: 'action', header: 'การดำเนินการ', minWidth: 480, render: renderAction },
+      /* ปุ่ม "ผู้ที่มีสิทธิ์เข้าถึง" ย้ายเข้าไปอยู่ใน popup ดูตัวอย่างแล้ว
+         (มติผู้ใช้ 25 ส.ค. 69) คอลัมน์นี้จึงกลับมาแคบเท่าเดิม */
+      { key: 'action', header: 'การดำเนินการ', minWidth: 304, render: renderAction },
     ];
     if (activeTab === 'draft') {
       return [updatedDateCol, ...leading, ...trailing];

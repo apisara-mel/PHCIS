@@ -13,6 +13,9 @@ import {
   morphStepScaleStyle,
   morphTopicTitleDenseStyle,
   morphTopicTitleStyle,
+  morphStepHeaderTitleWrapInlineStyle,
+  morphStepHeaderStepAreaInlineStyle,
+  morphStepHeaderStepGlideInlineStyle,
 } from '@/components/layout/headerMorphStyles';
 
 /** Sticky wizard header — title + stepper morph together on scroll.
@@ -38,11 +41,15 @@ const StepMorphHeader = ({
       — ไม่มีการพลิกแถว = ต่อเนื่องทุกค่า morph.
       Consent wizard ยังใช้ glide เดิม (ส่ง prop นี้เป็น false) */
   stepperOwnRow = false,
+  /** Title กับ stepper อยู่แถวเดียวกันตั้งแต่ยังไม่ scroll — ไม่ต้องรอ morph
+      พาขึ้นมา (มติผู้ใช้ 25 ส.ค. 69 · consent wizard) */
+  stepperSameRow = false,
 }) => {
   if (dense) {
     /* stepper แถวตัวเอง: ใช้ชุด style เดียวกับโหมด stepper-only (scale ล้วน)
        แต่ยังคงแถว title ไว้ด้านบน */
     const stepperOnlyRow = stepperOwnRow && !hideTitle;
+    const inlineRow = stepperSameRow && !hideTitle && !stepperOnlyRow;
     return (
       <div
         className={`w-full ${className}`}
@@ -53,7 +60,7 @@ const StepMorphHeader = ({
             className='flex items-center flex-wrap shrink-0 min-w-0'
             style={{
               gap: 'var(--dim-space-200)',
-              ...morphStepHeaderTitleWrapDenseStyle,
+              ...(inlineRow ? morphStepHeaderTitleWrapInlineStyle : morphStepHeaderTitleWrapDenseStyle),
               /* กินเต็มแถว — ช่อง stepper จึงไม่มีวันขึ้นมาต่อท้าย title */
               ...(stepperOnlyRow ? { flex: '1 1 100%', maxWidth: '100%', paddingRight: 0 } : null),
             }}
@@ -64,11 +71,11 @@ const StepMorphHeader = ({
         )}
         <div style={hideTitle || stepperOnlyRow
           ? morphStepOnlyAreaDenseStyle
-          : morphStepHeaderStepAreaDenseStyle}
+          : (inlineRow ? morphStepHeaderStepAreaInlineStyle : morphStepHeaderStepAreaDenseStyle)}
         >
           <div style={hideTitle || stepperOnlyRow
             ? morphStepOnlyGlideDenseStyle
-            : morphStepHeaderStepGlideDenseStyle}
+            : (inlineRow ? morphStepHeaderStepGlideInlineStyle : morphStepHeaderStepGlideDenseStyle)}
           >
             {children}
           </div>
