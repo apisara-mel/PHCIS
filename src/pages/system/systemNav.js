@@ -28,16 +28,19 @@ export const SYSTEM_NAV = [
   /* TOR §1.2.7 — ห้องตรวจ × แพทย์ประจำห้อง + โควตารายวัน (เดิมอยู่เมนู OPD) */
   { key: 'system-opd-room-config', label: 'ตั้งค่าห้องตรวจและโควตารายวัน', icon: 'meeting_room', path: '/opd/room-config' },
   { key: 'assess-access-control', label: 'สิทธิ์การเข้าถึงระบบ',   icon: 'how_to_reg',       path: '/assess/access-control' },
+  /* บุคลากรอยู่ต่อจากสิทธิ์การเข้าถึงระบบ — ตั้งสิทธิ์เสร็จแล้วค่อยผูกคน (26 ส.ค. 69 มติผู้ใช้) */
+  { key: 'system-staff',          label: 'บุคลากร',          icon: 'group',            path: '/assess/users' },
   /* ด.1.1.18 — matrix สิทธิเข้าถึงข้อมูลผู้ป่วยตามระดับความยินยอม: ถอดออกจากเมนู
      25 ส.ค. 69 (มติผู้ใช้) route /assess/consent-access-rights ยังเข้าได้ตามลิงก์เดิม */
   /* EMR §1.4.2.1 — การจัดการข้อมูลลับ: ถอดออกจากเมนู 25 ส.ค. 69 (มติผู้ใช้)
      route /admin/confidential-data ยังเข้าได้ตามลิงก์เดิม */
-  /* CPOE §1.5.7 — ชุด preset กลาง แบ่งตามอาการ/โรค พร้อมกำหนดผู้มีสิทธิ์ใช้งาน */
+  /* ซ่อนชั่วคราว 26 ส.ค. 69 (มติผู้ใช้ — "วันหลังจะเอากลับมา"): route ทั้งคู่ยัง
+     เปิดอยู่ตามลิงก์เดิม แค่ไม่มีเมนูของตัวเอง เอากลับมาโดยลบคอมเมนต์ออก
+       • CPOE §1.5.7 — ชุด preset กลาง แบ่งตามอาการ/โรค พร้อมกำหนดผู้มีสิทธิ์ใช้งาน
+       • ทะเบียนยา — master data ของเภสัช หน้าเภสัชปฏิบัติการยัง deep-link เข้าได้
   { key: 'system-order-sets', label: 'ชุดคำสั่งการรักษา', icon: 'playlist_add', path: '/admin/order-sets' },
-  /* Pharmacy master data belongs to central settings. Operational pharmacy
-     screens keep a CTA shortcut that deep-links to the create route. */
   { key: 'system-pharmacy-registry', label: 'ทะเบียนยา', icon: 'medication', path: '/admin/pharmacy/registry' },
-  { key: 'system-staff',          label: 'บุคลากร',          icon: 'group',            path: '/assess/users' },
+  */
   /* วันหยุดประจำปี — ทะเบียนกลางตามประกาศสำนักนายกฯ ใช้ร่วมกันทุกศูนย์
      ย้ายมาไว้ล่างสุดของเมนู 25 ส.ค. 69 (มติผู้ใช้) */
   { key: 'system-holidays',       label: 'วันหยุดประจำปี',   icon: 'event_busy',       path: '/admin/holidays' },

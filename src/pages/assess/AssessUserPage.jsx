@@ -13,9 +13,21 @@ import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Switch from '@/components/switch/Switch';
 import SmallAlert from '@/components/alert/SmallAlert';
+import Popup from '@/components/popup/Popup';
+import AlertDialog from '@/components/popup/AlertDialog';
+import StatusBadge from '@/components/badge/StatusBadge';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import ASSESS_NAV from '@/pages/assess/assessNav';
-import { CENTER_OPTIONS } from '@/data/accessControlStore';
+import {
+  CENTER_OPTIONS,
+  readAccessControls,
+  matchingAssignments,
+  approvalLabel,
+  APPROVAL_APPROVED,
+  dataScopeLabel,
+  piiLabel,
+  formatDailyWindow,
+} from '@/data/accessControlStore';
 import { readActivities } from '@/data/activityStore';
 import { readDepartments } from '@/data/departmentStore';
 import { readPositions } from '@/data/positionStore';
@@ -25,6 +37,7 @@ import {
   computeAssessUserStats,
   fullName,
   primaryAssignment,
+  assignmentCenterLabel,
 } from '@/data/assessUserStore';
 
 /* PHCIS | Assess-control — บุคลากร list (Figma 4D3nTx53 · 10:47222 empty · 12:38968 detail). */
@@ -77,8 +90,10 @@ export default function AssessUserPage() {
   const navigate = useHistory();
   const [records, setRecords] = useState(() => readAssessUsers());
   const [search, setSearch] = useState('');
+  const [toggleConfirm, setToggleConfirm] = useState(null);
+  const [accessOf, setAccessOf] = useState(null);
   const [filterCenter, setFilterCenter] = useState('');
-  const [filterActivity, setFilterActivity] = useState('');
+  const [filterRole, setFilterRole] = useState('');
   const [filterDept, setFilterDept] = useState('');
   const [filterPosition, setFilterPosition] = useState('');
   const [toast, setToast] = useState(null);
@@ -119,23 +134,23 @@ export default function AssessUserPage() {
     return records.filter((r) => {
       const primary = primaryAssignment(r);
       if (filterCenter && primary?.centerId !== filterCenter) return false;
-      if (filterActivity && primary?.activityId !== filterActivity) return false;
+      if (filterRole && primary?.subActivityId !== filterRole) return false;
       if (filterDept && primary?.departmentId !== filterDept) return false;
       if (filterPosition && primary?.positionId !== filterPosition) return false;
       if (!q) return true;
       const hay = [fullName(r), r.email, r.licenseNo, r.nameEn, r.surnameEn].join(' ').toLowerCase();
       return hay.includes(q);
     });
-  }, [records, search, filterCenter, filterActivity, filterDept, filterPosition]);
+  }, [records, search, filterCenter, filterRole, filterDept, filterPosition]);
 
   const hasRecords = records.length > 0;
-  const filtersActive = !!(filterCenter || filterActivity || filterDept || filterPosition || search.trim());
+  const filtersActive = !!(filterCenter || filterRole || filterDept || filterPosition || search.trim());
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     filtersActive,
     () => {
       setSearch('');
       setFilterCenter('');
-      setFilterActivity('');
+      setFilterRole('');
       setFilterDept('');
       setFilterPosition('');
     },
@@ -144,9 +159,19 @@ export default function AssessUserPage() {
   const openCreate = () => navigate.push('/assess/users/new');
   const openDetail = (row) => navigate.push(`/assess/users/${row.id}`);
 
+  /* ปุ่มในตารางเปิดสิทธิ์เป็น popup — ไม่พาออกจากหน้า เพราะส่วนใหญ่เปิดดูเทียบ
+     หลายคนติด ๆ กัน (26 ส.ค. 69 มติผู้ใช้) */
+  const openAccess = (row) => setAccessOf(row);
+
   const applyToggleActive = (id, next) => {
     persist(records.map((r) => (r.id === id ? { ...r, active: next } : r)));
     showToast(next ? 'เปิดใช้งานบุคลากรแล้ว' : 'ปิดใช้งานบุคลากรแล้ว');
+  };
+
+  /* สลับสถานะบุคลากรกระทบสิทธิ์เข้าระบบทันที — ถามยืนยันทั้งเปิดและปิด
+     (ต่างจากหน้าตำแหน่ง/แผนกที่ถามเฉพาะตอนปิด) */
+  const handleToggleActive = (row, next) => {
+    setToggleConfirm({ id: row.id, next, name: fullName(row) });
   };
 
   const columns = useMemo(() => [
@@ -165,17 +190,19 @@ export default function AssessUserPage() {
         </div>
       ),
     },
+    /* ทะเบียนที่ผูกกับบุคลากรมีแค่ 3 แบบ: ตำแหน่ง · บทบาท · แผนก
+       (Group Policy เป็นแค่กล่องรวมบทบาท ไม่ใช่คุณสมบัติของคน จึงไม่มีคอลัมน์) */
     {
-      key: 'activity',
-      header: 'กิจกรรม',
+      key: 'position',
+      header: 'ตำแหน่ง',
       render: (row) => {
         const p = primaryAssignment(row);
-        return p?.activity ? <PolicyBadge style='blue'>{p.activity}</PolicyBadge> : <span style={TEXT_CELL}>—</span>;
+        return p?.position ? <PolicyBadge style='purple'>{p.position}</PolicyBadge> : <span style={TEXT_CELL}>—</span>;
       },
     },
     {
-      key: 'subActivity',
-      header: 'กิจกรรมย่อย',
+      key: 'role',
+      header: 'บทบาท',
       render: (row) => {
         const p = primaryAssignment(row);
         return p?.subActivity ? <PolicyBadge style='teal'>{p.subActivity}</PolicyBadge> : <span style={TEXT_CELL}>—</span>;
@@ -190,20 +217,9 @@ export default function AssessUserPage() {
       },
     },
     {
-      key: 'position',
-      header: 'ตำแหน่ง',
-      render: (row) => {
-        const p = primaryAssignment(row);
-        return p?.position ? <PolicyBadge style='purple'>{p.position}</PolicyBadge> : <span style={TEXT_CELL}>—</span>;
-      },
-    },
-    {
       key: 'center',
-      header: 'ศูนย์บริการหลัก',
-      render: (row) => {
-        const p = primaryAssignment(row);
-        return <span style={TEXT_CELL}>{p?.center || '—'}</span>;
-      },
+      header: 'ศูนย์บริการ',
+      render: (row) => <span style={TEXT_CELL}>{assignmentCenterLabel(primaryAssignment(row)) || '—'}</span>,
     },
     {
       key: 'active',
@@ -212,7 +228,7 @@ export default function AssessUserPage() {
         <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} role='presentation'>
           <Switch
             checked={row.active}
-            onChange={(next) => applyToggleActive(row.id, next)}
+            onChange={(next) => handleToggleActive(row, next)}
             aria-label={`สถานะ ${fullName(row)}`}
           />
         </span>
@@ -225,17 +241,28 @@ export default function AssessUserPage() {
         <NeutralSubdueButton
           leadingIcon='visibility'
           size='sm'
-          onClick={(e) => { e.stopPropagation(); openDetail(row); }}
+          onClick={(e) => { e.stopPropagation(); openAccess(row); }}
         >
-          ดู
+          สิทธิการเข้าถึงระบบ
         </NeutralSubdueButton>
       ),
     },
   ], [records]);
 
+  /* แม่แบบสิทธิ์ที่ "ตรง" กับ assignment ของคนคนนี้ — เกณฑ์เดียวกับหน้าสิทธิ์
+     การเข้าถึงระบบ (matchingAssignments) จึงไม่มีทางเห็นไม่ตรงกันสองที่ */
+  const accessRows = useMemo(() => {
+    if (!accessOf) return [];
+    return readAccessControls()
+      .map((rec) => ({ rec, matched: matchingAssignments(rec, accessOf) }))
+      .filter((x) => x.matched.length > 0);
+  }, [accessOf]);
+
   const filterOpts = {
     center: [{ value: '', label: 'ทั้งหมด' }, ...CENTER_OPTIONS],
-    activity: [{ value: '', label: 'ทั้งหมด' }, ...activities.map((a) => ({ value: a.id, label: a.name }))],
+    /* บทบาท = รายการย่อยใน Group Policy — แบนออกมาให้เลือกได้ตรง ๆ
+       (หน้าบุคลากรแสดงแค่ 3 ทะเบียน: ตำแหน่ง · บทบาท · แผนก) */
+    role: [{ value: '', label: 'ทั้งหมด' }, ...activities.flatMap((a) => (a.subActivities || []).map((sub) => ({ value: sub.id, label: sub.name })))],
     dept: [{ value: '', label: 'ทั้งหมด' }, ...departments.map((d) => ({ value: d.id, label: d.name }))],
     pos: [{ value: '', label: 'ทั้งหมด' }, ...positions.map((p) => ({ value: p.id, label: p.name }))],
   };
@@ -295,25 +322,30 @@ export default function AssessUserPage() {
           </div>
         ) : (
           <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
-            <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
-              <PrimarySearch
-                value={search}
-                onChange={setSearch}
-                onSubmit={(v) => {
-                  const q = (v || '').trim();
-                  if (q) pushHistory({ label: q, value: q });
-                  setSearch(q);
-                }}
-                placeholder='ค้นหาชื่อบุคลากร'
-                width={640}
-                history={searchHistory}
-                onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
-              />
+            <section className='flex flex-col w-full' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
+              {/* spacer สองข้างสมดุลกัน — กล่องค้นหาอยู่กึ่งกลางจริง เหมือนหน้าแผนก/ตำแหน่ง */}
+              <div className='w-full flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
+                <div className='flex-1' />
+                <PrimarySearch
+                  value={search}
+                  onChange={setSearch}
+                  onSubmit={(v) => {
+                    const q = (v || '').trim();
+                    if (q) pushHistory({ label: q, value: q });
+                    setSearch(q);
+                  }}
+                  placeholder='ค้นหาชื่อบุคลากร'
+                  width={640}
+                  history={searchHistory}
+                  onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
+                />
+                <div className='flex-1' />
+              </div>
               <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
                 <FilterDropdown prefix='ศูนย์:' options={filterOpts.center} value={filterCenter} onChange={setFilterCenter} placeholder='ทั้งหมด' />
-                <FilterDropdown prefix='กิจกรรม:' options={filterOpts.activity} value={filterActivity} onChange={setFilterActivity} placeholder='ทั้งหมด' />
-                <FilterDropdown prefix='แผนก:' options={filterOpts.dept} value={filterDept} onChange={setFilterDept} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='ตำแหน่ง:' options={filterOpts.pos} value={filterPosition} onChange={setFilterPosition} placeholder='ทั้งหมด' />
+                <FilterDropdown prefix='บทบาท:' options={filterOpts.role} value={filterRole} onChange={setFilterRole} placeholder='ทั้งหมด' />
+                <FilterDropdown prefix='แผนก:' options={filterOpts.dept} value={filterDept} onChange={setFilterDept} placeholder='ทั้งหมด' />
                 <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </div>
               <SmoothFilterResults opaque={resultsOpaque}>
@@ -322,6 +354,7 @@ export default function AssessUserPage() {
                 rows={filteredRows}
                 rowKey={(row) => row.id}
                 onRowClick={openDetail}
+                stickyColCount={1}
                 emptyMessage='ไม่พบบุคลากรที่ตรงกับเงื่อนไข'
               />
               </SmoothFilterResults>
@@ -329,6 +362,87 @@ export default function AssessUserPage() {
           </div>
         )}
       </QueuePageShell>
+
+      {/* สิทธิ์ของคนคนนี้ — อ่านอย่างเดียว แก้ไขที่หน้าสิทธิ์การเข้าถึงระบบ
+          เพื่อไม่ให้มีที่แก้สองแห่งแล้วค่าไม่ตรงกัน */}
+      <Popup
+        open={!!accessOf}
+        onClose={() => setAccessOf(null)}
+        size='large'
+        title='สิทธิการเข้าถึงระบบ'
+        subtitle={accessOf ? `${fullName(accessOf)} · ${assignmentCenterLabel(primaryAssignment(accessOf)) || '—'}` : ''}
+        tertiaryAction={{ label: 'ปิด', onClick: () => setAccessOf(null) }}
+        primaryAction={{
+          label: 'ไปหน้าสิทธิ์การเข้าถึงระบบ',
+          onClick: () => { setAccessOf(null); navigate.push('/assess/access-control'); },
+        }}
+      >
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+          {accessRows.length === 0 ? (
+            <p style={{ ...TEXT_CELL, color: 'var(--text-content-tertiary)', margin: 0 }}>
+              ยังไม่มีแม่แบบสิทธิ์ที่ตรงกับหน่วยงาน/ตำแหน่งของบุคลากรคนนี้
+            </p>
+          ) : accessRows.map(({ rec, matched }) => (
+            <div
+              key={rec.id}
+              className='flex flex-col'
+              style={{
+                gap: 'var(--dim-space-200)',
+                padding: 'var(--dim-space-400)',
+                border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+                borderRadius: 'var(--dim-radius-400)',
+              }}
+            >
+              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                <span style={{ ...TEXT_CELL, fontFamily: 'var(--type-family-heading-graphic2)' }}>{rec.templateName}</span>
+                <StatusBadge style={rec.approvalStatus === APPROVAL_APPROVED ? 'success' : 'warning'}>
+                  {approvalLabel(rec.approvalStatus)}
+                </StatusBadge>
+                {rec.active === false ? <StatusBadge style='neutral'>ปิดใช้งาน</StatusBadge> : null}
+              </div>
+              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                {matched.map((a) => (
+                  <React.Fragment key={a.id}>
+                    {a.position ? <PolicyBadge style='purple'>{a.position}</PolicyBadge> : null}
+                    {a.subActivity ? <PolicyBadge style='teal'>{a.subActivity}</PolicyBadge> : null}
+                    {a.department ? <PolicyBadge style='blue'>{a.department}</PolicyBadge> : null}
+                  </React.Fragment>
+                ))}
+              </div>
+              <span style={{ ...TEXT_CELL, color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
+                {[
+                  `ขอบเขตข้อมูล: ${dataScopeLabel(rec.dataScope)}`,
+                  piiLabel(rec.pii),
+                  `ช่วงเวลาใช้งาน: ${formatDailyWindow(rec)}`,
+                ].join(' · ')}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Popup>
+
+      <AlertDialog
+        open={!!toggleConfirm}
+        onClose={() => setToggleConfirm(null)}
+        type='warning'
+        alignment='center'
+        title={toggleConfirm?.next ? 'เปิดใช้งานบุคลากร?' : 'ปิดใช้งานบุคลากร?'}
+        description={toggleConfirm ? (
+          <>
+            {toggleConfirm.next ? 'ต้องการเปิดใช้งาน' : 'ต้องการปิดใช้งาน'}
+            <br />
+            {`"${toggleConfirm.name}"`}
+            <br />
+            {toggleConfirm.next ? 'ให้เข้าใช้ระบบได้อีกครั้งหรือไม่' : 'ไม่ให้เข้าใช้ระบบหรือไม่'}
+          </>
+        ) : ''}
+        confirmLabel={toggleConfirm?.next ? 'เปิดใช้งาน' : 'ปิดการใช้งาน'}
+        cancelLabel='ยกเลิก'
+        onConfirm={() => {
+          if (toggleConfirm) applyToggleActive(toggleConfirm.id, toggleConfirm.next);
+        }}
+      />
+
       {toast ? <SmallAlert variant='success' leadingGraphic='phcis'>{toast}</SmallAlert> : null}
     </>
   );
