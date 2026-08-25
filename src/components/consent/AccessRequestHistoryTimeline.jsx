@@ -1,85 +1,89 @@
-import React from 'react';
-import ColumnTimeline from '@/components/timeline/ColumnTimeline';
+import React, { useMemo } from 'react';
+import Table from '@/components/table/Table';
+import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { ACCESS_STATUS } from '@/data/accessRecords';
 
-/* ประวัติคำขอเข้าถึงข้อมูล — config ของ ColumnTimeline (มติผู้ใช้ 25 ส.ค. 69)
+/* ประวัติคำขอเข้าถึงข้อมูล — ตารางปกติ (มติผู้ใช้ 25 ส.ค. 69)
 
-   ไม่มีคอลัมน์ "ผู้ขอ" — popup นี้แสดงเฉพาะคำขอของผู้ใช้ที่ล็อกอินอยู่
-   ผู้ขอจึงเป็นคนเดิมทุกแถว ไม่มีข้อมูลให้เทียบ
+   ของเดิมเป็น ColumnTimeline: หัวข้อเดือนคั่นกลางทุกกลุ่ม + สองบรรทัดต่อช่อง
+   ทำให้กวาดตาลงคอลัมน์เดียวไม่ได้ ต้องข้ามหัวข้อเดือนตลอด อ่านยากกว่าตาราง
+   ธรรมดาทั้งที่ข้อมูลเป็นตารางอยู่แล้ว
 
-   "ผู้รับบริการ" คือคนไข้ที่ถูกขอเข้าถึง ไม่ใช่ผู้ขอ — ของเดิมใช้
-   `patientName || name` ช่องเดียวทั้งที่เป็นคนละคน */
+   ใช้ <Table> ตัวเดียวกับทะเบียนอื่นในระบบ จะได้ sticky header · ellipsis ·
+   empty state เหมือนกันหมด ไม่ต้องดูแลสองชุด */
 
-const COLUMNS = [
-  /* วันที่กับเวลาแยกคอลัมน์ (มติผู้ใช้ 25 ส.ค. 69) — ของเดิมซ้อนกันสองบรรทัด
-     ในคอลัมน์เดียว ทำให้กวาดตาหาเวลาข้ามแถวไม่ได้ */
-  {
-    key: 'date',
-    label: 'วันที่',
-    track: 'var(--dim-size-2000, 128px)',
-    primary: (r) => r.createdDate,
-  },
-  {
-    key: 'time',
-    label: 'เวลา',
-    track: 'var(--dim-size-1700, 80px)',
-    primary: (r) => r.createdTime,
-  },
-  {
-    key: 'reqNo',
-    label: 'เลขคำขอ',
-    track: 'var(--dim-size-2000, 128px)',
-    primary: (r) => r.reqNo,
-    secondary: (r) => r.formCode,
-  },
-  {
-    key: 'patient',
-    label: 'ผู้รับบริการ',
-    track: 'minmax(var(--dim-size-2100, 160px), 1.3fr)',
-    primary: (r) => r.patientName || '—',
-    secondary: (r) => (r.hn ? `HN ${r.hn}` : '—'),
-  },
-  /* วัตถุประสงค์ต้องมาจากตอนสร้างคำขอ (มติผู้ใช้ 25 ส.ค. 69)
-     ฟอร์มสร้างคำขอส่ง `reason` (= เหตุผลที่เลือก/พิมพ์เอง) และ `purpose`
-     เป็นค่าเดียวกัน — เอามาแสดงซ้อนกันจึงเป็นข้อความซ้ำในของจริง
-     บรรทัดรองเปลี่ยนไปใช้ `scopes` = "ขอบเขตข้อมูลที่ขอเข้าถึง" ที่ผู้ขอเลือก
-     ไว้ในฟอร์มเดียวกัน (ถ้าไม่มี ค่อย fallback เป็น purpose ของข้อมูลเก่า) */
-  {
-    key: 'reason',
-    label: 'วัตถุประสงค์',
-    track: 'minmax(var(--dim-size-2100, 160px), 1.7fr)',
-    primary: (r) => r.reason || r.purpose || '—',
-    secondary: (r) => (
-      Array.isArray(r.scopes) && r.scopes.length
-        ? r.scopes.join(' · ')
-        : (r.purpose && r.purpose !== r.reason ? r.purpose : '—')
-    ),
-  },
-  {
-    key: 'status',
-    label: 'สถานะ',
-    track: 'var(--dim-size-2000, 128px)',
-    align: 'end',
-    badge: true,
-    primary: (r) => r.status,
-  },
-];
+const MUTED = {
+  color: 'var(--text-content-tertiary)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-xs)',
+  lineHeight: 1.4,
+};
 
-const getDateTime = (r) => `${r.createdDate} · ${r.createdTime}`;
-const getTone = (r) => ACCESS_STATUS[r.status]?.tone || 'grey';
+const TEXT = {
+  color: 'var(--text-content-primary)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-sm)',
+  lineHeight: 1.45,
+};
+
+const Stacked = ({ primary, secondary }) => (
+  <div className='flex flex-col min-w-0 w-full'>
+    <span className='truncate' style={TEXT} title={typeof primary === 'string' ? primary : undefined}>
+      {primary || '—'}
+    </span>
+    {secondary ? (
+      <span className='truncate' style={MUTED} title={typeof secondary === 'string' ? secondary : undefined}>
+        {secondary}
+      </span>
+    ) : null}
+  </div>
+);
+
+/* วัตถุประสงค์มาจากตอนสร้างคำขอ — ฟอร์มส่ง `reason` (เหตุผลที่เลือก/พิมพ์เอง)
+   ส่วนบรรทัดรองคือแบบฟอร์มที่ขอเข้าถึงซึ่งผู้ขอเลือกไว้ในฟอร์มเดียวกัน */
+const purposeSecondary = (r) => (
+  Array.isArray(r.scopes) && r.scopes.length
+    ? r.scopes.join(' · ')
+    : (r.purpose && r.purpose !== r.reason ? r.purpose : '')
+);
 
 export default function AccessRequestHistoryTimeline({ records = [] }) {
+  const columns = useMemo(() => [
+    { key: 'createdDate', header: 'วันที่', render: (r) => <span style={TEXT}>{r.createdDate}</span> },
+    { key: 'createdTime', header: 'เวลา', render: (r) => <span style={TEXT}>{r.createdTime}</span> },
+    {
+      key: 'reqNo',
+      header: 'เลขคำขอ',
+      render: (r) => <Stacked primary={r.reqNo} secondary={r.formCode} />,
+    },
+    {
+      key: 'patient',
+      header: 'ผู้รับบริการ',
+      render: (r) => <Stacked primary={r.patientName} secondary={r.hn ? `HN ${r.hn}` : ''} />,
+    },
+    {
+      key: 'reason',
+      header: 'วัตถุประสงค์',
+      render: (r) => <Stacked primary={r.reason || r.purpose} secondary={purposeSecondary(r)} />,
+    },
+    {
+      key: 'status',
+      header: 'สถานะ',
+      render: (r) => (
+        <ColorfulBadge style={ACCESS_STATUS[r.status]?.tone || 'grey'} size='small' showDot width='hug'>
+          {r.status}
+        </ColorfulBadge>
+      ),
+    },
+  ], []);
+
   return (
-    <ColumnTimeline
+    <Table
+      columns={columns}
       rows={records}
-      columns={COLUMNS}
-      getDateTime={getDateTime}
-      getTone={getTone}
-      getKey={(r, i) => r.id ?? r.reqNo ?? i}
-      countLabel='คำขอ'
-      ariaLabel='ประวัติคำขอเข้าถึงข้อมูล'
-      emptyTitle='ยังไม่มีคำขอเข้าถึงข้อมูล'
-      emptyHint='คำขอที่คุณสร้างจากเมนู “สร้างคำขอเข้าถึงข้อมูล” จะมาแสดงที่นี่'
+      rowKey={(r, i) => r.id ?? r.reqNo ?? i}
+      emptyMessage='ยังไม่มีคำขอเข้าถึงข้อมูล'
+      emptySubtext='คำขอที่คุณสร้างจากเมนู “สร้างคำขอเข้าถึงข้อมูล” จะมาแสดงที่นี่'
     />
   );
 }

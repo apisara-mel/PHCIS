@@ -11,9 +11,9 @@ import FilterDateTag from '@/components/forms/FilterDateTag';
 import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import OfficialFormCover from '@/components/consent/OfficialFormCover';
 import Tooltip from '@/components/tooltip/Tooltip';
 import BrandButton from '@/components/button/BrandButton';
-import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import Icon from '@/components/icons/Icon';
@@ -34,8 +34,6 @@ import { downloadConsentFormPdf } from '@/data/consentFormDownload';
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
 import { ConsentFormEditPopup } from '@/pages/consent/CreateConsentFormPage';
-import { PaperConsentRecordPopup } from '@/pages/consent/consentWorkflowPopups';
-import { getConsentRecords, patchConsentRecord, subscribeConsentStore } from '@/data/consentWorkflowStore';
 import { ConsentFormViewPopup } from '@/pages/consent/ConsentFormViewPopup';
 import FormAccessViewPopup from '@/components/consent/FormAccessViewPopup';
 import { CONSENT_POSITION_OPTIONS, consentPositionLabel, resolveRecordPositions } from '@/data/consentFormScopes';
@@ -118,27 +116,68 @@ const AccessCell = ({ row, onView }) => (
    title, code, and ดู / พิมพ์ / แก้ไข actions.
    กว้างเต็ม track ของ grid — เดิมกว้างคงที่ 240px เพราะอยู่ใน carousel
    แนวนอน ซึ่งถอดออกแล้ว (มติผู้ใช้ 25 ส.ค. 69) */
-const FormGridCard = ({ row, onView, onEdit }) => (
+const FormGridCard = ({ row, onView, onEdit }) => {
+  const [hovered, setHovered] = useState(false);
+  return (
   <div
+    onMouseEnter={() => setHovered(true)}
+    onMouseLeave={() => setHovered(false)}
     className='flex flex-col'
-    style={{ width: '100%', background: 'var(--surface-card-100)', border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)', borderRadius: 'var(--dim-radius-400)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}
+    /* เส้นขอบและเส้นคั่นใช้สีเดียวกับ SummaryCard (มติผู้ใช้ 25 ส.ค. 69) —
+       การ์ดสองชุดอยู่หน้าเดียวกัน ขอบคนละสีทำให้ดูเหมือนคนละระบบ
+       drop shadow มีเฉพาะตอน hover ไม่ใช่ default state */
+    style={{
+      width: '100%',
+      background: 'var(--surface-card-100)',
+      border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+      borderRadius: 'var(--dim-radius-400)',
+      boxShadow: hovered ? 'var(--shadow-card)' : 'none',
+      transition: 'box-shadow 0.18s ease',
+      overflow: 'hidden',
+    }}
   >
-    <div className='flex flex-col' style={{ padding: 'var(--dim-space-400)', gap: 'var(--dim-space-300)' }}>
-      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100)' }}>
+    {/* หน้าปกตราสำนักอนามัย เหมือนการ์ดแบบฟอร์มที่อื่นในระบบ (มติผู้ใช้
+        25 ส.ค. 69) — ภาพประกอบสต็อกเดิมถูกถอดออกไปแล้วเพราะเหมือนกันทุกใบ
+        และไม่ได้บอกว่าเป็นเอกสารของหน่วยงานไหน */}
+    <div
+      className='relative w-full shrink-0 overflow-hidden'
+      style={{
+        aspectRatio: '227 / 113',
+        background: 'var(--surface-card-100)',
+        borderBottom: 'var(--dim-stroke-100) solid var(--border-card-default)',
+      }}
+    >
+      <OfficialFormCover compact />
+    </div>
+    <div
+      className='flex flex-col'
+      style={{
+        paddingTop: 'var(--dim-space-400)',
+        paddingRight: 'var(--dim-space-400)',
+        paddingBottom: 'var(--dim-space-400)',
+        paddingLeft: 'var(--dim-space-400)',
+        gap: 'var(--dim-space-300)',
+      }}
+    >
+      {/* รหัสอยู่บรรทัดเดียวกับ badge เวอร์ชัน และอยู่หน้า badge (มติผู้ใช้
+          25 ส.ค. 69) — รหัสกับเวอร์ชันคือของคู่กัน แยกไปคนละบรรทัดคร่อมชื่อ
+          ฟอร์มทำให้กวาดตาเทียบข้ามการ์ดไม่ได้ */}
+      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        <span style={{ ...MUTED_CELL, fontSize: 'var(--type-size-xs)' }}>{row.code}</span>
         <ColorfulBadge style='orange' size='small' hierarchy='secondary' width='hug'>{row.version.replace(/^V\s*/, '')}</ColorfulBadge>
       </div>
-      <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100)' }}>
+      <div className='flex flex-col min-w-0'>
         <span className='line-clamp-2' title={row.name} style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)', lineHeight: 1.4, minHeight: '2.8em' }}>{row.name}</span>
-        <span style={{ ...MUTED_CELL, fontSize: 'var(--type-size-xs)' }}>{row.code}</span>
       </div>
-      <div className='flex items-center' style={{ gap: 'var(--dim-space-150)', paddingTop: 'var(--dim-space-300)', borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)' }}>
+      <div className='flex items-center' style={{ gap: 'var(--dim-space-150)', paddingTop: 'var(--dim-space-300)', borderTop: 'var(--dim-stroke-100) solid var(--border-card-default)' }}>
         <NeutralSubdueIconButton icon='visibility' variant='outline' size='sm' aria-label='ดูแบบฟอร์ม' title='ดูแบบฟอร์ม' onClick={onView} />
         <NeutralSubdueIconButton icon='print' variant='outline' size='sm' aria-label='พิมพ์' title='พิมพ์' />
         <NeutralSubdueButton leadingIcon='edit' size='sm' onClick={onEdit}>แก้ไข</NeutralSubdueButton>
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export default function ConsentFormsPage() {
   const navigate = useHistory();
@@ -172,14 +211,21 @@ export default function ConsentFormsPage() {
   const [statusOverrides, setStatusOverrides] = useState({});
   const [statusConfirm, setStatusConfirm] = useState(null);
   const [toast, setToast] = useState(null);
-  const [uploadOpen, setUploadOpen] = useState(false);
-  /* ป็อปอัปนี้ทำงานกับ "ทะเบียนความยินยอมรายคน" ไม่ใช่ทะเบียนแบบฟอร์มของหน้านี้
-     — คนละชุดข้อมูลกัน ต้องดึงจาก consentWorkflowStore เอง */
-  const [consentRows, setConsentRows] = useState(() => getConsentRecords());
-  useEffect(() => subscribeConsentStore(() => setConsentRows(getConsentRecords())), []);
   const [draftRev, setDraftRev] = useState(0);
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
-    useSearchHistory('mih:primarysearch-history:consent-forms');
+    useSearchHistory('mih:primarysearch-history:consent-forms', {
+      /* ช่องค้นหาต้องมี "ค้นหาล่าสุด" ตั้งแต่เปิดครั้งแรก (มติผู้ใช้ 25 ส.ค. 69)
+         — ของเดิมขึ้น "ยังไม่มีประวัติการค้นหา" ทุกครั้งจนกว่าจะพิมพ์เอง
+         seed จากทะเบียนจริง ไม่ใช่ข้อความสมมติที่ค้นแล้วไม่เจออะไร */
+      seedIfEmpty: CONSENT_FORM_RECORDS.slice(0, 4).map((r) => ({
+        id: `form-${r.id}`,
+        label: r.name,
+        sublabel: `${r.code} · ${r.version}`,
+        value: r.code,
+        badge: r.code,
+        badgeStyle: 'indigo',
+      })),
+    });
 
   useEffect(() => {
     const refresh = () => setDraftRev((v) => v + 1);
@@ -509,22 +555,10 @@ export default function ConsentFormsPage() {
       brandTitle='ระบบจัดการความยินยอม'
       breadcrumb={breadcrumb}
       title='แบบฟอร์มความยินยอม'
-      /* สองทางเข้าของทะเบียนแบบฟอร์ม (มติผู้ใช้ 25 ส.ค. 69) — สร้างใหม่ผ่าน
-         wizard หรือนำใบยินยอมกระดาษที่ใช้อยู่แล้วเข้าระบบเป็นร่าง */
       actions={(
-        <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <BrandSubdueButton
-            variant='outline'
-            size='md'
-            leadingIcon='upload_file'
-            onClick={() => setUploadOpen(true)}
-          >
-            อัปโหลดแบบฟอร์มความยินยอม
-          </BrandSubdueButton>
-          <BrandButton variant='fill' size='md' leadingIcon='add' onClick={() => navigate.push('/consent/forms/new')}>
-            สร้างแบบฟอร์มใหม่
-          </BrandButton>
-        </div>
+        <BrandButton variant='fill' size='md' leadingIcon='add' onClick={() => navigate.push('/consent/forms/new')}>
+          สร้างแบบฟอร์มใหม่
+        </BrandButton>
       )}
       headerInfo={(
         <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
@@ -724,33 +758,6 @@ export default function ConsentFormsPage() {
       }}
       onCancel={() => setStatusConfirm(null)}
       onClose={() => setStatusConfirm(null)}
-    />
-
-    {/* อัปโหลดแบบฟอร์มกระดาษ — ตัวเดียวกับในหน้าจัดการความยินยอม
-        (มติผู้ใช้ 25 ส.ค. 69) ผลลัพธ์ไปโผล่ที่ทะเบียนความยินยอม ไม่ใช่ที่นี่ */}
-    <PaperConsentRecordPopup
-      open={uploadOpen}
-      records={consentRows}
-      onClose={() => setUploadOpen(false)}
-      onSave={({ record: selectedRecord, fileName, effectiveDate, reason, storageType, verifiedBy, document }) => {
-        setUploadOpen(false);
-        if (!selectedRecord) return;
-        patchConsentRecord(selectedRecord.id, {
-          status: document?.outcome === 'declined' ? 'ไม่ยินยอม' : 'ยินยอมแล้ว',
-          signChannel: 'เอกสารกระดาษ',
-          signedDate: effectiveDate,
-          storageType,
-          verifiedBy,
-          originalFile: fileName,
-          clauseAnswers: document?.answers || null,
-          signature: null,
-        });
-        setToast({
-          id: Date.now(),
-          variant: 'success',
-          message: `บันทึกความยินยอมจากเอกสารกระดาษของ ${selectedRecord.name} แล้ว (${fileName}) · เหตุผล: ${reason.slice(0, 40)}${reason.length > 40 ? '…' : ''}`,
-        });
-      }}
     />
 
     <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />

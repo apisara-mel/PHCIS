@@ -282,10 +282,13 @@ const DocPreview = ({ row }) => (
         <DocRow label='เลขที่คำขอ' value={row.reqNo} />
         <DocRow label='ผู้ขอ (เจ้าหน้าที่)' value={row.name} />
         <DocRow label='รหัสพนักงาน' value={row.empCode} />
-        <DocRow
-          label='กิจกรรม / กิจกรรมย่อย / แผนก'
-          value={[row.group, row.subBranch, row.dept].filter(Boolean).join(' · ') || '-'}
-        />
+        {/* แยกเป็นบทบาท / สาขา / แผนก ตามที่ระบบเก็บจริง (มติผู้ใช้ 25 ส.ค. 69)
+            — ป้าย "กิจกรรม / กิจกรรมย่อย" ของเดิมไม่ตรงกับค่าที่แสดง (แพทย์ ·
+            สูตินรีแพทย์ · สูตินรีเวช คือบทบาท สาขา และแผนก) และยัดสามค่าไว้
+            บรรทัดเดียวคั่นด้วย · ทำให้ไม่รู้ว่าค่าไหนคืออะไร */}
+        <DocRow label='บทบาท' value={row.group || '-'} />
+        <DocRow label='สาขา / ความเชี่ยวชาญ' value={row.subBranch || '-'} />
+        <DocRow label='แผนก' value={row.dept || '-'} />
         <DocRow label='ประเภทการขอ' value={row.accessTypeLabel || '-'} />
         <DocRow label='แบบฟอร์มที่ขอเข้าถึง' value={row.formName ? `${row.formCode ? `${row.formCode} · ` : ''}${row.formName}` : '-'} />
         <DocRow label='เหตุผลที่ขอ' value={row.reason || '-'} />
@@ -343,7 +346,17 @@ export default function AccessManagementPage({ mineOnly = false }) {
   const pushToast = (message) => setToast({ id: Date.now(), variant: 'success', message });
   const nowThai = () => new Date().toLocaleString('th-TH', { dateStyle: 'long', timeStyle: 'short' });
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
-    useSearchHistory('mih:primarysearch-history:access');
+    useSearchHistory('mih:primarysearch-history:access', {
+      /* seed "ค้นหาล่าสุด" จากคำขอจริงในทะเบียน (มติผู้ใช้ 25 ส.ค. 69) */
+      seedIfEmpty: ACCESS_RECORDS.slice(0, 4).map((r) => ({
+        id: `access-${r.id}`,
+        label: r.name,
+        sublabel: `${r.reqNo} · ${r.status}`,
+        value: r.reqNo,
+        badge: r.reqNo,
+        badgeStyle: 'indigo',
+      })),
+    });
 
   const searchSuggestions = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -670,7 +683,7 @@ export default function AccessManagementPage({ mineOnly = false }) {
               </div>
 
               <SmoothFilterResults opaque={resultsOpaque}>
-              <SearchResultCount found={sorted.length} total={rows.length} />
+              <SearchResultCount found={sorted.length} total={rows.length} filtered={filtersActive} />
 
               <Table
                 columns={columns}

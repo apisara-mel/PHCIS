@@ -114,10 +114,12 @@ const ConsentRevokeConfirmBody = ({ record }) => {
       {/* สองกลุ่มล่างจัดรูปแบบเดียวกัน: หัวข้อ = VALUE (sm/medium) · เนื้อหา =
           BODY (sm) · เว้นระหว่างกลุ่มกว้างกว่าระยะในกลุ่ม (marginTop 500) */}
 
-      {/* การเสียผลประโยชน์ — เจ้าหน้าที่อ่านแจ้งผู้รับบริการก่อนกดยืนยัน */}
+      {/* การเสียผลประโยชน์ — เจ้าหน้าที่อ่านแจ้งผู้รับบริการก่อนกดยืนยัน
+          เว้น 24px เหนือหัวข้อ (มติผู้ใช้ 25 ส.ค. 69) — เตือนเรื่องเสียสิทธิ
+          ต้องแยกออกจากข้อมูลฉบับด้านบนให้ชัด ไม่ใช่ไหลต่อกันเป็นก้อนเดียว */}
       <div
         className='flex flex-col w-full min-w-0'
-        style={{ gap: 'var(--dim-space-200)' }}
+        style={{ gap: 'var(--dim-space-200)', marginTop: 'var(--dim-space-600, 24px)' }}
       >
         <span className='inline-flex items-center' style={{
           ...VALUE,

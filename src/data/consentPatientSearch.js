@@ -42,20 +42,18 @@ export const resolveConsentSearchPatient = (hn, fallbackName = '') => {
   };
 };
 
-/** PrimarySearch suggestion / history row (queue pill + HN + name). */
-export const toConsentPatientSearchItem = (patient, { queue } = {}) => {
-  const visit = queue || patient.queue;
-  return {
-    id: patient.hn,
-    label: patient.label || patient.name,
-    value: patient.label || patient.name,
-    badges: [
-      ...(visit ? [{ label: visit, tone: 'teal' }] : []),
-      { label: patient.hn, tone: 'indigo' },
-    ],
-    avatarSrc: patient.avatarUrl,
-  };
-};
+/** PrimarySearch suggestion / history row (HN + name).
+
+   ไม่มี badge เลขคิวแล้ว (มติผู้ใช้ 25 ส.ค. 69) — ช่องค้นหาในระบบความยินยอม
+   หาคน ไม่ได้หาคิว เลขคิวเป็นของ visit วันนี้ซึ่งไม่เกี่ยวกับการให้/ขอสิทธิ
+   และทำให้แถวอ่านเหมือนจอคิว · `queue` ยังรับไว้เพื่อไม่ให้ผู้เรียกเดิมพัง */
+export const toConsentPatientSearchItem = (patient) => ({
+  id: patient.hn,
+  label: patient.label || patient.name,
+  value: patient.label || patient.name,
+  badges: [{ label: patient.hn, tone: 'indigo' }],
+  avatarSrc: patient.avatarUrl,
+});
 
 /** Full consent patient directory for search pickers. */
 export const CONSENT_PATIENT_SEARCH_POOL = MOCK_PATIENTS.map((row, i) => {
