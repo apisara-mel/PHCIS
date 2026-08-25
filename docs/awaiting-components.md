@@ -1162,3 +1162,32 @@ mock data ใน `accessRecords.js` ใช้ `i % 12` ทั้ง **เดื�
 มองไม่ออกตอนเป็นการ์ด แต่พอทำเป็นคอลัมน์เห็นทันทีว่าซ้ำ 6 แถวรวด
 **คูณ stride co-prime ไม่ช่วย** (`i*5 % 12` ยังอยู่ residue class เดิม) ต้องบวก
 ค่าที่เดินหน้าเมื่อ `i` ครบรอบ — ใช้ `spread = Math.floor(i / MONTHS.length)`
+
+## 74. ColumnTimeline — timeline แบ่งคอลัมน์ (ยกขึ้นจาก #73, 25 ส.ค. 69)
+
+`src/components/timeline/ColumnTimeline.jsx` — ถอดออกมาจาก
+`AccessRequestHistoryTimeline` (#73) ทันทีที่มีผู้ใช้รายที่ 2 ตามเงื่อนไขที่
+เขียนไว้ในข้อนั้นเอง
+
+- **ผู้ใช้:** `AccessRequestHistoryTimeline` (ประวัติคำขอเข้าถึงข้อมูล) ·
+  `AppointmentCreationHistoryTimeline` (ประวัติสร้างการนัดหมาย)
+- **API:** `columns=[{ key, label, track, align?, badge?, primary(row), secondary?(row) }]`
+  · `getDateTime(row)` ใช้จัดกลุ่มรายเดือน · `getTone(row)` คุมทั้งสีจุดบนราง
+  และ tone ของ badge (คอลัมน์ที่ตั้ง `badge: true`) — สีจึงตรงกันเสมอโดย
+  ไม่ต้อง map เอง
+- **สถานะ DS:** composition ของ `GroupedTimeline` + `StickyTimelineDateHeader`
+  + `ColorfulBadge` — ยังไม่มี primitive "timeline ที่มีคอลัมน์" ใน Figma
+- **ยกขึ้น DS เมื่อ:** Figma ออกแบบ pattern นี้เป็นทางการ (ตอนนี้เป็น vibe code
+  ที่ derive จาก timeline เดิม)
+
+### ข้อมูลที่ยัง mock — ต้องต่อของจริงก่อนขึ้น production
+
+- **ประวัติสร้างการนัดหมาย** (`src/pages/appointment/appointmentCreationHistory.js`)
+  — นัดหมายใน mock **ไม่มี `createdBy` / `createdAt`** (`appt()` เก็บแค่
+  `staffId` ของแพทย์เจ้าของ slot ซึ่งคนละเรื่องกับคนที่กดสร้าง) โมดูลนี้จึง
+  derive ขึ้นมา: หยิบ 1 ใน 5 ของ `INITIAL_APPOINTMENTS` มาเป็นของผู้ใช้ปัจจุบัน
+  แล้วสมมติเวลาที่กดสร้างว่าอยู่ก่อนวันนัด 2–7 วัน
+  **ของจริงต้องมาจาก audit trail ของ appointment** ไม่ใช่ derive แบบนี้
+- **ประวัติคำขอเข้าถึงข้อมูล** — `accessRecords.js` ให้ 1 ใน 7 เป็นของผู้ใช้
+  ปัจจุบัน (`mine`) เพื่อให้มีประวัติกระจายหลายเดือน/หลายสถานะ ของจริงต้องมา
+  จาก requester ที่บันทึกไว้ตอนยื่นคำขอ

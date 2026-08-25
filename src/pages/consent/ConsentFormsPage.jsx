@@ -384,6 +384,7 @@ export default function ConsentFormsPage() {
       <NeutralSubdueIconButton icon='history' variant='outline' size='sm' aria-label='ประวัติเวอร์ชัน' title='ประวัติเวอร์ชัน (Version Control)' onClick={() => setVersionFor(row)} />
       <NeutralSubdueIconButton icon='download' variant='outline' size='sm' aria-label='ดาวน์โหลด PDF' title='ดาวน์โหลด PDF (เก็บ log)' onClick={() => handleDownloadPdf(row)} />
       <NeutralSubdueIconButton icon='print' variant='outline' size='sm' aria-label='พิมพ์' title='พิมพ์ (ไม่เก็บ log)' onClick={() => window.print?.()} />
+      <AccessCell row={row} onView={setAccessViewFor} />
       <NeutralSubdueButton leadingIcon='edit' size='sm' className='shrink-0' onClick={() => handleEdit(row)}>แก้ไข</NeutralSubdueButton>
     </div>
   );
@@ -411,11 +412,6 @@ export default function ConsentFormsPage() {
         key: 'version', header: 'เวอร์ชั่น',
         render: (r) => <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>{r.version}</ColorfulBadge>,
       },
-      {
-        key: 'access',
-        header: 'สิทธิ์การเข้าถึง',
-        render: (r) => <AccessCell row={r} onView={setAccessViewFor} />,
-      },
     ];
     const trailing = [
       { key: 'updatedBy', header: 'ผู้ที่อัปเดตล่าสุด', render: (r) => <Cell value={r.updatedBy || r.creator} /> },
@@ -432,7 +428,9 @@ export default function ConsentFormsPage() {
           </div>
         ),
       },
-      { key: 'action', header: 'การดำเนินการ', minWidth: 304, render: renderAction },
+      /* +ปุ่ม "ผู้ที่มีสิทธิ์เข้าถึง" ที่ย้ายมาจากคอลัมน์ "สิทธิ์การเข้าถึง"
+         ที่ถูกลบทิ้ง (มติผู้ใช้ 25 ส.ค. 69) — กว้างขึ้นตามจำนวนปุ่ม */
+      { key: 'action', header: 'การดำเนินการ', minWidth: 480, render: renderAction },
     ];
     if (activeTab === 'draft') {
       return [updatedDateCol, ...leading, ...trailing];

@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import Popover from '@/components/popup/Popover';
 import Popup from '@/components/popup/Popup';
@@ -6,7 +6,8 @@ import ActionList from '@/components/list/ActionList';
 import AccessRequestHistoryTimeline from '@/components/consent/AccessRequestHistoryTimeline';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import { CreateConsentRequestPopup } from '@/pages/consent/consentWorkflowPopups';
-import { ACCESS_RECORDS, enqueueAccessImport } from '@/data/accessRecords';
+import { ACCESS_RECORDS, enqueueAccessImport, isMyAccessRequest } from '@/data/accessRecords';
+import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
 import { canCreateConsentRequest } from '@/data/consentPermissions';
 
 /** Material Symbols — เอกสาร + plus (Figma consent access-request action). */
@@ -22,6 +23,9 @@ export default function CreateConsentRequestHeaderAction({ className = '' }) {
   const [toast, setToast] = useState(null);
   const triggerRef = useRef(null);
   const [menuWidth, setMenuWidth] = useState(null);
+  /* popup นี้คือ "ประวัติของฉัน" ไม่ใช่คิวของผู้ดูแลระบบ — กรองด้วย predicate
+     ตัวเดียวกับหน้า "รายการคำขอของฉัน" (มติผู้ใช้ 25 ส.ค. 69) */
+  const myRequests = useMemo(() => ACCESS_RECORDS.filter(isMyAccessRequest), []);
 
   useLayoutEffect(() => {
     if (!menuOpen || !triggerRef.current) return;
@@ -92,7 +96,7 @@ export default function CreateConsentRequestHeaderAction({ className = '' }) {
             showSwitch={false}
             showBadge={false}
             showCheck={false}
-            showChevronRight
+            showChevronRight={false}
             onClick={() => {
               closeMenu();
               setHistoryOpen(true);
@@ -120,10 +124,10 @@ export default function CreateConsentRequestHeaderAction({ className = '' }) {
         onClose={() => setHistoryOpen(false)}
         size='extraLarge'
         title='ประวัติคำขอเข้าถึงข้อมูล'
-        subtitle={`ข้อมูลเดียวกับแท็บ “รายการขอเข้าถึงแบบฟอร์มทั้งหมด” ในรายการคำขอของฉัน · ทั้งหมด ${ACCESS_RECORDS.length} คำขอ`}
+        subtitle={`คำขอที่ ${PHCIS_CURRENT_USER.displayName} เป็นผู้ยื่น · ${myRequests.length} คำขอ`}
         secondaryAction={{ label: 'ปิด', onClick: () => setHistoryOpen(false) }}
       >
-        <AccessRequestHistoryTimeline records={ACCESS_RECORDS} />
+        <AccessRequestHistoryTimeline records={myRequests} />
       </Popup>
 
       <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />
