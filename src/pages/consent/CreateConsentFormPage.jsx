@@ -1687,7 +1687,7 @@ const SectionFormatToolbar = ({
 /* ช่อง "หัวข้อ" อยู่หลัง (ไอคอนลาก + ช่องว่าง + วงเลข + ช่องว่าง) — body
    ด้านล่างต้องเยื้องเท่ากันถึงจะ align กับช่องหัวข้อ (มติผู้ใช้ 25 ส.ค. 69) */
 const SECTION_BODY_INDENT =
-  'calc(var(--dim-size-400, 20px) + var(--dim-space-200, 8px) + var(--dim-size-500, 24px) + var(--dim-space-200, 8px))';
+  'calc(var(--dim-size-400, 20px) + var(--dim-space-200, 8px) + var(--dim-size-500, 24px) + var(--dim-space-800, 32px))';
 
 function StepContent(props) {
   const {
@@ -1779,7 +1779,10 @@ function StepContent(props) {
                   transition: 'opacity 120ms ease',
                 }}
               >
-              <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+              {/* ระยะระหว่างกล่องในแถวหัวการ์ด = 32px (มติผู้ใช้ 25 ส.ค. 69)
+                  แต่ไอคอนลากกับวงเลขยังเป็นกลุ่มเดียวกัน จึงห่อไว้ให้ชิด 8px */}
+              <div className='flex items-center' style={{ gap: 'var(--dim-space-800, 32px)' }}>
+                <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                 <span
                   onMouseDown={() => setGrabIdx(i)}
                   onMouseUp={() => setGrabIdx(null)}
@@ -1803,6 +1806,7 @@ function StepContent(props) {
                 >
                   {i + 1}
                 </span>
+                </div>
                 {/* ช่อง "หัวข้อ" อยู่แถวเดียวกับเลขข้อ (มติผู้ใช้ 25 ส.ค. 69)
                     — ประหยัดความสูงและอ่านเป็น "ข้อ N: <หัวข้อ>" ได้ทันที
                     showLabel={false} เพราะเลขข้อทำหน้าที่หัวแถวอยู่แล้ว */}
