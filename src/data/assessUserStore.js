@@ -33,6 +33,21 @@ export const GENDER_OPTIONS = [
    ทำให้ป๊อปอัป "รหัสพนักงานที่มีอยู่แล้ว" กับตัวเลขในทะเบียนดูไม่ออกว่าใช้งาน
    จริงเป็นยังไง จึงต่อท้ายด้วยชุดที่สร้างจากสูตร (deterministic ไม่สุ่ม เพื่อให้
    ทุกคนเห็นข้อมูลชุดเดียวกัน) — 26 ส.ค. 2569 มติผู้ใช้ */
+/* รูปโปรไฟล์ตัวอย่าง — ใช้ภาพบุคลากรที่มีอยู่ในโปรเจกต์ (public/images/staff)
+   ไม่ใช่ภาพผู้ป่วย เพื่อให้คอลัมน์ชื่อในทะเบียนบุคลากรดูเหมือนใช้งานจริง
+   (26 ส.ค. 2569 มติผู้ใช้) */
+const GEN_PHOTOS = [
+  ...Array.from({ length: 25 }, (_, i) => `/images/staff/doctors/doctor-portrait-${String(i + 1).padStart(2, '0')}.png`),
+  '/images/staff/staff-nurse-female-01.png',
+  '/images/staff/staff-nurse-female-02.png',
+  '/images/staff/staff-registrar-female-01.png',
+  '/images/staff/staff-registrar-female-02.png',
+  '/images/staff/staff-reception-female-01.png',
+  '/images/staff/staff-doctor-male-01.png',
+  '/images/staff/staff-doctor-male-02.png',
+  '/images/staff/staff-admin-male-01.png',
+];
+
 const GEN_TITLES = ['นาย', 'นาง', 'นางสาว'];
 const GEN_FIRST = [
   'สมชาย', 'สุดารัตน์', 'อนุชา', 'กนกวรรณ', 'พิชิต', 'วราภรณ์', 'ธนกร', 'ปิยะดา',
@@ -52,6 +67,17 @@ const GEN_ROLES = [
   { activityId: 'act-dentist',    activity: 'ทันตแพทย์',           positionId: 'pos-specialist', position: 'ผู้เชี่ยวชาญ (Specialist)', departmentId: 'dept-dent', department: 'ทันตกรรม' },
   { activityId: 'act-social-worker', activity: 'นักสังคมสงเคราะห์', positionId: 'pos-staff',     position: 'ผู้ปฏิบัติงาน',        departmentId: 'dept-social', department: 'สังคมสงเคราะห์' },
 ];
+
+/* บทบาทย่อยของแต่ละบทบาท — คอลัมน์ "บทบาท" ในทะเบียนอ่านค่านี้ ปล่อยว่างแล้ว
+   ทั้งคอลัมน์ขึ้น "—" ทุกแถวของชุดที่สร้างจากสูตร */
+const GEN_SUB_BY_ACTIVITY = {
+  'gp-nurse': ['sub-opd-screen', 'คัดกรองและซักประวัติ (OPD)'],
+  'gp-registrar': ['sub-mr-screen', 'จุดคัดกรอง/ลงทะเบียนและตรวจสอบสิทธิ'],
+  'gp-pharmacist': ['sub-pharm-opd', 'จ่ายยาผู้ป่วยนอก'],
+  'gp-medtech': ['sub-lab-opd', 'ตรวจวิเคราะห์ทางห้องปฏิบัติการ'],
+  'act-dentist': ['sub-dent-opd', 'ตรวจรักษาทางทันตกรรม'],
+  'act-social-worker': ['sub-sw-center', 'ให้คำปรึกษาในศูนย์บริการ'],
+};
 
 const GEN_TEMPLATE_BY_ACTIVITY = {
   'gp-nurse': ['ac-demo-nurse-opd', 'สิทธิพยาบาลผู้ป่วยนอก'],
@@ -87,7 +113,7 @@ function generatedAssessUser(n) {
     phone: `08${n % 10}-${String(100 + (n % 900))}-${String(1000 + (n * 13) % 9000)}`,
     email: `staff${n}@bma.go.th`,
     personalEmail: '',
-    photo: '',
+    photo: GEN_PHOTOS[n % GEN_PHOTOS.length],
     /* ~7% ปิดใช้งาน ให้ตัวเลขในการ์ดสรุปไม่เท่ากันทั้งหมด */
     active: n % 14 !== 0,
     assignments: [{
@@ -97,8 +123,8 @@ function generatedAssessUser(n) {
       branchId: '',
       branch: '',
       ...role,
-      subActivityId: '',
-      subActivity: '',
+      subActivityId: (GEN_SUB_BY_ACTIVITY[role.activityId] || ['', ''])[0],
+      subActivity: (GEN_SUB_BY_ACTIVITY[role.activityId] || ['', ''])[1],
       accessTemplateId,
       accessTemplate,
       isPrimary: true,
@@ -115,6 +141,7 @@ export const DEMO_ASSESS_USERS = [
   {
     id: 'user-demo-somchai',
     employeeCode: 'EMP-00101',
+    photo: '/images/staff/staff-doctor-male-01.png',
     title: 'นาย',
     firstName: 'สมชาย',
     lastName: 'ไสยสวัสดิ์',
@@ -151,6 +178,7 @@ export const DEMO_ASSESS_USERS = [
   {
     id: 'user-demo-sudarat',
     employeeCode: 'EMP-00102',
+    photo: '/images/staff/staff-nurse-female-01.png',
     title: 'นางสาว',
     firstName: 'สุดารัตน์',
     lastName: 'พงษ์เจริญ',
@@ -187,6 +215,7 @@ export const DEMO_ASSESS_USERS = [
   {
     id: 'user-demo-anucha',
     employeeCode: 'EMP-00103',
+    photo: '/images/staff/staff-doctor-male-02.png',
     title: 'นาย',
     firstName: 'อนุชา',
     lastName: 'แก้วประเสริฐ',
@@ -223,6 +252,7 @@ export const DEMO_ASSESS_USERS = [
   {
     id: 'user-demo-kanokwan',
     employeeCode: 'EMP-00104',
+    photo: '/images/staff/staff-registrar-female-01.png',
     title: 'นาง',
     firstName: 'กนกวรรณ',
     lastName: 'ศรีสุวรรณ',
@@ -259,6 +289,7 @@ export const DEMO_ASSESS_USERS = [
   {
     id: 'user-demo-phichit',
     employeeCode: 'EMP-00105',
+    photo: '/images/staff/doctors/doctor-portrait-05.png',
     title: 'นาย',
     firstName: 'พิชิต',
     lastName: 'รุ่งเรืองกิจ',
@@ -297,6 +328,7 @@ export const DEMO_ASSESS_USERS = [
   {
     id: 'user-demo-waraporn',
     employeeCode: 'EMP-00106',
+    photo: '/images/staff/staff-reception-female-01.png',
     title: 'นางสาว',
     firstName: 'วราภรณ์',
     lastName: 'อินทรสุข',
