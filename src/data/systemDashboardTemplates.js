@@ -68,7 +68,7 @@ let templates = [
   STANDARD_TEMPLATE,
   {
     id: 'sys-tpl-2',
-    name: 'จอติดตามการใช้งานระบบ (TOR §1.17.4.3)',
+    name: 'จอติดตามการใช้งานระบบ',
     layout: 'two',
     locked: false,
     updatedAt: '26 สิงหาคม 2569',

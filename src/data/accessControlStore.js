@@ -644,7 +644,9 @@ export function upsertAccessControl(record) {
    attribute ไหนที่แม่แบบระบุไว้ assignment ต้องตรงเป๊ะ (assignment ที่
    ไม่ได้ระบุค่าไว้ถือว่าไม่ตรง — ปลอดภัยไว้ก่อน) */
 
-const ABAC_ATTRS = ['centerId', 'positionId', 'activityId', 'subActivityId', 'departmentId'];
+/* branchId = สาขาย่อยของศูนย์ — แม่แบบที่ระบุสาขาจะจับคู่เฉพาะคนที่ประจำสาขานั้น
+   ส่วนแม่แบบที่เว้นว่างยังคลุมทั้งศูนย์เหมือนเดิม (26 ส.ค. 2569 มติผู้ใช้) */
+const ABAC_ATTRS = ['centerId', 'branchId', 'positionId', 'activityId', 'subActivityId', 'departmentId'];
 
 export function matchesAssignment(record, assignment) {
   if (!record || !assignment) return false;
