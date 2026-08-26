@@ -470,6 +470,8 @@ export default function AccessControlCreatePage({
   const [effectiveTo, setEffectiveTo] = useState('');
   /* ติ๊ก = ไม่กำหนดวันสิ้นสุด (เก็บเป็นค่าว่างเหมือนเดิม แค่บอกผู้ใช้ให้ชัด) */
   const [noEndDate, setNoEndDate] = useState(false);
+  /* ติ๊ก = เวลาเข้าใช้งานเดินตามเวลาเปิด-ปิดของศูนย์ที่ผูกไว้ ไม่ต้องพิมพ์เอง */
+  const [followCenterHours, setFollowCenterHours] = useState(false);
   const [approvalNote, setApprovalNote] = useState('');
 
   const activities = useMemo(() => readActivities(), []);
@@ -498,6 +500,7 @@ export default function AccessControlCreatePage({
     setDailyTo(existing.dailyTo || '');
     setEffectiveTo(existing.effectiveTo || '');
     setNoEndDate(!existing.effectiveTo);
+    setFollowCenterHours(!!existing.followCenterHours);
     setApprovalNote(existing.approvalNote || '');
   }, [existing]);
 
@@ -536,7 +539,8 @@ export default function AccessControlCreatePage({
      ที่ไม่มีสาขาให้เลือกเลย ถือว่าผ่าน ไม่งั้นจะกดบันทึกไม่ได้ตลอดกาล */
   /* ขั้น "ขอบเขตและช่วงเวลา" ต้องกรอกครบเช่นกัน — วันสิ้นสุดยกเว้นได้ด้วยการ
      ติ๊ก "ยังไม่กำหนดวันสิ้นสุด" (26 ส.ค. 2569 มติผู้ใช้) */
-  const scopeValid = !!(dataScope && piiVisibility && effectiveFrom && dailyFrom && dailyTo
+  const scopeValid = !!(dataScope && piiVisibility && effectiveFrom
+    && (followCenterHours || (dailyFrom && dailyTo))
     && (noEndDate || effectiveTo));
 
   const branchRequired = branchOpts.length > 1;
@@ -555,6 +559,8 @@ export default function AccessControlCreatePage({
       templateName: templateName.trim(),
       centerId,
       center: labelOf(centerOpts, centerId),
+      branchId,
+      branch: branchId ? labelOf(branchOpts, branchId) : '',
       positionId,
       position: positionId ? labelOf(positionOpts, positionId) : '',
       activityId,
@@ -571,6 +577,7 @@ export default function AccessControlCreatePage({
       effectiveFrom,
       dailyFrom,
       dailyTo,
+      followCenterHours,
       effectiveTo,
       approvalNote: approvalNote.trim(),
     };
@@ -803,14 +810,28 @@ export default function AccessControlCreatePage({
               {/* ช่วงเวลาเข้าใช้งานรายวัน — Figma "PHCIS | History and Access"
                   กำหนดหน้าต่างเวลาต่อวัน (เช่น 08.00-16.00 น.) แยกจากช่วง "วัน"
                   ข้างบน · เว้นว่าง = เข้าได้ตลอด 24 ชม. · ข้ามเที่ยงคืนได้ (เวรดึก) */}
-              <div style={{ flex: '1 1 240px', minWidth: 200 }}>
+              <div className='flex flex-col' style={{ flex: '1 1 240px', minWidth: 200, gap: 'var(--dim-space-200)' }}>
                 <TimePicker
                   label='เข้าใช้งานได้ตั้งแต่ (รายวัน)'
                   required
                   size='md'
+                  disabled={followCenterHours}
                   showHelperText={false}
                   value={dailyFrom}
                   onChange={setDailyFrom}
+                />
+                {/* ศูนย์ส่วนใหญ่ใช้เวลาเดียวกับเวลาทำการอยู่แล้ว — ติ๊กแล้วไม่ต้อง
+                    พิมพ์ซ้ำ และเวลาเปลี่ยนที่ทะเบียนศูนย์ก็เดินตามเอง
+                    (26 ส.ค. 2569 มติผู้ใช้) */}
+                <Checkbox
+                  label='ตามเวลาเปิด-ปิดศูนย์'
+                  showDescription={false}
+                  checked={followCenterHours}
+                  onChange={(next) => {
+                    const on = typeof next === 'boolean' ? next : !followCenterHours;
+                    setFollowCenterHours(on);
+                    if (on) { setDailyFrom(''); setDailyTo(''); }
+                  }}
                 />
               </div>
               <div style={{ flex: '1 1 240px', minWidth: 200 }}>
@@ -820,6 +841,7 @@ export default function AccessControlCreatePage({
                   label='ถึงเวลา (รายวัน)'
                   required
                   size='md'
+                  disabled={followCenterHours}
                   showHelperText={!!(dailyFrom && dailyTo && dailyTo < dailyFrom)}
                   helperText='ข้ามเที่ยงคืน — ใช้กับเวรดึก'
                   value={dailyTo}

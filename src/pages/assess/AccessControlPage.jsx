@@ -21,7 +21,6 @@ import {
   readAccessControls,
   writeAccessControls,
   computeAccessControlStats,
-  countPermissionBuckets,
   duplicateAccessControl,
   latestVersion,
   formatVersion,
@@ -33,9 +32,20 @@ import {
   approvalLabel,
   decideApproval,
   isAccessEffective,
+  formatDailyWindow,
   dataScopeLabel,
   PII_MASKED,
 } from '@/data/accessControlStore';
+import Popup from '@/components/popup/Popup';
+import {
+  ACCESS_SYSTEMS,
+  menuLeafKeys,
+  rollupLevel,
+  permLabel,
+  PERM_NONE,
+  PERM_VIEW,
+  PERM_MIXED,
+} from '@/data/accessMenuCatalog';
 import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
 import { readActivities } from '@/data/activityStore';
 import { readDepartments } from '@/data/departmentStore';
@@ -96,6 +106,56 @@ function PolicyBadge({ style, children }) {
 
 /* คุณลักษณะที่แม่แบบเว้นว่าง = ไม่จำกัด — เดิมวาดเป็นป้ายเปล่าจนดูเหมือน
    ข้อมูลหาย (26 ส.ค. 2569) ตอนนี้บอกตรง ๆ ว่า "ทุก…" */
+/* ป๊อปอัปดูสิทธิ์ระดับเมนูของแม่แบบหนึ่ง — อ่านอย่างเดียว
+   แสดงเฉพาะระบบ/เมนูที่ "ได้สิทธิ์จริง" เท่านั้น ไม่ไล่ทั้งต้นไม้ให้อ่านยาก
+   (26 ส.ค. 2569 มติผู้ใช้ — ย้ายรายละเอียดสิทธิ์ออกจากตารางมาไว้ที่ปุ่มดู) */
+function AccessPermissionPopup({ record, onClose }) {
+  const permissions = record?.permissions || {};
+  const systems = ACCESS_SYSTEMS
+    .map((sys) => ({
+      key: sys.key,
+      label: sys.label,
+      menus: sys.menus
+        .map((menu) => ({ key: menu.key, label: menu.label, level: rollupLevel(permissions, menuLeafKeys(menu)) }))
+        .filter((m) => m.level !== PERM_NONE),
+    }))
+    .filter((sys) => sys.menus.length > 0);
+
+  const toneOf = (level) => (level === PERM_MIXED ? 'yellow' : (level === PERM_VIEW ? 'blue' : 'green'));
+  const labelOfLevel = (level) => (level === PERM_MIXED ? 'กำหนดรายเมนู' : permLabel(level));
+
+  return (
+    <Popup
+      open={!!record}
+      onClose={onClose}
+      size='large'
+      title='สิทธิ์การเข้าถึงระบบ'
+      subtitle={record ? `${record.templateName || 'ไม่มีชื่อแม่แบบ'} · ${formatVersion(latestVersion(record))}` : ''}
+      tertiaryAction={{ label: 'ปิด', onClick: onClose }}
+    >
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+        {systems.length === 0 ? (
+          <span style={{ ...TEXT_CELL, color: 'var(--text-content-tertiary)' }}>
+            แม่แบบนี้ยังไม่ได้ให้สิทธิ์เมนูใดเลย
+          </span>
+        ) : systems.map((sys) => (
+          <div key={sys.key} className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+            <span style={{ ...TEXT_CELL, fontFamily: 'var(--type-family-heading-graphic2)' }}>{sys.label}</span>
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+              {sys.menus.map((m) => (
+                <div key={m.key} className='flex items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                  <span className='truncate' style={{ ...TEXT_CELL, flex: '1 1 auto', minWidth: 0 }}>{m.label}</span>
+                  <PolicyBadge style={toneOf(m.level)}>{labelOfLevel(m.level)}</PolicyBadge>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Popup>
+  );
+}
+
 function AttrCell({ value, style, emptyLabel }) {
   if (value) return <PolicyBadge style={style}>{value}</PolicyBadge>;
   return (
@@ -107,6 +167,7 @@ export default function AccessControlPage() {
   const navigate = useHistory();
   const [records, setRecords] = useState(() => readAccessControls());
   const [createOpen, setCreateOpen] = useState(false);
+  const [permView, setPermView] = useState(null);
   const [filterPosition, setFilterPosition] = useState('');
   const [filterActivity, setFilterActivity] = useState('');
   const [filterSub, setFilterSub] = useState('');
@@ -162,32 +223,6 @@ export default function AccessControlPage() {
     return true;
   }), [records, filterPosition, filterActivity, filterSub, filterDept, filterApproval]);
 
-  /* แบ่งทะเบียนตาม Group Policy (บทบาทหลัก) แล้วเรียงด้วยบทบาทย่อยในกลุ่ม
-     (26 ส.ค. 2569 มติผู้ใช้) — แม่แบบที่ยังไม่ผูก Group Policy ไปกองท้ายสุด */
-  const groupedRows = useMemo(() => {
-    const byActivity = new Map();
-    filteredRows.forEach((row) => {
-      const key = row.activityId || '';
-      if (!byActivity.has(key)) {
-        byActivity.set(key, {
-          key: key || 'unassigned',
-          label: row.activity || 'ยังไม่ผูก Group Policy',
-          unassigned: !key,
-          rows: [],
-        });
-      }
-      byActivity.get(key).rows.push(row);
-    });
-    const groups = [...byActivity.values()];
-    groups.forEach((g) => g.rows.sort((a, b) => (
-      String(a.subActivity || '').localeCompare(String(b.subActivity || ''), 'th')
-    )));
-    return groups.sort((a, b) => {
-      if (a.unassigned !== b.unassigned) return a.unassigned ? 1 : -1;
-      return String(a.label).localeCompare(String(b.label), 'th');
-    });
-  }, [filteredRows]);
-
   const hasRecords = records.length > 0;
   const isAllFilters = !filterPosition && !filterActivity && !filterSub && !filterDept && !filterApproval;
   const filtersActive = !isAllFilters;
@@ -216,8 +251,14 @@ export default function AccessControlPage() {
       : `บันทึกไม่อนุมัติ "${row.templateName}" แล้ว`);
   };
 
-  /* เพิ่มสิทธิ์เปิดเป็นป๊อปอัป ไม่เปลี่ยนหน้า — ทะเบียนยังอยู่ข้างหลังให้เทียบได้
-     (26 ส.ค. 69 มติผู้ใช้) route /assess/access-control/new ยังเข้าได้ตามลิงก์เดิม */
+  /* เรียงแม่แบบด้วยบทบาท → ชื่อแม่แบบ ในตารางเดียว — เดิมแยกตารางย่อยตาม
+     Group Policy ทำให้หัวคอลัมน์ซ้ำหลายชุดและเทียบข้ามกลุ่มไม่ได้
+     (26 ส.ค. 2569 มติผู้ใช้) */
+  const sortedRows = useMemo(() => [...filteredRows].sort((a, b) => (
+    String(a.activity || 'ฮ').localeCompare(String(b.activity || 'ฮ'), 'th')
+      || String(a.templateName || '').localeCompare(String(b.templateName || ''), 'th')
+  )), [filteredRows]);
+
   const openCreate = () => setCreateOpen(true);
   const openDetail = (row) => navigate.push(`/assess/access-control/${row.id}`);
   const openEdit = (row) => navigate.push(`/assess/access-control/${row.id}/edit`);
@@ -252,6 +293,25 @@ export default function AccessControlPage() {
     },
     /* สิทธิ์กำหนดตาม ตำแหน่ง · บทบาท · แผนก (26 ส.ค. 2569 มติผู้ใช้) —
        คอลัมน์ "ศูนย์บริการ" ถอดออก ศูนย์เป็นขอบเขตข้อมูล ไม่ใช่ตัวกำหนดสิทธิ์ */
+    /* ข้อมูลบทบาทแยกคอลัมน์ตามลำดับเดียวกับในฟอร์ม: ศูนย์ → สาขา → แผนก →
+       ตำแหน่ง → บทบาท (26 ส.ค. 2569 มติผู้ใช้) */
+    {
+      key: 'center',
+      header: 'ศูนย์บริการ',
+      minWidth: 160,
+      render: (row) => <AttrCell value={row.center} style='blue' emptyLabel='ทุกศูนย์' />,
+    },
+    {
+      key: 'branch',
+      header: 'สาขาย่อย',
+      minWidth: 150,
+      render: (row) => <AttrCell value={row.branch} style='teal' emptyLabel='ทุกสาขา' />,
+    },
+    {
+      key: 'department',
+      header: 'แผนก',
+      render: (row) => <AttrCell value={row.department} style='blue' emptyLabel='ทุกแผนก' />,
+    },
     {
       key: 'position',
       header: 'ตำแหน่ง',
@@ -261,16 +321,6 @@ export default function AccessControlPage() {
       key: 'activity',
       header: 'บทบาท',
       render: (row) => <AttrCell value={row.activity} style='blue' emptyLabel='ทุกบทบาท' />,
-    },
-    {
-      key: 'subActivity',
-      header: 'บทบาทย่อย',
-      render: (row) => <AttrCell value={row.subActivity} style='teal' emptyLabel='ทุกบทบาทย่อย' />,
-    },
-    {
-      key: 'department',
-      header: 'แผนก',
-      render: (row) => <AttrCell value={row.department} style='blue' emptyLabel='ทุกแผนก' />,
     },
     /* คทง.13 §1.3 — สถานะอนุมัติ + ป้ายบอกว่ามีผลบังคับใช้จริงหรือยัง */
     {
@@ -319,34 +369,11 @@ export default function AccessControlPage() {
         </span>
       ),
     },
-    /* สิทธิ์ละเอียดถึงระดับเมนูย่อยแล้ว — ตัวเลขจึงนับ "เมนู" ไม่ใช่ "ระบบ"
-       (26 ส.ค. 2569) */
     {
-      key: 'viewCount',
-      header: 'เมนูที่อ่านได้',
-      align: 'center',
-      render: (row) => {
-        const { view } = countPermissionBuckets(row.permissions);
-        return <span style={TEXT_CELL}>{view}</span>;
-      },
-    },
-    {
-      key: 'writeCount',
-      header: 'เมนูที่เขียนได้',
-      align: 'center',
-      render: (row) => {
-        const { write } = countPermissionBuckets(row.permissions);
-        return <span style={TEXT_CELL}>{write}</span>;
-      },
-    },
-    {
-      key: 'editCount',
-      header: 'เมนูที่อ่านและเขียนได้',
-      align: 'center',
-      render: (row) => {
-        const { edit } = countPermissionBuckets(row.permissions);
-        return <span style={TEXT_CELL}>{edit}</span>;
-      },
+      key: 'daily',
+      header: 'เวลาที่ใช้งานได้',
+      minWidth: 150,
+      render: (row) => <span style={TEXT_CELL}>{formatDailyWindow(row)}</span>,
     },
     {
       key: 'active',
@@ -364,7 +391,7 @@ export default function AccessControlPage() {
     {
       key: 'action',
       header: 'การดำเนินการ',
-      minWidth: 148,
+      minWidth: 250,
       render: (row) => (
         <span
           className='inline-flex items-center'
@@ -373,6 +400,15 @@ export default function AccessControlPage() {
           onKeyDown={(e) => e.stopPropagation()}
           role='presentation'
         >
+          {/* รายละเอียดสิทธิ์ระดับเมนูยาวเกินกว่าจะยัดเป็นคอลัมน์ — เปิดดูเป็น
+              popup แทนตัวเลขสรุป 3 คอลัมน์เดิม (26 ส.ค. 2569 มติผู้ใช้) */}
+          <NeutralSubdueButton
+            leadingIcon='visibility'
+            size='sm'
+            onClick={() => setPermView(row)}
+          >
+            ดูสิทธิ์
+          </NeutralSubdueButton>
           <NeutralSubdueButton
             leadingIcon='edit'
             size='sm'
@@ -487,41 +523,14 @@ export default function AccessControlPage() {
                 </span>
 
                 <SmoothFilterResults opaque={resultsOpaque}>
-                {groupedRows.length ? (
-                  <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
-                    {groupedRows.map((group) => (
-                      <div key={group.key} className='w-full flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
-                        <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-                          <ColorfulBadge
-                            style={group.unassigned ? 'grey' : 'blue'}
-                            size='small'
-                            hierarchy='secondary'
-                            width='hug'
-                          >
-                            {`Group Policy: ${group.label}`}
-                          </ColorfulBadge>
-                          <span style={{ ...TEXT_CELL, color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
-                            {`${group.rows.length} แม่แบบ`}
-                          </span>
-                        </div>
-                        <Table
-                          columns={columns}
-                          rows={group.rows}
-                          rowKey={(row) => row.id}
-                          onRowClick={openDetail}
-                          emptyMessage='ไม่พบสิทธิ์การเข้าถึงระบบ'
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <Table
-                    columns={columns}
-                    rows={[]}
-                    rowKey={(row) => row.id}
-                    emptyMessage='ไม่พบสิทธิ์การเข้าถึงระบบ'
-                  />
-                )}
+                <Table
+                  columns={columns}
+                  rows={sortedRows}
+                  rowKey={(row) => row.id}
+                  onRowClick={openDetail}
+                  stickyColCount={1}
+                  emptyMessage='ไม่พบสิทธิ์การเข้าถึงระบบ'
+                />
                 </SmoothFilterResults>
 
                 <BrandDashedAddButton onClick={openCreate}>
@@ -545,6 +554,9 @@ export default function AccessControlPage() {
         cancelLabel='ยกเลิก'
         onConfirm={applyDecision}
       />
+
+      {/* ดูสิทธิ์ระดับเมนูของแม่แบบนั้น — อ่านอย่างเดียว แก้ไขที่ปุ่ม "แก้ไข" */}
+      <AccessPermissionPopup record={permView} onClose={() => setPermView(null)} />
 
       {/* mount ใหม่ทุกครั้งที่เปิด ฟอร์มจะได้เริ่มจากว่างเสมอ */}
       {createOpen ? (

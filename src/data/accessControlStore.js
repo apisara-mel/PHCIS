@@ -5,6 +5,8 @@
    Group Policy (`groupPolicyId`/`subBranchId`) ถูก normalize เป็น
    `activityId`/`subActivityId` อัตโนมัติตอนอ่าน. */
 
+import { findCenterDetail } from '@/data/centerStore';
+
 const STORAGE_KEY = 'mih:assess-access-control';
 
 import {
@@ -150,19 +152,32 @@ export const formatAccessTime = (t) => {
   return `${String(hh).padStart(2, '0')}.${(m || '00').padStart(2, '0')}`;
 };
 
-/** ข้อความช่วงเวลารายวัน — 'ตลอด 24 ชม.' ถ้าไม่ได้กำหนด */
+/** ข้อความช่วงเวลารายวัน — 'ตลอด 24 ชม.' ถ้าไม่ได้กำหนด
+    followCenterHours = เดินตามเวลาเปิด-ปิดของศูนย์ที่ผูกไว้ (26 ส.ค. 2569 มติผู้ใช้) */
 export function formatDailyWindow(record) {
+  if (record?.followCenterHours) return 'ตามเวลาเปิด-ปิดศูนย์';
   const from = formatAccessTime(record?.dailyFrom);
   const to = formatAccessTime(record?.dailyTo);
   if (!from && !to) return 'ตลอด 24 ชม.';
   return `${from || '00.00'} - ${to || '24.00'} น.`;
 }
 
+/** เวลาเปิด-ปิดวันธรรมดาของศูนย์ที่แม่แบบผูกไว้ — ไม่ได้ผูกศูนย์/หาไม่เจอ
+    ถือว่าไม่จำกัดเวลา (จะได้ไม่ล็อกคนออกจากระบบเพราะข้อมูลศูนย์ยังไม่ครบ) */
+function centerHoursOf(record) {
+  const detail = record?.centerId ? findCenterDetail(record.centerId) : null;
+  const weekday = detail?.hours?.weekday || detail?.hours || {};
+  return { from: weekday.inStart || '', to: weekday.inEnd || '' };
+}
+
 /** ตอนนี้อยู่ในช่วงเวลาเข้าใช้งานรายวันไหม — ไม่กำหนด = ได้ตลอด
     รองรับช่วงข้ามเที่ยงคืน (เช่น 20:00-06:00 สำหรับเวรดึก) */
 export function isWithinDailyWindow(record, now = new Date()) {
-  const from = hhmmToMinutes(record?.dailyFrom);
-  const to = hhmmToMinutes(record?.dailyTo);
+  const win = record?.followCenterHours
+    ? centerHoursOf(record)
+    : { from: record?.dailyFrom, to: record?.dailyTo };
+  const from = hhmmToMinutes(win.from);
+  const to = hhmmToMinutes(win.to);
   if (from == null && to == null) return true;
   const cur = now.getHours() * 60 + now.getMinutes();
   const start = from == null ? 0 : from;

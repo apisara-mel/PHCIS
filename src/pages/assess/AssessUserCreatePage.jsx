@@ -13,6 +13,8 @@ import DangerSubdueIconButton from '@/components/button/DangerSubdueIconButton';
 import Switch from '@/components/switch/Switch';
 import Alert from '@/components/alert/Alert';
 import Radio from '@/components/radio/Radio';
+import Popup from '@/components/popup/Popup';
+import StepProgress from '@/components/step/StepProgress';
 import AlertDialog from '@/components/popup/AlertDialog';
 import ESignatureField from '@/components/form-builder/ESignatureField';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -154,13 +156,27 @@ function InfoField({ label, value }) {
   );
 }
 
-export default function AssessUserCreatePage() {
+/* ใช้ได้สองเปลือกด้วยเนื้อฟอร์มชุดเดียวกัน — หน้าเต็ม (route เดิม) และป๊อปอัป
+   (กด "เพิ่มบุคลากร" ในทะเบียน 26 ส.ค. 69 มติผู้ใช้) หลักเดียวกับป๊อปอัป
+   เพิ่มสิทธิ์การเข้าถึงระบบและเพิ่มศูนย์บริการ */
+export default function AssessUserCreatePage({
+  asPopup = false,
+  existingId = null,
+  onClose,
+  onSaved,
+}) {
   const navigate = useHistory();
-  const { id } = useParams();
-  const isEdit = window.location.pathname.endsWith('/edit');
+  const { id: routeId } = useParams();
+  const id = asPopup ? existingId : routeId;
+  const isEdit = asPopup ? !!existingId : window.location.pathname.endsWith('/edit');
   const existing = useMemo(() => (id ? findAssessUser(id) : null), [id]);
 
   const [step, setStep] = useState('personal');
+  /* ออกจากฟอร์ม — ป๊อปอัปปิดตัวเอง หน้าเต็มกลับไปทะเบียน */
+  const leaveForm = () => {
+    if (asPopup) { onClose?.(); return; }
+    navigate.push('/assess/users');
+  };
   const stepIndex = STEPS.findIndex((s) => s.key === step);
   const [personal, setPersonal] = useState({
     employeeCode: '',
@@ -330,6 +346,7 @@ export default function AssessUserCreatePage() {
 
   const handleSaveDraft = () => {
     upsertAssessUser(buildRecord());
+    if (asPopup) { onSaved?.('บันทึกร่างบุคลากรแล้ว'); onClose?.(); }
   };
 
   const goNext = () => {
@@ -362,6 +379,11 @@ export default function AssessUserCreatePage() {
   const applySubmit = () => {
     setConfirmSaveOpen(false);
     const record = upsertAssessUser(buildRecord());
+    if (asPopup) {
+      onSaved?.(pickedUser || isEdit ? 'อัปเดตสิทธิ์บุคลากรแล้ว' : 'สร้างบุคลากรใหม่แล้ว');
+      onClose?.();
+      return;
+    }
     if (isEdit) {
       navigate.push(`/assess/users/${record.id}`);
       return;
@@ -398,24 +420,22 @@ export default function AssessUserCreatePage() {
     );
   }
 
-  return (
-    <>
-      <QueuePageShell
-        activeKey='system-staff'
-        sidebarItems={ASSESS_NAV}
-        sidebarFallbackKey='system-staff'
-        brandTitle='จัดการระบบ'
-        breadcrumb={breadcrumb}
-        {...WIZARD_MORPH_SHELL_PROPS}
-        headerInfo={(
-          <WizardMorphHeader
-            title={isEdit ? 'แก้ไขบุคลากร' : 'สร้างบุคลากร'}
-            steps={STEPS.map((s) => s.label)}
-            current={stepIndex}
-            onStepClick={(i) => { if (i < stepIndex) setStep(STEPS[i].key); }}
-          />
-        )}
-      >
+  const confirmDialog = (
+    /* ทวนสรุปก่อนบันทึกการเปลี่ยนแปลงสิทธิ์ — กระทบการเข้าถึงข้อมูลของบุคลากร */
+    <AlertDialog
+      open={confirmSaveOpen}
+      onClose={() => setConfirmSaveOpen(false)}
+      type='warning'
+      alignment='center'
+      title={pickedUser || isEdit ? 'ยืนยันการบันทึกสิทธิ์ของบุคลากรเดิม?' : 'ยืนยันการสร้างบุคลากร?'}
+      description={confirmSummary}
+      confirmLabel={isEdit ? 'บันทึก' : pickedUser ? 'บันทึกสิทธิ์' : 'สร้างบุคลากร'}
+      cancelLabel='ยกเลิก'
+      onConfirm={applySubmit}
+    />
+  );
+
+  const formBody = (
         <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)', paddingBottom: 'var(--dim-space-900)' }}>
           {/* โหมดเพิ่มบุคลากร — แยก "สร้างใหม่" vs "เลือกจากระบบ" ให้ชัดตั้งแต่ต้น
               เลือกคนเดิมแล้วเห็นสิทธิ์กิจกรรมที่มีอยู่ทันที กันให้สิทธิ์ซ้ำซ้อน */}
@@ -768,6 +788,62 @@ export default function AssessUserCreatePage() {
             </section>
           )}
         </div>
+  );
+
+  if (asPopup) {
+    return (
+      <>
+        <Popup
+          open
+          onClose={leaveForm}
+          size='extraLarge'
+          title={isEdit ? 'แก้ไขบุคลากร' : 'เพิ่มบุคลากร'}
+          headerCenter={(
+            <StepProgress
+              steps={STEPS.map((st) => st.label)}
+              current={stepIndex}
+              onStepClick={(i) => { if (i < stepIndex) setStep(STEPS[i].key); }}
+              labelNoWrap
+            />
+          )}
+          /* วางปุ่มแบบเดียวกับป๊อปอัป step อื่นของระบบ */
+          secondaryAction={step === 'personal'
+            ? { label: 'ยกเลิก', onClick: leaveForm }
+            : { label: 'ย้อนกลับ', onClick: goBack }}
+          tertiaryAction={{ label: 'บันทึกร่าง', onClick: handleSaveDraft }}
+          primaryAction={{
+            label: footerPrimary.label,
+            trailingIcon: footerPrimary.icon,
+            disabled: footerPrimary.disabled,
+            onClick: footerPrimary.onClick,
+          }}
+        >
+          {formBody}
+        </Popup>
+        {confirmDialog}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <QueuePageShell
+        activeKey='system-staff'
+        sidebarItems={ASSESS_NAV}
+        sidebarFallbackKey='system-staff'
+        brandTitle='จัดการระบบ'
+        breadcrumb={breadcrumb}
+        {...WIZARD_MORPH_SHELL_PROPS}
+        headerInfo={(
+          <WizardMorphHeader
+            title={isEdit ? 'แก้ไขบุคลากร' : 'สร้างบุคลากร'}
+            steps={STEPS.map((s) => s.label)}
+            current={stepIndex}
+            onStepClick={(i) => { if (i < stepIndex) setStep(STEPS[i].key); }}
+          />
+        )}
+      >
+        {formBody}
 
         <Footer
           type='with BTN'
@@ -787,18 +863,7 @@ export default function AssessUserCreatePage() {
           onButton1Click={footerPrimary.onClick}
         />
       </QueuePageShell>
-      {/* ทวนสรุปก่อนบันทึกการเปลี่ยนแปลงสิทธิ์ — กระทบการเข้าถึงข้อมูลของบุคลากร */}
-      <AlertDialog
-        open={confirmSaveOpen}
-        onClose={() => setConfirmSaveOpen(false)}
-        type='warning'
-        alignment='center'
-        title={pickedUser || isEdit ? 'ยืนยันการบันทึกสิทธิ์ของบุคลากรเดิม?' : 'ยืนยันการสร้างบุคลากร?'}
-        description={confirmSummary}
-        confirmLabel={isEdit ? 'บันทึก' : pickedUser ? 'บันทึกสิทธิ์' : 'สร้างบุคลากร'}
-        cancelLabel='ยกเลิก'
-        onConfirm={applySubmit}
-      />
+      {confirmDialog}
       {saved ? (
         <SuccessScreen
           title={pickedUser
