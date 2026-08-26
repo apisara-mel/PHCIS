@@ -671,8 +671,13 @@ export function usersHoldingTemplate(record, users) {
 }
 
 /* ลำดับความ "กว้าง" ของสิทธิ์ — ใช้รวมสิทธิ์จากหลายแม่แบบแบบ union
-   (ได้สิทธิ์กว้างสุดที่แม่แบบใดแม่แบบหนึ่งให้ไว้) */
-const PERM_RANK = { [PERM_NONE]: 0, [PERM_VIEW]: 1, [PERM_EDIT]: 2 };
+   (ได้สิทธิ์กว้างสุดที่แม่แบบใดแม่แบบหนึ่งให้ไว้)
+
+   ใช้ LEVEL_* (ตัวที่ import เข้ามาจริง) ไม่ใช่ PERM_* — บล็อก `export { PERM_NONE,
+   … } from '@/data/accessMenuCatalog'` ข้างบนเป็น re-export ล้วน ไม่ได้สร้าง
+   binding ในไฟล์นี้ อ้าง PERM_NONE ตรง ๆ จึงเป็น ReferenceError ตอนรัน
+   (dev server จอขาวทั้งแอป — prod bundle รอดเพราะ rollup รวมไฟล์ให้) */
+const PERM_RANK = { [LEVEL_NONE]: 0, [LEVEL_VIEW]: 1, [LEVEL_EDIT]: 2 };
 const SCOPE_RANK = {
   [SCOPE_ASSIGNED]: 0, [SCOPE_CENTER]: 1, [SCOPE_ZONE]: 2, [SCOPE_ALL]: 3,
 };
@@ -687,15 +692,15 @@ export function resolveUserAccess(user, records, now = new Date()) {
     .filter((row) => row.assignments.length > 0);
 
   const modules = {};
-  ALL_MODULE_KEYS.forEach((k) => { modules[k] = { level: PERM_NONE, sources: [] }; });
+  ALL_MODULE_KEYS.forEach((k) => { modules[k] = { level: LEVEL_NONE, sources: [] }; });
 
   let dataScope = SCOPE_ASSIGNED;
   let piiVisibility = PII_MASKED;
 
   matched.forEach(({ record }) => {
     ALL_MODULE_KEYS.forEach((k) => {
-      const lvl = record.permissions?.[k] || PERM_NONE;
-      if (lvl === PERM_NONE) return;
+      const lvl = record.permissions?.[k] || LEVEL_NONE;
+      if (lvl === LEVEL_NONE) return;
       const cur = modules[k];
       if (PERM_RANK[lvl] > PERM_RANK[cur.level]) cur.level = lvl;
       if (!cur.sources.includes(record.templateName)) cur.sources.push(record.templateName);
