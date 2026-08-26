@@ -42,6 +42,23 @@ import {
   buildUsageReport,
   formatMinutes,
 } from '@/data/userUsageReports';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ConsentDashboardTemplatePopup from '@/pages/consent/ConsentDashboardTemplatePopup';
+import {
+  DASHBOARD_LAYOUTS as SYS_LAYOUTS,
+  WIDGET_TYPES as SYS_WIDGET_TYPES,
+  WIDGET_DATASETS as SYS_DATASETS,
+  WIDGET_TYPE_DATASETS as SYS_TYPE_DATASETS,
+  WIDGET_DEFAULT_SPAN as SYS_DEFAULT_SPAN,
+  listDashboardTemplates,
+  getDefaultDashboardTemplateId,
+  setDefaultDashboardTemplate,
+  saveDashboardTemplate,
+} from '@/data/systemDashboardTemplates';
+import {
+  SystemDashboardWidget,
+  buildSystemWidgetContext,
+} from '@/data/systemDashboardWidgets';
 import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
 import SuccessToast from '@/components/toast/SuccessToast';
 
@@ -191,6 +208,11 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
   /* ตัวกรองวันที่ — ชุดเดียวกับแดชบอร์ดระบบความยินยอม ค่าเริ่มต้น "ปีนี้"
      เพราะยอดผู้ใช้งานเก็บย้อนหลัง 12 เดือน ถ้าตั้ง "เดือนนี้" กราฟจะเหลือแท่งเดียว */
   const [pageDate, setPageDate] = useState({ quick: 'thisyear' });
+  /* หน้าจอรวมมาจาก "เทมเพลต" เหมือนแดชบอร์ดความยินยอม — เทมเพลตมาตรฐานให้ผล
+     เหมือนหน้าเดิมทุกประการ (26 ส.ค. 2569 มติผู้ใช้) */
+  const [templates, setTemplates] = useState(() => listDashboardTemplates());
+  const [templateId, setTemplateId] = useState(() => getDefaultDashboardTemplateId());
+  const [templatePopup, setTemplatePopup] = useState(false);
   const [exportReport, setExportReport] = useState(null);
   const [exportDone, setExportDone] = useState(false);
   const dateFiltersActive = (pageDate?.quick || 'thisyear') !== 'thisyear';
@@ -350,6 +372,42 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
     { id: 'holidays', icon: 'event_busy', name: 'วันหยุดประจำปี', detail: 'ทะเบียนกลางใช้ร่วมกันทุกศูนย์', count: holidays.length, unit: 'วัน', path: '/admin/holidays' },
   ]), [centerStats, structures.length, positions.length, activities.length, roleCount, departments.length, accessControls.length, pendingApproval, users.length, activeUsers, holidays.length]);
 
+  const activeTemplate = useMemo(
+    () => templates.find((t) => t.id === templateId) || templates[0],
+    [templates, templateId],
+  );
+  const templateColumns = (SYS_LAYOUTS.find((l) => l.key === activeTemplate?.layout) || { columns: 3 }).columns;
+
+  /* KPI สองชุดให้ widget 'stat' เลือกผูก — ทะเบียน (การ์ดบนหัวหน้า) กับการใช้งาน */
+  const usageKpi = useMemo(() => ([
+    statCard({ key: 'sessions', icon: 'trending_up', tone: 'info', label: `ครั้งการใช้งาน · ${scopeLabel}`, value: num(report.summary.totalSessions) }),
+    statCard({ key: 'avg', icon: 'timer', tone: 'positive', label: 'ระยะเวลาเฉลี่ยต่อครั้ง', value: `${report.summary.avgSessionMinutes} นาที` }),
+    statCard({ key: 'dormant', icon: 'person_off', tone: 'warning', label: 'ผู้ใช้ที่ไม่ได้เข้าระบบเกิน 90 วัน', value: num(report.summary.dormant) }),
+    statCard({ key: 'online2', icon: 'sensors', tone: 'positive', label: 'ผู้ใช้ออนไลน์ตอนนี้ (realtime)', value: num(report.summary.onlineNow) }),
+  ]), [report.summary, scopeLabel]);
+
+  const widgetCtx = useMemo(() => buildSystemWidgetContext({
+    kpiRegistries: kpiCards,
+    kpiUsage: usageKpi,
+    approvalSegments,
+    accessTotal: accessControls.length,
+    usersByPosition,
+    usersTotal: users.length,
+    usersByCenter,
+    monthLabels: shownMonths,
+    monthSeries: barSeries,
+    hourlyRows,
+    functionRows,
+    registryRows,
+  }), [kpiCards, usageKpi, approvalSegments, accessControls.length, usersByPosition,
+    users.length, usersByCenter, shownMonths, barSeries, hourlyRows, functionRows, registryRows]);
+
+  const applyTemplate = (id) => {
+    setTemplateId(id);
+    setDefaultDashboardTemplate(id);
+    setTemplates(listDashboardTemplates());
+  };
+
   const registryCols = [
     {
       key: 'name',
@@ -413,34 +471,50 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
       /* ขอบเขตศูนย์อยู่ติดชื่อหน้า — เปลี่ยนแล้วการ์ดการใช้งานเปลี่ยนตามทันที */
       afterTitle={(
         <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-          <div style={{ width: 'var(--dim-size-2600, 384px)', minWidth: 0 }}>
-            <Select
-              label='ขอบเขตรายงาน'
-              prefix='ศูนย์:'
-              showFieldName={false}
-              showHelperText={false}
-              leadingIcon='domain'
-              options={scopeOptions}
-              value={scopeCenter}
-              onChange={setScopeCenter}
-              searchable={false}
-            />
-          </div>
+          <FilterDropdown
+            prefix='ศูนย์:'
+            options={scopeOptions}
+            value={scopeCenter}
+            onChange={setScopeCenter}
+            placeholder='ทุกศูนย์บริการ'
+          />
           <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thisyear' />
           <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
         </span>
       )}
       actions={(
-        <NeutralSubdueButton
-          leadingIcon='ios_share'
-          size='md'
+        <>
+          <div style={{ width: 'var(--dim-size-2600, 384px)', minWidth: 0 }}>
+            <Select
+              label='เทมเพลตหน้าจอ'
+              prefix='Template:'
+              showFieldName={false}
+              showHelperText={false}
+              leadingIcon='dashboard'
+              options={templates.map((t) => ({ value: t.id, label: t.name }))}
+              value={activeTemplate?.id}
+              onChange={applyTemplate}
+              searchable={false}
+            />
+          </div>
+          <NeutralSubdueButton
+            leadingIcon='dashboard_customize'
+            size='md'
+            onClick={() => setTemplatePopup(true)}
+          >
+            สร้างเทมเพลท
+          </NeutralSubdueButton>
+          <NeutralSubdueButton
+            leadingIcon='ios_share'
+            size='md'
           onClick={() => setExportReport({
             ...SYSTEM_EXPORT_REPORT,
             table: { ...SYSTEM_EXPORT_REPORT.table, rows: registryRows },
           })}
         >
-          นำส่งออกรายงาน
-        </NeutralSubdueButton>
+            นำส่งออกรายงาน
+          </NeutralSubdueButton>
+        </>
       )}
       headerInfo={(
         <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
@@ -454,119 +528,62 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
         style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
       >
         <SmoothFilterResults opaque={resultsOpaque} style={{ gap: 'var(--dim-space-400)' }}>
-        {/* ── ทะเบียนของจัดการระบบ ─────────────────────────────────────── */}
+        {/* หน้าจอรวมตามเทมเพลต — การ์ด/ตำแหน่ง/ข้อมูล มาจากเทมเพลตที่เลือก
+            (เทมเพลตมาตรฐาน = ภาพเดิมของแดชบอร์ดทุกประการ) โครงเดียวกับ
+            แดชบอร์ดระบบความยินยอม (26 ส.ค. 2569 มติผู้ใช้) */}
         <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
           <SectionHead
-            title='ภาพรวมทะเบียนจัดการระบบ'
-            subtitle='อ่านจากทะเบียนจริงของแต่ละหน้า — ตัวเลขตรงกับหน้าที่ใช้แก้ไขเสมอ'
-            right={(
-              <ColorfulBadge style='indigo' size='small' hierarchy='secondary' width='hug'>
-                {`${num(registryRows.length)} ทะเบียน`}
-              </ColorfulBadge>
-            )}
-          />
-          <div
-            className='w-full'
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'var(--dim-space-400)' }}
-          >
-            <WidgetCard
-              title='สถานะการอนุมัติแม่แบบสิทธิ์'
-              subtitle='TOR §1.17.4.2 — การอนุมัติสิทธิ์'
-            >
-              {approvalSegments.length === 0 ? (
-                <span style={MUTED_XS}>ยังไม่มีแม่แบบสิทธิ์ในระบบ</span>
-              ) : (
-                <div className='flex items-center justify-center w-full flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-                  <Donut
-                    segments={approvalSegments}
-                    size={148}
-                    centerLabel={num(accessControls.length)}
-                    centerSub='แม่แบบ'
-                  />
-                  <DonutLegend segments={approvalSegments} />
-                </div>
-              )}
-            </WidgetCard>
-
-            <WidgetCard title='บุคลากรตามตำแหน่ง' subtitle='นับจากหน่วยงานหลักของแต่ละคน'>
-              {usersByPosition.length === 0 ? (
-                <span style={MUTED_XS}>ยังไม่มีบุคลากรในทะเบียน</span>
-              ) : (
-                <div className='flex items-center justify-center w-full flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-                  <Donut
-                    segments={usersByPosition}
-                    size={148}
-                    centerLabel={num(users.length)}
-                    centerSub='คน'
-                  />
-                  <DonutLegend segments={usersByPosition} />
-                </div>
-              )}
-            </WidgetCard>
-
-            <WidgetCard title='บุคลากรตามศูนย์บริการ' subtitle='เรียงจากมากไปน้อย'>
-              {usersByCenter.length === 0 ? (
-                <span style={MUTED_XS}>ยังไม่มีบุคลากรในทะเบียน</span>
-              ) : (
-                <HBarList rows={usersByCenter} valueLabel='คน' maxVisibleRows={4.5} />
-              )}
-            </WidgetCard>
-          </div>
-        </section>
-
-        {/* ── การใช้งานระบบ (TOR §1.17.4.3) ────────────────────────────── */}
-        <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
-          <SectionHead
-            title='การใช้งานระบบ'
-            subtitle={`TOR §1.17.4.3 — ${scopeLabel} · ระยะเวลาเฉลี่ยต่อครั้ง ${report.summary.avgSessionMinutes} นาที · เฉลี่ยต่อคน ${formatMinutes(report.summary.avgPerUserMinutes)}`}
+            title={activeTemplate?.name || 'แดชบอร์ด'}
+            subtitle={`ศูนย์: ${scopeLabel} · ระยะเวลาเฉลี่ยต่อครั้ง ${report.summary.avgSessionMinutes} นาที · เฉลี่ยต่อคน ${formatMinutes(report.summary.avgPerUserMinutes)}`}
             right={(
               <ColorfulBadge style={report.hasData ? 'green' : 'grey'} size='small' hierarchy='secondary' width='hug'>
                 {report.hasData ? `${num(report.summary.totalSessions)} ครั้งการใช้งาน` : 'ไม่มีข้อมูลในขอบเขตนี้'}
               </ColorfulBadge>
             )}
           />
-          {!report.hasData ? (
-            <span style={MUTED_XS}>ศูนย์นี้ยังไม่เปิดใช้ระบบ จึงยังไม่มีสถิติการใช้งาน — เลือกขอบเขตอื่นเพื่อดูรายงาน</span>
+
+          {!activeTemplate?.widgets?.length ? (
+            <span style={MUTED_XS}>เทมเพลตนี้ยังไม่มีการ์ด — กด &quot;สร้างเทมเพลท&quot; เพื่อเลือกข้อมูลที่จะแสดง</span>
           ) : (
             <div
               className='w-full'
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'var(--dim-space-400)' }}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${templateColumns}, minmax(0, 1fr))`,
+                gap: 'var(--dim-space-400)',
+              }}
             >
-              <WidgetCard
-                title='ยอดผู้ใช้งานรายเดือน'
-                subtitle={shownMonths.length
-                  ? `${shownMonths[0]} – ${shownMonths[shownMonths.length - 1]} · รวม ${num(periodTotal)} คน`
-                  : 'ไม่มีเดือนไหนอยู่ในช่วงวันที่ที่เลือก'}
-                span={2}
-              >
-                {shownMonths.length ? (
-                  <VBars months={shownMonths} series={barSeries} height={200} barMaxWidth={18} />
-                ) : (
-                  <span style={MUTED_XS}>เลือกช่วงวันที่ให้ครอบคลุมเดือนที่มีข้อมูล เพื่อดูยอดผู้ใช้งาน</span>
-                )}
-              </WidgetCard>
-
-              <WidgetCard title='ช่วงเวลาการใช้งาน' subtitle='ชั่วโมงที่ระบบถูกใช้หนักที่สุด'>
-                <HBarList rows={hourlyRows} valueLabel='ครั้ง' maxVisibleRows={4.5} />
-              </WidgetCard>
-
-              <WidgetCard title='ปริมาณการใช้งานแต่ละฟังก์ชัน' subtitle='นับตามจำนวนครั้งที่เรียกใช้' span={3}>
-                <HBarList rows={functionRows} valueLabel='ครั้ง' maxVisibleRows={5.5} />
-              </WidgetCard>
+              {activeTemplate.widgets.map((w) => (
+                <WidgetCard key={w.id} title={w.title} span={Math.min(w.span || 1, templateColumns)}>
+                  <SystemDashboardWidget widget={w} ctx={widgetCtx} compact={(w.span || 1) < 2} />
+                </WidgetCard>
+              ))}
             </div>
           )}
         </section>
-
-        {/* ── ทะเบียนที่ต้องดูแล ───────────────────────────────────────── */}
-        <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-300)' }}>
-          <SectionHead
-            title='ทะเบียนที่ต้องดูแล'
-            subtitle='กด "จัดการ" เพื่อไปหน้าที่แก้ไขทะเบียนนั้นโดยตรง'
-          />
-          <Table columns={registryCols} rows={registryRows} rowKey={(r) => r.id} />
-        </section>
         </SmoothFilterResults>
       </div>
+
+      {/* ตัวสร้างเทมเพลตหน้าจอรวม — ป๊อปอัปตัวเดียวกับระบบความยินยอม แค่ส่ง
+          catalog + ตัวเรนเดอร์ตัวอย่างของจัดการระบบเข้าไป */}
+      <ConsentDashboardTemplatePopup
+        open={templatePopup}
+        onClose={() => setTemplatePopup(false)}
+        layouts={SYS_LAYOUTS}
+        widgetTypes={SYS_WIDGET_TYPES}
+        datasets={SYS_DATASETS}
+        typeDatasets={SYS_TYPE_DATASETS}
+        defaultSpan={SYS_DEFAULT_SPAN}
+        onSaveTemplate={saveDashboardTemplate}
+        fallbackDataset='registries'
+        renderPreview={(w, compact) => (
+          <SystemDashboardWidget widget={w} ctx={widgetCtx} compact={compact} />
+        )}
+        onSaved={() => {
+          setTemplates(listDashboardTemplates());
+          setTemplateId(getDefaultDashboardTemplateId());
+        }}
+      />
 
       <ExportFormatPopup
         open={!!exportReport}
