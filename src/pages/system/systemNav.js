@@ -25,11 +25,12 @@ export const SYSTEM_NAV = [
      ผูกกับศูนย์บริการ สร้าง/แก้ที่ step "แผนกและคลินิก" ของหน้าเพิ่มศูนย์บริการ
      ตามลำดับชั้น แผนก → คลินิก → ห้อง/เตียง. route /assess/departments ยังเปิด
      อยู่สำหรับลิงก์เดิม แค่ไม่มีเมนูของตัวเอง — แบบเดียวกับ SystemRolesPage. */
+  /* ลำดับตามขั้นตอนตั้งค่าจริง: บทบาท → สิทธิ์ของบทบาทนั้น → คนที่ถือสิทธิ์
+     (26 ส.ค. 69 มติผู้ใช้) */
+  { key: 'assess-access-control', label: 'สิทธิ์การเข้าถึงระบบ',   icon: 'how_to_reg',       path: '/assess/access-control' },
+  { key: 'system-staff',          label: 'บุคลากร',          icon: 'group',            path: '/assess/users' },
   /* TOR §1.2.7 — ห้องตรวจ × แพทย์ประจำห้อง + โควตารายวัน (เดิมอยู่เมนู OPD) */
   { key: 'system-opd-room-config', label: 'ตั้งค่าห้องตรวจและโควตารายวัน', icon: 'meeting_room', path: '/opd/room-config' },
-  { key: 'assess-access-control', label: 'สิทธิ์การเข้าถึงระบบ',   icon: 'how_to_reg',       path: '/assess/access-control' },
-  /* บุคลากรอยู่ต่อจากสิทธิ์การเข้าถึงระบบ — ตั้งสิทธิ์เสร็จแล้วค่อยผูกคน (26 ส.ค. 69 มติผู้ใช้) */
-  { key: 'system-staff',          label: 'บุคลากร',          icon: 'group',            path: '/assess/users' },
   /* ด.1.1.18 — matrix สิทธิเข้าถึงข้อมูลผู้ป่วยตามระดับความยินยอม: ถอดออกจากเมนู
      25 ส.ค. 69 (มติผู้ใช้) route /assess/consent-access-rights ยังเข้าได้ตามลิงก์เดิม */
   /* EMR §1.4.2.1 — การจัดการข้อมูลลับ: ถอดออกจากเมนู 25 ส.ค. 69 (มติผู้ใช้)
