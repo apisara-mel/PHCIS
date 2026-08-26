@@ -113,8 +113,12 @@ const Calendar = ({
      and labelling both "เต็ม" tells the user something untrue. */
   fullLabel = 'เต็ม',
   locale = 'en',           // 'en' (default) | 'th'
+  /* กดที่ชื่อเดือน/ปี แล้วเลือกปีจากตารางได้ — จำเป็นกับวันเกิดที่ต้องย้อนหลาย
+     สิบปี กดลูกศรทีละเดือนไม่ไหว (26 ส.ค. 2569 มติผู้ใช้) */
+  onPickYear,
 }) => {
   const isThai = locale === 'th';
+  const [yearPickerOpen, setYearPickerOpen] = useState(false);
   const grid = buildGrid(viewMonth);
   const weekdays = isThai ? TH_WEEKDAYS : WEEKDAYS;
   const monthLabel = isThai
@@ -210,21 +214,80 @@ const Calendar = ({
       {/* Header — month label + chevrons (left/right depending on which side) */}
       <div className='flex items-center w-full' style={{ height: 32, gap: 'var(--dim-space-100)' }}>
         {showLeftChevron ? <ChevronButton direction='left' onClick={() => onNavigate?.(-1)} /> : <span style={{ width: 24 }} />}
-        <p
-          className='flex-1 text-center'
-          style={{
-            color: '#4D5358',
-            fontFamily: 'var(--type-family-body)',
-            fontSize: 'var(--type-size-base)',
-            fontWeight: 'var(--type-weight-medium)',
-            margin: 'var(--dim-space-0)',
-          }}
-        >
-          {monthLabel}
-        </p>
+        {onPickYear ? (
+          <button
+            type='button'
+            className='flex-1 text-center'
+            aria-label='เลือกปี'
+            onClick={() => setYearPickerOpen((v) => !v)}
+            style={{
+              color: '#4D5358',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-base)',
+              fontWeight: 'var(--type-weight-medium)',
+              margin: 'var(--dim-space-0)',
+              cursor: 'pointer',
+              background: 'transparent',
+              border: 'none',
+            }}
+          >
+            {monthLabel}
+          </button>
+        ) : (
+          <p
+            className='flex-1 text-center'
+            style={{
+              color: '#4D5358',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-base)',
+              fontWeight: 'var(--type-weight-medium)',
+              margin: 'var(--dim-space-0)',
+            }}
+          >
+            {monthLabel}
+          </p>
+        )}
         {showRightChevron ? <ChevronButton direction='right' onClick={() => onNavigate?.(1)} /> : <span style={{ width: 24 }} />}
       </div>
 
+      {yearPickerOpen ? (
+        /* ตารางปี 12 ช่อง เลื่อนดูย้อนหลังได้ถึง 100 ปี — พอสำหรับวันเกิด */
+        <div
+          className='w-full'
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gap: 'var(--dim-space-150)',
+            maxHeight: 240,
+            overflowY: 'auto',
+            paddingTop: 'var(--dim-space-200)',
+          }}
+        >
+          {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map((y) => {
+            const selected = y === viewMonth.getFullYear();
+            return (
+              <button
+                key={y}
+                type='button'
+                onClick={() => { onPickYear?.(y); setYearPickerOpen(false); }}
+                style={{
+                  padding: 'var(--dim-space-200)',
+                  borderRadius: 'var(--dim-radius-200)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--type-family-body)',
+                  fontSize: 'var(--type-size-sm)',
+                  background: selected ? 'var(--surface-brandPrimary-default, #046A38)' : 'transparent',
+                  color: selected ? '#FFFFFF' : '#4D5358',
+                }}
+              >
+                {isThai ? y + 543 : y}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+      <>
       {/* Weekday row */}
       <div className='flex w-full' style={{ gap: 'var(--dim-space-050)' }}>
         {weekdays.map((w) => (
@@ -260,6 +323,8 @@ const Calendar = ({
           ))}
         </div>
       ))}
+      </>
+      )}
     </div>
   );
 };

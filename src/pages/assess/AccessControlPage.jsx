@@ -171,6 +171,7 @@ export default function AccessControlPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [permView, setPermView] = useState(null);
   const [editRecord, setEditRecord] = useState(null);
+  const [duplicating, setDuplicating] = useState(null);
   /* ทะเบียนบุคลากร — ใช้นับว่าแม่แบบนี้มีคนถือสิทธิ์อยู่กี่คน */
   const [assessUsers] = useState(() => readAssessUsers());
   const [filterPosition, setFilterPosition] = useState('');
@@ -275,10 +276,13 @@ export default function AccessControlPage() {
     showToast(next ? 'เปิดใช้งานสิทธิ์การเข้าถึงระบบแล้ว' : 'ปิดใช้งานสิทธิ์การเข้าถึงระบบแล้ว');
   };
 
-  /* ทำสำเนาแม่แบบ — id ใหม่ ชื่อต่อท้าย (สำเนา) และเริ่มนับเวอร์ชันใหม่ที่ v1 */
-  const handleDuplicate = (row) => {
-    const copy = duplicateAccessControl(row);
+  /* ทำสำเนาแม่แบบ — id ใหม่ ชื่อต่อท้าย (สำเนา) และเริ่มนับเวอร์ชันใหม่ที่ v1
+     ถามยืนยันก่อน เพราะกดพลาดแล้วได้แม่แบบซ้ำมาปนในทะเบียนทันที (26 ส.ค. 2569) */
+  const applyDuplicate = () => {
+    if (!duplicating) return;
+    const copy = duplicateAccessControl(duplicating);
     persist([...records, copy]);
+    setDuplicating(null);
     showToast(`ทำสำเนา "${copy.templateName}" แล้ว`);
   };
 
@@ -391,7 +395,7 @@ export default function AccessControlPage() {
           <NeutralSubdueButton
             leadingIcon='content_copy'
             size='sm'
-            onClick={() => handleDuplicate(row)}
+            onClick={() => setDuplicating(row)}
           >
             ทำสำเนา
           </NeutralSubdueButton>
@@ -513,6 +517,26 @@ export default function AccessControlPage() {
       </QueuePageShell>
 
       {/* ยืนยันก่อนอนุมัติ/ไม่อนุมัติ — มีผลต่อการเข้าถึงข้อมูลผู้ป่วยจริง */}
+      <AlertDialog
+        open={!!duplicating}
+        onClose={() => setDuplicating(null)}
+        type='info'
+        alignment='center'
+        title='ทำสำเนาแม่แบบสิทธิ์?'
+        description={duplicating ? (
+          <>
+            สร้างสำเนาของ
+            <br />
+            {`"${duplicating.templateName || 'ไม่มีชื่อแม่แบบ'}"`}
+            <br />
+            สำเนาจะเริ่มที่เวอร์ชัน 1 และยังไม่ได้ส่งขออนุมัติ
+          </>
+        ) : ''}
+        confirmLabel='ทำสำเนา'
+        cancelLabel='ยกเลิก'
+        onConfirm={applyDuplicate}
+      />
+
       <AlertDialog
         open={!!decision}
         onClose={() => setDecision(null)}

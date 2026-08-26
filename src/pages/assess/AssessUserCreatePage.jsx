@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import WizardMorphHeader, { WIZARD_MORPH_SHELL_PROPS } from '@/components/layout/WizardMorphHeader';
@@ -225,6 +225,16 @@ export default function AssessUserCreatePage({
 
   const [step, setStep] = useState('personal');
   const [showCodeList, setShowCodeList] = useState(false);
+  const photoInputRef = useRef(null);
+
+  /* อ่านไฟล์รูปเป็น data URL — ใช้ทั้งการ์ดอัปโหลดครั้งแรกและปากกาเปลี่ยนรูป */
+  const readPhoto = (files) => {
+    const file = files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setPersonal((prev) => ({ ...prev, photo: String(reader.result || '') }));
+    reader.readAsDataURL(file);
+  };
   /* ออกจากฟอร์ม — ป๊อปอัปปิดตัวเอง หน้าเต็มกลับไปทะเบียน */
   const leaveForm = () => {
     if (asPopup) { onClose?.(); return; }
@@ -425,7 +435,8 @@ export default function AssessUserCreatePage({
   };
 
   const handleSaveDraft = () => {
-    upsertAssessUser(buildRecord());
+    /* ร่างไปอยู่แท็บ "บันทึกร่าง" ของทะเบียน ไม่ปนกับบุคลากรที่ใช้งานจริง */
+    upsertAssessUser({ ...buildRecord(), draft: true });
     if (asPopup) { onSaved?.('บันทึกร่างบุคลากรแล้ว'); onClose?.(); }
   };
 
@@ -458,7 +469,7 @@ export default function AssessUserCreatePage({
 
   const applySubmit = () => {
     setConfirmSaveOpen(false);
-    const record = upsertAssessUser(buildRecord());
+    const record = upsertAssessUser({ ...buildRecord(), draft: false });
     if (asPopup) {
       onSaved?.(pickedUser || isEdit ? 'อัปเดตสิทธิ์บุคลากรแล้ว' : 'สร้างบุคลากรใหม่แล้ว');
       onClose?.();
@@ -545,38 +556,60 @@ export default function AssessUserCreatePage({
             <section className='flex flex-col w-full' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
               <TopicHeader icon='face' title='ข้อมูลส่วนตัว' subtitle='กรอกข้อมูลส่วนตัวของบุคลากร' />
               {/* รูปโปรไฟล์ — ใช้ระบุตัวบุคลากรในจอคิว/ตารางเวร และหน้าโปรไฟล์
-                  (26 ส.ค. 2569 มติผู้ใช้) เก็บเป็น data URL เหมือนลายเซ็น */}
+                  ยังไม่มีรูป = การ์ดอัปโหลด · มีรูปแล้ว = รูปกลมพร้อมปากกามุมขวาล่าง
+                  กดปากกาเพื่อเลือกรูปใหม่ (26 ส.ค. 2569 มติผู้ใช้) */}
               <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-                {/* ไม่มีวงกลมพรีวิวว่าง ๆ ตอนยังไม่ได้อัปโหลด (26 ส.ค. 2569 มติผู้ใช้)
-                    — โชว์รูปจริงต่อเมื่อมีรูปแล้วเท่านั้น */}
+                <input
+                  ref={photoInputRef}
+                  type='file'
+                  accept='image/*'
+                  className='hidden'
+                  onChange={(e) => { readPhoto(e.target.files); e.target.value = ''; }}
+                />
                 {personal.photo ? (
-                  <span
-                    className='inline-flex items-center justify-center shrink-0 overflow-hidden'
-                    style={{
-                      width: 88,
-                      height: 88,
-                      borderRadius: '50%',
-                      border: 'var(--dim-stroke-100) solid var(--border-card-default)',
-                    }}
-                  >
-                    <img src={personal.photo} alt='' style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <span className='relative inline-flex shrink-0'>
+                    <span
+                      className='inline-flex items-center justify-center overflow-hidden'
+                      style={{
+                        width: 88,
+                        height: 88,
+                        borderRadius: '50%',
+                        border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+                      }}
+                    >
+                      <img src={personal.photo} alt='' style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </span>
+                    <button
+                      type='button'
+                      aria-label='เปลี่ยนรูปโปรไฟล์'
+                      title='เปลี่ยนรูปโปรไฟล์'
+                      onClick={() => photoInputRef.current?.click()}
+                      className='absolute inline-flex items-center justify-center'
+                      style={{
+                        right: -2,
+                        bottom: -2,
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        background: 'var(--surface-card-100)',
+                        border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+                        boxShadow: 'var(--shadow-card)',
+                        color: 'var(--text-brandPrimary-default)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Icon name='edit' size={16} />
+                    </button>
                   </span>
-                ) : null}
-                <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+                ) : (
                   <PhotoUploadField
-                    label={personal.photo ? 'เปลี่ยนรูปโปรไฟล์' : 'อัปโหลดรูปโปรไฟล์'}
-                    onFiles={(files) => {
-                      const file = files?.[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = () => setPersonal((prev) => ({ ...prev, photo: String(reader.result || '') }));
-                      reader.readAsDataURL(file);
-                    }}
+                    label='อัปโหลดรูปโปรไฟล์'
+                    onFiles={readPhoto}
                   />
-                  <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
-                    ไฟล์ภาพ .jpg / .png — ใช้แสดงในจอคิว ตารางเวร และหน้าโปรไฟล์
-                  </span>
-                </div>
+                )}
+                <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
+                  ไฟล์ภาพ .jpg / .png — ใช้แสดงในจอคิว ตารางเวร และหน้าโปรไฟล์
+                </span>
               </div>
               {/* ปุ่มดูรหัสอยู่ติดกล่องรหัส ไม่ลอยไปชิดขอบขวา และมีติ๊กถูกสีเขียวบอกว่า
                   รหัสนี้ยังไม่ถูกใช้ แบบเดียวกับฟอร์มเพิ่มศูนย์บริการ (26 ส.ค. 2569) */}
