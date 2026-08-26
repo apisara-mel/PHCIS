@@ -295,27 +295,8 @@ export default function AccessControlPage() {
        คอลัมน์ "ศูนย์บริการ" ถอดออก ศูนย์เป็นขอบเขตข้อมูล ไม่ใช่ตัวกำหนดสิทธิ์ */
     /* คอลัมน์ ศูนย์/สาขา/แผนก/ตำแหน่ง/บทบาท ถอดออก 26 ส.ค. 2569 (มติผู้ใช้) —
        แม่แบบไม่ผูกคุณสมบัติเหล่านี้แล้ว ใครได้ใช้แม่แบบไหนไปเลือกตอนเพิ่มบุคลากร */
-    /* คทง.13 §1.3 — สถานะอนุมัติ + ป้ายบอกว่ามีผลบังคับใช้จริงหรือยัง */
-    {
-      key: 'approval',
-      header: 'สถานะอนุมัติ',
-      minWidth: 150,
-      render: (row) => {
-        const status = row.approvalStatus || APPROVAL_DRAFT;
-        const meta = APPROVAL_META[status] || APPROVAL_META[APPROVAL_DRAFT];
-        const effective = isAccessEffective(row);
-        return (
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
-            <PolicyBadge style={meta.badge}>{meta.label}</PolicyBadge>
-            {status === APPROVAL_APPROVED && !effective ? (
-              <span style={{ ...TEXT_CELL, color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
-                ยังไม่ถึง/พ้นช่วงเวลา
-              </span>
-            ) : null}
-          </div>
-        );
-      },
-    },
+    /* คอลัมน์ "สถานะอนุมัติ" ถอดออก 26 ส.ค. 2569 (มติผู้ใช้) — ยังกรองด้วยสถานะ
+       ได้จากชิปด้านบน และอนุมัติ/ไม่อนุมัติได้จากเมนู ⋮ ท้ายแถวเหมือนเดิม */
     /* มติ คทง.2/3/4/10/11 — ขอบเขตข้อมูล + การเห็นข้อมูลระบุตัวตน */
     {
       key: 'scope',
