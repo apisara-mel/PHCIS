@@ -18,6 +18,8 @@ import AlertDialog from '@/components/popup/AlertDialog';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import Icon from '@/components/icons/Icon';
+import NeutralIconButton from '@/components/button/NeutralIconButton';
+import InlineNameEditor from '@/components/forms/InlineNameEditor';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import {
   readPositions,
@@ -72,7 +74,7 @@ const DATA_CELL_OFF = {
   showButton3: false,
 };
 
-const COL_W = { order: 80, status: 160, action: 160 };
+const COL_W = { order: 80, status: 160, action: 96 };
 const DRAG_COL_W = 40;
 
 const STATUS_OPTIONS = [
@@ -115,7 +117,10 @@ function PositionTable({
   onDrop,
   onDragEnd,
   onToggleActive,
-  onEdit,
+  editingId,
+  onEditStart,
+  onEditCancel,
+  onRename,
   onDelete,
 }) {
   const headers = [
@@ -210,7 +215,29 @@ function PositionTable({
                 <span style={TEXT_CELL}>{row.order}</span>
               </DataCell>
               <DataCell {...DATA_CELL_OFF} style={{ flex: '1 1 0', minWidth: 0, ...cellBorder }}>
-                <span style={TEXT_CELL}>{row.name}</span>
+                {row.id === editingId ? (
+                  <InlineNameEditor
+                    initial={row.name}
+                    ariaLabel={`แก้ไขชื่อ ${row.name}`}
+                    onSave={(name) => onRename(row, name)}
+                    onCancel={onEditCancel}
+                  />
+                ) : (
+                  <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                    <span style={TEXT_CELL}>{row.name}</span>
+                    {/* ดินสอเป็น affordance รอง — โทนอ่อน (icon/neutral/tertiary)
+                        ไม่แย่งสายตาจากชื่อ · รูปแบบเดียวกับหน้าบทบาท (26 ส.ค. 2569) */}
+                    <NeutralIconButton
+                      icon='edit'
+                      variant='ghost'
+                      size='sm'
+                      aria-label={`แก้ไขชื่อ ${row.name}`}
+                      onClick={() => onEditStart(row)}
+                      disabled={editMode}
+                      style={{ color: 'var(--icon-neutral-tertiary, #ADB2B7)' }}
+                    />
+                  </span>
+                )}
               </DataCell>
               <DataCell
                 {...DATA_CELL_OFF}
@@ -230,15 +257,6 @@ function PositionTable({
                 style={{ width: COL_W.action, flexShrink: 0, ...cellBorder }}
               >
                 <div className='inline-flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-                  <NeutralSubdueButton
-                    variant='outline'
-                    size='sm'
-                    leadingIconElement={<Edit3LeadingIcon />}
-                    onClick={() => onEdit(row)}
-                    disabled={editMode}
-                  >
-                    แก้ไข
-                  </NeutralSubdueButton>
                   <NeutralSubdueIconButton
                     variant='outline'
                     size='sm'
@@ -269,6 +287,8 @@ export default function PositionPage() {
   const dismissToast = useCallback(() => setToast(null), []);
 
   const [modal, setModal] = useState(null);
+  /* แถวที่กำลังแก้ชื่อ inline — ป๊อปอัปเดิมเหลือไว้ใช้ตอน "เพิ่มตำแหน่ง" อย่างเดียว */
+  const [editingId, setEditingId] = useState(null);
   const [nameDraft, setNameDraft] = useState('');
   const [nameError, setNameError] = useState('');
   const [toggleConfirm, setToggleConfirm] = useState(null);
@@ -334,10 +354,20 @@ export default function PositionPage() {
     setModal({ mode: 'add' });
   };
 
-  const openEdit = (position) => {
-    setNameDraft(position.name);
-    setNameError('');
-    setModal({ mode: 'edit', position });
+  /* บันทึกชื่อจากดินสอในตาราง — คืน true = สำเร็จ (ปิดโหมดแก้)
+     ชื่อว่างหรือซ้ำ = ไม่บันทึกและคาโหมดแก้ไว้ให้พิมพ์ต่อ พร้อม toast บอกเหตุผล
+     (validateName ตัวเดียวกับป๊อปอัปเพิ่มตำแหน่ง จึงใช้กติกาซ้ำเดียวกัน) */
+  const renameInline = (position, nextName) => {
+    const trimmed = String(nextName || '').trim();
+    if (!trimmed) { showToast('กรุณาระบุชื่อตำแหน่ง'); return false; }
+    const err = validateName(trimmed, position.id);
+    if (err) { showToast(err); return false; }
+    if (trimmed !== position.name.trim()) {
+      persist(positions.map((p) => (p.id === position.id ? { ...p, name: trimmed } : p)));
+      showToast('บันทึกชื่อตำแหน่งแล้ว');
+    }
+    setEditingId(null);
+    return true;
   };
 
   const validateName = (name, excludeId = null) => {
@@ -547,7 +577,10 @@ export default function PositionPage() {
                 onDrop={handleDrop}
                 onDragEnd={handleDragEnd}
                 onToggleActive={handleToggleActive}
-                onEdit={openEdit}
+                editingId={editingId}
+                onEditStart={(row) => { setEditingId(row.id); setNameError(''); }}
+                onEditCancel={() => setEditingId(null)}
+                onRename={renameInline}
                 onDelete={setDeleteConfirm}
               />
               </SmoothFilterResults>

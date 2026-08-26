@@ -46,6 +46,10 @@ export function createRoomNode(patch = {}) {
     /* ห้องตรวจ = แพทย์ประจำห้อง · เตียง = จำนวนที่รองรับ */
     doctor: String(patch.doctor || '').trim(),
     capacity: Number(patch.capacity) > 0 ? Number(patch.capacity) : 1,
+    /* เตียงสังเกตอาการที่ผูกกับจุดรับบริการนี้ — ผู้รับบริการที่ตรวจเสร็จแล้ว
+       ต้องนอนสังเกตอาการต่อจะใช้เตียงของจุดที่ตรวจ ไม่ใช่เตียงกลางของศูนย์
+       (26 ส.ค. 2569 มติผู้ใช้) 0 = จุดนี้ไม่มีเตียง */
+    beds: Number(patch.beds) > 0 ? Number(patch.beds) : 0,
     active: patch.active !== false,
   };
 }
@@ -101,7 +105,11 @@ export function countStructure(units = []) {
   units.forEach((u) => {
     if (u.kind === 'clinic') clinics += 1; else departments += 1;
     (u.nodes || []).forEach((n) => {
-      if (n.kind === 'bed') beds += 1; else rooms += 1;
+      /* node ชนิด 'bed' = เตียงเดี่ยวยุคเดิม (ตัวแก้ไขแบบละเอียดยังสร้างได้)
+         ส่วนจุดรับบริการนับเตียงจากช่อง beds ที่ผูกกับจุดนั้น */
+      if (n.kind === 'bed') { beds += 1; return; }
+      rooms += 1;
+      beds += Number(n.beds) || 0;
     });
   });
   return { units: units.length, departments, clinics, rooms, beds };
