@@ -14,6 +14,11 @@ import {
   PERM_VIEW as LEVEL_VIEW,
   PERM_EDIT as LEVEL_EDIT,
   ALL_LEAF_KEYS,
+  /* ใช้ในไฟล์นี้จริง (grantMenus) — บล็อก `export … from` ข้างล่างเป็น re-export
+     ล้วน ไม่ได้สร้าง binding ให้ไฟล์นี้ ต้อง import เข้ามาเองด้วย */
+  ACCESS_SYSTEMS as MENU_SYSTEMS,
+  menuLeafKeys as leafKeysOfMenu,
+  setLevelForLeaves as setLeaves,
   emptyPermissions,
   normalizePermissions,
   countPermissionLevels,
@@ -41,6 +46,19 @@ export {
 
 /* คีย์โมดูลยุคเดิม (สิทธิ์แบน ๆ 17 รายการ) — เหลือไว้ใช้ seed ข้อมูลตัวอย่าง
    เท่านั้น ตอนอ่านจะถูกแปลงเป็นสิทธิ์ระดับเมนู/เมนูย่อยให้อัตโนมัติ */
+/* ให้สิทธิ์ตามคีย์เมนูจริง — ชุดตัวอย่างเดิมเขียนด้วยคีย์โมดูลยุคเก่าที่ map ได้
+   ไม่ครบ กด "ดูสิทธิ์" แล้วเห็นแค่เมนูเดียว ไม่ตรงกับบริบทของแม่แบบ
+   (26 ส.ค. 2569 มติผู้ใช้) */
+function grantMenus(spec) {
+  let perms = emptyPermissions();
+  Object.entries(spec).forEach(([menuKey, level]) => {
+    const menu = MENU_SYSTEMS.flatMap((sys) => sys.menus).find((m) => m.key === menuKey);
+    if (!menu) return;
+    perms = setLeaves(perms, leafKeysOfMenu(menu), level);
+  });
+  return perms;
+}
+
 const LEGACY_MODULE_KEYS = [
   'phcis.dashboard', 'phcis.mr', 'phcis.opd', 'phcis.treatment',
   'phcis.radiology', 'phcis.pharmacy', 'phcis.finance', 'phcis.appointment',
@@ -252,14 +270,15 @@ export const DEMO_ACCESS_CONTROLS = [
     dailyTo: '17:30',
     dataScope: SCOPE_CENTER,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
-      if (k === 'phcis.treatment') return [k, LEVEL_EDIT];
-      /* ทันตแพทย์ต้องเปิดแฟ้มผู้ป่วยและตารางนัดของตัวเองได้ด้วย ไม่ใช่บันทึก
-         การรักษาอย่างเดียว (mock ให้ใกล้ของจริง 26 ส.ค. 2569) */
-      if (k === 'phcis.mr' || k === 'phcis.appointment' || k === 'phcis.dashboard') return [k, LEVEL_VIEW];
-      if (k === 'consent.manage') return [k, LEVEL_VIEW];
-      return [k, LEVEL_NONE];
-    })),
+    permissions: grantMenus({
+      'phcis.treat': LEVEL_EDIT,
+      'phcis.dental': LEVEL_EDIT,
+      'phcis.registration': LEVEL_VIEW,
+      'phcis.opd': LEVEL_VIEW,
+      'phcis.radiology': LEVEL_VIEW,
+      'phcis.dashboard': LEVEL_VIEW,
+      'consent.consent-manage': LEVEL_VIEW,
+    }),
   },
   {
     id: 'ac-demo-nurse-opd',
@@ -289,11 +308,15 @@ export const DEMO_ACCESS_CONTROLS = [
     dailyTo: '16:00',
     dataScope: SCOPE_CENTER,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
-      if (k === 'phcis.opd' || k === 'phcis.mr') return [k, LEVEL_EDIT];
-      if (k === 'phcis.treatment' || k === 'phcis.dashboard' || k === 'phcis.appointment') return [k, LEVEL_VIEW];
-      return [k, LEVEL_NONE];
-    })),
+    permissions: grantMenus({
+      'phcis.opd': LEVEL_EDIT,
+      'phcis.registration': LEVEL_EDIT,
+      'phcis.observation': LEVEL_EDIT,
+      'phcis.vaccine': LEVEL_EDIT,
+      'phcis.treat': LEVEL_VIEW,
+      'phcis.queue-center': LEVEL_VIEW,
+      'phcis.dashboard': LEVEL_VIEW,
+    }),
   },
   {
     id: 'ac-demo-pharmacist',
@@ -323,11 +346,13 @@ export const DEMO_ACCESS_CONTROLS = [
     effectiveTo: '',
     dataScope: SCOPE_CENTER,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
-      if (k === 'phcis.pharmacy') return [k, LEVEL_EDIT];
-      if (k === 'phcis.treatment' || k === 'phcis.mr' || k === 'phcis.dashboard') return [k, LEVEL_VIEW];
-      return [k, LEVEL_NONE];
-    })),
+    permissions: grantMenus({
+      'phcis.pharmacy': LEVEL_EDIT,
+      'phcis.treat': LEVEL_VIEW,
+      'phcis.registration': LEVEL_VIEW,
+      'phcis.db-pharmacy': LEVEL_VIEW,
+      'phcis.dashboard': LEVEL_VIEW,
+    }),
   },
   {
     id: 'ac-demo-registrar',
@@ -354,11 +379,14 @@ export const DEMO_ACCESS_CONTROLS = [
     effectiveTo: '',
     dataScope: SCOPE_CENTER,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
-      if (k === 'phcis.mr' || k === 'phcis.appointment') return [k, LEVEL_EDIT];
-      if (k === 'phcis.dashboard' || k === 'phcis.opd') return [k, LEVEL_VIEW];
-      return [k, LEVEL_NONE];
-    })),
+    permissions: grantMenus({
+      'phcis.registration': LEVEL_EDIT,
+      'phcis.opd': LEVEL_EDIT,
+      'phcis.rights': LEVEL_EDIT,
+      'phcis.queue-center': LEVEL_EDIT,
+      'phcis.finance': LEVEL_VIEW,
+      'phcis.dashboard': LEVEL_VIEW,
+    }),
   },
   {
     id: 'ac-demo-social-worker',
@@ -386,11 +414,14 @@ export const DEMO_ACCESS_CONTROLS = [
     effectiveTo: '2027-09-30',
     dataScope: SCOPE_CENTER,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
-      if (k === 'phcis.mr' || k === 'phcis.treatment' || k === 'phcis.dashboard') return [k, LEVEL_VIEW];
-      if (k === 'consent.manage') return [k, LEVEL_EDIT];
-      return [k, LEVEL_NONE];
-    })),
+    permissions: grantMenus({
+      'phcis.social': LEVEL_EDIT,
+      'phcis.homevisit': LEVEL_EDIT,
+      'consent.consent-manage': LEVEL_EDIT,
+      'consent.consent-forms': LEVEL_VIEW,
+      'phcis.registration': LEVEL_VIEW,
+      'phcis.treat': LEVEL_VIEW,
+    }),
   },
   {
     id: 'ac-demo-admin',
@@ -420,7 +451,19 @@ export const DEMO_ACCESS_CONTROLS = [
     effectiveTo: '',
     dataScope: SCOPE_ZONE,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => [k, LEVEL_EDIT])),
+    permissions: grantMenus({
+      'system.system-overview': LEVEL_EDIT,
+      'system.system-centers': LEVEL_EDIT,
+      'system.system-structures': LEVEL_EDIT,
+      'system.assess-positions': LEVEL_EDIT,
+      'system.assess-activity': LEVEL_EDIT,
+      'system.assess-access-control': LEVEL_EDIT,
+      'system.system-staff': LEVEL_EDIT,
+      'system.system-holidays': LEVEL_EDIT,
+      'audit.audit-overview': LEVEL_VIEW,
+      'audit.audit-log': LEVEL_VIEW,
+      'phcis.dashboard': LEVEL_VIEW,
+    }),
   },
   {
     id: 'ac-demo-lab',
@@ -446,12 +489,13 @@ export const DEMO_ACCESS_CONTROLS = [
     effectiveTo: '',
     dataScope: SCOPE_CENTER,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
-      if (k === 'phcis.treatment') return [k, LEVEL_EDIT];
-      if (k === 'phcis.mr' || k === 'phcis.dashboard' || k === 'phcis.opd') return [k, LEVEL_VIEW];
-      if (k === 'phcis.radiology') return [k, LEVEL_VIEW];
-      return [k, LEVEL_NONE];
-    })),
+    permissions: grantMenus({
+      'phcis.lab': LEVEL_EDIT,
+      'phcis.radiology': LEVEL_VIEW,
+      'phcis.treat': LEVEL_VIEW,
+      'phcis.registration': LEVEL_VIEW,
+      'phcis.dashboard': LEVEL_VIEW,
+    }),
   },
   {
     /* มติ คทง.4 — อสส. ล็อกอินบันทึกงานเองได้ แต่เห็นเฉพาะเคสที่ถูกจ่ายงานให้ */
@@ -479,11 +523,12 @@ export const DEMO_ACCESS_CONTROLS = [
     effectiveTo: '',
     dataScope: SCOPE_ASSIGNED,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
-      if (k === 'phcis.dashboard' || k === 'phcis.mr') return [k, LEVEL_VIEW];
-      if (k === 'consent.manage' || k === 'consent.forms') return [k, LEVEL_VIEW];
-      return [k, LEVEL_NONE];
-    })),
+    permissions: grantMenus({
+      'phcis.homevisit': LEVEL_VIEW,
+      'phcis.registration': LEVEL_VIEW,
+      'consent.consent-manage': LEVEL_VIEW,
+      'phcis.dashboard': LEVEL_VIEW,
+    }),
   },
   {
     /* มติ คทง.10 ครั้งที่ 4–5 + คทง.11 ครั้งที่ 2 — ระดับกอง/ผู้บริหารเห็น
@@ -512,9 +557,13 @@ export const DEMO_ACCESS_CONTROLS = [
     effectiveTo: '',
     dataScope: SCOPE_ALL,
     piiVisibility: PII_MASKED,
-    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => (
-      k === 'phcis.dashboard' || k === 'consent.reports' ? [k, LEVEL_VIEW] : [k, LEVEL_NONE]
-    ))),
+    permissions: grantMenus({
+      'phcis.db-overview': LEVEL_VIEW,
+      'phcis.db-reports': LEVEL_VIEW,
+      'phcis.db-service': LEVEL_VIEW,
+      'phcis.db-executive': LEVEL_VIEW,
+      'audit.audit-overview': LEVEL_VIEW,
+    }),
   },
 ];
 

@@ -29,9 +29,92 @@ export const GENDER_OPTIONS = [
   { value: 'other', label: 'อื่นๆ' },
 ];
 
+/* ทะเบียนบุคลากรของจริงมีหลักร้อยคนต่อสำนักงาน — ชุดตัวอย่างที่เขียนมือ 6 คน
+   ทำให้ป๊อปอัป "รหัสพนักงานที่มีอยู่แล้ว" กับตัวเลขในทะเบียนดูไม่ออกว่าใช้งาน
+   จริงเป็นยังไง จึงต่อท้ายด้วยชุดที่สร้างจากสูตร (deterministic ไม่สุ่ม เพื่อให้
+   ทุกคนเห็นข้อมูลชุดเดียวกัน) — 26 ส.ค. 2569 มติผู้ใช้ */
+const GEN_TITLES = ['นาย', 'นาง', 'นางสาว'];
+const GEN_FIRST = [
+  'สมชาย', 'สุดารัตน์', 'อนุชา', 'กนกวรรณ', 'พิชิต', 'วราภรณ์', 'ธนกร', 'ปิยะดา',
+  'ศิริพร', 'ณัฐพงษ์', 'จิราพร', 'อรรถพล', 'เบญจมาศ', 'สุรชัย', 'พรทิพย์', 'วิชัย',
+  'ชลดา', 'ภาณุพงศ์', 'รัตนา', 'ธีระ',
+];
+const GEN_LAST = [
+  'ใจดี', 'พงษ์เจริญ', 'แก้วประเสริฐ', 'ศรีสุวรรณ', 'รุ่งเรืองกิจ', 'อินทรสุข',
+  'บุญมี', 'ทองสุข', 'สมบูรณ์', 'วัฒนกุล', 'ชูเกียรติ', 'เพชรรัตน์', 'มณีวงศ์',
+];
+
+const GEN_ROLES = [
+  { activityId: 'gp-nurse',       activity: 'พยาบาลวิชาชีพ',      positionId: 'pos-staff',      position: 'ผู้ปฏิบัติงาน',        departmentId: 'dept-opd',    department: 'ผู้ป่วยนอก (OPD)' },
+  { activityId: 'gp-registrar',   activity: 'เจ้าหน้าที่เวชระเบียน', positionId: 'pos-officer',    position: 'เจ้าหน้าที่',          departmentId: 'dept-mr',     department: 'เวชระเบียน' },
+  { activityId: 'gp-pharmacist',  activity: 'เภสัชกร',            positionId: 'pos-staff',      position: 'ผู้ปฏิบัติงาน',        departmentId: 'dept-pharm',  department: 'เภสัชกรรม' },
+  { activityId: 'gp-medtech',     activity: 'นักเทคนิคการแพทย์',   positionId: 'pos-staff',      position: 'ผู้ปฏิบัติงาน',        departmentId: 'dept-lab',    department: 'ชันสูตรโรค' },
+  { activityId: 'act-dentist',    activity: 'ทันตแพทย์',           positionId: 'pos-specialist', position: 'ผู้เชี่ยวชาญ (Specialist)', departmentId: 'dept-dent', department: 'ทันตกรรม' },
+  { activityId: 'act-social-worker', activity: 'นักสังคมสงเคราะห์', positionId: 'pos-staff',     position: 'ผู้ปฏิบัติงาน',        departmentId: 'dept-social', department: 'สังคมสงเคราะห์' },
+];
+
+const GEN_TEMPLATE_BY_ACTIVITY = {
+  'gp-nurse': ['ac-demo-nurse-opd', 'สิทธิพยาบาลผู้ป่วยนอก'],
+  'gp-registrar': ['ac-demo-registrar', 'สิทธิเจ้าหน้าที่เวชระเบียน'],
+  'gp-pharmacist': ['ac-demo-pharmacist', 'สิทธิเภสัชกรจ่ายยา'],
+  'gp-medtech': ['ac-demo-lab', 'สิทธินักเทคนิคการแพทย์'],
+  'act-dentist': ['ac-demo-dentist', 'สิทธิทันตแพทย์ — บันทึกการรักษา'],
+  'act-social-worker': ['ac-demo-social-worker', 'สิทธินักสังคมสงเคราะห์ศูนย์'],
+};
+
+/** บุคลากรลำดับที่ n (เริ่มที่ 7 ต่อจากชุดที่เขียนมือ) */
+function generatedAssessUser(n) {
+  const title = GEN_TITLES[n % GEN_TITLES.length];
+  const firstName = GEN_FIRST[n % GEN_FIRST.length];
+  const lastName = GEN_LAST[(n * 3) % GEN_LAST.length];
+  const role = GEN_ROLES[n % GEN_ROLES.length];
+  const center = CENTER_OPTIONS[n % Math.min(CENTER_OPTIONS.length, 20)];
+  const [accessTemplateId, accessTemplate] = GEN_TEMPLATE_BY_ACTIVITY[role.activityId] || ['', ''];
+  const code = `EMP-${String(100 + n).padStart(5, '0')}`;
+  return {
+    id: `user-gen-${n}`,
+    employeeCode: code,
+    title,
+    firstName,
+    lastName,
+    prefixEn: title === 'นาย' ? 'Mr.' : 'Ms.',
+    nameEn: '',
+    surnameEn: '',
+    nationalId: `1-${String(1000 + n).slice(0, 4)}-${String(10000 + n * 7).slice(0, 5)}-${String(10 + (n % 90))}-${n % 10}`,
+    licenseNo: '',
+    birthDate: '',
+    age: '',
+    phone: `08${n % 10}-${String(100 + (n % 900))}-${String(1000 + (n * 13) % 9000)}`,
+    email: `staff${n}@bma.go.th`,
+    personalEmail: '',
+    photo: '',
+    /* ~7% ปิดใช้งาน ให้ตัวเลขในการ์ดสรุปไม่เท่ากันทั้งหมด */
+    active: n % 14 !== 0,
+    assignments: [{
+      id: `asgn-gen-${n}`,
+      centerId: center?.value || '',
+      center: center?.label || '',
+      branchId: '',
+      branch: '',
+      ...role,
+      subActivityId: '',
+      subActivity: '',
+      accessTemplateId,
+      accessTemplate,
+      isPrimary: true,
+      startAt: '',
+      endAt: '',
+      active: true,
+    }],
+  };
+}
+
+const GENERATED_ASSESS_USERS = Array.from({ length: 194 }, (_, i) => generatedAssessUser(i + 7));
+
 export const DEMO_ASSESS_USERS = [
   {
     id: 'user-demo-somchai',
+    employeeCode: 'EMP-00101',
     title: 'นาย',
     firstName: 'สมชาย',
     lastName: 'ไสยสวัสดิ์',
@@ -67,6 +150,7 @@ export const DEMO_ASSESS_USERS = [
   },
   {
     id: 'user-demo-sudarat',
+    employeeCode: 'EMP-00102',
     title: 'นางสาว',
     firstName: 'สุดารัตน์',
     lastName: 'พงษ์เจริญ',
@@ -102,6 +186,7 @@ export const DEMO_ASSESS_USERS = [
   },
   {
     id: 'user-demo-anucha',
+    employeeCode: 'EMP-00103',
     title: 'นาย',
     firstName: 'อนุชา',
     lastName: 'แก้วประเสริฐ',
@@ -137,6 +222,7 @@ export const DEMO_ASSESS_USERS = [
   },
   {
     id: 'user-demo-kanokwan',
+    employeeCode: 'EMP-00104',
     title: 'นาง',
     firstName: 'กนกวรรณ',
     lastName: 'ศรีสุวรรณ',
@@ -172,6 +258,7 @@ export const DEMO_ASSESS_USERS = [
   },
   {
     id: 'user-demo-phichit',
+    employeeCode: 'EMP-00105',
     title: 'นาย',
     firstName: 'พิชิต',
     lastName: 'รุ่งเรืองกิจ',
@@ -209,6 +296,7 @@ export const DEMO_ASSESS_USERS = [
   },
   {
     id: 'user-demo-waraporn',
+    employeeCode: 'EMP-00106',
     title: 'นางสาว',
     firstName: 'วราภรณ์',
     lastName: 'อินทรสุข',
@@ -242,6 +330,7 @@ export const DEMO_ASSESS_USERS = [
       },
     ],
   },
+  ...GENERATED_ASSESS_USERS,
 ];
 
 export function emptyAssignment() {

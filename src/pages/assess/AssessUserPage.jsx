@@ -9,6 +9,7 @@ import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFi
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import Icon from '@/components/icons/Icon';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Switch from '@/components/switch/Switch';
@@ -92,7 +93,10 @@ export default function AssessUserPage() {
   const [records, setRecords] = useState(() => readAssessUsers());
   const [search, setSearch] = useState('');
   const [toggleConfirm, setToggleConfirm] = useState(null);
+  /* แท็บ ทั้งหมด / แบบร่าง — ชุดเดียวกับหน้าศูนย์บริการและรูปแบบโครงสร้างศูนย์ */
+  const [tab, setTab] = useState('all');
   const [createOpen, setCreateOpen] = useState(false);
+  const [editUser, setEditUser] = useState(null);
   const [accessOf, setAccessOf] = useState(null);
   const [filterCenter, setFilterCenter] = useState('');
   const [filterRole, setFilterRole] = useState('');
@@ -135,6 +139,7 @@ export default function AssessUserPage() {
     const q = search.trim().toLowerCase();
     return records.filter((r) => {
       const primary = primaryAssignment(r);
+      if ((tab === 'draft') !== !!r.draft) return false;
       if (filterCenter && primary?.centerId !== filterCenter) return false;
       if (filterRole && primary?.subActivityId !== filterRole) return false;
       if (filterDept && primary?.departmentId !== filterDept) return false;
@@ -143,7 +148,7 @@ export default function AssessUserPage() {
       const hay = [fullName(r), r.email, r.licenseNo, r.nameEn, r.surnameEn].join(' ').toLowerCase();
       return hay.includes(q);
     });
-  }, [records, search, filterCenter, filterRole, filterDept, filterPosition]);
+  }, [records, search, tab, filterCenter, filterRole, filterDept, filterPosition]);
 
   const hasRecords = records.length > 0;
   const filtersActive = !!(filterCenter || filterRole || filterDept || filterPosition || search.trim());
@@ -178,19 +183,43 @@ export default function AssessUserPage() {
     setToggleConfirm({ id: row.id, next, name: fullName(row) });
   };
 
+  const tabDefs = useMemo(() => ([
+    { key: 'all', label: 'ทั้งหมด', icon: 'group', count: records.filter((r) => !r.draft).length },
+    { key: 'draft', label: 'บันทึกร่าง', icon: 'save', count: records.filter((r) => r.draft).length },
+  ]), [records]);
+
   const columns = useMemo(() => [
     {
       key: 'name',
       header: 'ชื่อ-นามสกุล / Name',
       flex: 1,
-      minWidth: 220,
+      minWidth: 260,
       sortable: true,
       render: (row) => (
-        <div className='flex flex-col min-w-0'>
-          <span style={TEXT_CELL} className='truncate'>{fullName(row)}</span>
-          <span style={{ ...TEXT_CELL, color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }} className='truncate'>
-            {[row.nameEn, row.surnameEn].filter(Boolean).join(' ') || '—'}
+        <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
+          {/* รูปโปรไฟล์หน้าชื่อ — จำหน้าคนได้เร็วกว่าอ่านชื่ออย่างเดียว
+              ยังไม่มีรูปใช้ไอคอนคนแทน (26 ส.ค. 2569 มติผู้ใช้) */}
+          <span
+            className='inline-flex items-center justify-center shrink-0 overflow-hidden'
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+              border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+              color: 'var(--icon-neutral-tertiary, #ADB2B7)',
+            }}
+          >
+            {row.photo
+              ? <img src={row.photo} alt='' style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <Icon name='person' size={20} />}
           </span>
+          <div className='flex flex-col min-w-0'>
+            <span style={TEXT_CELL} className='truncate'>{fullName(row)}</span>
+            <span style={{ ...TEXT_CELL, color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }} className='truncate'>
+              {[row.nameEn, row.surnameEn].filter(Boolean).join(' ') || '—'}
+            </span>
+          </div>
         </div>
       ),
     },
@@ -242,13 +271,24 @@ export default function AssessUserPage() {
       key: 'action',
       header: 'การดำเนินการ',
       render: (row) => (
-        <NeutralSubdueButton
-          leadingIcon='visibility'
-          size='sm'
-          onClick={(e) => { e.stopPropagation(); openAccess(row); }}
-        >
-          สิทธิการเข้าถึงระบบ
-        </NeutralSubdueButton>
+        <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+          <NeutralSubdueButton
+            leadingIcon='visibility'
+            size='sm'
+            onClick={(e) => { e.stopPropagation(); openAccess(row); }}
+          >
+            ดูสิทธิการเข้าถึงระบบ
+          </NeutralSubdueButton>
+          {/* แก้ไขบุคลากรจากทะเบียนได้เลย ไม่ต้องเข้าหน้ารายละเอียดก่อน
+              (26 ส.ค. 2569 มติผู้ใช้) */}
+          <NeutralSubdueButton
+            leadingIcon='edit'
+            size='sm'
+            onClick={(e) => { e.stopPropagation(); setEditUser(row); }}
+          >
+            แก้ไข
+          </NeutralSubdueButton>
+        </span>
       ),
     },
   ], [records]);
@@ -282,6 +322,9 @@ export default function AssessUserPage() {
         /* ชื่อหน้า + ปุ่มเพิ่มอยู่ใน SubHeader มาตรฐาน — ระยะบนจึงเท่ากันทุกหน้า
            และปุ่มยัง sticky ตอนเลื่อนตาราง (แก้พร้อมกันทุกหน้า 10 ส.ค. 2569) */
         title='บุคลากร'
+        tabs={hasRecords ? tabDefs : undefined}
+        activeTab={tab}
+        onTabChange={setTab}
         actions={hasRecords ? (
           <BrandButton variant='fill' size='md' leadingIcon='add' onClick={openCreate}>
             เพิ่มบุคลากร
@@ -367,6 +410,20 @@ export default function AssessUserPage() {
         )}
       </QueuePageShell>
 
+      {/* แก้ไขบุคลากร — ป๊อปอัปชุดเดียวกับเพิ่ม แค่มีข้อมูลเดิมกรอกไว้ให้แล้ว */}
+      {editUser ? (
+        <AssessUserCreatePage
+          key={editUser.id}
+          asPopup
+          existingId={editUser.id}
+          onClose={() => setEditUser(null)}
+          onSaved={(message) => {
+            setRecords(readAssessUsers());
+            showToast(message || 'บันทึกการแก้ไขบุคลากรแล้ว');
+          }}
+        />
+      ) : null}
+
       {/* mount ใหม่ทุกครั้งที่เปิด ฟอร์มจะได้เริ่มจากว่างเสมอ */}
       {createOpen ? (
         <AssessUserCreatePage
@@ -388,10 +445,6 @@ export default function AssessUserPage() {
         title='สิทธิการเข้าถึงระบบ'
         subtitle={accessOf ? `${fullName(accessOf)} · ${assignmentCenterLabel(primaryAssignment(accessOf)) || '—'}` : ''}
         tertiaryAction={{ label: 'ปิด', onClick: () => setAccessOf(null) }}
-        primaryAction={{
-          label: 'ไปหน้าสิทธิ์การเข้าถึงระบบ',
-          onClick: () => { setAccessOf(null); navigate.push('/assess/access-control'); },
-        }}
       >
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
           {accessRows.length === 0 ? (
@@ -411,9 +464,6 @@ export default function AssessUserPage() {
             >
               <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
                 <span style={{ ...TEXT_CELL, fontFamily: 'var(--type-family-heading-graphic2)' }}>{rec.templateName}</span>
-                <StatusBadge style={rec.approvalStatus === APPROVAL_APPROVED ? 'success' : 'warning'}>
-                  {approvalLabel(rec.approvalStatus)}
-                </StatusBadge>
                 {rec.active === false ? <StatusBadge style='neutral'>ปิดใช้งาน</StatusBadge> : null}
               </div>
               <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
