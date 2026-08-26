@@ -5,7 +5,6 @@ import WizardMorphHeader, { WIZARD_MORPH_SHELL_PROPS } from '@/components/layout
 import Select from '@/components/forms/Select';
 import InputField from '@/components/forms/InputField';
 import Icon from '@/components/icons/Icon';
-import PhotoUploadField from '@/components/forms/PhotoUploadField';
 import DatePicker from '@/components/forms/DatePicker';
 import Footer from '@/components/layout/Footer';
 import SuccessScreen from '@/components/layout/SuccessScreen';
@@ -602,10 +601,32 @@ export default function AssessUserCreatePage({
                     </button>
                   </span>
                 ) : (
-                  <PhotoUploadField
-                    label='อัปโหลดรูปโปรไฟล์'
-                    onFiles={readPhoto}
-                  />
+                  /* ปุ่มอัปโหลดเป็นวงกลมให้ตรงกับรูปโปรไฟล์ที่จะได้ (26 ส.ค. 2569
+                     มติผู้ใช้) — PhotoUploadField เป็นการ์ดสี่เหลี่ยม ใช้กับรูป
+                     กลมแล้วสัดส่วนไม่ตรงกับผลลัพธ์ */
+                  <button
+                    type='button'
+                    aria-label='อัปโหลดรูปโปรไฟล์'
+                    onClick={() => photoInputRef.current?.click()}
+                    className='inline-flex flex-col items-center justify-center shrink-0'
+                    style={{
+                      width: 88,
+                      height: 88,
+                      gap: 'var(--dim-space-100)',
+                      borderRadius: '50%',
+                      background: 'var(--surface-brandPrimary-quaternary)',
+                      border: 'var(--dim-stroke-100) dashed var(--border-brandPrimary-tertiary, #A7D7C5)',
+                      color: 'var(--text-brandPrimary-default)',
+                      fontFamily: 'var(--type-family-body)',
+                      fontSize: 'var(--type-size-xs)',
+                      lineHeight: 1.3,
+                      cursor: 'pointer',
+                      padding: 'var(--dim-space-200)',
+                    }}
+                  >
+                    <Icon name='add_a_photo' size={22} />
+                    <span>อัปโหลดรูป</span>
+                  </button>
                 )}
                 <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
                   ไฟล์ภาพ .jpg / .png — ใช้แสดงในจอคิว ตารางเวร และหน้าโปรไฟล์
