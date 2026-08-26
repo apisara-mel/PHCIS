@@ -11,6 +11,7 @@ import Radio from '@/components/radio/Radio';
 import Icon from '@/components/icons/Icon';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Popup from '@/components/popup/Popup';
+import StepProgress from '@/components/step/StepProgress';
 import AlertDialog from '@/components/popup/AlertDialog';
 import { HeaderCell, DataCell, TableRow } from '@/components/table/Table';
 import ASSESS_NAV from '@/pages/assess/assessNav';
@@ -51,6 +52,14 @@ import {
 } from '@/data/accessMenuCatalog';
 
 /* PHCIS | Assess-control — Create / edit access rights (Figma 4D3nTx53 · 15:30160). */
+
+/* 3 ขั้นของป๊อปอัปเพิ่ม/แก้ไขสิทธิ์ — เรียงตามลำดับที่ต้องตัดสินใจจริง:
+   ตั้งชื่อ+ผูกบทบาทก่อน → ขอบเขต/ช่วงเวลาที่สิทธิ์มีผล → รายละเอียดสิทธิ์ */
+const ACCESS_FORM_STEPS = [
+  { key: 'template', label: 'แม่แบบและการผูกบทบาท' },
+  { key: 'scope',    label: 'ขอบเขตและช่วงเวลา' },
+  { key: 'perm',     label: 'สิทธิ์การเข้าถึงระบบ' },
+];
 
 const breadcrumb = ['สิทธิ์การเข้าถึงระบบ'];
 
@@ -445,6 +454,8 @@ export default function AccessControlCreatePage({
   /* Confirmation ก่อนบันทึกจริง (Nielsen #5 Error prevention) — การเปลี่ยนสิทธิ์
      กระทบการเข้าถึงของบุคลากรทั้งกลุ่มกิจกรรม จึงให้ทวนสรุปก่อนยืนยัน */
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
+  /* step ของโหมดป๊อปอัป (หน้าเต็มไม่ใช้) */
+  const [stepIdx, setStepIdx] = useState(0);
   /* ธรรมาภิบาลสิทธิ์ (มติ คทง.13 §1.3/§2.3 + คทง.2/3/4/10/11):
      ขอบเขตข้อมูล · การเห็น PII · ช่วงเวลาที่สิทธิ์มีผล · สถานะอนุมัติ */
   const [dataScope, setDataScope] = useState(SCOPE_CENTER);
@@ -612,15 +623,12 @@ export default function AccessControlCreatePage({
   const saveDisabled = !nameValid || !!dateRangeError;
   const submitLabel = isEdit ? `ส่งขออนุมัติ ${formatVersion(nextVersion)}` : 'ส่งขออนุมัติสิทธิ์';
 
-  const body = (
-        <div
-          className='flex flex-col flex-1 min-w-0'
-          style={{
-            padding: 'var(--dim-space-600)',
-            gap: 'var(--dim-space-300)',
-            paddingBottom: 'var(--dim-space-900)',
-          }}
-        >
+  /* ป๊อปอัปเดินเป็น step — ฟอร์มเดียวยาว 3 การ์ดกดยากบนจอเล็ก และการตั้งสิทธิ์
+     ควรตั้งชื่อ/ผูกบทบาทให้เสร็จก่อนค่อยลงรายละเอียดสิทธิ์ (26 ส.ค. 69 มติผู้ใช้)
+     หน้าเต็ม (route เดิม) ยังเป็นฟอร์มยาวเลื่อนเดียวเหมือนเดิม */
+  const stepSections = [
+    (
+<>
           {/* Card 0 — แม่แบบ + เวอร์ชัน. ตั้งชื่อแม่แบบก่อนเป็นอันดับแรก
               โดยยังไม่ต้องผูกกิจกรรม — ผูกทีหลังได้ในการ์ดถัดไป. */}
           <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
@@ -680,6 +688,10 @@ export default function AccessControlCreatePage({
             />
           </section>
 
+</>
+    ),
+    (
+<>
           {/* Card 1.5 — ขอบเขตข้อมูลและระยะเวลา
               มติ คทง.2/3/4/10/11: ศบส. เห็นเฉพาะของตน · กอง/ผู้บริหารเห็น
               ภาพรวมแต่ปิดบัง PII · คทง.4: อสส. เห็นเฉพาะเคสที่ได้รับมอบหมาย
@@ -780,6 +792,10 @@ export default function AccessControlCreatePage({
             </div>
           </section>
 
+</>
+    ),
+    (
+<>
           {/* Card 2 — สิทธิ์การเข้าถึงระบบ (Figma 15:30160 · card) */}
           <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-600)' }}>
             <Topic
@@ -793,8 +809,25 @@ export default function AccessControlCreatePage({
             />
             <PermissionTree permissions={permissions} onSetLeaves={applyLeaves} />
           </section>
+</>
+    ),
+  ];
+
+  const shellBody = (sections) => (
+        <div
+          className='flex flex-col flex-1 min-w-0'
+          style={{
+            padding: 'var(--dim-space-600)',
+            gap: 'var(--dim-space-300)',
+            paddingBottom: 'var(--dim-space-900)',
+          }}
+        >
+          {sections}
         </div>
   );
+
+  const body = shellBody(stepSections);
+  const isLastStep = stepIdx === ACCESS_FORM_STEPS.length - 1;
 
   /* ทวนสรุปก่อนบันทึกการเปลี่ยนแปลงสิทธิ์ — กัน slip ก่อนกระทบทั้งกลุ่มบทบาท */
   const confirmDialog = (
@@ -817,15 +850,28 @@ export default function AccessControlCreatePage({
         <Popup
           open
           onClose={leaveForm}
+          /* ย้อน step ที่หัวป๊อปอัป — X ยังปิดทั้งฟอร์ม */
+          onBack={stepIdx > 0 ? () => setStepIdx((i) => i - 1) : undefined}
           size='extraLarge'
           title={isEdit ? 'แก้ไขสิทธิ์การเข้าถึงระบบ' : 'เพิ่มสิทธิ์การเข้าถึงระบบ'}
           subtitle={isEdit ? `เวอร์ชันปัจจุบัน ${formatVersion(currentVersion)}` : undefined}
+          headerCenter={(
+            <StepProgress
+              steps={ACCESS_FORM_STEPS.map((st) => st.label)}
+              current={stepIdx}
+              onStepClick={(i) => { if (i < stepIdx) setStepIdx(i); }}
+              labelNoWrap
+            />
+          )}
           tertiaryAction={{ label: 'ยกเลิก', onClick: leaveForm }}
           secondaryAction={{ label: 'บันทึกร่าง', leadingIcon: 'save', disabled: saveDisabled, onClick: handleSaveDraft }}
-          /* คทง.13 §1.3 — สิทธิ์ต้องผ่านการอนุมัติก่อนมีผล ปุ่มหลักจึงเป็น "ส่งขออนุมัติ" */
-          primaryAction={{ label: submitLabel, trailingIcon: 'arrow_forward', disabled: saveDisabled, onClick: handleSubmit }}
+          /* ขั้นสุดท้ายเท่านั้นที่ส่งขออนุมัติ — คทง.13 §1.3 สิทธิ์ต้องผ่านการอนุมัติก่อนมีผล
+             ขั้นแรกยังต้องมีชื่อแม่แบบก่อนถึงจะเดินหน้าได้ */
+          primaryAction={isLastStep
+            ? { label: submitLabel, trailingIcon: 'arrow_forward', disabled: saveDisabled, onClick: handleSubmit }
+            : { label: 'ถัดไป', trailingIcon: 'arrow_forward', disabled: stepIdx === 0 && !nameValid, onClick: () => setStepIdx((i) => i + 1) }}
         >
-          {body}
+          {shellBody(stepSections[stepIdx])}
         </Popup>
         {confirmDialog}
       </>
