@@ -252,9 +252,14 @@ export const DEMO_ACCESS_CONTROLS = [
     dailyTo: '17:30',
     dataScope: SCOPE_CENTER,
     piiVisibility: PII_VISIBLE,
-    permissions: Object.fromEntries(
-      LEGACY_MODULE_KEYS.map((k) => [k, k === 'phcis.treatment' ? LEVEL_EDIT : LEVEL_NONE]),
-    ),
+    permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
+      if (k === 'phcis.treatment') return [k, LEVEL_EDIT];
+      /* ทันตแพทย์ต้องเปิดแฟ้มผู้ป่วยและตารางนัดของตัวเองได้ด้วย ไม่ใช่บันทึก
+         การรักษาอย่างเดียว (mock ให้ใกล้ของจริง 26 ส.ค. 2569) */
+      if (k === 'phcis.mr' || k === 'phcis.appointment' || k === 'phcis.dashboard') return [k, LEVEL_VIEW];
+      if (k === 'consent.manage') return [k, LEVEL_VIEW];
+      return [k, LEVEL_NONE];
+    })),
   },
   {
     id: 'ac-demo-nurse-opd',
@@ -443,7 +448,8 @@ export const DEMO_ACCESS_CONTROLS = [
     piiVisibility: PII_VISIBLE,
     permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
       if (k === 'phcis.treatment') return [k, LEVEL_EDIT];
-      if (k === 'phcis.mr' || k === 'phcis.dashboard') return [k, LEVEL_VIEW];
+      if (k === 'phcis.mr' || k === 'phcis.dashboard' || k === 'phcis.opd') return [k, LEVEL_VIEW];
+      if (k === 'phcis.radiology') return [k, LEVEL_VIEW];
       return [k, LEVEL_NONE];
     })),
   },
@@ -474,7 +480,8 @@ export const DEMO_ACCESS_CONTROLS = [
     dataScope: SCOPE_ASSIGNED,
     piiVisibility: PII_VISIBLE,
     permissions: Object.fromEntries(LEGACY_MODULE_KEYS.map((k) => {
-      if (k === 'phcis.dashboard') return [k, LEVEL_VIEW];
+      if (k === 'phcis.dashboard' || k === 'phcis.mr') return [k, LEVEL_VIEW];
+      if (k === 'consent.manage' || k === 'consent.forms') return [k, LEVEL_VIEW];
       return [k, LEVEL_NONE];
     })),
   },

@@ -12,7 +12,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import RowMenu from '@/components/overflow/RowActionMenu';
 import Switch from '@/components/switch/Switch';
-import SmallAlert from '@/components/alert/SmallAlert';
+import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import AlertDialog from '@/components/popup/AlertDialog';
 import AccessControlCreatePage from '@/pages/assess/AccessControlCreatePage';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
@@ -170,6 +170,7 @@ export default function AccessControlPage() {
   const [records, setRecords] = useState(() => readAccessControls());
   const [createOpen, setCreateOpen] = useState(false);
   const [permView, setPermView] = useState(null);
+  const [editRecord, setEditRecord] = useState(null);
   /* ทะเบียนบุคลากร — ใช้นับว่าแม่แบบนี้มีคนถือสิทธิ์อยู่กี่คน */
   const [assessUsers] = useState(() => readAssessUsers());
   const [filterPosition, setFilterPosition] = useState('');
@@ -265,7 +266,9 @@ export default function AccessControlPage() {
 
   const openCreate = () => setCreateOpen(true);
   const openDetail = (row) => navigate.push(`/assess/access-control/${row.id}`);
-  const openEdit = (row) => navigate.push(`/assess/access-control/${row.id}/edit`);
+  /* แก้ไขเปิดเป็นป๊อปอัปชุดเดียวกับ "เพิ่มสิทธิ์" แค่มีข้อมูลเดิมกรอกไว้ให้แล้ว
+     (26 ส.ค. 69 มติผู้ใช้) route /:id/edit ยังเข้าได้ตามลิงก์เดิม */
+  const openEdit = (row) => setEditRecord(row);
 
   const applyToggleActive = (id, next) => {
     persist(records.map((r) => (r.id === id ? { ...r, active: next } : r)));
@@ -357,7 +360,7 @@ export default function AccessControlPage() {
     {
       key: 'action',
       header: 'การดำเนินการ',
-      minWidth: 250,
+      minWidth: 340,
       render: (row) => (
         <span
           className='inline-flex items-center'
@@ -382,18 +385,26 @@ export default function AccessControlPage() {
           >
             แก้ไข
           </NeutralSubdueButton>
-          <RowMenu
-            ariaLabel={`ตัวเลือก ${row.templateName || 'แม่แบบ'}`}
-            items={[
-              /* คทง.13 §1.3 — ผู้มีอำนาจอนุมัติ/ไม่อนุมัติได้จากคิวนี้ */
-              ...((row.approvalStatus || APPROVAL_DRAFT) === APPROVAL_PENDING ? [
+          {/* ทำสำเนาเป็นปุ่มเต็ม ไม่ซ่อนใต้เมนู ⋮ — ใช้บ่อยพอ ๆ กับแก้ไข
+              เมนู ⋮ จึงเหลือเฉพาะอนุมัติ/ไม่อนุมัติ และโผล่เฉพาะแถวที่รออนุมัติ
+              (26 ส.ค. 2569 มติผู้ใช้) */}
+          <NeutralSubdueButton
+            leadingIcon='content_copy'
+            size='sm'
+            onClick={() => handleDuplicate(row)}
+          >
+            ทำสำเนา
+          </NeutralSubdueButton>
+          {(row.approvalStatus || APPROVAL_DRAFT) === APPROVAL_PENDING ? (
+            <RowMenu
+              ariaLabel={`ตัวเลือก ${row.templateName || 'แม่แบบ'}`}
+              items={[
+                /* คทง.13 §1.3 — ผู้มีอำนาจอนุมัติ/ไม่อนุมัติได้จากคิวนี้ */
                 { key: 'approve', icon: 'check_circle', label: 'อนุมัติสิทธิ์', onClick: () => setDecision({ row, approved: true }) },
                 { key: 'reject', icon: 'cancel', label: 'ไม่อนุมัติ', onClick: () => setDecision({ row, approved: false }) },
-              ] : []),
-              { key: 'dup', icon: 'content_copy', label: 'ทำสำเนาแม่แบบ', onClick: () => handleDuplicate(row) },
-              { key: 'edit', icon: 'edit', label: 'แก้ไข (ออกเวอร์ชันใหม่)', onClick: () => openEdit(row) },
-            ]}
-          />
+              ]}
+            />
+          ) : null}
         </span>
       ),
     },
@@ -471,12 +482,9 @@ export default function AccessControlPage() {
               style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
             >
               <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-                <FilterDropdown prefix='ตำแหน่ง:' options={filterOpts.position} value={filterPosition} onChange={setFilterPosition} placeholder='ทั้งหมด' />
-                <FilterDropdown prefix='บทบาท:' options={filterOpts.activity} value={filterActivity} onChange={setFilterActivity} placeholder='ทั้งหมด' />
-                <FilterDropdown prefix='บทบาทย่อย:' options={filterOpts.sub} value={filterSub} onChange={setFilterSub} placeholder='ทั้งหมด' />
-                <FilterDropdown prefix='แผนก:' options={filterOpts.dept} value={filterDept} onChange={setFilterDept} placeholder='ทั้งหมด' />
-                <FilterDropdown prefix='สถานะอนุมัติ:' options={filterOpts.approval} value={filterApproval} onChange={setFilterApproval} placeholder='ทั้งหมด' />
-                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
+                {/* ชิปตัวกรอง ตำแหน่ง/บทบาท/บทบาทย่อย/แผนก/สถานะอนุมัติ ถอดออก
+                    26 ส.ค. 2569 (มติผู้ใช้) — แม่แบบไม่ผูกคุณสมบัติพวกนี้แล้ว
+                    ตัวกรองจึงกรองอะไรไม่ได้จริง */}
                 <div className='flex-1' />
                 <NeutralSubdueButton leadingIcon='ios_share' size='sm' collapseLabelBelow='lg'>
                   นำส่งออกรายงาน
@@ -484,10 +492,6 @@ export default function AccessControlPage() {
               </div>
 
               <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
-                <span style={{ ...TEXT_CELL, fontFamily: 'var(--type-family-heading-graphic2)', color: 'var(--text-topic-secondary-title)' }}>
-                  สิทธิ์การเข้าถึงระบบ
-                </span>
-
                 <SmoothFilterResults opaque={resultsOpaque}>
                 <Table
                   columns={columns}
@@ -524,6 +528,20 @@ export default function AccessControlPage() {
       {/* ดูสิทธิ์ระดับเมนูของแม่แบบนั้น — อ่านอย่างเดียว แก้ไขที่ปุ่ม "แก้ไข" */}
       <AccessPermissionPopup record={permView} onClose={() => setPermView(null)} />
 
+      {/* แก้ไข — ป๊อปอัปชุดเดียวกัน มีข้อมูลเดิมกรอกไว้ให้แล้ว */}
+      {editRecord ? (
+        <AccessControlCreatePage
+          key={editRecord.id}
+          asPopup
+          existingId={editRecord.id}
+          onClose={() => setEditRecord(null)}
+          onSaved={(message) => {
+            setRecords(readAccessControls());
+            showToast(message || 'บันทึกการแก้ไขสิทธิ์แล้ว');
+          }}
+        />
+      ) : null}
+
       {/* mount ใหม่ทุกครั้งที่เปิด ฟอร์มจะได้เริ่มจากว่างเสมอ */}
       {createOpen ? (
         <AccessControlCreatePage
@@ -536,11 +554,9 @@ export default function AccessControlPage() {
         />
       ) : null}
 
-      {toast ? (
-        <div className='fixed left-1/2 z-[200] -translate-x-1/2' style={{ bottom: 'var(--dim-space-600)' }}>
-          <SmallAlert variant='success' leadingGraphic='phcis'>{toast}</SmallAlert>
-        </div>
-      ) : null}
+      {/* แจ้งผลอยู่บนหัวจอเหมือนหน้าอื่นของระบบ — ของเดิมลอยอยู่ล่างจอทับตาราง
+          (26 ส.ค. 2569 มติผู้ใช้) */}
+      <PhcisTopToast session={toast ? { message: toast } : null} onDismiss={() => setToast(null)} />
     </>
   );
 }
