@@ -27,6 +27,7 @@ import {
   CENTER_OPTIONS,
   defaultPermissions,
   findAccessControl,
+  readAccessControls,
   createAccessControl,
   upsertAccessControl,
   bumpAccessControlVersion,
@@ -452,18 +453,21 @@ export default function AccessControlCreatePage({
   const labelOf = (opts, value) => opts.find((o) => o.value === value)?.label || '';
 
   /* บันทึกได้เมื่อ **ตั้งชื่อแม่แบบ** แล้ว — ไม่บังคับกิจกรรม / ตำแหน่ง */
-  const nameValid = templateName.trim().length > 0;
-  /* ทั้ง 5 ช่องเป็นช่องบังคับ (26 ส.ค. 2569 มติผู้ใช้) — ยกเว้นสาขาย่อยของศูนย์
-     ที่ไม่มีสาขาให้เลือกเลย ถือว่าผ่าน ไม่งั้นจะกดบันทึกไม่ได้ตลอดกาล */
+  /* ชื่อแม่แบบต้องไม่ซ้ำกับที่มีอยู่ — ชื่อคือสิ่งที่คนเลือกตอนผูกสิทธิ์ให้บุคลากร
+     ซ้ำกันแล้วเลือกผิดตัวได้ง่าย (26 ส.ค. 2569 มติผู้ใช้) เทียบแบบตัดช่องว่าง
+     หัวท้ายและไม่สนตัวพิมพ์ใหญ่เล็ก */
+  const nameKey = templateName.trim().toLowerCase();
+  const nameDuplicate = !!nameKey && readAccessControls().some((r) => (
+    r.id !== existing?.id && String(r.templateName || '').trim().toLowerCase() === nameKey
+  ));
+  const nameError = nameDuplicate ? 'ชื่อแม่แบบนี้มีอยู่แล้ว กรุณาตั้งชื่อใหม่' : '';
+  const nameValid = !!nameKey && !nameDuplicate;
+
   /* ขั้น "ขอบเขตและช่วงเวลา" ต้องกรอกครบเช่นกัน — วันสิ้นสุดยกเว้นได้ด้วยการ
      ติ๊ก "ยังไม่กำหนดวันสิ้นสุด" (26 ส.ค. 2569 มติผู้ใช้) */
   const scopeValid = !!(dataScope && piiVisibility && effectiveFrom
     && (followCenterHours || (dailyFrom && dailyTo))
     && (noEndDate || effectiveTo));
-
-  const branchRequired = branchOpts.length > 1;
-  const roleValid = !!(centerId && departmentId && positionId && activityId
-    && (!branchRequired || branchId));
 
   /* เซ็ตระดับสิทธิ์ให้ "ใบ" ที่ส่งมา — แถวระบบ/เมนูส่งใบของทั้งกลุ่มมาพร้อมกัน */
   const applyLeaves = (leafKeys, level) => {
@@ -522,7 +526,7 @@ export default function AccessControlCreatePage({
 
   /* ปุ่ม primary เปิด modal ทวนสรุปก่อน — ยืนยันแล้วจึงบันทึกจริง */
   const handleSubmit = () => {
-    if (!nameValid || !roleValid || !scopeValid || dateRangeError) return;
+    if (!nameValid || !scopeValid || dateRangeError) return;
     setConfirmSaveOpen(true);
   };
 
@@ -576,7 +580,7 @@ export default function AccessControlCreatePage({
     );
   }
 
-  const saveDisabled = !nameValid || !roleValid || !scopeValid || !!dateRangeError;
+  const saveDisabled = !nameValid || !scopeValid || !!dateRangeError;
   const submitLabel = isEdit ? `ส่งขออนุมัติ ${formatVersion(nextVersion)}` : 'ส่งขออนุมัติสิทธิ์';
 
   /* ป๊อปอัปเดินเป็น step — ฟอร์มเดียวยาว 3 การ์ดกดยากบนจอเล็ก และการตั้งสิทธิ์
@@ -603,7 +607,8 @@ export default function AccessControlCreatePage({
                   value={templateName}
                   onChange={setTemplateName}
                   placeholder='เช่น สิทธิแพทย์ตรวจโรคทั่วไป'
-                  helperText='ชื่อนี้ใช้อ้างอิงแม่แบบเมื่อนำไปผูกกับกิจกรรมหรือบุคลากร'
+                  error={nameError || undefined}
+                  helperText={nameError || 'ชื่อนี้ใช้อ้างอิงแม่แบบเมื่อนำไปผูกกับกิจกรรมหรือบุคลากร'}
                 />
               </div>
             </div>
@@ -832,7 +837,7 @@ export default function AccessControlCreatePage({
               label: 'ถัดไป',
               trailingIcon: 'arrow_forward',
               /* กันเดินข้ามขั้นที่ยังกรอกไม่ครบ — ขั้นสุดท้ายไม่มี "ถัดไป" */
-              disabled: (stepIdx === 0 && (!nameValid || !roleValid))
+              disabled: (stepIdx === 0 && !nameValid)
                 || (stepIdx === 1 && (!scopeValid || !!dateRangeError)),
               onClick: () => setStepIdx((i) => i + 1),
             }}
