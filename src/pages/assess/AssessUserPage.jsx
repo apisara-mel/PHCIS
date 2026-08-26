@@ -17,6 +17,7 @@ import Popup from '@/components/popup/Popup';
 import AlertDialog from '@/components/popup/AlertDialog';
 import StatusBadge from '@/components/badge/StatusBadge';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
+import AssessUserCreatePage from '@/pages/assess/AssessUserCreatePage';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import {
   CENTER_OPTIONS,
@@ -91,6 +92,7 @@ export default function AssessUserPage() {
   const [records, setRecords] = useState(() => readAssessUsers());
   const [search, setSearch] = useState('');
   const [toggleConfirm, setToggleConfirm] = useState(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const [accessOf, setAccessOf] = useState(null);
   const [filterCenter, setFilterCenter] = useState('');
   const [filterRole, setFilterRole] = useState('');
@@ -156,7 +158,9 @@ export default function AssessUserPage() {
     },
   );
 
-  const openCreate = () => navigate.push('/assess/users/new');
+  /* เพิ่มบุคลากรเปิดเป็นป๊อปอัป ไม่เปลี่ยนหน้า — ทะเบียนยังอยู่ข้างหลังให้เทียบได้
+     (26 ส.ค. 69 มติผู้ใช้) route /assess/users/new ยังเข้าได้ตามลิงก์เดิม */
+  const openCreate = () => setCreateOpen(true);
   const openDetail = (row) => navigate.push(`/assess/users/${row.id}`);
 
   /* ปุ่มในตารางเปิดสิทธิ์เป็น popup — ไม่พาออกจากหน้า เพราะส่วนใหญ่เปิดดูเทียบ
@@ -362,6 +366,18 @@ export default function AssessUserPage() {
           </div>
         )}
       </QueuePageShell>
+
+      {/* mount ใหม่ทุกครั้งที่เปิด ฟอร์มจะได้เริ่มจากว่างเสมอ */}
+      {createOpen ? (
+        <AssessUserCreatePage
+          asPopup
+          onClose={() => setCreateOpen(false)}
+          onSaved={(message) => {
+            setRecords(readAssessUsers());
+            showToast(message || 'บันทึกบุคลากรแล้ว');
+          }}
+        />
+      ) : null}
 
       {/* สิทธิ์ของคนคนนี้ — อ่านอย่างเดียว แก้ไขที่หน้าสิทธิ์การเข้าถึงระบบ
           เพื่อไม่ให้มีที่แก้สองแห่งแล้วค่าไม่ตรงกัน */}
