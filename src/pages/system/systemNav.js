@@ -29,8 +29,11 @@ export const SYSTEM_NAV = [
      (26 ส.ค. 69 มติผู้ใช้) */
   { key: 'assess-access-control', label: 'สิทธิ์การเข้าถึงระบบ',   icon: 'how_to_reg',       path: '/assess/access-control' },
   { key: 'system-staff',          label: 'บุคลากร',          icon: 'group',            path: '/assess/users' },
-  /* TOR §1.2.7 — ห้องตรวจ × แพทย์ประจำห้อง + โควตารายวัน (เดิมอยู่เมนู OPD) */
+  /* ซ่อนชั่วคราว 26 ส.ค. 69 (มติผู้ใช้) — route /opd/room-config ยังเข้าได้ตาม
+     ลิงก์เดิม เอากลับมาโดยลบคอมเมนต์ออก
+       TOR §1.2.7 — ห้องตรวจ × แพทย์ประจำห้อง + โควตารายวัน (เดิมอยู่เมนู OPD)
   { key: 'system-opd-room-config', label: 'ตั้งค่าห้องตรวจและโควตารายวัน', icon: 'meeting_room', path: '/opd/room-config' },
+  */
   /* ด.1.1.18 — matrix สิทธิเข้าถึงข้อมูลผู้ป่วยตามระดับความยินยอม: ถอดออกจากเมนู
      25 ส.ค. 69 (มติผู้ใช้) route /assess/consent-access-rights ยังเข้าได้ตามลิงก์เดิม */
   /* EMR §1.4.2.1 — การจัดการข้อมูลลับ: ถอดออกจากเมนู 25 ส.ค. 69 (มติผู้ใช้)
