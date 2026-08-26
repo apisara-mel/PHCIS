@@ -11,6 +11,7 @@ import {
   PERM_NONE as LEVEL_NONE,
   PERM_VIEW as LEVEL_VIEW,
   PERM_EDIT as LEVEL_EDIT,
+  ALL_LEAF_KEYS,
   emptyPermissions,
   normalizePermissions,
   countPermissionLevels,
@@ -694,13 +695,13 @@ export function resolveUserAccess(user, records, now = new Date()) {
     .filter((row) => row.assignments.length > 0);
 
   const modules = {};
-  ALL_MODULE_KEYS.forEach((k) => { modules[k] = { level: LEVEL_NONE, sources: [] }; });
+  ALL_LEAF_KEYS.forEach((k) => { modules[k] = { level: LEVEL_NONE, sources: [] }; });
 
   let dataScope = SCOPE_ASSIGNED;
   let piiVisibility = PII_MASKED;
 
   matched.forEach(({ record }) => {
-    ALL_MODULE_KEYS.forEach((k) => {
+    ALL_LEAF_KEYS.forEach((k) => {
       const lvl = record.permissions?.[k] || LEVEL_NONE;
       if (lvl === LEVEL_NONE) return;
       const cur = modules[k];
