@@ -74,6 +74,8 @@ export const QUEUE_STICKY_UNDER_TABS =
 
 const STICKY_UNDER_TABS_VAR = '--mih-queue-sticky-under-tabs';
 
+const CLINIC_CHIP_HIDDEN_SYSTEMS = ['จัดการระบบ', 'ระบบจัดการความยินยอม'];
+
 const QueuePageShell = ({
   activeKey,
   /* Override the sidebar nav for a separate top-level system (e.g. Consent
@@ -232,9 +234,11 @@ const QueuePageShell = ({
         breadcrumb={breadcrumb}
         brandTitle={brandTitle}
         standalone={!hasSubHeader}
-        /* ระบบจัดการระบบไม่มีชิปเลือกศูนย์บนแถบบน — ตั้งค่าเป็นรายศูนย์ในหน้า
-           ที่ต้องใช้แทน (26 ส.ค. 2569 มติผู้ใช้) */
-        showClinicFilter={brandTitle !== 'จัดการระบบ'}
+        /* ระบบจัดการระบบ + ระบบจัดการความยินยอม ไม่มีชิปเลือกศูนย์บนแถบบน —
+           สองระบบนี้เลือกศูนย์จากตัวกรองในหน้า (แดชบอร์ดมีช่อง "ศูนย์:" ของ
+           ตัวเอง) มีชิปบนแถบบนด้วยจะกลายเป็นสองที่ที่ขัดกันได้
+           (26 ส.ค. 2569 มติผู้ใช้) */
+        showClinicFilter={!CLINIC_CHIP_HIDDEN_SYSTEMS.includes(brandTitle)}
       />
       <main className='flex-1 min-w-0 flex flex-col'>
         {(effectiveTitle || onBack || actions) ? (

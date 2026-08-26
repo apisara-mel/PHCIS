@@ -8,6 +8,10 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Icon from '@/components/icons/Icon';
 import { Donut, DonutLegend, HBarList, VBars } from '@/components/graph/Charts';
 import { PHCIS_CHART_PALETTE } from '@/data/phcisChartPalette';
+import FilterDateTag from '@/components/forms/FilterDateTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
+import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import SYSTEM_NAV from '@/pages/system/systemNav';
 import { useHistory } from 'react-router-dom';
 
@@ -31,13 +35,15 @@ import {
   centerLabel as centerLabelOf,
 } from '@/data/assessUserStore';
 import {
+  THAI_MONTHS,
+  THAI_MONTHS_SHORT,
   MONTH_LABELS,
   REPORT_CENTERS,
   buildUsageReport,
-  exportSpreadsheet,
-  printReport,
   formatMinutes,
 } from '@/data/userUsageReports';
+import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
+import SuccessToast from '@/components/toast/SuccessToast';
 
 /* ระบบจัดการระบบ · แดชบอร์ด — ล้อโครงหน้าจากแดชบอร์ดระบบความยินยอม
    (KPI strip → การ์ดกราฟในกริด → การ์ดตาราง) แต่ข้อมูลมาจากทะเบียนของ
@@ -55,6 +61,24 @@ import {
    ตัวเลขทุกตัวอ่านจาก store เดียวกับหน้าที่ใช้แก้ไข จึงไม่มีทางเห็นไม่ตรงกัน */
 
 const breadcrumb = ['จัดการระบบ', 'แดชบอร์ด'];
+
+/* รายงานที่ป้อนให้ ExportFormatPopup — ตัวเดียวกับหน้าจัดการความยินยอมและ
+   ทะเบียนศูนย์บริการ (เลือกหัวข้อ · ช่วงวันที่ · PDF/CSV/XLSX + เก็บ log)
+   แทนปุ่มส่งออก XLS / พิมพ์ PDF สองปุ่มที่ทำเองแยก (26 ส.ค. 2569 มติผู้ใช้) */
+const SYSTEM_EXPORT_REPORT = {
+  key: 'system-overview',
+  title: 'รายงานภาพรวมระบบจัดการระบบ',
+  subtitle: 'ทะเบียนทั้งหมดของระบบจัดการระบบ พร้อมจำนวนที่นับจากทะเบียนจริง',
+  table: {
+    columns: [
+      { key: 'name', header: 'ทะเบียน', width: 220 },
+      { key: 'count', header: 'จำนวน', width: 110 },
+      { key: 'unit', header: 'หน่วย', width: 100 },
+      { key: 'detail', header: 'รายละเอียด', width: 360 },
+    ],
+    rows: [],
+  },
+};
 
 const CARD = {
   background: 'var(--surface-card-100)',
@@ -101,6 +125,18 @@ const VAL = {
 };
 
 const colorAt = (i) => PHCIS_CHART_PALETTE[i % PHCIS_CHART_PALETTE.length];
+
+/* 'ก.ย.68' → '15 กันยายน 2568' — matchesDateFilter รับวันที่ไทยเป็นสตริง
+   ใช้วันที่ 15 เป็นตัวแทนของเดือน (ตัวกรองที่ละเอียดกว่ารายเดือนไม่มีข้อมูลรองรับ
+   อยู่แล้ว เพราะยอดผู้ใช้งานเก็บเป็นรายเดือน) */
+const monthLabelToThaiDate = (label) => {
+  const idx = THAI_MONTHS_SHORT.findIndex((m) => label.startsWith(m));
+  if (idx < 0) return '';
+  const yy = Number(label.slice(-2));
+  return `15 ${THAI_MONTHS[idx]} ${2500 + yy}`;
+};
+
+const MONTH_THAI_DATES = MONTH_LABELS.map(monthLabelToThaiDate);
 const num = (n) => Number(n || 0).toLocaleString('th-TH');
 
 /* สีของสถานะอนุมัติให้ตรงกับความหมาย ไม่ใช่ลำดับใน palette */
@@ -152,6 +188,16 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
   /* ขอบเขตรายงานการใช้งาน — ยึดคู่มือ MIS: ทุกศูนย์ หรือเจาะรายศูนย์
      (ศูนย์ที่ยังไม่เปิดใช้ระบบไม่มีข้อมูลใช้งาน จึงมีแค่ REPORT_CENTERS) */
   const [scopeCenter, setScopeCenter] = useState('all');
+  /* ตัวกรองวันที่ — ชุดเดียวกับแดชบอร์ดระบบความยินยอม ค่าเริ่มต้น "ปีนี้"
+     เพราะยอดผู้ใช้งานเก็บย้อนหลัง 12 เดือน ถ้าตั้ง "เดือนนี้" กราฟจะเหลือแท่งเดียว */
+  const [pageDate, setPageDate] = useState({ quick: 'thisyear' });
+  const [exportReport, setExportReport] = useState(null);
+  const [exportDone, setExportDone] = useState(false);
+  const dateFiltersActive = (pageDate?.quick || 'thisyear') !== 'thisyear';
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    dateFiltersActive,
+    () => setPageDate({ quick: 'thisyear' }),
+  );
 
   const centers = useMemo(() => readCenters(), []);
   const structures = useMemo(() => readStructures(), []);
@@ -264,9 +310,19 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
     }),
   ]), [centerStats, users.length, activeUsers, pendingApproval, accessControls.length, report.summary.onlineNow, scopeLabel]);
 
+  /* เดือนที่อยู่ในช่วงวันที่ที่เลือก — ตัวกรองต้องตัดแท่งกราฟจริง ไม่ใช่แค่
+     เปลี่ยนป้ายของตัวเอง */
+  const monthIdxInRange = useMemo(
+    () => MONTH_THAI_DATES.map((d, i) => (matchesDateFilter(d, pageDate) ? i : -1)).filter((i) => i >= 0),
+    [pageDate],
+  );
+  const shownMonths = monthIdxInRange.map((i) => MONTH_LABELS[i]);
+  const shownValues = monthIdxInRange.map((i) => report.monthly[i]);
+  const periodTotal = shownValues.reduce((sum, v) => sum + (v || 0), 0);
+
   const barSeries = useMemo(
-    () => ([{ name: 'ผู้ใช้งานรายเดือน', color: colorAt(0), values: report.monthly }]),
-    [report.monthly],
+    () => ([{ name: 'ผู้ใช้งานรายเดือน', color: colorAt(0), values: shownValues }]),
+    [shownValues],
   );
 
   const functionRows = useMemo(
@@ -346,34 +402,12 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
     },
   ];
 
-  const exportMeta = () => ([
-    ['ขอบเขต', scopeLabel],
-    ['ช่วงเวลา', `${MONTH_LABELS[0]} – ${MONTH_LABELS[MONTH_LABELS.length - 1]}`],
-    ['ผู้ออกรายงาน', 'ผู้ดูแลระบบ PHCIS'],
-    ['วันเวลาที่ออก', new Date().toLocaleString('th-TH')],
-  ]);
-
-  const doExportXls = () => {
-    exportSpreadsheet({
-      title: 'รายงานภาพรวมระบบจัดการระบบ PHCIS',
-      meta: exportMeta(),
-      columns: [
-        { label: 'ทะเบียน', value: (r) => r.name },
-        { label: 'จำนวน', value: (r) => r.count },
-        { label: 'หน่วย', value: (r) => r.unit },
-        { label: 'รายละเอียด', value: (r) => r.detail },
-      ],
-      rows: registryRows,
-      filename: 'phcis-system-overview.xls',
-    });
-  };
-
   return (
     <QueuePageShell
       activeKey={activeKey}
       sidebarItems={SYSTEM_NAV}
       sidebarFallbackKey='system-overview'
-      brandTitle='ระบบ PHCIS'
+      brandTitle='จัดการระบบ'
       breadcrumb={breadcrumb}
       title='แดชบอร์ด'
       /* ขอบเขตศูนย์อยู่ติดชื่อหน้า — เปลี่ยนแล้วการ์ดการใช้งานเปลี่ยนตามทันที */
@@ -382,7 +416,7 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
           <div style={{ width: 'var(--dim-size-2600, 384px)', minWidth: 0 }}>
             <Select
               label='ขอบเขตรายงาน'
-              prefix='ขอบเขต:'
+              prefix='ศูนย์:'
               showFieldName={false}
               showHelperText={false}
               leadingIcon='domain'
@@ -392,17 +426,21 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
               searchable={false}
             />
           </div>
+          <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thisyear' />
+          <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
         </span>
       )}
       actions={(
-        <>
-          <NeutralSubdueButton leadingIcon='ios_share' size='md' onClick={doExportXls}>
-            นำส่งออกรายงาน (XLS)
-          </NeutralSubdueButton>
-          <NeutralSubdueButton leadingIcon='print' size='md' onClick={() => printReport('mih-report-print-area')}>
-            พิมพ์ / PDF
-          </NeutralSubdueButton>
-        </>
+        <NeutralSubdueButton
+          leadingIcon='ios_share'
+          size='md'
+          onClick={() => setExportReport({
+            ...SYSTEM_EXPORT_REPORT,
+            table: { ...SYSTEM_EXPORT_REPORT.table, rows: registryRows },
+          })}
+        >
+          นำส่งออกรายงาน
+        </NeutralSubdueButton>
       )}
       headerInfo={(
         <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
@@ -415,6 +453,7 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
         className='flex flex-col flex-1 min-w-0'
         style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
       >
+        <SmoothFilterResults opaque={resultsOpaque} style={{ gap: 'var(--dim-space-400)' }}>
         {/* ── ทะเบียนของจัดการระบบ ─────────────────────────────────────── */}
         <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
           <SectionHead
@@ -495,10 +534,16 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
             >
               <WidgetCard
                 title='ยอดผู้ใช้งานรายเดือน'
-                subtitle={`${MONTH_LABELS[0]} – ${MONTH_LABELS[MONTH_LABELS.length - 1]}`}
+                subtitle={shownMonths.length
+                  ? `${shownMonths[0]} – ${shownMonths[shownMonths.length - 1]} · รวม ${num(periodTotal)} คน`
+                  : 'ไม่มีเดือนไหนอยู่ในช่วงวันที่ที่เลือก'}
                 span={2}
               >
-                <VBars months={MONTH_LABELS} series={barSeries} height={200} barMaxWidth={18} />
+                {shownMonths.length ? (
+                  <VBars months={shownMonths} series={barSeries} height={200} barMaxWidth={18} />
+                ) : (
+                  <span style={MUTED_XS}>เลือกช่วงวันที่ให้ครอบคลุมเดือนที่มีข้อมูล เพื่อดูยอดผู้ใช้งาน</span>
+                )}
               </WidgetCard>
 
               <WidgetCard title='ช่วงเวลาการใช้งาน' subtitle='ชั่วโมงที่ระบบถูกใช้หนักที่สุด'>
@@ -520,7 +565,20 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
           />
           <Table columns={registryCols} rows={registryRows} rowKey={(r) => r.id} />
         </section>
+        </SmoothFilterResults>
       </div>
+
+      <ExportFormatPopup
+        open={!!exportReport}
+        report={exportReport}
+        onClose={() => setExportReport(null)}
+        onExported={() => setExportDone(true)}
+      />
+      <SuccessToast
+        open={exportDone}
+        message='นำส่งออกรายงานแล้ว — ระบบบันทึก log การส่งออกข้อมูล'
+        onClose={() => setExportDone(false)}
+      />
     </QueuePageShell>
   );
 }

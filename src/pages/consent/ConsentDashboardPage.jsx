@@ -11,6 +11,8 @@ import {
 } from '@/data/consentRecords';
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import Select from '@/components/forms/Select';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import { CLINIC_OPTIONS } from '@/components/layout/HeaderClinicContext';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import {
   DASHBOARD_LAYOUTS,
@@ -65,6 +67,16 @@ const periodLabelOf = (dateFilter) => {
 
 export default function ConsentDashboardPage() {
   const [pageDate, setPageDate] = useState({ quick: 'thismonth' });
+  /* ตัวกรองศูนย์ — คู่กับตัวกรองวันที่ เหมือนแดชบอร์ดจัดการระบบ (26 ส.ค. 2569
+     มติผู้ใช้) ศูนย์ที่ไม่มีคำขอเลยไม่ต้องอยู่ในตัวเลือก จะได้ไม่เลือกไปเจอหน้าว่าง */
+  const [pageCenter, setPageCenter] = useState('');
+  const centerOptions = useMemo(() => {
+    const used = new Set(CONSENT_RECORDS.map((r) => r.centerId).filter(Boolean));
+    return [
+      { value: '', label: 'ทุกศูนย์บริการ' },
+      ...CLINIC_OPTIONS.filter((c) => used.has(c.value)),
+    ];
+  }, []);
   /* หน้าจอรวมของแดชบอร์ดมาจาก "เทมเพลต" ที่สร้างไว้ (ด.1.1.12) — เทมเพลต
      มาตรฐานให้ผลเหมือนหน้าเดิมทุกประการ เปลี่ยนเทมเพลตคือเปลี่ยนทั้งหน้าจอ */
   const [templates, setTemplates] = useState(() => listDashboardTemplates());
@@ -84,9 +96,10 @@ export default function ConsentDashboardPage() {
   }, []);
   const [exportReport, setExportReport] = useState(null);
   const [viewReport, setViewReport] = useState(null);
-  const dateFiltersActive = (pageDate?.quick || 'thismonth') !== 'thismonth';
-  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(dateFiltersActive, () => {
+  const filtersActive = (pageDate?.quick || 'thismonth') !== 'thismonth' || !!pageCenter;
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
     setPageDate({ quick: 'thismonth' });
+    setPageCenter('');
   });
 
   const periodReports = useMemo(() => reportsForDateFilter(pageDate), [pageDate]);
@@ -101,8 +114,9 @@ export default function ConsentDashboardPage() {
   const periodLabel = periodLabelOf(pageDate);
 
   const filteredRecords = useMemo(
-    () => CONSENT_RECORDS.filter((r) => matchesDateFilter(r.createdDate, pageDate)),
-    [pageDate],
+    () => CONSENT_RECORDS.filter((r) => matchesDateFilter(r.createdDate, pageDate)
+      && (!pageCenter || r.centerId === pageCenter)),
+    [pageDate, pageCenter],
   );
   const periodSummary = useMemo(
     () => buildConsentSummaryFromRows(filteredRecords, {
@@ -143,6 +157,13 @@ export default function ConsentDashboardPage() {
       /* ตัวกรองวันที่อยู่ติดกับชื่อหน้า — ไม่ปนกับปุ่มคำสั่งฝั่งขวา */
       afterTitle={(
         <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+          <FilterDropdown
+            prefix='ศูนย์:'
+            options={centerOptions}
+            value={pageCenter}
+            onChange={setPageCenter}
+            placeholder='ทุกศูนย์บริการ'
+          />
           <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thismonth' />
           <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
         </span>
@@ -167,7 +188,7 @@ export default function ConsentDashboardPage() {
             size='md'
             onClick={() => setTemplatePopup(true)}
           >
-            สร้าง / จัดการเทมเพลต
+            สร้างเทมเพลท
           </NeutralSubdueButton>
           <NeutralSubdueButton
             leadingIcon='ios_share'
