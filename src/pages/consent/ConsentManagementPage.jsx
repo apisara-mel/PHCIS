@@ -1137,7 +1137,6 @@ export default function ConsentManagementPage() {
           });
           if (STATUS_FILTER_HIDDEN_TABS.has(key)) setFilterStatus('');
           if (FILTERS_HIDDEN_TABS.has(key)) {
-            setFilterType('');
             setFilterChannel('');
             setFilterDate({ quick: 'thisyear' });
           }

@@ -48,6 +48,7 @@ import {
   hivStiNowStamp,
   HIV_STI_CURRENT_STAFF,
   getHivStiVisitHistoryByHn,
+  HIV_STI_TELEMED_NOTE_SUGGESTIONS,
 } from '@/data/hivStiVisits';
 import { TopicHeader, Field, StepCard, clientTypeBadge } from '@/pages/clinic/hiv-sti/hivStiShared';
 

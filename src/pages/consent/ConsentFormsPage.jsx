@@ -194,7 +194,7 @@ export default function ConsentFormsPage() {
 
   const filtersActive = search.trim() !== '' || !!filterGroup || !!filterCreator || !!filterStatus || (filterDate?.quick && filterDate.quick !== 'thismonth');
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
-    setSearch(''); setFilterGroup(''); setFilterDept(''); setFilterCreator(''); setFilterStatus(''); setFilterDate({ quick: 'thismonth' }); setPage(1);
+    setSearch(''); setFilterGroup(''); setFilterCreator(''); setFilterStatus(''); setFilterDate({ quick: 'thismonth' }); setPage(1);
   });
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [page, setPage] = useState(1);

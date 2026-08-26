@@ -251,16 +251,18 @@ const Calendar = ({
       </div>
 
       {yearPickerOpen ? (
-        /* ตารางปี 12 ช่อง เลื่อนดูย้อนหลังได้ถึง 100 ปี — พอสำหรับวันเกิด */
+        /* ตารางปี — สูงเท่าพื้นที่ตารางวันพอดี (แถวชื่อวัน 28 + 6 แถว × 40 + ระยะ)
+           ป๊อปอัปจึงไม่กระโดดเปลี่ยนขนาดตอนสลับไปเลือกปี (26 ส.ค. 2569 มติผู้ใช้)
+           เลื่อนดูย้อนหลังได้ถึง 100 ปี — พอสำหรับวันเกิด */
         <div
           className='w-full'
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            gap: 'var(--dim-space-150)',
-            maxHeight: 240,
+            gap: 'var(--dim-space-050)',
+            height: 280,
             overflowY: 'auto',
-            paddingTop: 'var(--dim-space-200)',
+            alignContent: 'start',
           }}
         >
           {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map((y) => {
@@ -271,7 +273,7 @@ const Calendar = ({
                 type='button'
                 onClick={() => { onPickYear?.(y); setYearPickerOpen(false); }}
                 style={{
-                  padding: 'var(--dim-space-200)',
+                  height: 40,
                   borderRadius: 'var(--dim-radius-200)',
                   border: 'none',
                   cursor: 'pointer',

@@ -488,6 +488,9 @@ const DatePicker = React.forwardRef(function DatePicker(
               onNavigate={(delta) =>
                 setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1))
               }
+              /* กดที่ชื่อเดือน/ปีแล้วเลือกปีได้ — จำเป็นกับวันเกิดที่ต้องย้อน
+                 หลายสิบปี กดลูกศรทีละเดือนไม่ไหว (26 ส.ค. 2569 มติผู้ใช้) */
+              onPickYear={(year) => setViewMonth((m) => new Date(year, m.getMonth(), 1))}
             />
           </Popover>
         )}
