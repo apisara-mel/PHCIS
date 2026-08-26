@@ -580,7 +580,13 @@ const HomeVisitRegistryPage = () => {
   );
 
   const filterSummary = [
-    activeTab === 'all' ? null : tabs.find((t) => t.key === activeTab)?.label,
+    /* หน้านี้ไม่มี array `tabs` — activeTab มาจาก Select สถานะ (all/allStatus/
+       cancelled) หรือคีย์กลุ่มเป้าหมาย จึงแปลป้ายจากสองแหล่งนั้นแทน */
+    activeTab === 'all'
+      ? null
+      : (activeTab === 'allStatus'
+        ? 'ทุกสถานะ'
+        : (activeTab === 'cancelled' ? 'ยกเลิกแล้ว' : resolveGroup(activeTab)?.label)),
     filters.group === 'all' ? null : resolveGroup(filters.group)?.label,
     filters.source === 'all' ? null : `แหล่งรับเข้า ${resolveSource(filters.source)?.short}`,
     filters.district === 'all' ? null : filters.district,
