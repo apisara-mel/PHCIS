@@ -243,6 +243,7 @@ export default function SystemCentersPage() {
   /* ศูนย์ที่มีสาขาย่อย: กด "แก้ไข" แล้วต้องเลือกก่อนว่าจะแก้ศูนย์หลักหรือสาขาไหน
      — ป๊อปอัปเลือกอยู่ชั้นล่าง ฟอร์มซ้อนขึ้นมาข้างบนและกดย้อนกลับได้
      (26 ส.ค. 2569 มติผู้ใช้) */
+  const [removing, setRemoving] = useState(null);
   const [editPicker, setEditPicker] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   /* เพิ่มศูนย์บริการ — popup ฟอร์มเดียวกัน แค่ไม่มีศูนย์ตั้งต้น */
@@ -305,6 +306,16 @@ export default function SystemCentersPage() {
     writeCenters(next);
     setCenters(next);
   }, []);
+
+  /* ลบศูนย์ = ลบ record ของศูนย์นั้น + สาขาย่อยที่อ้างศูนย์นี้เป็นแม่ ไม่งั้น
+     สาขาจะค้างเป็นเด็กกำพร้าที่เลือกศูนย์แม่ไม่ได้อีก (26 ส.ค. 2569) */
+  const applyRemoveCenter = () => {
+    if (!removing) return;
+    const next = centers.filter((c) => c.id !== removing.id && c.parentId !== removing.id);
+    persist(next);
+    showToast(`ลบ "${removing.name}" ออกจากทะเบียนแล้ว`);
+    setRemoving(null);
+  };
 
   const showToast = (message) => {
     setToast(message);
@@ -467,7 +478,7 @@ export default function SystemCentersPage() {
     {
       key: 'structure',
       header: 'รูปแบบโครงสร้างศูนย์',
-      minWidth: 260,
+      minWidth: 340,
       render: (row) => {
         const tpl = findStructureForCenter(structures, row);
         if (!tpl) return <span style={SUBTEXT_CELL}>ยังไม่ผูกรูปแบบ</span>;
@@ -522,6 +533,14 @@ export default function SystemCentersPage() {
             onClick={(e) => { e.stopPropagation(); setBranchParentId(row.id); setBranchOpen(true); }}
           >
             เพิ่มศูนย์บริการย่อย
+          </NeutralSubdueButton>
+          <NeutralSubdueButton
+            leadingIcon='delete'
+            variant='outline'
+            size='sm'
+            onClick={(e) => { e.stopPropagation(); setRemoving(row); }}
+          >
+            ลบ
           </NeutralSubdueButton>
         </div>
       ),
@@ -807,6 +826,29 @@ export default function SystemCentersPage() {
         open={exportDone}
         message='นำส่งออกรายงานแล้ว — ระบบบันทึก log การส่งออกข้อมูล'
         onClose={() => setExportDone(false)}
+      />
+
+      <AlertDialog
+        open={!!removing}
+        onClose={() => setRemoving(null)}
+        type='warning'
+        alignment='center'
+        title='ลบศูนย์บริการ?'
+        /* ชื่อยาว ๆ ให้ขึ้นบรรทัดใหม่ อ่านง่ายกว่าอยู่ต่อท้ายประโยค */
+        description={removing ? (
+          <>
+            ต้องการลบ
+            <br />
+            {`"${removing.name}"`}
+            <br />
+            {(removing.branches || []).length
+              ? `พร้อมสาขาย่อย ${(removing.branches || []).length} แห่ง ออกจากทะเบียนหรือไม่`
+              : 'ออกจากทะเบียนหรือไม่'}
+          </>
+        ) : ''}
+        confirmLabel='ลบ'
+        cancelLabel='ยกเลิก'
+        onConfirm={applyRemoveCenter}
       />
 
       <AlertDialog
