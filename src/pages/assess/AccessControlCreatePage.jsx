@@ -10,6 +10,7 @@ import BrandButton from '@/components/button/BrandButton';
 import Radio from '@/components/radio/Radio';
 import Icon from '@/components/icons/Icon';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Popup from '@/components/popup/Popup';
 import StepProgress from '@/components/step/StepProgress';
 import AlertDialog from '@/components/popup/AlertDialog';
@@ -71,6 +72,26 @@ const CARD = {
   padding: 'var(--dim-space-600)',
 };
 
+/* ในป๊อปอัปไม่ใช้ขอบ/เงาของการ์ด (ตัวป๊อปอัปมีกรอบของตัวเองแล้ว ซ้อนสองชั้น
+   ดูหนักโดยไม่ได้ข้อมูลเพิ่ม) แต่ยังต้องเห็นว่าช่องไหนอยู่กลุ่มเดียวกัน จึงรอง
+   พื้นสีเทาอ่อนแทนขอบ (26 ส.ค. 2569 มติผู้ใช้) */
+/* คำอธิบายที่ใช้ซ้ำบ่อยในทะเบียนสิทธิ์ — เสนอให้เลือกแล้วพิมพ์ต่อได้ */
+const DESCRIPTION_SUGGESTIONS = [
+  'เข้าถึงเฉพาะระบบบันทึกการรักษา',
+  'เข้าถึงการรักษาระดับสูงสุด',
+  'ดูข้อมูลได้อย่างเดียว ไม่แก้ไข',
+  'เฉพาะงานเวชระเบียนและคัดกรอง',
+  'เฉพาะงานเภสัชกรรมและจ่ายยา',
+  'เฉพาะงานการเงินและสิทธิการรักษา',
+  'สิทธิ์ผู้ดูแลระบบของศูนย์',
+];
+
+const CARD_FLAT = {
+  background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+  borderRadius: 'var(--dim-radius-400)',
+  padding: 'var(--dim-space-400)',
+};
+
 const TABLE_FRAME = {
   border: 'var(--dim-stroke-100) solid var(--border-table-default)',
   borderRadius: 'var(--dim-radius-400)',
@@ -102,7 +123,6 @@ const DATA_CELL_OFF = {
 };
 
 const PERM_COL_W = { none: 112, view: 156, write: 116, edit: 156 };
-const ROLE_COL_W = { field: 224, description: 448 };
 
 function PermRadioCell({ name, value, level, checked, onSelect }) {
   return (
@@ -120,123 +140,82 @@ function PermRadioCell({ name, value, level, checked, onSelect }) {
   );
 }
 
-function RoleFieldsTable({
+/* ช่องผูกบทบาท — ฟิลด์ปกติมีป้ายกำกับของตัวเอง ไม่ใช่ตาราง (26 ส.ค. 2569
+   มติผู้ใช้) ตารางแถวเดียวอ่านยากและต้องเลื่อนแนวนอนบนจอแคบ ทั้งที่นี่คือ
+   "ฟอร์มกรอกค่าเดียว" ไม่ใช่รายการหลายแถว */
+function RoleFields({
   centerId,
+  branchId,
   positionId,
   activityId,
   subActivityId,
   departmentId,
   description,
   centerOpts,
+  branchOpts,
   positionOpts,
   activityOpts,
   subActivityOpts,
   deptOpts,
   onCenter,
+  onBranch,
   onPosition,
   onActivity,
   onSubActivity,
   onDepartment,
   onDescription,
 }) {
-  /* สิทธิ์กำหนดตาม ตำแหน่ง · บทบาท · แผนก (26 ส.ค. 2569 มติผู้ใช้) — เดิมไม่มี
-     คอลัมน์ "ตำแหน่ง" เพราะถือว่าตำแหน่งกำหนดตอนเพิ่มบุคลากรอย่างเดียว */
-  const headers = [
-    { title: 'ศูนย์บริการ', width: ROLE_COL_W.field, sort: true },
-    { title: 'ตำแหน่ง', width: ROLE_COL_W.field, sort: true },
-    { title: 'บทบาท', width: ROLE_COL_W.field, sort: true },
-    { title: 'บทบาทย่อย', width: ROLE_COL_W.field, sort: true },
-    { title: 'แผนก', width: ROLE_COL_W.field, sort: true },
-    { title: 'คำอธิบาย', width: ROLE_COL_W.description, sort: false },
+  /* สิทธิ์กำหนดตาม ตำแหน่ง · บทบาท · แผนก (26 ส.ค. 2569 มติผู้ใช้)
+     "บทบาทย่อย" ถอดออกจากฟอร์ม 26 ส.ค. 69 — แม่แบบผูกถึงระดับบทบาทพอ
+     (ค่า subActivityId ของ record เดิมยังถูกเก็บและใช้จับคู่ต่อไปตามปกติ) */
+  const fields = [
+    /* เรียงจากหน่วยใหญ่ไปเล็ก: ศูนย์ → แผนกในศูนย์ → ตำแหน่ง → บทบาท
+       (26 ส.ค. 2569 มติผู้ใช้ — เดิมแผนกไปอยู่ท้ายสุด) */
+    { key: 'center',   label: 'ศูนย์บริการ', options: centerOpts,   value: centerId,     onChange: onCenter },
+    /* สาขาย่อยขึ้นกับศูนย์ที่เลือก — ศูนย์ที่ไม่มีสาขาจะเหลือแค่ "ทุกสาขา"
+       (ตัวเลือกเดียว = ปิดช่องไว้ ไม่ให้กดแล้วไม่มีอะไรให้เลือก) */
+    {
+      key: 'branch',
+      label: 'สาขาย่อย',
+      options: branchOpts,
+      value: branchId,
+      onChange: onBranch,
+      placeholder: 'ทุกสาขาในศูนย์นี้',
+      disabled: !centerId || branchOpts.length <= 1,
+    },
+    { key: 'dept',     label: 'แผนก',        options: deptOpts,     value: departmentId, onChange: onDepartment },
+    { key: 'position', label: 'ตำแหน่ง',     options: positionOpts, value: positionId,   onChange: onPosition },
+    { key: 'activity', label: 'บทบาท',       options: activityOpts, value: activityId,   onChange: onActivity },
   ];
 
   return (
-    <div className='w-full overflow-x-auto' style={TABLE_FRAME}>
-      <div style={{ minWidth: ROLE_COL_W.field * 5 + ROLE_COL_W.description }}>
-        <div className='flex w-full'>
-          {headers.map(({ title, width, sort }, i) => (
-            <HeaderCell
-              key={title}
-              title={title}
-              showSubtext={false}
-              showSorting={sort}
-              style={{
-                width,
-                flexShrink: 0,
-                ...(i === 0 ? { borderTopLeftRadius: 'var(--dim-radius-400)' } : {}),
-                ...(i === headers.length - 1 ? { borderTopRightRadius: 'var(--dim-radius-400)' } : {}),
-              }}
-            />
-          ))}
+    <div className='flex flex-wrap items-end w-full' style={{ gap: 'var(--dim-space-400)' }}>
+      {fields.map((f) => (
+        <div key={f.key} style={{ flex: '1 1 220px', minWidth: 200 }}>
+          <Select
+            label={f.label}
+            showHelperText={false}
+            size='large'
+            options={f.options}
+            value={f.value}
+            onChange={f.onChange}
+            placeholder={f.placeholder}
+            disabled={f.disabled}
+          />
         </div>
-        <TableRow>
-          <DataCell {...DATA_CELL_OFF} style={{ width: ROLE_COL_W.field, flexShrink: 0 }}>
-            <Select size='medium' showLabel={false} showHelperText={false} options={centerOpts} value={centerId} onChange={onCenter} />
-          </DataCell>
-          <DataCell {...DATA_CELL_OFF} style={{ width: ROLE_COL_W.field, flexShrink: 0 }}>
-            <Select size='medium' showLabel={false} showHelperText={false} options={positionOpts} value={positionId} onChange={onPosition} />
-          </DataCell>
-          <DataCell {...DATA_CELL_OFF} style={{ width: ROLE_COL_W.field, flexShrink: 0 }}>
-            <Select size='medium' showLabel={false} showHelperText={false} options={activityOpts} value={activityId} onChange={onActivity} />
-          </DataCell>
-          <DataCell {...DATA_CELL_OFF} style={{ width: ROLE_COL_W.field, flexShrink: 0 }}>
-            <Select size='medium' showLabel={false} showHelperText={false} options={subActivityOpts} value={subActivityId} onChange={onSubActivity} />
-          </DataCell>
-          <DataCell {...DATA_CELL_OFF} style={{ width: ROLE_COL_W.field, flexShrink: 0 }}>
-            <Select size='medium' showLabel={false} showHelperText={false} options={deptOpts} value={departmentId} onChange={onDepartment} />
-          </DataCell>
-          <DataCell {...DATA_CELL_OFF} style={{ width: ROLE_COL_W.description, flexShrink: 0 }}>
-            <InputField
-              showLabel={false}
-              showHelperText={false}
-              showLeadingIcon={false}
-              size='large'
-              placeholder='เช่น เข้าถึงการรักษาระดับสูงสุด'
-              value={description}
-              onChange={onDescription}
-            />
-          </DataCell>
-        </TableRow>
+      ))}
+      {/* คำอธิบายมักยาวหลายบรรทัด และคำที่ใช้ซ้ำกันทั้งทะเบียน จึงเป็น textarea
+          พร้อมคำแนะนำที่พิมพ์ต่อได้ (26 ส.ค. 2569 มติผู้ใช้) */}
+      <div className='w-full' style={{ flex: '1 1 100%', minWidth: 240 }}>
+        <SuggestibleTextarea
+          label='คำอธิบาย'
+          value={description}
+          onChange={(e) => onDescription(e?.target ? e.target.value : e)}
+          placeholder='เช่น เข้าถึงการรักษาระดับสูงสุด'
+          suggestions={DESCRIPTION_SUGGESTIONS}
+          minChars={1}
+        />
       </div>
-    </div>
-  );
-}
-
-/* เวอร์ชันของแม่แบบ — ระบบใช้เวอร์ชันล่าสุดเสมอ ของเก่าเก็บไว้ย้อนดูได้.
-   ตอนสร้างใหม่จึงเป็น v1 ส่วนตอนแก้จะบอกว่าบันทึกแล้วจะกลายเป็นเวอร์ชันอะไร. */
-function VersionBadge({ current, next, isEdit, history = [] }) {
-  return (
-    <div
-      className='flex flex-col'
-      style={{
-        flex: '1 1 220px',
-        minWidth: 200,
-        gap: 'var(--dim-space-100)',
-        paddingTop: 'var(--dim-space-300)',
-        paddingRight: 'var(--dim-space-400)',
-        paddingBottom: 'var(--dim-space-300)',
-        paddingLeft: 'var(--dim-space-400)',
-        background: 'var(--surface-brandPrimary-quaternary)',
-        border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-        borderRadius: 'var(--dim-radius-300)',
-      }}
-    >
-      <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
-        เวอร์ชันแม่แบบ
-      </span>
-      <div className='flex items-baseline' style={{ gap: 'var(--dim-space-200)' }}>
-        <span style={{ color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-lg)' }}>
-          {formatVersion(isEdit ? next : current)}
-        </span>
-        <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
-          {isEdit ? `บันทึกแล้วจะแทน ${formatVersion(current)}` : 'เวอร์ชันแรก'}
-        </span>
-      </div>
-      {history.length ? (
-        <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
-          {`มีประวัติ ${history.length} เวอร์ชัน`}
-        </span>
-      ) : null}
     </div>
   );
 }
@@ -444,6 +423,7 @@ export default function AccessControlCreatePage({
 
   const [templateName, setTemplateName] = useState('');
   const [centerId, setCenterId] = useState('');
+  const [branchId, setBranchId] = useState('');
   const [positionId, setPositionId] = useState('');
   const [activityId, setActivityId] = useState('');
   const [subActivityId, setSubActivityId] = useState('');
@@ -479,6 +459,7 @@ export default function AccessControlCreatePage({
     if (!existing) return;
     setTemplateName(existing.templateName || '');
     setCenterId(existing.centerId || '');
+    setBranchId(existing.branchId || '');
     setPositionId(existing.positionId || '');
     setActivityId(existing.activityId || '');
     setSubActivityId(existing.subActivityId || '');
@@ -501,6 +482,16 @@ export default function AccessControlCreatePage({
   }, [selectedActivity]);
 
   const centerOpts = [{ value: '', label: 'เลือกศูนย์บริการ' }, ...CENTER_OPTIONS];
+
+  /* สาขาย่อยอ่านจากทะเบียนศูนย์จริง — ศูนย์ที่ไม่มีสาขาจะเหลือแค่ "ทุกสาขา"
+     (26 ส.ค. 2569 มติผู้ใช้) */
+  const branchOpts = useMemo(() => {
+    const detail = centerId ? findCenterDetail(centerId) : null;
+    return [
+      { value: '', label: 'ทุกสาขาในศูนย์นี้' },
+      ...(detail?.branches || []).map((b) => ({ value: b.id, label: b.name })),
+    ];
+  }, [centerId]);
   /* คุณลักษณะที่เว้นว่าง = ไม่จำกัด (ตรงกับกติกา ABAC ใน accessControlStore)
      จึงอ่านว่า "ทุก…" ไม่ใช่ "ยังไม่ผูก" */
   const positionOpts = [{ value: '', label: 'ทุกตำแหน่ง' }, ...positions.map((p) => ({ value: p.id, label: p.name }))];
@@ -511,6 +502,9 @@ export default function AccessControlCreatePage({
 
   /* บันทึกได้เมื่อ **ตั้งชื่อแม่แบบ** แล้ว — ไม่บังคับกิจกรรม / ตำแหน่ง */
   const nameValid = templateName.trim().length > 0;
+  /* ศูนย์ · แผนก · ตำแหน่ง · บทบาท ต้องเลือกครบ (26 ส.ค. 2569 มติผู้ใช้) —
+     สาขาย่อยยังไม่บังคับ เว้นว่าง = คลุมทั้งศูนย์ */
+  const roleValid = !!(centerId && departmentId && positionId && activityId);
 
   /* เซ็ตระดับสิทธิ์ให้ "ใบ" ที่ส่งมา — แถวระบบ/เมนูส่งใบของทั้งกลุ่มมาพร้อมกัน */
   const applyLeaves = (leafKeys, level) => {
@@ -566,7 +560,7 @@ export default function AccessControlCreatePage({
 
   /* ปุ่ม primary เปิด modal ทวนสรุปก่อน — ยืนยันแล้วจึงบันทึกจริง */
   const handleSubmit = () => {
-    if (!nameValid || dateRangeError) return;
+    if (!nameValid || !roleValid || dateRangeError) return;
     setConfirmSaveOpen(true);
   };
 
@@ -620,27 +614,22 @@ export default function AccessControlCreatePage({
     );
   }
 
-  const saveDisabled = !nameValid || !!dateRangeError;
+  const saveDisabled = !nameValid || !roleValid || !!dateRangeError;
   const submitLabel = isEdit ? `ส่งขออนุมัติ ${formatVersion(nextVersion)}` : 'ส่งขออนุมัติสิทธิ์';
 
   /* ป๊อปอัปเดินเป็น step — ฟอร์มเดียวยาว 3 การ์ดกดยากบนจอเล็ก และการตั้งสิทธิ์
      ควรตั้งชื่อ/ผูกบทบาทให้เสร็จก่อนค่อยลงรายละเอียดสิทธิ์ (26 ส.ค. 69 มติผู้ใช้)
      หน้าเต็ม (route เดิม) ยังเป็นฟอร์มยาวเลื่อนเดียวเหมือนเดิม */
+  const sectionCard = asPopup ? CARD_FLAT : CARD;
+
   const stepSections = [
     (
 <>
           {/* Card 0 — แม่แบบ + เวอร์ชัน. ตั้งชื่อแม่แบบก่อนเป็นอันดับแรก
               โดยยังไม่ต้องผูกกิจกรรม — ผูกทีหลังได้ในการ์ดถัดไป. */}
-          <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
-            <Topic
-              hierarchy='primary'
-              title='แม่แบบสิทธิ์การเข้าถึงระบบ'
-              showSubText={false}
-              leadingIcon='dashboard_customize'
-              showBadge={false}
-              showChevron={false}
-              showSuccess={false}
-            />
+          {/* ไม่มีหัวข้อการ์ดและกล่องเวอร์ชัน — ชื่อ step บนหัวป๊อปอัปบอกอยู่แล้ว
+              และเวอร์ชันไปโผล่ที่ subtitle ของป๊อปอัปตอนแก้ไข (26 ส.ค. 2569) */}
+          <section className='flex flex-col w-full' style={{ ...sectionCard, gap: 'var(--dim-space-400)' }}>
             <div className='flex flex-wrap items-end w-full' style={{ gap: 'var(--dim-space-400)' }}>
               <div style={{ flex: '2 1 320px', minWidth: 240 }}>
                 <InputField
@@ -649,37 +638,39 @@ export default function AccessControlCreatePage({
                   value={templateName}
                   onChange={setTemplateName}
                   placeholder='เช่น สิทธิแพทย์ตรวจโรคทั่วไป'
-                  helperText='ชื่อนี้ใช้อ้างอิงแม่แบบตอนนำไปผูกกับกิจกรรมหรือบุคลากร'
+                  helperText='ชื่อนี้ใช้อ้างอิงแม่แบบเมื่อนำไปผูกกับกิจกรรมหรือบุคลากร'
                 />
               </div>
-              <VersionBadge current={currentVersion} next={nextVersion} isEdit={!!existing} history={existing?.versionHistory} />
             </div>
           </section>
 
           {/* Card 1 — ข้อมูลบทบาท (Figma 15:30160 · card) */}
-          <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-300)' }}>
+          <section className='flex flex-col w-full' style={{ ...sectionCard, gap: 'var(--dim-space-300)' }}>
             <Topic
               hierarchy='primary'
               title='ข้อมูลบทบาท'
               showSubText={false}
-              leadingIcon='face'
+              showLeadingIcon={false}
               showBadge={false}
               showChevron={false}
               showSuccess={false}
             />
-            <RoleFieldsTable
+            <RoleFields
               centerId={centerId}
+              branchId={branchId}
               positionId={positionId}
               activityId={activityId}
               subActivityId={subActivityId}
               departmentId={departmentId}
               description={description}
               centerOpts={centerOpts}
+              branchOpts={branchOpts}
               positionOpts={positionOpts}
               activityOpts={activityOpts}
               subActivityOpts={subActivityOpts}
               deptOpts={deptOpts}
-              onCenter={setCenterId}
+              onCenter={(v) => { setCenterId(v); setBranchId(''); }}
+              onBranch={setBranchId}
               onPosition={setPositionId}
               onActivity={(v) => { setActivityId(v); setSubActivityId(''); }}
               onSubActivity={setSubActivityId}
@@ -696,12 +687,12 @@ export default function AccessControlCreatePage({
               มติ คทง.2/3/4/10/11: ศบส. เห็นเฉพาะของตน · กอง/ผู้บริหารเห็น
               ภาพรวมแต่ปิดบัง PII · คทง.4: อสส. เห็นเฉพาะเคสที่ได้รับมอบหมาย
               มติ คทง.13 §2.3: กำหนดช่วงเวลาเริ่ม-สิ้นสุดการเข้าถึงได้ */}
-          <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
+          <section className='flex flex-col w-full' style={{ ...sectionCard, gap: 'var(--dim-space-400)' }}>
             <Topic
               hierarchy='primary'
               title='ขอบเขตข้อมูลและระยะเวลาที่มีผล'
               subText='กำหนดว่าเห็นข้อมูลของหน่วยใดได้บ้าง เห็นข้อมูลระบุตัวตนหรือไม่ และสิทธิ์นี้มีผลช่วงใด'
-              leadingIcon='shield_person'
+              showLeadingIcon={false}
               showBadge={false}
               showChevron={false}
               showSuccess={false}
@@ -797,12 +788,12 @@ export default function AccessControlCreatePage({
     (
 <>
           {/* Card 2 — สิทธิ์การเข้าถึงระบบ (Figma 15:30160 · card) */}
-          <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-600)' }}>
+          <section className='flex flex-col w-full' style={{ ...sectionCard, gap: 'var(--dim-space-600)' }}>
             <Topic
               hierarchy='primary'
               title='สิทธิ์การเข้าถึงระบบ'
               subText='กำหนดได้ถึงระดับเมนูย่อย — กดที่แถวระบบหรือเมนูเพื่อเซ็ตทั้งกลุ่มพร้อมกัน'
-              leadingIcon='settings'
+              showLeadingIcon={false}
               showBadge={false}
               showChevron={false}
               showSuccess={false}
@@ -850,8 +841,6 @@ export default function AccessControlCreatePage({
         <Popup
           open
           onClose={leaveForm}
-          /* ย้อน step ที่หัวป๊อปอัป — X ยังปิดทั้งฟอร์ม */
-          onBack={stepIdx > 0 ? () => setStepIdx((i) => i - 1) : undefined}
           size='extraLarge'
           title={isEdit ? 'แก้ไขสิทธิ์การเข้าถึงระบบ' : 'เพิ่มสิทธิ์การเข้าถึงระบบ'}
           subtitle={isEdit ? `เวอร์ชันปัจจุบัน ${formatVersion(currentVersion)}` : undefined}
@@ -863,13 +852,17 @@ export default function AccessControlCreatePage({
               labelNoWrap
             />
           )}
-          tertiaryAction={{ label: 'ยกเลิก', onClick: leaveForm }}
-          secondaryAction={{ label: 'บันทึกร่าง', leadingIcon: 'save', disabled: saveDisabled, onClick: handleSaveDraft }}
+          /* วางปุ่มแบบเดียวกับป๊อปอัปแบบ step อื่นของระบบ (CenterEditPopup):
+             secondary = ย้อนกลับ/ยกเลิก · tertiary = บันทึกร่าง · primary = เดินหน้า */
+          secondaryAction={stepIdx > 0
+            ? { label: 'ย้อนกลับ', onClick: () => setStepIdx((i) => i - 1) }
+            : { label: 'ยกเลิก', onClick: leaveForm }}
+          tertiaryAction={{ label: 'บันทึกร่าง', disabled: saveDisabled, onClick: handleSaveDraft }}
           /* ขั้นสุดท้ายเท่านั้นที่ส่งขออนุมัติ — คทง.13 §1.3 สิทธิ์ต้องผ่านการอนุมัติก่อนมีผล
              ขั้นแรกยังต้องมีชื่อแม่แบบก่อนถึงจะเดินหน้าได้ */
           primaryAction={isLastStep
             ? { label: submitLabel, trailingIcon: 'arrow_forward', disabled: saveDisabled, onClick: handleSubmit }
-            : { label: 'ถัดไป', trailingIcon: 'arrow_forward', disabled: stepIdx === 0 && !nameValid, onClick: () => setStepIdx((i) => i + 1) }}
+            : { label: 'ถัดไป', trailingIcon: 'arrow_forward', disabled: stepIdx === 0 && (!nameValid || !roleValid), onClick: () => setStepIdx((i) => i + 1) }}
         >
           {shellBody(stepSections[stepIdx])}
         </Popup>
