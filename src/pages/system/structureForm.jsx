@@ -213,11 +213,20 @@ function UniqueTick({ label }) {
 /* ความกว้างคอลัมน์ซ้ายของบล็อกจุดรับบริการ — ใช้ทั้งแถวหัว (จำนวน+stepper)
    และแถวรายห้อง (เลขลำดับ) ให้ช่องกรอกตรงกับป้ายเสมอ */
 const ROOM_LEFT_W = 200;
+/* คอลัมน์ขวาสุดของแถวจุดรับบริการ — stepper จำนวนเตียงสังเกตอาการ */
+const BED_COL_W = 176;
 
 /* nodes เก็บทั้งห้องตรวจและเตียงไว้ array เดียว แยกด้วย `kind` — ข้อมูลรุ่นเก่า
    ที่ยังไม่มี kind นับเป็นห้องตรวจ (ค่าเริ่มต้นของ createRoomNode) */
 const nodeKindOf = (n) => (n?.kind === 'bed' ? 'bed' : 'room');
 const nodesByKind = (u, kind) => (u?.nodes || []).filter((n) => nodeKindOf(n) === kind);
+
+/* เตียงรวมของแผนก/คลินิก = ผลรวมเตียงของทุกจุดรับบริการ + node ชนิด 'bed'
+   ยุคเดิมที่ตัวแก้ไขแบบละเอียดยังสร้างได้ (นับใบละ 1 เตียง) */
+const unitBedCount = (u) => (u?.nodes || []).reduce(
+  (sum, n) => sum + (nodeKindOf(n) === 'bed' ? 1 : (Number(n.beds) || 0)),
+  0,
+);
 
 /* ป้าย/placeholder ของสองชนิด — โครงแถวเหมือนกันเป๊ะ ต่างแค่คำ */
 const NODE_UI = {
@@ -227,13 +236,6 @@ const NODE_UI = {
     emptyLabel: 'ยังไม่มีจุดรับบริการ',
     namePlaceholder: (i) => `จุดรับบริการ ${i + 1}`,
     codePlaceholder: (i) => `R${i + 1}`,
-  },
-  bed: {
-    countLabel: 'จำนวนเตียงสังเกตอาการ',
-    nameLabel: 'ชื่อเตียงสังเกตอาการ',
-    emptyLabel: 'ยังไม่มีเตียงสังเกตอาการ',
-    namePlaceholder: (i) => `เตียง ${i + 1}`,
-    codePlaceholder: (i) => `B${i + 1}`,
   },
 };
 
@@ -405,97 +407,94 @@ function StructureUnitsBuilder({ units, onUnitsChange, onAdd, codeIssues }) {
               อยู่แถวเดียวกับช่องกรอกห้องแรก ไม่ลอยสูงกว่าคอลัมน์ขวา
               (25 ส.ค. 2569) — คอลัมน์ซ้ายกว้างคงที่ทุกแถวจึงตรงกันหมด
 
-              บล็อกเดียวกันนี้ใช้ซ้ำสองรอบ: จุดรับบริการ/ห้องตรวจ กับ
-              เตียงสังเกตอาการ (26 ส.ค. 2569 มติผู้ใช้) — รหัสยังห้ามซ้ำข้ามชนิด
-              ภายในแผนก/คลินิกเดียวกัน จึงใช้ nodeCodeError ตัวเดิม */}
-          {['room', 'bed'].map((kind) => {
-            const ui = NODE_UI[kind];
-            const list = nodesOf(u, kind);
-            return (
-              <div key={`${u.id}-${kind}`} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-                <div className='flex items-end w-full' style={{ gap: 'var(--dim-space-200)' }}>
-                  <span style={{ ...FIELD_LABEL, width: ROOM_LEFT_W, flexShrink: 0 }}>
-                    {ui.countLabel}
-                  </span>
-                  {/* ป้ายสองอันนี้โผล่ต่อเมื่อมีช่องกรอกจริงข้างล่าง (25 ส.ค. 2569) */}
-                  {list.length ? (
-                    <>
-                      <span className='flex-1 min-w-0' style={FIELD_LABEL}>{ui.nameLabel}</span>
-                      <span style={{ ...FIELD_LABEL, width: 120, flexShrink: 0 }}>รหัส</span>
-                    </>
-                  ) : null}
-                </div>
-
-                <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
+              เตียงสังเกตอาการผูกกับจุดรับบริการรายจุด (ช่องขวาสุดหลังรหัส) —
+              คนที่ตรวจเสร็จแล้วต้องนอนสังเกตอาการใช้เตียงของจุดที่ตรวจ ไม่ใช่
+              เตียงกลางของศูนย์ (26 ส.ค. 2569 มติผู้ใช้) */}
+          {(() => {
+            const ui = NODE_UI.room;
+            const list = nodesOf(u, 'room');
+            const row = (n, i) => (
+              <div key={n.id} className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
+                {i === 0 ? (
                   <div style={{ width: ROOM_LEFT_W, flexShrink: 0 }}>
                     <Stepper
                       size='large'
                       min={0}
                       max={30}
                       value={list.length}
-                      onChange={(n) => setNodeCount(u, kind, n == null ? 0 : n)}
+                      onChange={(v) => setNodeCount(u, 'room', v == null ? 0 : v)}
                       aria-label={ui.countLabel}
                     />
                   </div>
-                  {list.length ? (
-                    <>
-                      <div className='flex-1 min-w-0'>
-                        <InputField
-                          showLabel={false}
-                          showLeadingIcon={false}
-                          showHelperText={false}
-                          value={list[0].name}
-                          onChange={(v) => setNode(u, kind, 0, 'name', v)}
-                          placeholder={ui.namePlaceholder(0)}
-                        />
-                      </div>
-                      <div style={{ width: 120, flexShrink: 0 }}>
-                        <InputField
-                          showLabel={false}
-                          showLeadingIcon={false}
-                          showHelperText={false}
-                          error={nodeCodeError(u, list[0]) || undefined}
-                          value={list[0].code}
-                          onChange={(v) => setNode(u, kind, 0, 'code', v)}
-                          placeholder={ui.codePlaceholder(0)}
-                        />
-                      </div>
-                    </>
-                  ) : <div className='flex-1' />}
+                ) : <span style={{ width: ROOM_LEFT_W, flexShrink: 0 }} aria-hidden />}
+                <div className='flex-1 min-w-0'>
+                  <InputField
+                    showLabel={false}
+                    showLeadingIcon={false}
+                    showHelperText={false}
+                    value={n.name}
+                    onChange={(v) => setNode(u, 'room', i, 'name', v)}
+                    placeholder={ui.namePlaceholder(i)}
+                  />
                 </div>
-
-                {list.slice(1).map((n, k) => {
-                  const i = k + 1;
-                  return (
-                    <div key={n.id} className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
-                      <span style={{ width: ROOM_LEFT_W, flexShrink: 0 }} aria-hidden />
-                      <div className='flex-1 min-w-0'>
-                        <InputField
-                          showLabel={false}
-                          showLeadingIcon={false}
-                          showHelperText={false}
-                          value={n.name}
-                          onChange={(v) => setNode(u, kind, i, 'name', v)}
-                          placeholder={ui.namePlaceholder(i)}
-                        />
-                      </div>
-                      <div style={{ width: 120, flexShrink: 0 }}>
-                        <InputField
-                          showLabel={false}
-                          showLeadingIcon={false}
-                          showHelperText={false}
-                          error={nodeCodeError(u, n) || undefined}
-                          value={n.code}
-                          onChange={(v) => setNode(u, kind, i, 'code', v)}
-                          placeholder={ui.codePlaceholder(i)}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                <div style={{ width: 120, flexShrink: 0 }}>
+                  <InputField
+                    showLabel={false}
+                    showLeadingIcon={false}
+                    showHelperText={false}
+                    error={nodeCodeError(u, n) || undefined}
+                    value={n.code}
+                    onChange={(v) => setNode(u, 'room', i, 'code', v)}
+                    placeholder={ui.codePlaceholder(i)}
+                  />
+                </div>
+                <div style={{ width: BED_COL_W, flexShrink: 0 }}>
+                  <Stepper
+                    size='large'
+                    min={0}
+                    max={30}
+                    value={Number(n.beds) || 0}
+                    onChange={(v) => setNode(u, 'room', i, 'beds', v == null ? 0 : v)}
+                    aria-label={`จำนวนเตียงสังเกตอาการของ ${n.name || ui.namePlaceholder(i)}`}
+                  />
+                </div>
               </div>
             );
-          })}
+
+            return (
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+                <div className='flex items-end w-full' style={{ gap: 'var(--dim-space-200)' }}>
+                  <span style={{ ...FIELD_LABEL, width: ROOM_LEFT_W, flexShrink: 0 }}>
+                    {ui.countLabel}
+                  </span>
+                  {/* ป้ายอีกสามอันโผล่ต่อเมื่อมีช่องกรอกจริงข้างล่าง (25 ส.ค. 2569) */}
+                  {list.length ? (
+                    <>
+                      <span className='flex-1 min-w-0' style={FIELD_LABEL}>{ui.nameLabel}</span>
+                      <span style={{ ...FIELD_LABEL, width: 120, flexShrink: 0 }}>รหัส</span>
+                      <span style={{ ...FIELD_LABEL, width: BED_COL_W, flexShrink: 0 }}>จำนวนเตียงสังเกตอาการ</span>
+                    </>
+                  ) : null}
+                </div>
+
+                {list.length ? list.map(row) : (
+                  <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
+                    <div style={{ width: ROOM_LEFT_W, flexShrink: 0 }}>
+                      <Stepper
+                        size='large'
+                        min={0}
+                        max={30}
+                        value={0}
+                        onChange={(v) => setNodeCount(u, 'room', v == null ? 0 : v)}
+                        aria-label={ui.countLabel}
+                      />
+                    </div>
+                    <div className='flex-1' />
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       ))}
 
@@ -633,40 +632,36 @@ export function StructureReview({ name, units, counts, showName = true }) {
                 <ReviewField label='เวลาเปิด' value={openAt} />
                 <ReviewField label='เวลาปิด' value={closeAt} />
                 <ReviewField label='จำนวนจุดรับบริการ/ห้องตรวจ' value={String(nodesByKind(u, 'room').length)} />
-                <ReviewField label='จำนวนเตียงสังเกตอาการ' value={String(nodesByKind(u, 'bed').length)} />
+                <ReviewField label='จำนวนเตียงสังเกตอาการ' value={String(unitBedCount(u))} />
               </div>
 
-              {/* แยกรายการตามชนิด — ทบทวนแล้วเห็นชัดว่าอะไรเป็นห้องตรวจ อะไรเป็นเตียง
-                  ถ้าไม่มีทั้งสองชนิดจึงขึ้นข้อความว่าง (26 ส.ค. 2569) */}
-              {nodesByKind(u, 'room').length === 0 && nodesByKind(u, 'bed').length === 0 ? (
+              {/* รายการจุดรับบริการ + เตียงที่ผูกกับแต่ละจุด (26 ส.ค. 2569) */}
+              {nodesByKind(u, 'room').length === 0 ? (
                 <span style={{ ...REVIEW_VALUE, color: 'var(--text-content-tertiary)' }}>
-                  ยังไม่มีจุดรับบริการหรือเตียงสังเกตอาการ
+                  ยังไม่มีจุดรับบริการ
                 </span>
-              ) : ['room', 'bed'].map((kind) => {
-                const list = nodesByKind(u, kind);
-                if (!list.length) return null;
-                const ui = NODE_UI[kind];
-                return (
-                  <div key={`${u.id}-review-${kind}`} style={REVIEW_GRID}>
-                    <span aria-hidden />
-                    {/* ใช้ขนาดเดียวกับป้ายของ ReviewField (xs) — เดิมเป็น sm
-                        ทำให้สอง subtext ในการ์ดเดียวกันตัวไม่เท่ากัน (25 ส.ค. 2569) */}
-                    <span style={REVIEW_LABEL}>{ui.nameLabel}</span>
-                    <span style={REVIEW_LABEL}>รหัส</span>
-                    <span style={{ gridColumn: 'span 3' }} aria-hidden />
-                    {list.map((n, j) => (
-                      <React.Fragment key={n.id}>
-                        <span style={{ ...REVIEW_VALUE, color: 'var(--text-content-tertiary)', textAlign: 'right' }}>
-                          {`${j + 1}.`}
-                        </span>
-                        <span style={REVIEW_VALUE}>{n.name || ui.namePlaceholder(j)}</span>
-                        <span style={REVIEW_VALUE}>{n.code || '—'}</span>
-                        <span style={{ gridColumn: 'span 3' }} aria-hidden />
-                      </React.Fragment>
-                    ))}
-                  </div>
-                );
-              })}
+              ) : (
+                <div style={REVIEW_GRID}>
+                  <span aria-hidden />
+                  {/* ใช้ขนาดเดียวกับป้ายของ ReviewField (xs) — เดิมเป็น sm
+                      ทำให้สอง subtext ในการ์ดเดียวกันตัวไม่เท่ากัน (25 ส.ค. 2569) */}
+                  <span style={REVIEW_LABEL}>{NODE_UI.room.nameLabel}</span>
+                  <span style={REVIEW_LABEL}>รหัส</span>
+                  <span style={REVIEW_LABEL}>เตียงสังเกตอาการ</span>
+                  <span style={{ gridColumn: 'span 2' }} aria-hidden />
+                  {nodesByKind(u, 'room').map((n, j) => (
+                    <React.Fragment key={n.id}>
+                      <span style={{ ...REVIEW_VALUE, color: 'var(--text-content-tertiary)', textAlign: 'right' }}>
+                        {`${j + 1}.`}
+                      </span>
+                      <span style={REVIEW_VALUE}>{n.name || NODE_UI.room.namePlaceholder(j)}</span>
+                      <span style={REVIEW_VALUE}>{n.code || '—'}</span>
+                      <span style={REVIEW_VALUE}>{Number(n.beds) > 0 ? `${n.beds} เตียง` : '—'}</span>
+                      <span style={{ gridColumn: 'span 2' }} aria-hidden />
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}

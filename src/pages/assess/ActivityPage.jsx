@@ -12,7 +12,6 @@ import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
-import BrandIconButton from '@/components/button/BrandIconButton';
 import NeutralIconButton from '@/components/button/NeutralIconButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
@@ -24,6 +23,7 @@ import AlertDialog from '@/components/popup/AlertDialog';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
+import InlineNameEditor from '@/components/forms/InlineNameEditor';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import {
   readActivities,
@@ -173,41 +173,6 @@ function EmptyIllustration({ size = 160, ariaLabel = 'ยังไม่มี G
     return <span style={{ width: size, height: size }} aria-hidden />;
   }
   return <LottieIllustration animationData={anim} size={size} loop ariaLabel={ariaLabel} />;
-}
-
-/* แก้ชื่อ inline — Enter/ปุ่ม ✓ บันทึก · Esc/ปุ่ม ✕ ยกเลิก.
-   onSave คืน true = สำเร็จ (ปิดโหมดแก้) · false = ไม่ผ่าน validation (แก้ต่อ) */
-function InlineNameEditor({ initial, onSave, onCancel, ariaLabel }) {
-  const [draft, setDraft] = useState(initial);
-  const submit = (e) => {
-    e.preventDefault();
-    onSave(draft);
-  };
-  return (
-    <form
-      onSubmit={submit}
-      onKeyDown={(e) => { if (e.key === 'Escape') onCancel(); }}
-      className='inline-flex items-center'
-      style={{ gap: 'var(--dim-space-200)', minWidth: 240 }}
-    >
-      <InputField
-        autoFocus
-        showLabel={false}
-        showHelperText={false}
-        showLeadingIcon={false}
-        size='medium'
-        value={draft}
-        onChange={setDraft}
-        aria-label={ariaLabel}
-      />
-      {/* ปุ่ม alias จาก DS Icon Button ขนาดเท่ากัน (sm 36×36) —
-          ✓ Brand fill (ยืนยัน) · ✕ Neutral Subdue outline */}
-      <BrandIconButton icon='check' variant='fill' size='sm' aria-label='บันทึกชื่อ' onClick={submit} />
-      <NeutralSubdueIconButton variant='outline' size='sm' aria-label='ยกเลิกการแก้ไขชื่อ' onClick={onCancel}>
-        <Icon name='close' size={16} />
-      </NeutralSubdueIconButton>
-    </form>
-  );
 }
 
 function ActivitySection({
