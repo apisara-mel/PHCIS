@@ -610,7 +610,41 @@ export default function AccessControlCreatePage({
     );
   }
 
-  const saveDisabled = !nameValid || !scopeValid || !!dateRangeError;
+  /* โหมดแก้ไข: ถ้าไม่มีอะไรเปลี่ยนเลย ไม่ให้กดบันทึก — กันออกเวอร์ชันใหม่ทั้งที่
+     เนื้อหาเหมือนเดิม (26 ส.ค. 2569 มติผู้ใช้) */
+  const dirty = useMemo(() => {
+    if (!existing) return true;
+    const now = {
+      templateName: templateName.trim(),
+      description: description.trim(),
+      dataScope,
+      piiVisibility,
+      effectiveFrom,
+      effectiveTo,
+      dailyFrom,
+      dailyTo,
+      followCenterHours: !!followCenterHours,
+      approvalNote: approvalNote.trim(),
+      permissions,
+    };
+    const before = {
+      templateName: String(existing.templateName || '').trim(),
+      description: String(existing.description || '').trim(),
+      dataScope: existing.dataScope || SCOPE_CENTER,
+      piiVisibility: existing.piiVisibility || PII_VISIBLE,
+      effectiveFrom: existing.effectiveFrom || '',
+      effectiveTo: existing.effectiveTo || '',
+      dailyFrom: existing.dailyFrom || '',
+      dailyTo: existing.dailyTo || '',
+      followCenterHours: !!existing.followCenterHours,
+      approvalNote: String(existing.approvalNote || '').trim(),
+      permissions: { ...defaultPermissions(), ...existing.permissions },
+    };
+    return JSON.stringify(now) !== JSON.stringify(before);
+  }, [existing, templateName, description, dataScope, piiVisibility, effectiveFrom,
+    effectiveTo, dailyFrom, dailyTo, followCenterHours, approvalNote, permissions]);
+
+  const saveDisabled = !nameValid || !scopeValid || !dirty || !!dateRangeError;
   const submitLabel = isEdit ? `ส่งขออนุมัติ ${formatVersion(nextVersion)}` : 'ส่งขออนุมัติสิทธิ์';
 
   /* ป๊อปอัปเดินเป็น step — ฟอร์มเดียวยาว 3 การ์ดกดยากบนจอเล็ก และการตั้งสิทธิ์
@@ -905,7 +939,9 @@ export default function AccessControlCreatePage({
           onClose={leaveForm}
           size='extraLarge'
           title={isEdit ? 'แก้ไขสิทธิ์การเข้าถึงระบบ' : 'เพิ่มสิทธิ์การเข้าถึงระบบ'}
-          subtitle={isEdit ? `เวอร์ชันปัจจุบัน ${formatVersion(currentVersion)}` : undefined}
+          subtitle={isEdit
+            ? `เวอร์ชันปัจจุบัน ${formatVersion(currentVersion)}${dirty ? '' : ' · ยังไม่มีการแก้ไข'}`
+            : undefined}
           headerCenter={(
             <StepProgress
               steps={ACCESS_FORM_STEPS.map((st) => st.label)}
