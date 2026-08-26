@@ -118,9 +118,12 @@ const LayoutPreview = ({ columns, selected }) => {
   );
 };
 
-const layoutColumns = (key) => (DASHBOARD_LAYOUTS.find((l) => l.key === key) || DASHBOARD_LAYOUTS[1]).columns;
-const widgetMeta = (type) => WIDGET_TYPES.find((w) => w.key === type) || {};
-const datasetLabel = (key) => (WIDGET_DATASETS.find((d) => d.key === key) || {}).label || key;
+/* helper เดิมเป็น module-level ผูกกับ catalog ของความยินยอมตรง ๆ — ย้ายมารับ
+   catalog เป็นอาร์กิวเมนต์ เพื่อให้แดชบอร์ดจัดการระบบใช้ป๊อปอัปตัวเดียวกันได้
+   (26 ส.ค. 2569 มติผู้ใช้ — "นำปุ่ม template ไปใส่ในแดชบอร์ดจัดการระบบด้วย") */
+const columnsOf = (layouts, key) => (layouts.find((l) => l.key === key) || layouts[1] || layouts[0]).columns;
+const metaOf = (types, type) => types.find((w) => w.key === type) || {};
+const labelOfDataset = (datasets, key) => (datasets.find((d) => d.key === key) || {}).label || key;
 
 let WIDGET_SEQ = 100;
 const newWidgetId = () => `w${++WIDGET_SEQ}`;
@@ -134,7 +137,23 @@ const STEPS = [
 
 const emptyDraft = () => ({ id: null, name: '', layout: 'three', widgets: [] });
 
-export default function ConsentDashboardTemplatePopup({ open, onClose, onSaved }) {
+export default function ConsentDashboardTemplatePopup({
+  open,
+  onClose,
+  onSaved,
+  /* catalog + ตัวเรนเดอร์ตัวอย่าง — ไม่ส่งมา = ใช้ของระบบความยินยอมเหมือนเดิม */
+  layouts = DASHBOARD_LAYOUTS,
+  widgetTypes = WIDGET_TYPES,
+  datasets = WIDGET_DATASETS,
+  typeDatasets = WIDGET_TYPE_DATASETS,
+  defaultSpan = WIDGET_DEFAULT_SPAN,
+  onSaveTemplate = saveDashboardTemplate,
+  fallbackDataset = 'records',
+  renderPreview,
+}) {
+  const layoutColumns = (key) => columnsOf(layouts, key);
+  const widgetMeta = (type) => metaOf(widgetTypes, type);
+  const datasetLabel = (key) => labelOfDataset(datasets, key);
   const bodyRef = useRef(null);
   const [draft, setDraft] = useState(emptyDraft);
   const [nameError, setNameError] = useState('');
@@ -155,7 +174,7 @@ export default function ConsentDashboardTemplatePopup({ open, onClose, onSaved }
 
   const addWidget = (type) => {
     const meta = widgetMeta(type);
-    const allowed = WIDGET_TYPE_DATASETS[type] || ['records'];
+    const allowed = typeDatasets[type] || [fallbackDataset];
     setDraft((d) => ({
       ...d,
       widgets: [...d.widgets, {
@@ -163,7 +182,7 @@ export default function ConsentDashboardTemplatePopup({ open, onClose, onSaved }
         type,
         title: meta.label || 'ข้อมูล',
         dataset: allowed[0],
-        span: Math.min(WIDGET_DEFAULT_SPAN[type] || 1, layoutColumns(d.layout)),
+        span: Math.min(defaultSpan[type] || 1, layoutColumns(d.layout)),
       }],
     }));
   };
@@ -176,7 +195,7 @@ export default function ConsentDashboardTemplatePopup({ open, onClose, onSaved }
   /* เปลี่ยนชนิดการ์ด — ต้องรีเซ็ต dataset เป็นชุดแรกที่ชนิดใหม่รองรับ
      ไม่งั้นจะค้าง dataset ที่ชนิดใหม่เรนเดอร์ไม่ได้ (เช่น bars + access) */
   const changeWidgetType = (id, type) => {
-    const allowed = WIDGET_TYPE_DATASETS[type] || ['records'];
+    const allowed = typeDatasets[type] || [fallbackDataset];
     setDraft((d) => ({
       ...d,
       widgets: d.widgets.map((w) => (w.id === id ? {
@@ -218,7 +237,7 @@ export default function ConsentDashboardTemplatePopup({ open, onClose, onSaved }
     }
     const isEdit = Boolean(draft.id);
     const savedName = draft.name.trim();
-    saveDashboardTemplate({ ...draft, name: savedName });
+    onSaveTemplate({ ...draft, name: savedName });
     setDraft(emptyDraft());
     setStep(0);
     /* บันทึกแล้วปิดป๊อปอัปทันที แล้วให้หน้าแดชบอร์ดขึ้นจอ success ต่อ */
@@ -303,7 +322,7 @@ export default function ConsentDashboardTemplatePopup({ open, onClose, onSaved }
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
           <span style={{ ...BODY_TEXT, fontWeight: 'var(--type-weight-medium)' }}>เค้าโครงหน้าจอ</span>
           <div className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-            {DASHBOARD_LAYOUTS.map((l) => (
+            {layouts.map((l) => (
               <div key={l.key} style={{ flex: '0 0 var(--dim-size-2450, 280px)', minWidth: 0 }}>
                 <SelectableCardButton
                   className='w-full'
@@ -394,7 +413,7 @@ export default function ConsentDashboardTemplatePopup({ open, onClose, onSaved }
                 <div style={{ flex: '1 1 var(--dim-size-2100, 160px)', minWidth: 0 }}>
                   <Select
                     label='ชนิดการ์ด'
-                    options={WIDGET_TYPES.map((t) => ({ value: t.key, label: t.label }))}
+                    options={widgetTypes.map((t) => ({ value: t.key, label: t.label }))}
                     value={w.type}
                     onChange={(v) => changeWidgetType(w.id, v)}
                     searchable={false}
@@ -405,7 +424,7 @@ export default function ConsentDashboardTemplatePopup({ open, onClose, onSaved }
                 <div style={{ flex: '1 1 var(--dim-size-2100, 160px)', minWidth: 0 }}>
                   <Select
                     label='ข้อมูลที่ผูก'
-                    options={(WIDGET_TYPE_DATASETS[w.type] || ['records']).map((k) => ({ value: k, label: datasetLabel(k) }))}
+                    options={(typeDatasets[w.type] || [fallbackDataset]).map((k) => ({ value: k, label: datasetLabel(k) }))}
                     value={w.dataset}
                     onChange={(v) => updateWidget(w.id, { dataset: v })}
                     searchable={false}
@@ -501,7 +520,9 @@ export default function ConsentDashboardTemplatePopup({ open, onClose, onSaved }
                 }}
               >
                 <span style={{ ...BODY_TEXT, fontWeight: 'var(--type-weight-medium)' }}>{w.title}</span>
-                <ConsentDashboardWidget widget={w} ctx={ctx} compact={(w.span || 1) < 2} />
+                {renderPreview
+                  ? renderPreview(w, (w.span || 1) < 2)
+                  : <ConsentDashboardWidget widget={w} ctx={ctx} compact={(w.span || 1) < 2} />}
               </div>
             ))}
           </div>
@@ -528,7 +549,7 @@ export default function ConsentDashboardTemplatePopup({ open, onClose, onSaved }
         gap: 'var(--dim-space-300)',
       }}
     >
-      {WIDGET_TYPES.map((w) => {
+      {widgetTypes.map((w) => {
         const used = draft.widgets.filter((x) => x.type === w.key).length;
         return (
           <button

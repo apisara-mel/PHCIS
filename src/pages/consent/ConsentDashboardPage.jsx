@@ -208,9 +208,6 @@ export default function ConsentDashboardPage() {
           <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
             <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)', flex: '1 1 auto', minWidth: 0 }}>
               <h2 style={{ ...TITLE_TEXT, margin: 0 }}>{activeTemplate?.name || 'แดชบอร์ด'}</h2>
-              <ColorfulBadge style='indigo' size='small' hierarchy='secondary' width='hug'>
-                {`${activeTemplate?.widgets?.length || 0} การ์ด · ${templateColumns} โซนต่อแถว`}
-              </ColorfulBadge>
             </div>
             {statusShareReport && (
               <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
