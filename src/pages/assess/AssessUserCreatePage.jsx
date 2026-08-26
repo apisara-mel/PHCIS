@@ -9,6 +9,7 @@ import PhotoUploadField from '@/components/forms/PhotoUploadField';
 import Footer from '@/components/layout/Footer';
 import SuccessScreen from '@/components/layout/SuccessScreen';
 import BrandButton from '@/components/button/BrandButton';
+import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import DangerSubdueIconButton from '@/components/button/DangerSubdueIconButton';
 import Switch from '@/components/switch/Switch';
@@ -180,6 +181,7 @@ export default function AssessUserCreatePage({
   const existing = useMemo(() => (id ? findAssessUser(id) : null), [id]);
 
   const [step, setStep] = useState('personal');
+  const [showCodeList, setShowCodeList] = useState(false);
   /* ออกจากฟอร์ม — ป๊อปอัปปิดตัวเอง หน้าเต็มกลับไปทะเบียน */
   const leaveForm = () => {
     if (asPopup) { onClose?.(); return; }
@@ -336,7 +338,14 @@ export default function AssessUserCreatePage({
   };
 
   /* อีเมลบังคับกรอก **และ** ต้องถูกรูปแบบ ไม่งั้นข้ามไป step ถัดไปไม่ได้ */
-  const personalValid = personal.employeeCode.trim() && personal.firstName.trim()
+  /* รหัสพนักงานต้องไม่ซ้ำกับคนอื่นในทะเบียน (ตัวพิมพ์ใหญ่เล็กไม่ต่างกัน) */
+  const employeeCodeKey = personal.employeeCode.trim().toLowerCase();
+  const employeeCodeDuplicate = !!employeeCodeKey && allUsers.some((u) => (
+    u.id !== existing?.id && String(u.employeeCode || '').trim().toLowerCase() === employeeCodeKey
+  ));
+  const employeeCodeError = employeeCodeDuplicate ? 'รหัสพนักงานนี้ถูกใช้แล้ว' : '';
+
+  const personalValid = !employeeCodeDuplicate && personal.employeeCode.trim() && personal.firstName.trim()
     && personal.lastName.trim() && personal.nationalId.trim()
     && personal.email.trim() && isValidEmail(personal.email);
 
@@ -462,96 +471,53 @@ export default function AssessUserCreatePage({
     />
   );
 
+  const codeListPopup = (
+    <Popup
+      open={showCodeList}
+      onClose={() => setShowCodeList(false)}
+      size='large'
+      title='รหัสพนักงานที่มีอยู่แล้ว'
+      subtitle={`${allUsers.length} รายการในทะเบียนบุคลากร`}
+      tertiaryAction={{ label: 'ปิด', onClick: () => setShowCodeList(false) }}
+    >
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+        {allUsers.length === 0 ? (
+          <span style={{ ...VALUE, color: 'var(--text-content-tertiary)' }}>ยังไม่มีบุคลากรในทะเบียน</span>
+        ) : allUsers.map((u) => (
+          <div key={u.id} className='flex items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
+            <span style={{ ...VALUE, width: 160, flexShrink: 0 }}>{u.employeeCode || '—'}</span>
+            <span className='truncate' style={{ ...VALUE, flex: '1 1 auto', minWidth: 0 }}>{fullName(u)}</span>
+          </div>
+        ))}
+      </div>
+    </Popup>
+  );
+
   const formBody = (
         <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-300)', paddingBottom: 'var(--dim-space-900)' }}>
-          {/* โหมดเพิ่มบุคลากร — แยก "สร้างใหม่" vs "เลือกจากระบบ" ให้ชัดตั้งแต่ต้น
-              เลือกคนเดิมแล้วเห็นสิทธิ์กิจกรรมที่มีอยู่ทันที กันให้สิทธิ์ซ้ำซ้อน */}
-          {!isEdit && step === 'personal' && (
-            <section className='flex flex-col w-full' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
-              <TopicHeader
-                icon='person_add'
-                title='เลือกวิธีเพิ่มบุคลากร'
-                subtitle='สร้างบุคลากรใหม่ หรือเลือกบุคลากรเดิมจากระบบเพื่อเพิ่ม/ปรับสิทธิ์กิจกรรม'
-              />
-              <div className='flex flex-wrap items-start' style={{ gap: 'var(--dim-space-600)' }}>
-                <Radio
-                  name='assess-user-entry-mode'
-                  value='new'
-                  checked={entryMode === 'new'}
-                  onChange={() => { setEntryMode('new'); setPickedUserId(''); }}
-                  label='สร้างบุคลากรใหม่'
-                  description='กรอกข้อมูลบุคลากรที่ยังไม่เคยมีในระบบ'
-                />
-                <Radio
-                  name='assess-user-entry-mode'
-                  value='existing'
-                  checked={entryMode === 'existing'}
-                  onChange={() => setEntryMode('existing')}
-                  label='เลือกบุคลากรเดิมจากระบบ'
-                  description='ค้นหาด้วยชื่อ รหัสพนักงาน หรือเลขวิชาชีพ แล้วปรับสิทธิ์ของคนเดิม'
-                />
-              </div>
-              {entryMode === 'existing' && (
-                <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)', maxWidth: 480 }}>
-                  <Select
-                    label='ค้นหาบุคลากรเดิม'
-                    options={userPickOpts}
-                    value={pickedUserId}
-                    onChange={setPickedUserId}
-                    searchable
-                    placeholder='พิมพ์ชื่อ / รหัสพนักงาน / เลขวิชาชีพ'
-                    helperText={allUsers.length ? 'ระบบจะเติมข้อมูลและสิทธิ์เดิมของบุคลากรให้อัตโนมัติ' : 'ยังไม่มีบุคลากรในระบบ — สลับไป "สร้างบุคลากรใหม่"'}
-                  />
-                  {pickedUser ? (
-                    <div
-                      className='flex flex-col'
-                      style={{
-                        gap: 'var(--dim-space-200)',
-                        padding: 'var(--dim-space-400)',
-                        background: 'var(--surface-brandPrimary-quaternary)',
-                        border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-                        borderRadius: 'var(--dim-radius-400)',
-                      }}
-                    >
-                      <span style={LABEL}>สิทธิ์กิจกรรมเดิมของ {fullName(pickedUser)}</span>
-                      {(pickedUser.assignments || []).filter((a) => a.activity).length ? (
-                        <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-                          {(pickedUser.assignments || []).filter((a) => a.activity).map((a) => (
-                            <ColorfulBadge key={a.id} style='teal' size='small' hierarchy='secondary' width='hug'>
-                              {[a.activity, a.subActivity, a.center].filter(Boolean).join(' · ')}
-                            </ColorfulBadge>
-                          ))}
-                        </div>
-                      ) : (
-                        <span style={VALUE}>ยังไม่มีสิทธิ์กิจกรรม — เพิ่มได้ใน step หน่วยงานและตำแหน่ง</span>
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </section>
-          )}
+          {/* การ์ด "เลือกวิธีเพิ่มบุคลากร" ถอดออก 26 ส.ค. 2569 (มติผู้ใช้) — ฟอร์มนี้
+              คือการสร้างบุคลากรใหม่เสมอ ส่วนการปรับสิทธิ์คนเดิมทำที่หน้ารายละเอียด */}
           {step === 'personal' && (
             <section className='flex flex-col w-full' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
               <TopicHeader icon='face' title='ข้อมูลส่วนตัว' subtitle='กรอกข้อมูลส่วนตัวของบุคลากร' />
               {/* รูปโปรไฟล์ — ใช้ระบุตัวบุคลากรในจอคิว/ตารางเวร และหน้าโปรไฟล์
                   (26 ส.ค. 2569 มติผู้ใช้) เก็บเป็น data URL เหมือนลายเซ็น */}
               <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-                <span
-                  className='inline-flex items-center justify-center shrink-0 overflow-hidden'
-                  style={{
-                    width: 88,
-                    height: 88,
-                    borderRadius: '50%',
-                    background: 'var(--surface-neutral-quaternary, #F9FBFB)',
-                    border: 'var(--dim-stroke-100) solid var(--border-card-default)',
-                    color: 'var(--icon-neutral-tertiary, #ADB2B7)',
-                  }}
-                >
-                  {personal.photo
-                    ? <img src={personal.photo} alt='' style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <Icon name='person' size={36} />}
-                </span>
+                {/* ไม่มีวงกลมพรีวิวว่าง ๆ ตอนยังไม่ได้อัปโหลด (26 ส.ค. 2569 มติผู้ใช้)
+                    — โชว์รูปจริงต่อเมื่อมีรูปแล้วเท่านั้น */}
+                {personal.photo ? (
+                  <span
+                    className='inline-flex items-center justify-center shrink-0 overflow-hidden'
+                    style={{
+                      width: 88,
+                      height: 88,
+                      borderRadius: '50%',
+                      border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+                    }}
+                  >
+                    <img src={personal.photo} alt='' style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </span>
+                ) : null}
                 <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
                   <PhotoUploadField
                     label={personal.photo ? 'เปลี่ยนรูปโปรไฟล์' : 'อัปโหลดรูปโปรไฟล์'}
@@ -568,7 +534,7 @@ export default function AssessUserCreatePage({
                   </span>
                 </div>
               </div>
-              <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+              <div className='flex flex-wrap items-start' style={{ gap: 'var(--dim-space-400)' }}>
                 <div style={{ flex: '1 1 240px', minWidth: 220 }}>
                   <InputField
                     label='รหัสพนักงาน'
@@ -576,8 +542,21 @@ export default function AssessUserCreatePage({
                     value={personal.employeeCode}
                     onChange={setField('employeeCode')}
                     placeholder='เช่น EMP-00412'
-                    helperText='รหัสประจำตัวบุคลากรของสำนักอนามัย ต้องไม่ซ้ำกับผู้อื่น'
+                    error={employeeCodeError || undefined}
+                    helperText={employeeCodeError || 'รหัสประจำตัวบุคลากรของสำนักอนามัย ต้องไม่ซ้ำกับผู้อื่น'}
                   />
+                </div>
+                {/* ดูรหัสที่ใช้ไปแล้วก่อนตั้งรหัสใหม่ — กันตั้งซ้ำแล้วค่อยมารู้ตอนบันทึก
+                    (26 ส.ค. 2569 มติผู้ใช้) แบบเดียวกับ "รหัสที่มีอยู่แล้ว" ของหน้าศูนย์ */}
+                <div style={{ paddingTop: 'var(--dim-space-700, 28px)' }}>
+                  <NeutralSubdueButton
+                    leadingIcon='list'
+                    variant='outline'
+                    size='md'
+                    onClick={() => setShowCodeList(true)}
+                  >
+                    ดูรหัสพนักงานที่มีอยู่แล้ว
+                  </NeutralSubdueButton>
                 </div>
               </div>
               <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
@@ -908,6 +887,8 @@ export default function AssessUserCreatePage({
           {formBody}
         </Popup>
         {confirmDialog}
+      {codeListPopup}
+        {codeListPopup}
       </>
     );
   }
