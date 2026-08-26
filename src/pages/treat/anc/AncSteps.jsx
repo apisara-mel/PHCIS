@@ -1072,7 +1072,7 @@ export const AncStep3Examination = ({ form, setForm, ancHn, cardPatient }) => {
             />
           </Field>
         </div>
-        {gaMismatch && (
+        {gaMismatch > 0 && (
           <ColorfulBadge style='yellow' size='small' hierarchy='secondary' width='hug' maxWidth={640}>
             อายุครรภ์จากการตรวจครรภ์ต่างจาก LMP {gaMismatch} สัปดาห์ — พิจารณาภาวะเสี่ยงข้อ 14 (ขนาดมดลูกไม่สัมพันธ์กับอายุครรภ์)
           </ColorfulBadge>
