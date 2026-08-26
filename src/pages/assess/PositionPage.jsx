@@ -74,7 +74,9 @@ const DATA_CELL_OFF = {
   showButton3: false,
 };
 
-const COL_W = { order: 80, status: 160, action: 96 };
+/* คอลัมน์การดำเนินการต้องกว้างพอให้หัวคอลัมน์ "การดำเนินการ" ขึ้นครบไม่ถูกตัด
+   (26 ส.ค. 2569 มติผู้ใช้) — ตอนถอดปุ่ม "แก้ไข" ออกไปเคยหด 96 จนหัวโดนตัด */
+const COL_W = { order: 80, status: 160, action: 152 };
 const DRAG_COL_W = 40;
 
 const STATUS_OPTIONS = [
@@ -555,15 +557,6 @@ export default function PositionPage() {
                     {positions.length} ตำแหน่ง
                   </ColorfulBadge>
                 </div>
-                <NeutralSubdueButton
-                  variant='outline'
-                  size='sm'
-                  leadingIcon={editMode ? 'check' : undefined}
-                  leadingIconElement={editMode ? undefined : <Edit3LeadingIcon />}
-                  onClick={() => setEditMode((v) => !v)}
-                >
-                  {editMode ? 'เสร็จสิ้น' : 'แก้ไขลำดับ'}
-                </NeutralSubdueButton>
               </div>
 
               <SmoothFilterResults opaque={resultsOpaque}>

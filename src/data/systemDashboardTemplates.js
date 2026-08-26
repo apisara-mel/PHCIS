@@ -54,6 +54,9 @@ const STANDARD_TEMPLATE = {
   updatedAt: '26 สิงหาคม 2569',
   updatedBy: 'ระบบ',
   widgets: [
+    /* การ์ด KPI อยู่ในเทมเพลตด้วย (ไม่ใช่แถบลอยเหนือการ์ด) — ทั้งหน้าจอจึงถูก
+       เทมเพลตคุมทั้งก้อนเหมือนแดชบอร์ดความยินยอม (26 ส.ค. 2569 มติผู้ใช้) */
+    { id: 'sw0', type: 'stat',  title: 'สรุปภาพรวมระบบ', dataset: 'registries', span: 3 },
     { id: 'sw1', type: 'donut', title: 'สถานะการอนุมัติแม่แบบสิทธิ์', dataset: 'access', span: 1 },
     { id: 'sw2', type: 'donut', title: 'บุคลากรตามตำแหน่ง',        dataset: 'staff-position', span: 1 },
     { id: 'sw3', type: 'hbar',  title: 'บุคลากรตามศูนย์บริการ',      dataset: 'staff-center', span: 1 },

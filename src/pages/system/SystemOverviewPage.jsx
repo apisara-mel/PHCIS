@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
-import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import Table from '@/components/table/Table';
 import Select from '@/components/forms/Select';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -515,11 +514,6 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
             นำส่งออกรายงาน
           </NeutralSubdueButton>
         </>
-      )}
-      headerInfo={(
-        <section className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-          {kpiCards.map((c) => <SummaryCard key={c.key} card={c} variant='panel' />)}
-        </section>
       )}
     >
       <div

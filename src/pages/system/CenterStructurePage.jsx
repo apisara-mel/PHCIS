@@ -8,7 +8,6 @@ import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import SuccessToast from '@/components/toast/SuccessToast';
-import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import AlertDialog from '@/components/popup/AlertDialog';
 import CenterStructurePopup from '@/pages/system/CenterStructurePopup';
 import Popup from '@/components/popup/Popup';
@@ -190,9 +189,9 @@ export default function CenterStructurePage() {
           <NeutralSubdueButton leadingIcon='content_copy' size='sm' onClick={() => handleDuplicate(row)}>
             ทำสำเนา
           </NeutralSubdueButton>
-          <DangerSubdueButton leadingIcon='delete' variant='ghost' size='sm' onClick={() => setRemoving(row)}>
+          <NeutralSubdueButton leadingIcon='delete' variant='outline' size='sm' onClick={() => setRemoving(row)}>
             ลบ
-          </DangerSubdueButton>
+          </NeutralSubdueButton>
         </span>
       ),
     },
