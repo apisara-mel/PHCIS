@@ -6,6 +6,7 @@ import Select from '@/components/forms/Select';
 import InputField from '@/components/forms/InputField';
 import Icon from '@/components/icons/Icon';
 import PhotoUploadField from '@/components/forms/PhotoUploadField';
+import DatePicker from '@/components/forms/DatePicker';
 import Footer from '@/components/layout/Footer';
 import SuccessScreen from '@/components/layout/SuccessScreen';
 import BrandButton from '@/components/button/BrandButton';
@@ -91,6 +92,48 @@ const CELL_TEXT = {
   fontSize: 'var(--type-size-sm)',
   fontWeight: 'var(--type-weight-regular)',
   lineHeight: 1.5,
+};
+
+/* ติ๊กถูกสีเขียวท้ายช่องกรอก — บอกว่าค่าที่พิมพ์ไม่ซ้ำกับทะเบียนที่มีอยู่
+   (ชุดเดียวกับฟอร์มเพิ่มศูนย์บริการ) */
+function UniqueTick({ label }) {
+  return (
+    <span className='inline-flex items-center' role='img' aria-label={label} title={label}>
+      <Icon name='check_circle' size={20} color='var(--icon-positive-success, #24A899)' />
+    </span>
+  );
+}
+
+/* อายุจากวันเกิด — คืน "ปี-เดือน-วัน" ตามรูปแบบที่ทะเบียนใช้อยู่
+   (ยืมวันสิ้นเดือนของเดือนก่อนหน้ามาเติมเมื่อวันเกิดมากกว่าวันปัจจุบัน) */
+function ageFromBirthDate(iso) {
+  if (!iso) return '';
+  const birth = new Date(iso);
+  if (Number.isNaN(birth.getTime())) return '';
+  const now = new Date();
+  if (birth > now) return '';
+  let years = now.getFullYear() - birth.getFullYear();
+  let months = now.getMonth() - birth.getMonth();
+  let days = now.getDate() - birth.getDate();
+  if (days < 0) {
+    months -= 1;
+    days += new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+  }
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+  return `${years}-${months}-${days}`;
+}
+
+/* ข้อมูลส่วนตัวจัดเป็นกริด 3 คอลัมน์คงที่ — เดิมแต่ละแถวเป็น flex-wrap ที่มี
+   flex-basis ต่างกัน ช่องกรอกจึงกว้างไม่เท่ากันและไม่ตรงคอลัมน์กันเลย
+   (26 ส.ค. 2569 มติผู้ใช้ — "จัด alignment ให้ดูง่าย") */
+const FIELD_GRID = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 'var(--dim-space-400)',
+  alignItems: 'start',
 };
 
 const LABEL = {
@@ -344,6 +387,7 @@ export default function AssessUserCreatePage({
     u.id !== existing?.id && String(u.employeeCode || '').trim().toLowerCase() === employeeCodeKey
   ));
   const employeeCodeError = employeeCodeDuplicate ? 'รหัสพนักงานนี้ถูกใช้แล้ว' : '';
+  const employeeCodeUnique = !!employeeCodeKey && !employeeCodeDuplicate;
 
   const personalValid = !employeeCodeDuplicate && personal.employeeCode.trim() && personal.firstName.trim()
     && personal.lastName.trim() && personal.nationalId.trim()
@@ -534,8 +578,10 @@ export default function AssessUserCreatePage({
                   </span>
                 </div>
               </div>
-              <div className='flex flex-wrap items-start' style={{ gap: 'var(--dim-space-400)' }}>
-                <div style={{ flex: '1 1 240px', minWidth: 220 }}>
+              {/* ปุ่มดูรหัสอยู่ติดกล่องรหัส ไม่ลอยไปชิดขอบขวา และมีติ๊กถูกสีเขียวบอกว่า
+                  รหัสนี้ยังไม่ถูกใช้ แบบเดียวกับฟอร์มเพิ่มศูนย์บริการ (26 ส.ค. 2569) */}
+              <div className='flex flex-wrap items-start' style={{ gap: 'var(--dim-space-300)' }}>
+                <div style={{ width: 320, maxWidth: '100%' }}>
                   <InputField
                     label='รหัสพนักงาน'
                     required
@@ -544,10 +590,9 @@ export default function AssessUserCreatePage({
                     placeholder='เช่น EMP-00412'
                     error={employeeCodeError || undefined}
                     helperText={employeeCodeError || 'รหัสประจำตัวบุคลากรของสำนักอนามัย ต้องไม่ซ้ำกับผู้อื่น'}
+                    trailing={employeeCodeUnique ? <UniqueTick label='รหัสนี้ยังไม่ถูกใช้' /> : undefined}
                   />
                 </div>
-                {/* ดูรหัสที่ใช้ไปแล้วก่อนตั้งรหัสใหม่ — กันตั้งซ้ำแล้วค่อยมารู้ตอนบันทึก
-                    (26 ส.ค. 2569 มติผู้ใช้) แบบเดียวกับ "รหัสที่มีอยู่แล้ว" ของหน้าศูนย์ */}
                 <div style={{ paddingTop: 'var(--dim-space-700, 28px)' }}>
                   <NeutralSubdueButton
                     leadingIcon='list'
@@ -559,52 +604,66 @@ export default function AssessUserCreatePage({
                   </NeutralSubdueButton>
                 </div>
               </div>
-              <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-                <div style={{ flex: '1 1 140px', minWidth: 140 }}>
+              <div style={FIELD_GRID}>
+                <div>
                   <Select label='คำนำหน้า' options={TITLE_OPTIONS} value={personal.title} onChange={setField('title')} searchable={false} />
                 </div>
-                <div style={{ flex: '1 1 200px', minWidth: 180 }}>
+                <div>
                   <InputField label='ชื่อ' required value={personal.firstName} onChange={setField('firstName')} placeholder='เช่น สมชาย' />
                 </div>
-                <div style={{ flex: '1 1 200px', minWidth: 180 }}>
+                <div>
                   <InputField label='นามสกุล' required value={personal.lastName} onChange={setField('lastName')} placeholder='เช่น ใจดี' />
                 </div>
               </div>
-              <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-                <div style={{ flex: '1 1 140px', minWidth: 140 }}>
+              <div style={FIELD_GRID}>
+                <div>
                   <InputField label='Prefix' value={personal.prefixEn} onChange={setField('prefixEn')} placeholder='Mr.' />
                 </div>
-                <div style={{ flex: '1 1 200px', minWidth: 180 }}>
+                <div>
                   <InputField label='Name' value={personal.nameEn} onChange={setField('nameEn')} placeholder='Somchai' />
                 </div>
-                <div style={{ flex: '1 1 200px', minWidth: 180 }}>
+                <div>
                   <InputField label='Surname' value={personal.surnameEn} onChange={setField('surnameEn')} placeholder='Jaisawaddee' />
                 </div>
               </div>
-              <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-                <div style={{ flex: '1 1 200px', minWidth: 180 }}>
-                  <Select label='เพศกำเนิด' options={GENDER_OPTIONS} value={personal.gender} onChange={setField('gender')} searchable={false} />
-                </div>
-                <div style={{ flex: '1 1 240px', minWidth: 220 }}>
+              <div style={FIELD_GRID}>
+                <div>
                   <InputField label='เลขบัตรประชาชน' required value={personal.nationalId} onChange={setField('nationalId')} placeholder='x-xxx-xxxxx-xx-x' />
                 </div>
-                <div style={{ flex: '1 1 200px', minWidth: 180 }}>
+                <div>
                   <InputField label='รหัสวิชาชีพ (ว.)' value={personal.licenseNo} onChange={setField('licenseNo')} placeholder='ว.12345' />
                 </div>
               </div>
-              <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-                <div style={{ flex: '1 1 200px', minWidth: 180 }}>
-                  <InputField label='วันเดือนปีเกิด' value={personal.birthDate} onChange={setField('birthDate')} placeholder='DD/MM/YYYY' />
+              <div style={FIELD_GRID}>
+                <div>
+                  {/* ปฏิทินของ design system แทนการพิมพ์ DD/MM/YYYY เอง — อายุคำนวณ
+                      ให้อัตโนมัติ ไม่ต้องกรอกซ้ำ (26 ส.ค. 2569 มติผู้ใช้) */}
+                  <DatePicker
+                    label='วันเดือนปีเกิด'
+                    size='md'
+                    showHelperText={false}
+                    value={personal.birthDate ? new Date(personal.birthDate) : undefined}
+                    onChange={(d) => {
+                      const iso = d ? new Date(d).toISOString().slice(0, 10) : '';
+                      setPersonal((prev) => ({ ...prev, birthDate: iso, age: ageFromBirthDate(iso) }));
+                    }}
+                  />
                 </div>
-                <div style={{ flex: '1 1 200px', minWidth: 180 }}>
-                  <InputField label='อายุ (ปี-เดือน-วัน)' value={personal.age} onChange={setField('age')} placeholder='43-0-9' />
+                <div>
+                  <InputField
+                    label='อายุ (ปี-เดือน-วัน)'
+                    value={personal.age}
+                    readOnly
+                    disabled
+                    placeholder='คำนวณจากวันเกิด'
+                  />
                 </div>
               </div>
-              <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
-                <div style={{ flex: '1 1 240px', minWidth: 220 }}>
+              <div style={FIELD_GRID}>
+                <div>
                   <InputField label='เบอร์โทรศัพท์' value={personal.phone} onChange={setField('phone')} placeholder='08x-xxx-xxxx' />
                 </div>
-                <div style={{ flex: '1 1 240px', minWidth: 220 }}>
+                <div>
                   <InputField
                     label='อีเมลองค์กร (ใช้เข้าสู่ระบบ)'
                     required
@@ -616,7 +675,7 @@ export default function AssessUserCreatePage({
                   />
                 </div>
                 {/* อีเมลส่วนตัวใช้ติดต่อ/กู้คืนบัญชี ไม่ใช่ช่องทาง login */}
-                <div style={{ flex: '1 1 240px', minWidth: 220 }}>
+                <div>
                   <InputField
                     label='อีเมลส่วนตัว'
                     value={personal.personalEmail}
@@ -637,6 +696,7 @@ export default function AssessUserCreatePage({
                   subtitle='เซ็นบนจอหรืออัปโหลดรูปลายเซ็น — ใช้กำกับเอกสารที่บุคลากรคนนี้ลงนาม'
                 />
                 <ESignatureField
+                  showSavedTab={false}
                   value={personal.signature}
                   onChange={setField('signature')}
                   signerName={fullName(personal)}

@@ -90,8 +90,13 @@ const SavedSigCard = ({ sig, selected, onClick }) => (
  * @param {string}   signerName  — ชื่อผู้ลงนาม ส่งต่อให้ canvas
  * @param {number}   height      — ความสูง canvas วาดใหม่
  */
-export default function ESignatureField({ value = '', onChange, signerName, height = 120 }) {
-  const [tab, setTab] = useState('saved');
+/* showSavedTab=false = ซ่อนแท็บ "เลือกลายเซ็นที่บันทึก" — บุคลากรที่เพิ่งสร้าง
+   ยังไม่มีลายเซ็นเก่าให้เลือก (26 ส.ค. 2569 มติผู้ใช้) */
+export default function ESignatureField({
+  value = '', onChange, signerName, height = 120, showSavedTab = true,
+}) {
+  const tabs = showSavedTab ? TABS : TABS.filter((t) => t.key !== 'saved');
+  const [tab, setTab] = useState(showSavedTab ? 'saved' : 'draw');
   const [savedId, setSavedId] = useState(null);
   const [uploadName, setUploadName] = useState('');
   const [uploadError, setUploadError] = useState('');
@@ -159,7 +164,7 @@ export default function ESignatureField({ value = '', onChange, signerName, heig
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
       <div className='flex items-center flex-wrap' role='tablist' aria-label='ช่องทางลายเซ็นอิเล็กทรอนิกส์' style={{ gap: 'var(--dim-space-200)' }}>
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button key={t.key} type='button' role='tab' aria-selected={tab === t.key} style={tabStyle(tab === t.key)} onClick={() => setTab(t.key)}>
             <Icon name={t.icon} size={16} />
             {t.label}
