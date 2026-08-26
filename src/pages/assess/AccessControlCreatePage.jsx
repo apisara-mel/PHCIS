@@ -51,6 +51,7 @@ import {
   ACCESS_SYSTEMS,
   PERM_META,
   PERM_MIXED,
+  permLabel,
   menuLeafKeys,
   systemLeafKeys,
   rollupLevel,
@@ -62,9 +63,11 @@ import {
 /* 3 ขั้นของป๊อปอัปเพิ่ม/แก้ไขสิทธิ์ — เรียงตามลำดับที่ต้องตัดสินใจจริง:
    ตั้งชื่อ+ผูกบทบาทก่อน → ขอบเขต/ช่วงเวลาที่สิทธิ์มีผล → รายละเอียดสิทธิ์ */
 const ACCESS_FORM_STEPS = [
-  { key: 'template', label: 'แม่แบบและการผูกบทบาท' },
+  { key: 'template', label: 'แม่แบบ' },
   { key: 'scope',    label: 'ขอบเขตและช่วงเวลา' },
   { key: 'perm',     label: 'สิทธิ์การเข้าถึงระบบ' },
+  /* ขั้นสุดท้ายทวนทุกอย่างเป็นข้อความอ่านง่าย ก่อนส่งขออนุมัติ (26 ส.ค. 2569) */
+  { key: 'review',   label: 'รีวิว' },
 ];
 
 const breadcrumb = ['สิทธิ์การเข้าถึงระบบ'];
@@ -102,6 +105,29 @@ const APPROVAL_NOTE_SUGGESTIONS = [
 
 /* กลุ่มที่ไม่ต้องรองพื้น — คงระยะซ้าย/ขวาไว้เท่ากันเพื่อให้ช่องกรอกทุกขั้น
    เรียงตรงคอลัมน์เดียวกัน */
+const REVIEW_LABEL = {
+  color: 'var(--text-content-tertiary)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-xs)',
+  lineHeight: 1.5,
+};
+const REVIEW_VALUE = {
+  color: 'var(--text-content-default)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-sm)',
+  lineHeight: 1.5,
+};
+
+/* บรรทัดรีวิว: ป้ายซ้าย ค่าขวา อ่านไล่ลงมาได้เร็วกว่ากล่องการ์ด */
+function ReviewLine({ label, value }) {
+  return (
+    <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-400)' }}>
+      <span style={{ ...REVIEW_LABEL, width: 200, flexShrink: 0 }}>{label}</span>
+      <span style={{ ...REVIEW_VALUE, flex: '1 1 auto', minWidth: 0 }}>{value}</span>
+    </div>
+  );
+}
+
 const CARD_PLAIN = {
   background: 'transparent',
   padding: 'var(--dim-space-400) 40px',
@@ -266,7 +292,11 @@ function PermNodeRow({
 function PermissionTree({ permissions, onSetLeaves }) {
   /* ระบบกางไว้หมดตั้งแต่แรก · เมนูย่อยพับไว้ก่อน ไม่งั้นแถวยาวเป็นร้อย */
   const [openMenus, setOpenMenus] = useState({});
-  const [closedSystems, setClosedSystems] = useState({});
+  /* เริ่มแบบยุบทุกระบบ (26 ส.ค. 2569 มติผู้ใช้) — กางหมดตั้งแต่แรกทำให้ตารางยาว
+     หลายร้อยแถว หาเมนูที่ต้องการยากกว่ากดกางเอง */
+  const [closedSystems, setClosedSystems] = useState(
+    () => Object.fromEntries(ACCESS_SYSTEMS.map((sys) => [sys.key, true])),
+  );
   const toggleMenu = (key) => setOpenMenus((p) => ({ ...p, [key]: !p[key] }));
   const toggleSystem = (key) => setClosedSystems((p) => ({ ...p, [key]: !p[key] }));
 
@@ -588,6 +618,25 @@ export default function AccessControlCreatePage({
      หน้าเต็ม (route เดิม) ยังเป็นฟอร์มยาวเลื่อนเดียวเหมือนเดิม */
   /* กลุ่มที่รองพื้นเทา = กลุ่มที่ต้องเห็นว่าอยู่ก้อนเดียวกัน (ชื่อแม่แบบ · ข้อมูล
      บทบาท) ส่วนขั้นขอบเขตกับตารางสิทธิ์ไม่รองพื้น (26 ส.ค. 2569 มติผู้ใช้) */
+  /* สรุปสิทธิ์เป็นข้อความ — เฉพาะเมนูที่ได้สิทธิ์จริง ไม่ไล่ทั้งต้นไม้ */
+  const reviewPermissions = useMemo(() => ACCESS_SYSTEMS
+    .map((sys) => ({
+      key: sys.key,
+      label: sys.label,
+      menus: sys.menus
+        .map((menu) => {
+          const level = rollupLevel(permissions, menuLeafKeys(menu));
+          return {
+            key: menu.key,
+            label: menu.label,
+            level,
+            levelLabel: level === PERM_MIXED ? 'กำหนดรายเมนู' : permLabel(level),
+          };
+        })
+        .filter((m) => m.level !== PERM_NONE),
+    }))
+    .filter((sys) => sys.menus.length > 0), [permissions]);
+
   const sectionCard = asPopup ? CARD_FLAT : CARD;
   const sectionPlain = asPopup ? CARD_PLAIN : CARD;
 
@@ -770,6 +819,48 @@ export default function AccessControlCreatePage({
               style={{ paddingLeft: 0, paddingRight: 0 }}
             />
             <PermissionTree permissions={permissions} onSetLeaves={applyLeaves} />
+          </section>
+</>
+    ),
+    (
+<>
+          {/* ขั้นรีวิว — ทวนทุกอย่างเป็นข้อความก่อนส่งขออนุมัติ ไม่ต้องย้อนไปเปิด
+              ทีละขั้น (26 ส.ค. 2569 มติผู้ใช้) */}
+          <section className='flex flex-col w-full' style={{ ...sectionPlain, gap: 'var(--dim-space-600)' }}>
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+              <ReviewLine label='ชื่อแม่แบบ' value={templateName.trim() || '—'} />
+              <ReviewLine label='ขอบเขตข้อมูลที่มองเห็น' value={dataScopeLabel(dataScope)} />
+              <ReviewLine label='ข้อมูลระบุตัวตน (PII)' value={piiVisibility === PII_MASKED ? 'ปิดบัง PII' : 'เห็นข้อมูลระบุตัวตน'} />
+              <ReviewLine
+                label='ช่วงวันที่มีผล'
+                value={`${effectiveFrom || 'ทันทีที่อนุมัติ'} – ${noEndDate || !effectiveTo ? 'ยังไม่กำหนด' : effectiveTo}`}
+              />
+              <ReviewLine
+                label='เวลาที่ใช้งานได้ (รายวัน)'
+                value={followCenterHours
+                  ? 'ตามเวลาเปิด-ปิดศูนย์'
+                  : (dailyFrom && dailyTo ? `${dailyFrom} – ${dailyTo} น.` : 'ตลอด 24 ชม.')}
+              />
+              <ReviewLine label='เหตุผล/บันทึกถึงผู้อนุมัติ' value={approvalNote.trim() || '—'} />
+            </div>
+
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+              <span style={{ ...REVIEW_LABEL, fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)' }}>
+                สิทธิ์การเข้าถึงระบบ
+              </span>
+              {reviewPermissions.length === 0 ? (
+                <span style={REVIEW_VALUE}>ยังไม่ได้ให้สิทธิ์เมนูใดเลย</span>
+              ) : reviewPermissions.map((sys) => (
+                <div key={sys.key} className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                  <span style={REVIEW_VALUE}>{sys.label}</span>
+                  {sys.menus.map((m) => (
+                    <span key={m.key} style={{ ...REVIEW_LABEL, paddingLeft: 'var(--dim-space-400)' }}>
+                      {`• ${m.label} — ${m.levelLabel}`}
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </div>
           </section>
 </>
     ),
