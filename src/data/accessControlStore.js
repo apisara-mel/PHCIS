@@ -108,7 +108,7 @@ export const PII_OPTIONS = [
   { value: PII_MASKED, label: 'ปิดบังข้อมูลระบุตัวตน — ดูสรุป/รหัสนิรนามเท่านั้น' },
 ];
 
-export const piiLabel = (v) => (v === PII_MASKED ? 'ปิดบัง PII' : 'เห็น PII');
+export const piiLabel = (v) => (v === PII_MASKED ? 'ปิดบังข้อมูลระบุตัวตน' : 'เห็นข้อมูลระบุตัวตน');
 
 /** ค่าเริ่มต้นของแม่แบบใหม่ (ปลอดภัยไว้ก่อน: ศูนย์ตนเอง + ยังไม่อนุมัติ) */
 export const ACCESS_GOVERNANCE_DEFAULTS = {

@@ -305,8 +305,10 @@ export default function AccessControlPage() {
       render: (row) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
           <span style={TEXT_CELL}>{dataScopeLabel(row.dataScope)}</span>
+          {/* เขียนเต็มคำ ไม่ใช้ตัวย่อ PII — คนอ่านตารางไม่ได้รู้จักคำนี้ทุกคน
+              (26 ส.ค. 2569 มติผู้ใช้) */}
           {row.piiVisibility === PII_MASKED ? (
-            <PolicyBadge style='yellow'>ปิดบัง PII</PolicyBadge>
+            <PolicyBadge style='yellow'>ปิดบังข้อมูลระบุตัวตน</PolicyBadge>
           ) : null}
         </div>
       ),
@@ -325,9 +327,9 @@ export default function AccessControlPage() {
     },
     {
       key: 'holders',
-      header: 'ผู้ถือสิทธิ์',
+      header: 'บุคลากรที่ใช้แม่แบบนี้',
       align: 'center',
-      minWidth: 120,
+      minWidth: 180,
       render: (row) => {
         const n = usersHoldingTemplate(row, assessUsers).length;
         return <span style={TEXT_CELL}>{`${n} คน`}</span>;
@@ -513,7 +515,7 @@ export default function AccessControlPage() {
         type={decision?.approved ? 'success' : 'warning'}
         alignment='center'
         title={decision?.approved ? 'อนุมัติสิทธิ์การเข้าถึงระบบ?' : 'ไม่อนุมัติสิทธิ์การเข้าถึงระบบ?'}
-        description={decision ? `แม่แบบ "${decision.row.templateName}" — ${dataScopeLabel(decision.row.dataScope)}${decision.row.piiVisibility === PII_MASKED ? ' · ปิดบัง PII' : ''}${decision.row.effectiveFrom || decision.row.effectiveTo ? ` · มีผล ${decision.row.effectiveFrom || 'ทันที'} ถึง ${decision.row.effectiveTo || 'ไม่กำหนด'}` : ''}${decision.row.approvalNote ? ` · เหตุผล: ${decision.row.approvalNote}` : ''}` : ''}
+        description={decision ? `แม่แบบ "${decision.row.templateName}" — ${dataScopeLabel(decision.row.dataScope)}${decision.row.piiVisibility === PII_MASKED ? ' · ปิดบังข้อมูลระบุตัวตน' : ''}${decision.row.effectiveFrom || decision.row.effectiveTo ? ` · มีผล ${decision.row.effectiveFrom || 'ทันที'} ถึง ${decision.row.effectiveTo || 'ไม่กำหนด'}` : ''}${decision.row.approvalNote ? ` · เหตุผล: ${decision.row.approvalNote}` : ''}` : ''}
         confirmLabel={decision?.approved ? 'อนุมัติ' : 'ไม่อนุมัติ'}
         cancelLabel='ยกเลิก'
         onConfirm={applyDecision}
