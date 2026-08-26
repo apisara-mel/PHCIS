@@ -10,6 +10,7 @@ import BrandButton from '@/components/button/BrandButton';
 import Radio from '@/components/radio/Radio';
 import Icon from '@/components/icons/Icon';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import Popup from '@/components/popup/Popup';
 import AlertDialog from '@/components/popup/AlertDialog';
 import { HeaderCell, DataCell, TableRow } from '@/components/table/Table';
 import ASSESS_NAV from '@/pages/assess/assessNav';
@@ -417,10 +418,19 @@ function PermissionTree({ permissions, onSetLeaves }) {
   );
 }
 
-export default function AccessControlCreatePage() {
+/* ใช้ได้สองเปลือก — หน้าเต็ม (route /assess/access-control/new · /:id/edit)
+   และป๊อปอัป (กด "เพิ่มสิทธิ์การเข้าถึงระบบ" ในทะเบียน 26 ส.ค. 69 มติผู้ใช้)
+   เนื้อฟอร์มชุดเดียวกัน แก้ที่เดียวมีผลทั้งสองทาง — หลักเดียวกับ CenterEditPopup */
+export default function AccessControlCreatePage({
+  asPopup = false,
+  existingId = null,
+  onClose,
+  onSaved,
+}) {
   const navigate = useHistory();
-  const { id } = useParams();
-  const isEdit = window.location.pathname.endsWith('/edit');
+  const { id: routeId } = useParams();
+  const id = asPopup ? existingId : routeId;
+  const isEdit = asPopup ? !!existingId : window.location.pathname.endsWith('/edit');
   const existing = useMemo(() => (id ? findAccessControl(id) : null), [id]);
 
   const [templateName, setTemplateName] = useState('');
@@ -526,9 +536,16 @@ export default function AccessControlCreatePage() {
     return bump && existing ? bumpAccessControlVersion(withEdits) : withEdits;
   };
 
+  /* ออกจากฟอร์ม — ป๊อปอัปปิดตัวเอง หน้าเต็มกลับไปทะเบียน */
+  const leaveForm = () => {
+    if (asPopup) { onClose?.(); return; }
+    navigate.push('/assess/access-control');
+  };
+
   const handleSaveDraft = () => {
     /* บันทึกร่าง = ยังไม่ส่งขออนุมัติ สิทธิ์จึงยังไม่มีผล */
     upsertAccessControl({ ...buildRecord({ bump: false }), approvalStatus: APPROVAL_DRAFT });
+    if (asPopup) { onSaved?.('บันทึกร่างสิทธิ์การเข้าถึงระบบแล้ว'); onClose?.(); }
   };
 
   /* ช่วงวันที่ต้องไม่กลับหัว (สิ้นสุดก่อนเริ่ม) — คทง.13 §2.3 */
@@ -546,6 +563,11 @@ export default function AccessControlCreatePage() {
     setConfirmSaveOpen(false);
     /* กด "ส่งขออนุมัติ" = เข้าคิวรออนุมัติ ยังไม่มีผลจนกว่าผู้มีอำนาจจะอนุมัติ */
     upsertAccessControl(submitForApproval(buildRecord({ bump: true }), approvalNote.trim()));
+    if (asPopup) {
+      onSaved?.('ส่งขออนุมัติสิทธิ์การเข้าถึงระบบแล้ว — รอผู้มีอำนาจอนุมัติ');
+      onClose?.();
+      return;
+    }
     if (isEdit) {
       navigate.push(`/assess/access-control/${id}`);
       return;
@@ -587,16 +609,10 @@ export default function AccessControlCreatePage() {
     );
   }
 
-  return (
-    <>
-      <QueuePageShell
-        activeKey='assess-access-control'
-        sidebarItems={ASSESS_NAV}
-        sidebarFallbackKey='assess-access-control'
-        brandTitle='จัดการระบบ'
-        breadcrumb={breadcrumb}
-        title='สิทธิ์การเข้าถึงระบบ'
-      >
+  const saveDisabled = !nameValid || !!dateRangeError;
+  const submitLabel = isEdit ? `ส่งขออนุมัติ ${formatVersion(nextVersion)}` : 'ส่งขออนุมัติสิทธิ์';
+
+  const body = (
         <div
           className='flex flex-col flex-1 min-w-0'
           style={{
@@ -778,39 +794,76 @@ export default function AccessControlCreatePage() {
             <PermissionTree permissions={permissions} onSetLeaves={applyLeaves} />
           </section>
         </div>
+  );
+
+  /* ทวนสรุปก่อนบันทึกการเปลี่ยนแปลงสิทธิ์ — กัน slip ก่อนกระทบทั้งกลุ่มบทบาท */
+  const confirmDialog = (
+    <AlertDialog
+      open={confirmSaveOpen}
+      onClose={() => setConfirmSaveOpen(false)}
+      type='warning'
+      alignment='center'
+      title={isEdit ? 'ส่งขออนุมัติสิทธิ์เวอร์ชันใหม่?' : 'ส่งขออนุมัติสิทธิ์การเข้าถึงระบบ?'}
+      description={`แม่แบบ "${templateName.trim()}" — ${confirmSummary}. สิทธิ์จะยังไม่มีผลจนกว่าผู้มีอำนาจจะอนุมัติ`}
+      confirmLabel={isEdit ? `ส่งขออนุมัติ ${formatVersion(nextVersion)}` : 'ส่งขออนุมัติ'}
+      cancelLabel='ยกเลิก'
+      onConfirm={applySubmit}
+    />
+  );
+
+  if (asPopup) {
+    return (
+      <>
+        <Popup
+          open
+          onClose={leaveForm}
+          size='extraLarge'
+          title={isEdit ? 'แก้ไขสิทธิ์การเข้าถึงระบบ' : 'เพิ่มสิทธิ์การเข้าถึงระบบ'}
+          subtitle={isEdit ? `เวอร์ชันปัจจุบัน ${formatVersion(currentVersion)}` : undefined}
+          tertiaryAction={{ label: 'ยกเลิก', onClick: leaveForm }}
+          secondaryAction={{ label: 'บันทึกร่าง', leadingIcon: 'save', disabled: saveDisabled, onClick: handleSaveDraft }}
+          /* คทง.13 §1.3 — สิทธิ์ต้องผ่านการอนุมัติก่อนมีผล ปุ่มหลักจึงเป็น "ส่งขออนุมัติ" */
+          primaryAction={{ label: submitLabel, trailingIcon: 'arrow_forward', disabled: saveDisabled, onClick: handleSubmit }}
+        >
+          {body}
+        </Popup>
+        {confirmDialog}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <QueuePageShell
+        activeKey='assess-access-control'
+        sidebarItems={ASSESS_NAV}
+        sidebarFallbackKey='assess-access-control'
+        brandTitle='จัดการระบบ'
+        breadcrumb={breadcrumb}
+        title='สิทธิ์การเข้าถึงระบบ'
+      >
+        {body}
 
         <Footer
           type='with BTN'
           sticky
           showButton3
           button3Label='ยกเลิก'
-          onButton3Click={() => navigate.push('/assess/access-control')}
+          onButton3Click={leaveForm}
           showButton2
           button2Label='บันทึกร่าง'
           button2Icon='save'
-          button2Disabled={!nameValid || !!dateRangeError}
+          button2Disabled={saveDisabled}
           onButton2Click={handleSaveDraft}
           showButton1
-          /* คทง.13 §1.3 — สิทธิ์ต้องผ่านการอนุมัติก่อนมีผล ปุ่มหลักจึงเป็น "ส่งขออนุมัติ" */
-          button1Label={isEdit ? `ส่งขออนุมัติ ${formatVersion(nextVersion)}` : 'ส่งขออนุมัติสิทธิ์'}
+          button1Label={submitLabel}
           button1TrailingIcon='arrow_forward'
-          button1Disabled={!nameValid || !!dateRangeError}
+          button1Disabled={saveDisabled}
           onButton1Click={handleSubmit}
         />
       </QueuePageShell>
 
-      {/* ทวนสรุปก่อนบันทึกการเปลี่ยนแปลงสิทธิ์ — กัน slip ก่อนกระทบทั้งกลุ่มกิจกรรม */}
-      <AlertDialog
-        open={confirmSaveOpen}
-        onClose={() => setConfirmSaveOpen(false)}
-        type='warning'
-        alignment='center'
-        title={isEdit ? 'ส่งขออนุมัติสิทธิ์เวอร์ชันใหม่?' : 'ส่งขออนุมัติสิทธิ์การเข้าถึงระบบ?'}
-        description={`แม่แบบ "${templateName.trim()}" — ${confirmSummary}. สิทธิ์จะยังไม่มีผลจนกว่าผู้มีอำนาจจะอนุมัติ`}
-        confirmLabel={isEdit ? `ส่งขออนุมัติ ${formatVersion(nextVersion)}` : 'ส่งขออนุมัติ'}
-        cancelLabel='ยกเลิก'
-        onConfirm={applySubmit}
-      />
+      {confirmDialog}
 
       {saved ? (
         <SuccessScreen

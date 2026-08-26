@@ -14,6 +14,7 @@ import RowMenu from '@/components/overflow/RowActionMenu';
 import Switch from '@/components/switch/Switch';
 import SmallAlert from '@/components/alert/SmallAlert';
 import AlertDialog from '@/components/popup/AlertDialog';
+import AccessControlCreatePage from '@/pages/assess/AccessControlCreatePage';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import {
@@ -105,6 +106,7 @@ function AttrCell({ value, style, emptyLabel }) {
 export default function AccessControlPage() {
   const navigate = useHistory();
   const [records, setRecords] = useState(() => readAccessControls());
+  const [createOpen, setCreateOpen] = useState(false);
   const [filterPosition, setFilterPosition] = useState('');
   const [filterActivity, setFilterActivity] = useState('');
   const [filterSub, setFilterSub] = useState('');
@@ -214,7 +216,9 @@ export default function AccessControlPage() {
       : `บันทึกไม่อนุมัติ "${row.templateName}" แล้ว`);
   };
 
-  const openCreate = () => navigate.push('/assess/access-control/new');
+  /* เพิ่มสิทธิ์เปิดเป็นป๊อปอัป ไม่เปลี่ยนหน้า — ทะเบียนยังอยู่ข้างหลังให้เทียบได้
+     (26 ส.ค. 69 มติผู้ใช้) route /assess/access-control/new ยังเข้าได้ตามลิงก์เดิม */
+  const openCreate = () => setCreateOpen(true);
   const openDetail = (row) => navigate.push(`/assess/access-control/${row.id}`);
   const openEdit = (row) => navigate.push(`/assess/access-control/${row.id}/edit`);
 
@@ -541,6 +545,18 @@ export default function AccessControlPage() {
         cancelLabel='ยกเลิก'
         onConfirm={applyDecision}
       />
+
+      {/* mount ใหม่ทุกครั้งที่เปิด ฟอร์มจะได้เริ่มจากว่างเสมอ */}
+      {createOpen ? (
+        <AccessControlCreatePage
+          asPopup
+          onClose={() => setCreateOpen(false)}
+          onSaved={(message) => {
+            setRecords(readAccessControls());
+            showToast(message || 'บันทึกสิทธิ์การเข้าถึงระบบแล้ว');
+          }}
+        />
+      ) : null}
 
       {toast ? (
         <div className='fixed left-1/2 z-[200] -translate-x-1/2' style={{ bottom: 'var(--dim-space-600)' }}>
