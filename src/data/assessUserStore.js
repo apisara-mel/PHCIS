@@ -248,6 +248,10 @@ export function emptyAssignment() {
     department: '',
     positionId: '',
     position: '',
+    /* แม่แบบสิทธิ์การเข้าถึงระบบที่เลือกให้ assignment นี้ (26 ส.ค. 2569 มติผู้ใช้)
+       — เดิมจับคู่อัตโนมัติจากคุณสมบัติ ตอนนี้เลือกตรง ๆ ตอนเพิ่มบุคลากร */
+    accessTemplateId: '',
+    accessTemplate: '',
     isPrimary: false,
     /* ช่วงเวลาปฏิบัติงานที่ศูนย์นี้ — สิ้นสุดเว้นว่าง = ยังไม่กำหนด (ปฏิบัติงานต่อเนื่อง) */
     startAt: '',
@@ -280,6 +284,8 @@ function normalizeAssignment(row) {
     subActivityId: rest.subActivityId ?? subBranchId ?? '',
     branchId: rest.branchId ?? '',
     branch: rest.branch ?? '',
+    accessTemplateId: rest.accessTemplateId ?? '',
+    accessTemplate: rest.accessTemplate ?? '',
   };
 }
 

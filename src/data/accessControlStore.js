@@ -660,19 +660,20 @@ export function upsertAccessControl(record) {
    attribute ไหนที่แม่แบบระบุไว้ assignment ต้องตรงเป๊ะ (assignment ที่
    ไม่ได้ระบุค่าไว้ถือว่าไม่ตรง — ปลอดภัยไว้ก่อน) */
 
-/* branchId = สาขาย่อยของศูนย์ — แม่แบบที่ระบุสาขาจะจับคู่เฉพาะคนที่ประจำสาขานั้น
-   ส่วนแม่แบบที่เว้นว่างยังคลุมทั้งศูนย์เหมือนเดิม (26 ส.ค. 2569 มติผู้ใช้) */
-const ABAC_ATTRS = ['centerId', 'branchId', 'positionId', 'activityId', 'subActivityId', 'departmentId'];
+/* ══════════════════════════════════════════════════════════════════════
+   การผูกแม่แบบกับคน — เลือกแม่แบบตอนเพิ่มบุคลากร (26 ส.ค. 2569 มติผู้ใช้)
+   ══════════════════════════════════════════════════════════════════════
+   เดิมแม่แบบถือ ศูนย์/สาขา/แผนก/ตำแหน่ง/บทบาท ไว้เอง แล้วจับคู่กับ assignment
+   ของบุคลากรแบบ ABAC — ผลคือคนคนหนึ่งได้สิทธิ์อะไรบ้างต้องไล่เดาจากคุณสมบัติ
+   และแม่แบบที่ระบุคุณสมบัติกว้าง ๆ ก็เผลอคลุมคนที่ไม่ตั้งใจ
 
+   ตอนนี้แม่แบบเป็น "ชุดสิทธิ์ที่ตั้งชื่อไว้" ล้วน ๆ ส่วนการผูกกับคนไปทำที่ฟอร์ม
+   เพิ่มบุคลากร (assignment.accessTemplateId) — ใครได้สิทธิ์อะไรจึงอ่านจากตัว
+   assignment ได้ตรง ๆ ไม่ต้องเดา */
 export function matchesAssignment(record, assignment) {
   if (!record || !assignment) return false;
   if (assignment.active === false) return false;
-  /* แม่แบบที่ระบุแค่ "ศูนย์" โดยไม่ผูกบทบาท/กิจกรรมย่อย/แผนกเลย (เช่น
-     "สิทธิผู้ดูแลระบบศูนย์") ต้อง **ไม่** จับคู่ให้อัตโนมัติ ไม่งั้นเจ้าหน้าที่
-     ทุกคนในศูนย์นั้นจะได้สิทธิ์ผู้ดูแลระบบไปด้วย — สิทธิ์แบบนี้ต้องมอบรายคน */
-  const hasRoleAttr = !!(record.positionId || record.activityId || record.subActivityId || record.departmentId);
-  if (!hasRoleAttr) return false;
-  return ABAC_ATTRS.every((k) => !record[k] || record[k] === assignment[k]);
+  return assignment.accessTemplateId === record.id;
 }
 
 /** assignment ทั้งหมดของบุคลากรที่เข้าเงื่อนไขแม่แบบนี้ */
