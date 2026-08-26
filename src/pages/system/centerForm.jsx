@@ -519,9 +519,34 @@ export function useCenterForm({ existing = null, onSaved, branchOf = false, pare
     if (branchOf && parentId) center.parentId = parentId;
     if (editing) {
       /* กระจาย editing ก่อน เพื่อคงฟิลด์ที่ฟอร์มไม่ได้แตะไว้ครบ */
-      writeCenters(all.map((c) => (c.id === editing.id
-        ? { ...editing, ...center, id: editing.id, active: editing.active, draft }
-        : c)));
+      const merged = { ...editing, ...center, id: editing.id, active: editing.active, draft };
+      /* สาขาย่อยชุดตั้งต้นมีแต่รายการใน parent.branches ยังไม่มี record ของตัวเอง
+         — แก้ครั้งแรกจึงต้อง "สร้าง" record ให้ ไม่ใช่ map หาแล้วไม่เจอเงียบ ๆ
+         (26 ส.ค. 2569) */
+      const exists = all.some((c) => c.id === editing.id);
+      let next = exists
+        ? all.map((c) => (c.id === editing.id ? merged : c))
+        : [...all, merged];
+      /* ชื่อ/ที่อยู่/เบอร์ ที่ศูนย์แม่ถืออยู่ต้องเดินตามด้วย ไม่งั้นทะเบียนโชว์
+         ชื่อสาขาเก่าทั้งที่แก้ไปแล้ว */
+      const linkParentId = merged.parentId || editing.parentId || '';
+      const linkBranchId = editing.branchId || editing.id;
+      if (linkParentId) {
+        next = next.map((c) => (c.id === linkParentId
+          ? {
+            ...c,
+            branches: (c.branches || []).map((b) => (b.id === linkBranchId
+              ? {
+                ...b,
+                name: merged.name,
+                address: formatCenterAddress(merged.location),
+                phone: merged.phones?.[0] || '',
+              }
+              : b)),
+          }
+          : c));
+      }
+      writeCenters(next);
     } else if (branchOf && parentId) {
       /* บันทึกเป็นศูนย์ใหม่ + ผูกชื่อสาขาไว้ที่ศูนย์แม่ให้ทะเบียนแสดงได้ทันที */
       writeCenters([...all.map((c) => (c.id === parentId

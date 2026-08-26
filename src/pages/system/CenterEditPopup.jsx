@@ -19,7 +19,12 @@ import {
    เนื้อฟอร์มใช้ <CenterFormBody> ตัวเดียวกับหน้า "เพิ่มศูนย์บริการ"
    ต่างกันแค่เปลือก — แก้ฟอร์มที่เดียวแล้วมีผลทั้งสองทาง */
 
-export default function CenterEditPopup({ open, center, onClose, onSaved, branchOf = false, parentIdInit = '' }) {
+export default function CenterEditPopup({
+  open, center, onClose, onSaved, branchOf = false, parentIdInit = '',
+  /* เปิดต่อจากป๊อปอัปเลือกศูนย์ (ศูนย์ที่มีสาขาย่อย) — มีลูกศรย้อนกลับที่หัว
+     ป๊อปอัปเพื่อกลับไปเลือกใหม่ ส่วน X ยังปิดทั้งชุดเหมือนเดิม (26 ส.ค. 2569) */
+  onBack,
+}) {
   /* remount ฟอร์มใหม่ทุกครั้งที่เปลี่ยนศูนย์/เปิดใหม่ ผ่าน key ที่ผู้เรียกส่งมา
      (ดู SystemCentersPage) — hook จึงอ่านค่าเริ่มต้นจาก center ได้ตรง ๆ */
   const form = useCenterForm({
@@ -39,6 +44,7 @@ export default function CenterEditPopup({ open, center, onClose, onSaved, branch
       <Popup
         open={open}
         onClose={onClose}
+        onBack={onBack}
         size='extraLarge'
         title={isCreate
           ? (branchOf ? 'เพิ่มศูนย์บริการย่อย' : 'เพิ่มศูนย์บริการ')
