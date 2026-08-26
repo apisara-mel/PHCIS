@@ -13,7 +13,6 @@ import AlertDialog from '@/components/popup/AlertDialog';
 import CenterStructurePopup from '@/pages/system/CenterStructurePopup';
 import Popup from '@/components/popup/Popup';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
-import TabPill, { TabBar } from '@/components/tab/TabPill';
 import SYSTEM_NAV from '@/pages/system/systemNav';
 import { readCenters } from '@/data/centerStore';
 import {
@@ -114,9 +113,11 @@ export default function CenterStructurePage() {
   const readyRows = useMemo(() => rows.filter((t) => !t.draft), [rows]);
   const visibleRows = tab === 'draft' ? draftRows : readyRows;
 
-  const TABS = [
+  /* แท็บขีดเส้นใต้ใต้การ์ดสรุป — ใช้ชุดเดียวกับหน้าศูนย์บริการ/หน้าอื่น
+     (QueuePageShell เรนเดอร์ให้) ไม่ใช่ pill ลอยอยู่ในการ์ด (26 ส.ค. 2569) */
+  const tabDefs = [
     { key: 'all', label: 'ทั้งหมด', icon: 'account_tree', count: readyRows.length },
-    { key: 'draft', label: 'ร่าง', icon: 'edit_note', count: draftRows.length },
+    { key: 'draft', label: 'บันทึกร่าง', icon: 'save', count: draftRows.length },
   ];
 
   const summaryCards = useMemo(() => [
@@ -224,6 +225,9 @@ export default function CenterStructurePage() {
           สร้างรูปแบบโครงสร้างศูนย์ใหม่
         </BrandButton>
       ) : null}
+      tabs={hasRows ? tabDefs : undefined}
+      activeTab={tab}
+      onTabChange={setTab}
     >
       <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
         {hasRows ? (
@@ -235,20 +239,6 @@ export default function CenterStructurePage() {
               {/* rowKey ต้องเป็นฟังก์ชัน — ของเดิมส่ง string 'id' ซึ่ง Table เรียก
                   เป็นฟังก์ชัน (rowKey is not a function) แต่ไม่เคยพังเพราะตาราง
                   ว่างมาตลอด เพิ่งโผล่ตอนมีข้อมูลตัวอย่าง (25 ส.ค. 2569) */}
-              <TabBar aria-label='กลุ่มรูปแบบโครงสร้างศูนย์' align='center' className='self-center shrink-0 max-w-full'>
-                {TABS.map((t) => (
-                  <TabPill
-                    key={t.key}
-                    size='large'
-                    selected={tab === t.key}
-                    leadingIcon={t.icon}
-                    count={t.count}
-                    onClick={() => setTab(t.key)}
-                  >
-                    {t.label}
-                  </TabPill>
-                ))}
-              </TabBar>
               <Table
                 columns={columns}
                 rows={visibleRows}
