@@ -33,6 +33,7 @@ import {
   decideApproval,
   isAccessEffective,
   formatDailyWindow,
+  usersHoldingTemplate,
   dataScopeLabel,
   PII_MASKED,
 } from '@/data/accessControlStore';
@@ -46,6 +47,7 @@ import {
   PERM_VIEW,
   PERM_MIXED,
 } from '@/data/accessMenuCatalog';
+import { readAssessUsers } from '@/data/assessUserStore';
 import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
 import { readActivities } from '@/data/activityStore';
 import { readDepartments } from '@/data/departmentStore';
@@ -168,6 +170,8 @@ export default function AccessControlPage() {
   const [records, setRecords] = useState(() => readAccessControls());
   const [createOpen, setCreateOpen] = useState(false);
   const [permView, setPermView] = useState(null);
+  /* ทะเบียนบุคลากร — ใช้นับว่าแม่แบบนี้มีคนถือสิทธิ์อยู่กี่คน */
+  const [assessUsers] = useState(() => readAssessUsers());
   const [filterPosition, setFilterPosition] = useState('');
   const [filterActivity, setFilterActivity] = useState('');
   const [filterSub, setFilterSub] = useState('');
@@ -279,49 +283,18 @@ export default function AccessControlPage() {
     /* แม่แบบตั้งชื่อไว้ก่อนผูกกิจกรรม ชื่อ+เวอร์ชันจึงเป็นคอลัมน์แรก */
     {
       key: 'template',
-      header: 'แม่แบบ / เวอร์ชัน',
+      header: 'แม่แบบ',
       sortable: true,
       minWidth: 200,
-      render: (row) => (
-        <div className='flex flex-col'>
-          <span style={TEXT_CELL}>{row.templateName || 'ไม่มีชื่อแม่แบบ'}</span>
-          <span style={{ ...TEXT_CELL, color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
-            {formatVersion(latestVersion(row))}
-          </span>
-        </div>
-      ),
+      /* เลขเวอร์ชันถอดออกจากตาราง 26 ส.ค. 2569 (มติผู้ใช้) — ระบบใช้เวอร์ชัน
+         ล่าสุดเสมอ ตัวเลขในทะเบียนจึงเป็นสัญญาณรบกวน ยังดูย้อนหลังได้ที่หน้า
+         รายละเอียดและหัวป๊อปอัปตอนแก้ไข */
+      render: (row) => <span style={TEXT_CELL}>{row.templateName || 'ไม่มีชื่อแม่แบบ'}</span>,
     },
     /* สิทธิ์กำหนดตาม ตำแหน่ง · บทบาท · แผนก (26 ส.ค. 2569 มติผู้ใช้) —
        คอลัมน์ "ศูนย์บริการ" ถอดออก ศูนย์เป็นขอบเขตข้อมูล ไม่ใช่ตัวกำหนดสิทธิ์ */
-    /* ข้อมูลบทบาทแยกคอลัมน์ตามลำดับเดียวกับในฟอร์ม: ศูนย์ → สาขา → แผนก →
-       ตำแหน่ง → บทบาท (26 ส.ค. 2569 มติผู้ใช้) */
-    {
-      key: 'center',
-      header: 'ศูนย์บริการ',
-      minWidth: 160,
-      render: (row) => <AttrCell value={row.center} style='blue' emptyLabel='ทุกศูนย์' />,
-    },
-    {
-      key: 'branch',
-      header: 'สาขาย่อย',
-      minWidth: 150,
-      render: (row) => <AttrCell value={row.branch} style='teal' emptyLabel='ทุกสาขา' />,
-    },
-    {
-      key: 'department',
-      header: 'แผนก',
-      render: (row) => <AttrCell value={row.department} style='blue' emptyLabel='ทุกแผนก' />,
-    },
-    {
-      key: 'position',
-      header: 'ตำแหน่ง',
-      render: (row) => <AttrCell value={row.position} style='purple' emptyLabel='ทุกตำแหน่ง' />,
-    },
-    {
-      key: 'activity',
-      header: 'บทบาท',
-      render: (row) => <AttrCell value={row.activity} style='blue' emptyLabel='ทุกบทบาท' />,
-    },
+    /* คอลัมน์ ศูนย์/สาขา/แผนก/ตำแหน่ง/บทบาท ถอดออก 26 ส.ค. 2569 (มติผู้ใช้) —
+       แม่แบบไม่ผูกคุณสมบัติเหล่านี้แล้ว ใครได้ใช้แม่แบบไหนไปเลือกตอนเพิ่มบุคลากร */
     /* คทง.13 §1.3 — สถานะอนุมัติ + ป้ายบอกว่ามีผลบังคับใช้จริงหรือยัง */
     {
       key: 'approval',
@@ -368,6 +341,16 @@ export default function AccessControlPage() {
             : 'ไม่กำหนด'}
         </span>
       ),
+    },
+    {
+      key: 'holders',
+      header: 'ผู้ถือสิทธิ์',
+      align: 'center',
+      minWidth: 120,
+      render: (row) => {
+        const n = usersHoldingTemplate(row, assessUsers).length;
+        return <span style={TEXT_CELL}>{`${n} คน`}</span>;
+      },
     },
     {
       key: 'daily',
@@ -431,7 +414,7 @@ export default function AccessControlPage() {
         </span>
       ),
     },
-  ], [records]);
+  ], [records, assessUsers]);
 
   const filterOpts = {
     position: [{ value: '', label: 'ทั้งหมด' }, ...positions.map((p) => ({ value: p.id, label: p.name }))],

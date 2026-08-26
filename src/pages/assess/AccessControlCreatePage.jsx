@@ -161,88 +161,6 @@ function PermRadioCell({ name, value, level, checked, onSelect }) {
   );
 }
 
-/* ช่องผูกบทบาท — ฟิลด์ปกติมีป้ายกำกับของตัวเอง ไม่ใช่ตาราง (26 ส.ค. 2569
-   มติผู้ใช้) ตารางแถวเดียวอ่านยากและต้องเลื่อนแนวนอนบนจอแคบ ทั้งที่นี่คือ
-   "ฟอร์มกรอกค่าเดียว" ไม่ใช่รายการหลายแถว */
-function RoleFields({
-  centerId,
-  branchId,
-  positionId,
-  activityId,
-  subActivityId,
-  departmentId,
-  description,
-  centerOpts,
-  branchOpts,
-  positionOpts,
-  activityOpts,
-  subActivityOpts,
-  deptOpts,
-  onCenter,
-  onBranch,
-  onPosition,
-  onActivity,
-  onSubActivity,
-  onDepartment,
-  onDescription,
-}) {
-  /* สิทธิ์กำหนดตาม ตำแหน่ง · บทบาท · แผนก (26 ส.ค. 2569 มติผู้ใช้)
-     "บทบาทย่อย" ถอดออกจากฟอร์ม 26 ส.ค. 69 — แม่แบบผูกถึงระดับบทบาทพอ
-     (ค่า subActivityId ของ record เดิมยังถูกเก็บและใช้จับคู่ต่อไปตามปกติ) */
-  const fields = [
-    /* เรียงจากหน่วยใหญ่ไปเล็ก: ศูนย์ → แผนกในศูนย์ → ตำแหน่ง → บทบาท
-       (26 ส.ค. 2569 มติผู้ใช้ — เดิมแผนกไปอยู่ท้ายสุด) */
-    { key: 'center',   label: 'ศูนย์บริการ', options: centerOpts,   value: centerId,     onChange: onCenter,     required: true },
-    /* สาขาย่อยขึ้นกับศูนย์ที่เลือก — ศูนย์ที่ไม่มีสาขาจะเหลือแค่ "ทุกสาขา"
-       (ตัวเลือกเดียว = ปิดช่องไว้ ไม่ให้กดแล้วไม่มีอะไรให้เลือก) */
-    {
-      key: 'branch',
-      label: 'สาขาย่อย',
-      options: branchOpts,
-      value: branchId,
-      onChange: onBranch,
-      placeholder: branchOpts[0]?.label,
-      required: true,
-      disabled: !centerId || branchOpts.length <= 1,
-    },
-    { key: 'dept',     label: 'แผนก',        options: deptOpts,     value: departmentId, onChange: onDepartment, required: true },
-    { key: 'position', label: 'ตำแหน่ง',     options: positionOpts, value: positionId,   onChange: onPosition,   required: true },
-    { key: 'activity', label: 'บทบาท',       options: activityOpts, value: activityId,   onChange: onActivity,   required: true },
-  ];
-
-  return (
-    <div className='flex flex-wrap items-end w-full' style={{ gap: 'var(--dim-space-400)' }}>
-      {fields.map((f) => (
-        <div key={f.key} style={{ flex: '1 1 220px', minWidth: 200 }}>
-          <Select
-            label={f.label}
-            showHelperText={false}
-            size='large'
-            required={f.required}
-            options={f.options}
-            value={f.value}
-            onChange={f.onChange}
-            placeholder={f.placeholder}
-            disabled={f.disabled}
-          />
-        </div>
-      ))}
-      {/* คำอธิบายมักยาวหลายบรรทัด และคำที่ใช้ซ้ำกันทั้งทะเบียน จึงเป็น textarea
-          พร้อมคำแนะนำที่พิมพ์ต่อได้ (26 ส.ค. 2569 มติผู้ใช้) */}
-      <div className='w-full' style={{ flex: '1 1 100%', minWidth: 240 }}>
-        <SuggestibleTextarea
-          label='คำอธิบาย'
-          value={description}
-          onChange={(e) => onDescription(e?.target ? e.target.value : e)}
-          placeholder='เช่น เข้าถึงการรักษาระดับสูงสุด'
-          suggestions={DESCRIPTION_SUGGESTIONS}
-          minChars={1}
-        />
-      </div>
-    </div>
-  );
-}
-
 /* ══════════════════════════════════════════════════════════════════════
    PermissionTree — สิทธิ์ 3 ระดับ: ระบบ → เมนู → เมนูย่อย (26 ส.ค. 2569)
    ══════════════════════════════════════════════════════════════════════
@@ -691,52 +609,13 @@ export default function AccessControlCreatePage({
             </div>
           </section>
 
-          {/* Card 1 — ข้อมูลบทบาท (Figma 15:30160 · card) */}
-          <section className='flex flex-col w-full' style={{ ...sectionCard, gap: 'var(--dim-space-300)' }}>
-            <Topic
-              hierarchy='primary'
-              title='ข้อมูลบทบาท'
-              showSubText={false}
-              showLeadingIcon={false}
-              showBadge={false}
-              showChevron={false}
-              showSuccess={false}
-              /* Topic มี padding ซ้าย/ขวา 12px ในตัว — หัวข้อจึงเยื้องจากช่องกรอก
-                 ข้างล่าง ตัดออกให้ชิดขอบเดียวกัน (26 ส.ค. 2569 มติผู้ใช้) */
-              style={{ paddingLeft: 0, paddingRight: 0 }}
-            />
-            <RoleFields
-              centerId={centerId}
-              branchId={branchId}
-              positionId={positionId}
-              activityId={activityId}
-              subActivityId={subActivityId}
-              departmentId={departmentId}
-              description={description}
-              centerOpts={centerOpts}
-              branchOpts={branchOpts}
-              positionOpts={positionOpts}
-              activityOpts={activityOpts}
-              subActivityOpts={subActivityOpts}
-              deptOpts={deptOpts}
-              onCenter={(v) => { setCenterId(v); setBranchId(''); }}
-              onBranch={setBranchId}
-              onPosition={setPositionId}
-              onActivity={(v) => { setActivityId(v); setSubActivityId(''); }}
-              onSubActivity={setSubActivityId}
-              onDepartment={setDepartmentId}
-              onDescription={setDescription}
-            />
-          </section>
-
+          {/* การ์ด "ข้อมูลบทบาท" ย้ายไปฟอร์มเพิ่มบุคลากรแล้ว (26 ส.ค. 2569 มติผู้ใช้)
+              — แม่แบบเป็นชุดสิทธิ์ที่ตั้งชื่อไว้ล้วน ๆ ส่วนใครได้ใช้แม่แบบไหน
+              ไปเลือกตอนเพิ่มบุคลากร */}
 </>
     ),
     (
 <>
-          {/* Card 1.5 — ขอบเขตข้อมูลและระยะเวลา
-              มติ คทง.2/3/4/10/11: ศบส. เห็นเฉพาะของตน · กอง/ผู้บริหารเห็น
-              ภาพรวมแต่ปิดบัง PII · คทง.4: อสส. เห็นเฉพาะเคสที่ได้รับมอบหมาย
-              มติ คทง.13 §2.3: กำหนดช่วงเวลาเริ่ม-สิ้นสุดการเข้าถึงได้ */}
           {/* ระยะระหว่างแถว 24px (26 ส.ค. 2569 มติผู้ใช้) — แถวละ 4 ช่องพร้อม
               helper text ใต้ช่อง ระยะ 16px แน่นเกินจนอ่านเป็นก้อนเดียว */}
           <section className='flex flex-col w-full' style={{ ...sectionPlain, gap: 'var(--dim-space-600)' }}>

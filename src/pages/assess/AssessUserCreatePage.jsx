@@ -5,6 +5,7 @@ import WizardMorphHeader, { WIZARD_MORPH_SHELL_PROPS } from '@/components/layout
 import Select from '@/components/forms/Select';
 import InputField from '@/components/forms/InputField';
 import Icon from '@/components/icons/Icon';
+import PhotoUploadField from '@/components/forms/PhotoUploadField';
 import Footer from '@/components/layout/Footer';
 import SuccessScreen from '@/components/layout/SuccessScreen';
 import BrandButton from '@/components/button/BrandButton';
@@ -19,7 +20,11 @@ import AlertDialog from '@/components/popup/AlertDialog';
 import ESignatureField from '@/components/form-builder/ESignatureField';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import ASSESS_NAV from '@/pages/assess/assessNav';
-import { CENTER_OPTIONS } from '@/data/accessControlStore';
+import {
+  CENTER_OPTIONS,
+  readAccessControls,
+  APPROVAL_DRAFT,
+} from '@/data/accessControlStore';
 import { findCenterDetail } from '@/data/centerStore';
 import { readActivities } from '@/data/activityStore';
 import { readDepartments } from '@/data/departmentStore';
@@ -113,6 +118,9 @@ const ASSIGN_COLUMNS = [
   { key: 'sub',        title: 'บทบาท',             width: 180 },
   { key: 'dept',       title: 'แผนก',             width: 180 },
   { key: 'position',   title: 'ตำแหน่ง',           width: 180 },
+  /* แม่แบบสิทธิ์การเข้าถึงระบบที่ให้กับ assignment นี้ (26 ส.ค. 2569 มติผู้ใช้)
+     — เดิมระบบจับคู่แม่แบบให้เองจากคุณสมบัติ ตอนนี้เลือกตรง ๆ ตรงนี้ */
+  { key: 'access',     title: 'แม่แบบสิทธิ์',       width: 220 },
   { key: 'startAt',    title: 'วันเวลาเริ่มงาน',    width: 208 },
   { key: 'endAt',      title: 'วันเวลาสิ้นสุด',     width: 208 },
   { key: 'active',     title: 'สถานะในศูนย์',      width: 152 },
@@ -182,6 +190,10 @@ export default function AssessUserCreatePage({
     employeeCode: '',
     title: '', firstName: '', lastName: '', prefixEn: '', nameEn: '', surnameEn: '',
     gender: '', nationalId: '', licenseNo: '', birthDate: '', age: '', phone: '', email: '',
+    /* อีเมลส่วนตัว แยกจากอีเมลองค์กรที่ใช้ login (26 ส.ค. 2569 มติผู้ใช้) */
+    personalEmail: '',
+    /* รูปโปรไฟล์ — เก็บเป็น data URL เหมือน ESignatureField (mock ไม่มี storage) */
+    photo: '',
     signature: '',
   });
   const [assignments, setAssignments] = useState([emptyAssignment()]);
@@ -220,6 +232,8 @@ export default function AssessUserCreatePage({
       birthDate: existing.birthDate || '',
       age: existing.age || '',
       phone: existing.phone || '',
+      personalEmail: existing.personalEmail || '',
+      photo: existing.photo || '',
       email: existing.email || '',
     });
     setAssignments(existing.assignments?.length ? existing.assignments : [emptyAssignment()]);
@@ -234,6 +248,7 @@ export default function AssessUserCreatePage({
       setPersonal({
         employeeCode: '', title: '', firstName: '', lastName: '', prefixEn: '', nameEn: '', surnameEn: '',
         gender: '', nationalId: '', licenseNo: '', birthDate: '', age: '', phone: '', email: '',
+        personalEmail: '', photo: '',
         signature: '',
       });
       setAssignments([emptyAssignment()]);
@@ -254,6 +269,8 @@ export default function AssessUserCreatePage({
       birthDate: pickedUser.birthDate || '',
       age: pickedUser.age || '',
       phone: pickedUser.phone || '',
+      personalEmail: pickedUser.personalEmail || '',
+      photo: pickedUser.photo || '',
       email: pickedUser.email || '',
     });
     setAssignments(pickedUser.assignments?.length ? pickedUser.assignments : [emptyAssignment()]);
@@ -283,6 +300,15 @@ export default function AssessUserCreatePage({
       ...(detail?.branches || []).map((b) => ({ value: b.id, label: b.name })),
     ];
   };
+
+  /* แม่แบบสิทธิ์ที่เลือกได้ — เอาเฉพาะที่เปิดใช้งานอยู่ ร่างที่ยังไม่ส่งขออนุมัติ
+     ไม่ควรผูกกับคน (26 ส.ค. 2569 มติผู้ใช้) */
+  const accessTemplateOpts = useMemo(() => ([
+    { value: '', label: 'ยังไม่กำหนดสิทธิ์' },
+    ...readAccessControls()
+      .filter((r) => r.active !== false && (r.approvalStatus || APPROVAL_DRAFT) !== APPROVAL_DRAFT)
+      .map((r) => ({ value: r.id, label: r.templateName || 'ไม่มีชื่อแม่แบบ' })),
+  ]), []);
 
   const subOptsFor = (activityId) => {
     const act = activities.find((a) => a.id === activityId);
@@ -332,6 +358,7 @@ export default function AssessUserCreatePage({
       center: centerLabel(r.centerId) || labelOf(centerOpts, r.centerId),
       activity: labelOf(activityOpts, r.activityId),
       subActivity: labelOf(subOptsFor(r.activityId), r.subActivityId),
+      accessTemplate: r.accessTemplateId ? labelOf(accessTemplateOpts, r.accessTemplateId) : '',
       branch: r.branchId ? labelOf(branchOptsFor(r.centerId), r.branchId) : '',
       department: labelOf(deptOpts, r.departmentId),
       position: labelOf(posOpts, r.positionId),
@@ -507,6 +534,40 @@ export default function AssessUserCreatePage({
           {step === 'personal' && (
             <section className='flex flex-col w-full' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
               <TopicHeader icon='face' title='ข้อมูลส่วนตัว' subtitle='กรอกข้อมูลส่วนตัวของบุคลากร' />
+              {/* รูปโปรไฟล์ — ใช้ระบุตัวบุคลากรในจอคิว/ตารางเวร และหน้าโปรไฟล์
+                  (26 ส.ค. 2569 มติผู้ใช้) เก็บเป็น data URL เหมือนลายเซ็น */}
+              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+                <span
+                  className='inline-flex items-center justify-center shrink-0 overflow-hidden'
+                  style={{
+                    width: 88,
+                    height: 88,
+                    borderRadius: '50%',
+                    background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+                    border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+                    color: 'var(--icon-neutral-tertiary, #ADB2B7)',
+                  }}
+                >
+                  {personal.photo
+                    ? <img src={personal.photo} alt='' style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <Icon name='person' size={36} />}
+                </span>
+                <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+                  <PhotoUploadField
+                    label={personal.photo ? 'เปลี่ยนรูปโปรไฟล์' : 'อัปโหลดรูปโปรไฟล์'}
+                    onFiles={(files) => {
+                      const file = files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => setPersonal((prev) => ({ ...prev, photo: String(reader.result || '') }));
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                  <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
+                    ไฟล์ภาพ .jpg / .png — ใช้แสดงในจอคิว ตารางเวร และหน้าโปรไฟล์
+                  </span>
+                </div>
+              </div>
               <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
                 <div style={{ flex: '1 1 240px', minWidth: 220 }}>
                   <InputField
@@ -566,12 +627,24 @@ export default function AssessUserCreatePage({
                 </div>
                 <div style={{ flex: '1 1 240px', minWidth: 220 }}>
                   <InputField
-                    label='อีเมล'
+                    label='อีเมลองค์กร (ใช้เข้าสู่ระบบ)'
                     required
                     value={personal.email}
                     onChange={setField('email')}
                     placeholder='name@bma.go.th'
+                    helperText='อีเมลนี้คือ username ที่ใช้เข้าสู่ระบบ'
                     error={isValidEmail(personal.email) ? '' : EMAIL_FORMAT_ERROR}
+                  />
+                </div>
+                {/* อีเมลส่วนตัวใช้ติดต่อ/กู้คืนบัญชี ไม่ใช่ช่องทาง login */}
+                <div style={{ flex: '1 1 240px', minWidth: 220 }}>
+                  <InputField
+                    label='อีเมลส่วนตัว'
+                    value={personal.personalEmail}
+                    onChange={setField('personalEmail')}
+                    placeholder='name@gmail.com'
+                    helperText='ใช้ติดต่อและกู้คืนบัญชี ไม่ใช้เข้าสู่ระบบ'
+                    error={!personal.personalEmail || isValidEmail(personal.personalEmail) ? '' : EMAIL_FORMAT_ERROR}
                   />
                 </div>
               </div>
@@ -668,6 +741,19 @@ export default function AssessUserCreatePage({
                           </td>
                           <td style={CELL_PAD}>
                             <Select size='medium' showLabel={false} showHelperText={false} options={posOpts} value={row.positionId} onChange={(v) => setAssignment(idx, { positionId: v })} />
+                          </td>
+                          <td style={CELL_PAD}>
+                            <Select
+                              size='medium'
+                              showLabel={false}
+                              showHelperText={false}
+                              options={accessTemplateOpts}
+                              value={row.accessTemplateId}
+                              onChange={(v) => setAssignment(idx, {
+                                accessTemplateId: v,
+                                accessTemplate: labelOf(accessTemplateOpts, v),
+                              })}
+                            />
                           </td>
                           <td style={CELL_PAD}>
                             <InputField
@@ -778,6 +864,7 @@ export default function AssessUserCreatePage({
                     <InfoField label='บทบาท' value={labelOf(subOptsFor(row.activityId), row.subActivityId)} />
                     <InfoField label='แผนก' value={labelOf(deptOpts, row.departmentId)} />
                     <InfoField label='ตำแหน่ง' value={labelOf(posOpts, row.positionId)} />
+                    <InfoField label='แม่แบบสิทธิ์' value={row.accessTemplateId ? labelOf(accessTemplateOpts, row.accessTemplateId) : 'ยังไม่กำหนดสิทธิ์'} />
                     <InfoField label='วันเวลาเริ่มงาน' value={formatDateTime(row.startAt)} />
                     <InfoField label='วันเวลาสิ้นสุด' value={row.endAt ? formatDateTime(row.endAt) : 'ไม่กำหนด'} />
                     <InfoField label='สถานะในศูนย์' value={row.active !== false ? 'Active' : 'Inactive'} />

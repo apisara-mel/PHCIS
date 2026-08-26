@@ -8,7 +8,8 @@ import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
-import DangerSubdueIconButton from '@/components/button/DangerSubdueIconButton';
+import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
+import Icon from '@/components/icons/Icon';
 import Switch from '@/components/switch/Switch';
 import Popup from '@/components/popup/Popup';
 import AlertDialog from '@/components/popup/AlertDialog';
@@ -272,13 +273,14 @@ export default function SystemHolidaysPage() {
             aria-label={`แก้ไข ${row.name}`}
             onClick={() => openEdit(row)}
           />
-          <DangerSubdueIconButton
-            icon='delete'
-            variant='ghost'
+          <NeutralSubdueIconButton
+            variant='outline'
             size='sm'
             aria-label={`ลบ ${row.name}`}
             onClick={() => setRemoving(row)}
-          />
+          >
+            <Icon name='delete' size={16} />
+          </NeutralSubdueIconButton>
         </div>
       ),
     },
