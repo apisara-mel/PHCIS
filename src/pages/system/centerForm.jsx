@@ -238,6 +238,24 @@ const BRANCH_CODE_PREFIX = {
   whiteSpace: 'nowrap',
 };
 
+/* ชื่อสาขาย่อยขึ้นต้นด้วยคำว่า "สาขา" เสมอ — ตรึงไว้เป็น prefix อ่านอย่างเดียว
+   ผู้ใช้พิมพ์เฉพาะส่วนหลัง แบบเดียวกับรหัสสาขาที่ล็อกรหัสศูนย์แม่ไว้ข้างหน้า
+   (26 ส.ค. 2569 มติผู้ใช้) เก็บลงข้อมูลเป็นชื่อเต็มเหมือนเดิม จึงไม่กระทบ
+   ที่อื่นที่อ่าน branch.name อยู่แล้ว */
+const BRANCH_NAME_PREFIX = 'สาขา';
+
+const branchNameSuffixOf = (name) => {
+  const v = String(name || '');
+  return v.startsWith(BRANCH_NAME_PREFIX) ? v.slice(BRANCH_NAME_PREFIX.length) : v;
+};
+
+/* ล้างช่องว่าง = ชื่อว่าง ไม่ใช่เหลือคำว่า "สาขา" ลอย ๆ — ไม่งั้นการตรวจ
+   "ต้องกรอก" จะผ่านทั้งที่ผู้ใช้ยังไม่ได้พิมพ์อะไร */
+const branchNameFromSuffix = (suffix) => {
+  const v = String(suffix || '');
+  return v.trim() ? `${BRANCH_NAME_PREFIX}${v}` : '';
+};
+
 const FIELD_HINT = {
   color: 'var(--text-content-tertiary)',
   fontFamily: 'var(--type-family-body)',
@@ -667,8 +685,10 @@ export function CenterFormBody({ form }) {
                     value={parentId}
                     onChange={chooseParent}
                   />
+                  {/* บอกทางออกไว้ในบรรทัดเดียวกัน — ผู้ใช้ที่ยังไม่มีศูนย์แม่ในทะเบียน
+                      จะได้ไม่ค้างอยู่หน้านี้โดยไม่รู้ว่าต้องไปทำอะไรก่อน (26 ส.ค. 2569) */}
                   <span style={FIELD_HINT}>
-                    เลือกศูนย์หลักของศูนย์บริการย่อย
+                    เลือกศูนย์หลักของศูนย์บริการย่อย หากไม่มีที่ต้องการให้ปิดหน้าต่างและ &quot;เพิ่มศูนย์บริการหลัก&quot; ก่อน
                   </span>
                 </div>
               ) : null}
@@ -677,20 +697,24 @@ export function CenterFormBody({ form }) {
                   (25 ส.ค. 2569) */}
               {branchOf && parentCenter ? (
                 <div className='flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
+                  {/* แถวเดียวไม่ตัดบรรทัด — ที่อยู่เป็นช่องเดียวที่ยืด/หดและขึ้น
+                      บรรทัดใหม่ในตัวเอง หัวข้ออีก 5 อันจึงเรียงอยู่แถวบนเสมอ
+                      (26 ส.ค. 2569 มติผู้ใช้) กว้างไม่พอเมื่อไหร่ก็เลื่อนแนวนอนแทน */}
                   <div
-                    className='flex flex-wrap w-full'
+                    className='flex flex-nowrap items-start w-full'
                     style={{
                       gap: 'var(--dim-space-500)',
                       padding: 'var(--dim-space-400)',
                       background: 'var(--surface-brandPrimary-quaternary)',
                       borderRadius: 'var(--dim-radius-400, 12px)',
+                      overflowX: 'auto',
                     }}
                   >
                     <BranchInfoItem label='รหัสศูนย์หลัก' value={parentCenter.code} />
                     <BranchInfoItem label='รหัสหน่วยบริการ (9 หลัก)' value={parentCenter.hcode9} />
                     <BranchInfoItem label='รหัสหน่วยบริการเดิม (5 หลัก)' value={parentCenter.hcode5} />
                     <BranchInfoItem label='ศูนย์บริการหลัก' value={parentCenter.name} />
-                    <BranchInfoItem label='ที่ตั้งศูนย์แม่' value={formatCenterAddress(parentCenter.location)} />
+                    <BranchInfoItem label='ที่ตั้งศูนย์แม่' value={formatCenterAddress(parentCenter.location)} grow />
                     <BranchInfoItem
                       label='เวลาทำการ (จันทร์–ศุกร์)'
                       value={formatCenterHoursLine(parentCenter.hours, 'in', 'weekday')}
@@ -718,9 +742,10 @@ export function CenterFormBody({ form }) {
                     <InputField
                       label='ชื่อสาขาย่อย'
                       required
-                      value={info.name}
-                      onChange={setI('name')}
-                      placeholder='สาขาชุมชนวัดปากน้ำฝั่งเหนือ'
+                      value={branchNameSuffixOf(info.name)}
+                      onChange={(v) => setI('name')(branchNameFromSuffix(v))}
+                      leading={<span style={BRANCH_CODE_PREFIX}>{BRANCH_NAME_PREFIX}</span>}
+                      placeholder='ชุมชนวัดปากน้ำฝั่งเหนือ'
                       error={nameError || undefined}
                       showHelperText={false}
                       trailing={nameUnique ? <UniqueTick label='ชื่อนี้ยังไม่ถูกใช้' /> : undefined}
@@ -1260,13 +1285,39 @@ function ExistingCodesPopup({ open, centers, onClose, mode = 'code' }) {
 }
 
 /* ข้อมูลที่สาขาย่อยสืบทอดจากศูนย์แม่ — อ่านอย่างเดียว */
-function BranchInfoItem({ label, value }) {
+/* `grow` = ช่องที่ยอมยืด/หดและตัดบรรทัดค่าเอง (ใช้กับที่อยู่ซึ่งยาวไม่แน่นอน)
+   ช่องอื่นกว้างตามเนื้อหาและห้ามตัดบรรทัดที่ป้าย — หัวข้อทุกอันจึงอยู่แถวเดียวกัน
+   ต่อให้ที่อยู่ยาวจนต้องขึ้นสองบรรทัด (26 ส.ค. 2569 มติผู้ใช้) */
+function BranchInfoItem({ label, value, grow = false }) {
   return (
-    <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)', minWidth: 160 }}>
-      <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
+    <div
+      className='flex flex-col'
+      style={{
+        gap: 'var(--dim-space-050, 2px)',
+        ...(grow
+          ? { flex: '1 1 0', minWidth: 200 }
+          : { flex: '0 0 auto', minWidth: 0 }),
+      }}
+    >
+      <span
+        style={{
+          color: 'var(--text-content-tertiary)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-xs)',
+          whiteSpace: 'nowrap',
+        }}
+      >
         {label}
       </span>
-      <span style={{ color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
+      <span
+        style={{
+          color: 'var(--text-content-default)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+          lineHeight: 1.5,
+          ...(grow ? {} : { whiteSpace: 'nowrap' }),
+        }}
+      >
         {String(value || '').trim() || '—'}
       </span>
     </div>
@@ -1328,9 +1379,10 @@ function BranchesPanel({ branches, onAdd, onChange, onRemove }) {
                 showLeadingIcon={false}
                 showHelperText={false}
                 size='lg'
-                value={b.name}
-                onChange={(v) => onChange(b.id, { name: v })}
-                placeholder='สาขาชุมชนวัดปากน้ำฝั่งเหนือ'
+                value={branchNameSuffixOf(b.name)}
+                onChange={(v) => onChange(b.id, { name: branchNameFromSuffix(v) })}
+                leading={<span style={BRANCH_CODE_PREFIX}>{BRANCH_NAME_PREFIX}</span>}
+                placeholder='ชุมชนวัดปากน้ำฝั่งเหนือ'
               />
             </div>
             <div style={{ flex: '2 1 320px', minWidth: 240 }}>

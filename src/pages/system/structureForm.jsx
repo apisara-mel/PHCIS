@@ -214,6 +214,29 @@ function UniqueTick({ label }) {
    และแถวรายห้อง (เลขลำดับ) ให้ช่องกรอกตรงกับป้ายเสมอ */
 const ROOM_LEFT_W = 200;
 
+/* nodes เก็บทั้งห้องตรวจและเตียงไว้ array เดียว แยกด้วย `kind` — ข้อมูลรุ่นเก่า
+   ที่ยังไม่มี kind นับเป็นห้องตรวจ (ค่าเริ่มต้นของ createRoomNode) */
+const nodeKindOf = (n) => (n?.kind === 'bed' ? 'bed' : 'room');
+const nodesByKind = (u, kind) => (u?.nodes || []).filter((n) => nodeKindOf(n) === kind);
+
+/* ป้าย/placeholder ของสองชนิด — โครงแถวเหมือนกันเป๊ะ ต่างแค่คำ */
+const NODE_UI = {
+  room: {
+    countLabel: 'จำนวนจุดรับบริการ/ห้องตรวจ',
+    nameLabel: 'ชื่อจุดรับบริการ/ห้องตรวจ',
+    emptyLabel: 'ยังไม่มีจุดรับบริการ',
+    namePlaceholder: (i) => `จุดรับบริการ ${i + 1}`,
+    codePlaceholder: (i) => `R${i + 1}`,
+  },
+  bed: {
+    countLabel: 'จำนวนเตียงสังเกตอาการ',
+    nameLabel: 'ชื่อเตียงสังเกตอาการ',
+    emptyLabel: 'ยังไม่มีเตียงสังเกตอาการ',
+    namePlaceholder: (i) => `เตียง ${i + 1}`,
+    codePlaceholder: (i) => `B${i + 1}`,
+  },
+};
+
 const FIELD_LABEL = {
   color: 'var(--text-content-default)',
   fontFamily: 'var(--type-family-body)',
@@ -238,15 +261,31 @@ function StructureUnitsBuilder({ units, onUnitsChange, onAdd, codeIssues }) {
   const patch = (id, next) => onUnitsChange(units.map((u) => (u.id === id ? { ...u, ...next } : u)));
   const remove = (id) => onUnitsChange(units.filter((u) => u.id !== id));
 
-  const setNodeCount = (u, n) => {
+  const kindOf = nodeKindOf;
+  const nodesOf = nodesByKind;
+
+  /* จัดลำดับห้องตรวจก่อนเตียงเสมอ ไม่ว่าจะแก้ฝั่งไหนก่อน — ลำดับใน array
+     จึงคงที่ และหน้าทบทวน/ตัวนับปลายทางอ่านได้ตรงกันทุกครั้ง */
+  const setNodeCount = (u, kind, n) => {
     const next = Math.max(0, Math.min(30, Number(n) || 0));
-    const nodes = Array.from({ length: next }, (_, i) => u.nodes[i] || createRoomNode({ kind: 'room' }));
-    patch(u.id, { nodes });
+    const same = nodesOf(u, kind);
+    const resized = Array.from({ length: next }, (_, i) => same[i] || createRoomNode({ kind }));
+    const rooms = kind === 'room' ? resized : nodesOf(u, 'room');
+    const beds = kind === 'bed' ? resized : nodesOf(u, 'bed');
+    patch(u.id, { nodes: [...rooms, ...beds] });
   };
 
-  const setNode = (u, i, field, v) => patch(u.id, {
-    nodes: u.nodes.map((n, j) => (j === i ? { ...n, [field]: v } : n)),
-  });
+  /* i คือลำดับ "ภายในชนิดนั้น" ไม่ใช่ index ของ array รวม */
+  const setNode = (u, kind, i, field, v) => {
+    let seen = -1;
+    patch(u.id, {
+      nodes: u.nodes.map((n) => {
+        if (kindOf(n) !== kind) return n;
+        seen += 1;
+        return seen === i ? { ...n, [field]: v } : n;
+      }),
+    });
+  };
 
   const timeValue = (u, side) => (u.followsCenterHours
     ? CENTER_HOURS
@@ -364,89 +403,99 @@ function StructureUnitsBuilder({ units, onUnitsChange, onAdd, codeIssues }) {
 
           {/* บรรทัดบน = ป้ายทั้งสาม (จำนวน · ชื่อ · รหัส) · บรรทัดถัดมา stepper
               อยู่แถวเดียวกับช่องกรอกห้องแรก ไม่ลอยสูงกว่าคอลัมน์ขวา
-              (25 ส.ค. 2569) — คอลัมน์ซ้ายกว้างคงที่ทุกแถวจึงตรงกันหมด */}
-          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-            <div className='flex items-end w-full' style={{ gap: 'var(--dim-space-200)' }}>
-              <span style={{ ...FIELD_LABEL, width: ROOM_LEFT_W, flexShrink: 0 }}>
-                จำนวนจุดรับบริการ/ห้องตรวจ
-              </span>
-              {/* ป้ายสองอันนี้โผล่ต่อเมื่อมีช่องกรอกจริงข้างล่าง (25 ส.ค. 2569) */}
-              {u.nodes.length ? (
-                <>
-                  <span className='flex-1 min-w-0' style={FIELD_LABEL}>ชื่อจุดรับบริการ/ห้องตรวจ</span>
-                  <span style={{ ...FIELD_LABEL, width: 120, flexShrink: 0 }}>รหัส</span>
-                </>
-              ) : null}
-            </div>
+              (25 ส.ค. 2569) — คอลัมน์ซ้ายกว้างคงที่ทุกแถวจึงตรงกันหมด
 
-            <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
-              <div style={{ width: ROOM_LEFT_W, flexShrink: 0 }}>
-                <Stepper
-                  size='large'
-                  min={0}
-                  max={30}
-                  value={u.nodes.length}
-                  onChange={(n) => setNodeCount(u, n == null ? 0 : n)}
-                  aria-label='จำนวนจุดรับบริการ/ห้องตรวจ'
-                />
-              </div>
-              {u.nodes.length ? (
-                <>
-                  <div className='flex-1 min-w-0'>
-                    <InputField
-                      showLabel={false}
-                      showLeadingIcon={false}
-                      showHelperText={false}
-                      value={u.nodes[0].name}
-                      onChange={(v) => setNode(u, 0, 'name', v)}
-                      placeholder='จุดรับบริการ 1'
-                    />
-                  </div>
-                  <div style={{ width: 120, flexShrink: 0 }}>
-                    <InputField
-                      showLabel={false}
-                      showLeadingIcon={false}
-                      showHelperText={false}
-                      error={nodeCodeError(u, u.nodes[0]) || undefined}
-                      value={u.nodes[0].code}
-                      onChange={(v) => setNode(u, 0, 'code', v)}
-                      placeholder='R1'
-                    />
-                  </div>
-                </>
-              ) : <div className='flex-1' />}
-            </div>
-
-            {u.nodes.slice(1).map((n, k) => {
-              const i = k + 1;
-              return (
-                <div key={n.id} className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
-                  <span style={{ width: ROOM_LEFT_W, flexShrink: 0 }} aria-hidden />
-                  <div className='flex-1 min-w-0'>
-                    <InputField
-                      showLabel={false}
-                      showLeadingIcon={false}
-                      showHelperText={false}
-                      value={n.name}
-                      onChange={(v) => setNode(u, i, 'name', v)}
-                      placeholder={`จุดรับบริการ ${i + 1}`}
-                    />
-                  </div>
-                  <div style={{ width: 120, flexShrink: 0 }}>
-                    <InputField
-                      showLabel={false}
-                      showLeadingIcon={false}
-                      showHelperText={false}
-                      error={nodeCodeError(u, n) || undefined}
-                      value={n.code}
-                      onChange={(v) => setNode(u, i, 'code', v)}
-                      placeholder={`R${i + 1}`}
-                    />
-                  </div>
+              บล็อกเดียวกันนี้ใช้ซ้ำสองรอบ: จุดรับบริการ/ห้องตรวจ กับ
+              เตียงสังเกตอาการ (26 ส.ค. 2569 มติผู้ใช้) — รหัสยังห้ามซ้ำข้ามชนิด
+              ภายในแผนก/คลินิกเดียวกัน จึงใช้ nodeCodeError ตัวเดิม */}
+          {['room', 'bed'].map((kind) => {
+            const ui = NODE_UI[kind];
+            const list = nodesOf(u, kind);
+            return (
+              <div key={`${u.id}-${kind}`} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+                <div className='flex items-end w-full' style={{ gap: 'var(--dim-space-200)' }}>
+                  <span style={{ ...FIELD_LABEL, width: ROOM_LEFT_W, flexShrink: 0 }}>
+                    {ui.countLabel}
+                  </span>
+                  {/* ป้ายสองอันนี้โผล่ต่อเมื่อมีช่องกรอกจริงข้างล่าง (25 ส.ค. 2569) */}
+                  {list.length ? (
+                    <>
+                      <span className='flex-1 min-w-0' style={FIELD_LABEL}>{ui.nameLabel}</span>
+                      <span style={{ ...FIELD_LABEL, width: 120, flexShrink: 0 }}>รหัส</span>
+                    </>
+                  ) : null}
                 </div>
-              );
-            })}
-          </div>
+
+                <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
+                  <div style={{ width: ROOM_LEFT_W, flexShrink: 0 }}>
+                    <Stepper
+                      size='large'
+                      min={0}
+                      max={30}
+                      value={list.length}
+                      onChange={(n) => setNodeCount(u, kind, n == null ? 0 : n)}
+                      aria-label={ui.countLabel}
+                    />
+                  </div>
+                  {list.length ? (
+                    <>
+                      <div className='flex-1 min-w-0'>
+                        <InputField
+                          showLabel={false}
+                          showLeadingIcon={false}
+                          showHelperText={false}
+                          value={list[0].name}
+                          onChange={(v) => setNode(u, kind, 0, 'name', v)}
+                          placeholder={ui.namePlaceholder(0)}
+                        />
+                      </div>
+                      <div style={{ width: 120, flexShrink: 0 }}>
+                        <InputField
+                          showLabel={false}
+                          showLeadingIcon={false}
+                          showHelperText={false}
+                          error={nodeCodeError(u, list[0]) || undefined}
+                          value={list[0].code}
+                          onChange={(v) => setNode(u, kind, 0, 'code', v)}
+                          placeholder={ui.codePlaceholder(0)}
+                        />
+                      </div>
+                    </>
+                  ) : <div className='flex-1' />}
+                </div>
+
+                {list.slice(1).map((n, k) => {
+                  const i = k + 1;
+                  return (
+                    <div key={n.id} className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
+                      <span style={{ width: ROOM_LEFT_W, flexShrink: 0 }} aria-hidden />
+                      <div className='flex-1 min-w-0'>
+                        <InputField
+                          showLabel={false}
+                          showLeadingIcon={false}
+                          showHelperText={false}
+                          value={n.name}
+                          onChange={(v) => setNode(u, kind, i, 'name', v)}
+                          placeholder={ui.namePlaceholder(i)}
+                        />
+                      </div>
+                      <div style={{ width: 120, flexShrink: 0 }}>
+                        <InputField
+                          showLabel={false}
+                          showLeadingIcon={false}
+                          showHelperText={false}
+                          error={nodeCodeError(u, n) || undefined}
+                          value={n.code}
+                          onChange={(v) => setNode(u, kind, i, 'code', v)}
+                          placeholder={ui.codePlaceholder(i)}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
       ))}
 
@@ -583,33 +632,41 @@ export function StructureReview({ name, units, counts, showName = true }) {
                 <ReviewField label='รหัส' value={u.code} />
                 <ReviewField label='เวลาเปิด' value={openAt} />
                 <ReviewField label='เวลาปิด' value={closeAt} />
-                <ReviewField label='จำนวนจุดรับบริการ/ห้องตรวจ' value={String(u.nodes.length)} />
+                <ReviewField label='จำนวนจุดรับบริการ/ห้องตรวจ' value={String(nodesByKind(u, 'room').length)} />
+                <ReviewField label='จำนวนเตียงสังเกตอาการ' value={String(nodesByKind(u, 'bed').length)} />
               </div>
 
-              {u.nodes.length ? (
-                <div style={REVIEW_GRID}>
-                  <span aria-hidden />
-                  {/* ใช้ขนาดเดียวกับป้ายของ ReviewField (xs) — เดิมเป็น sm
-                      ทำให้สอง subtext ในการ์ดเดียวกันตัวไม่เท่ากัน (25 ส.ค. 2569) */}
-                  <span style={REVIEW_LABEL}>ชื่อจุดรับบริการ/ห้องตรวจ</span>
-                  <span style={REVIEW_LABEL}>รหัส</span>
-                  <span style={{ gridColumn: 'span 3' }} aria-hidden />
-                  {u.nodes.map((n, j) => (
-                    <React.Fragment key={n.id}>
-                      <span style={{ ...REVIEW_VALUE, color: 'var(--text-content-tertiary)', textAlign: 'right' }}>
-                        {`${j + 1}.`}
-                      </span>
-                      <span style={REVIEW_VALUE}>{n.name || `จุดรับบริการ ${j + 1}`}</span>
-                      <span style={REVIEW_VALUE}>{n.code || '—'}</span>
-                      <span style={{ gridColumn: 'span 3' }} aria-hidden />
-                    </React.Fragment>
-                  ))}
-                </div>
-              ) : (
+              {/* แยกรายการตามชนิด — ทบทวนแล้วเห็นชัดว่าอะไรเป็นห้องตรวจ อะไรเป็นเตียง
+                  ถ้าไม่มีทั้งสองชนิดจึงขึ้นข้อความว่าง (26 ส.ค. 2569) */}
+              {nodesByKind(u, 'room').length === 0 && nodesByKind(u, 'bed').length === 0 ? (
                 <span style={{ ...REVIEW_VALUE, color: 'var(--text-content-tertiary)' }}>
-                  ยังไม่มีจุดรับบริการ
+                  ยังไม่มีจุดรับบริการหรือเตียงสังเกตอาการ
                 </span>
-              )}
+              ) : ['room', 'bed'].map((kind) => {
+                const list = nodesByKind(u, kind);
+                if (!list.length) return null;
+                const ui = NODE_UI[kind];
+                return (
+                  <div key={`${u.id}-review-${kind}`} style={REVIEW_GRID}>
+                    <span aria-hidden />
+                    {/* ใช้ขนาดเดียวกับป้ายของ ReviewField (xs) — เดิมเป็น sm
+                        ทำให้สอง subtext ในการ์ดเดียวกันตัวไม่เท่ากัน (25 ส.ค. 2569) */}
+                    <span style={REVIEW_LABEL}>{ui.nameLabel}</span>
+                    <span style={REVIEW_LABEL}>รหัส</span>
+                    <span style={{ gridColumn: 'span 3' }} aria-hidden />
+                    {list.map((n, j) => (
+                      <React.Fragment key={n.id}>
+                        <span style={{ ...REVIEW_VALUE, color: 'var(--text-content-tertiary)', textAlign: 'right' }}>
+                          {`${j + 1}.`}
+                        </span>
+                        <span style={REVIEW_VALUE}>{n.name || ui.namePlaceholder(j)}</span>
+                        <span style={REVIEW_VALUE}>{n.code || '—'}</span>
+                        <span style={{ gridColumn: 'span 3' }} aria-hidden />
+                      </React.Fragment>
+                    ))}
+                  </div>
+                );
+              })}
             </div>
           );
         })}
