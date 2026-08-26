@@ -172,7 +172,7 @@ function RoleFields({
   const fields = [
     /* เรียงจากหน่วยใหญ่ไปเล็ก: ศูนย์ → แผนกในศูนย์ → ตำแหน่ง → บทบาท
        (26 ส.ค. 2569 มติผู้ใช้ — เดิมแผนกไปอยู่ท้ายสุด) */
-    { key: 'center',   label: 'ศูนย์บริการ', options: centerOpts,   value: centerId,     onChange: onCenter },
+    { key: 'center',   label: 'ศูนย์บริการ', options: centerOpts,   value: centerId,     onChange: onCenter,     required: true },
     /* สาขาย่อยขึ้นกับศูนย์ที่เลือก — ศูนย์ที่ไม่มีสาขาจะเหลือแค่ "ทุกสาขา"
        (ตัวเลือกเดียว = ปิดช่องไว้ ไม่ให้กดแล้วไม่มีอะไรให้เลือก) */
     {
@@ -181,12 +181,13 @@ function RoleFields({
       options: branchOpts,
       value: branchId,
       onChange: onBranch,
-      placeholder: 'ทุกสาขาในศูนย์นี้',
+      placeholder: branchOpts[0]?.label,
+      required: true,
       disabled: !centerId || branchOpts.length <= 1,
     },
-    { key: 'dept',     label: 'แผนก',        options: deptOpts,     value: departmentId, onChange: onDepartment },
-    { key: 'position', label: 'ตำแหน่ง',     options: positionOpts, value: positionId,   onChange: onPosition },
-    { key: 'activity', label: 'บทบาท',       options: activityOpts, value: activityId,   onChange: onActivity },
+    { key: 'dept',     label: 'แผนก',        options: deptOpts,     value: departmentId, onChange: onDepartment, required: true },
+    { key: 'position', label: 'ตำแหน่ง',     options: positionOpts, value: positionId,   onChange: onPosition,   required: true },
+    { key: 'activity', label: 'บทบาท',       options: activityOpts, value: activityId,   onChange: onActivity,   required: true },
   ];
 
   return (
@@ -197,6 +198,7 @@ function RoleFields({
             label={f.label}
             showHelperText={false}
             size='large'
+            required={f.required}
             options={f.options}
             value={f.value}
             onChange={f.onChange}
@@ -488,9 +490,13 @@ export default function AccessControlCreatePage({
      (26 ส.ค. 2569 มติผู้ใช้) */
   const branchOpts = useMemo(() => {
     const detail = centerId ? findCenterDetail(centerId) : null;
+    const branches = detail?.branches || [];
+    /* ศูนย์ที่ไม่มีสาขาต้องบอกตรง ๆ ว่า "ไม่มีสาขาย่อย" — ขึ้น "ทุกสาขาในศูนย์นี้"
+       ทั้งที่ไม่มีสาขาสักแห่งทำให้เข้าใจผิดว่ามีแต่เลือกไม่ได้ (26 ส.ค. 2569) */
+    if (!branches.length) return [{ value: '', label: centerId ? 'ไม่มีสาขาย่อย' : 'เลือกศูนย์บริการก่อน' }];
     return [
       { value: '', label: 'ทุกสาขาในศูนย์นี้' },
-      ...(detail?.branches || []).map((b) => ({ value: b.id, label: b.name })),
+      ...branches.map((b) => ({ value: b.id, label: b.name })),
     ];
   }, [centerId]);
   /* คุณลักษณะที่เว้นว่าง = ไม่จำกัด (ตรงกับกติกา ABAC ใน accessControlStore)
@@ -503,9 +509,11 @@ export default function AccessControlCreatePage({
 
   /* บันทึกได้เมื่อ **ตั้งชื่อแม่แบบ** แล้ว — ไม่บังคับกิจกรรม / ตำแหน่ง */
   const nameValid = templateName.trim().length > 0;
-  /* ศูนย์ · แผนก · ตำแหน่ง · บทบาท ต้องเลือกครบ (26 ส.ค. 2569 มติผู้ใช้) —
-     สาขาย่อยยังไม่บังคับ เว้นว่าง = คลุมทั้งศูนย์ */
-  const roleValid = !!(centerId && departmentId && positionId && activityId);
+  /* ทั้ง 5 ช่องเป็นช่องบังคับ (26 ส.ค. 2569 มติผู้ใช้) — ยกเว้นสาขาย่อยของศูนย์
+     ที่ไม่มีสาขาให้เลือกเลย ถือว่าผ่าน ไม่งั้นจะกดบันทึกไม่ได้ตลอดกาล */
+  const branchRequired = branchOpts.length > 1;
+  const roleValid = !!(centerId && departmentId && positionId && activityId
+    && (!branchRequired || branchId));
 
   /* เซ็ตระดับสิทธิ์ให้ "ใบ" ที่ส่งมา — แถวระบบ/เมนูส่งใบของทั้งกลุ่มมาพร้อมกัน */
   const applyLeaves = (leafKeys, level) => {
@@ -655,6 +663,9 @@ export default function AccessControlCreatePage({
               showBadge={false}
               showChevron={false}
               showSuccess={false}
+              /* Topic มี padding ซ้าย/ขวา 12px ในตัว — หัวข้อจึงเยื้องจากช่องกรอก
+                 ข้างล่าง ตัดออกให้ชิดขอบเดียวกัน (26 ส.ค. 2569 มติผู้ใช้) */
+              style={{ paddingLeft: 0, paddingRight: 0 }}
             />
             <RoleFields
               centerId={centerId}
@@ -697,6 +708,9 @@ export default function AccessControlCreatePage({
               showBadge={false}
               showChevron={false}
               showSuccess={false}
+              /* Topic มี padding ซ้าย/ขวา 12px ในตัว — หัวข้อจึงเยื้องจากช่องกรอก
+                 ข้างล่าง ตัดออกให้ชิดขอบเดียวกัน (26 ส.ค. 2569 มติผู้ใช้) */
+              style={{ paddingLeft: 0, paddingRight: 0 }}
             />
             <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
               <div style={{ flex: '1 1 320px', minWidth: 260 }}>
@@ -798,6 +812,9 @@ export default function AccessControlCreatePage({
               showBadge={false}
               showChevron={false}
               showSuccess={false}
+              /* Topic มี padding ซ้าย/ขวา 12px ในตัว — หัวข้อจึงเยื้องจากช่องกรอก
+                 ข้างล่าง ตัดออกให้ชิดขอบเดียวกัน (26 ส.ค. 2569 มติผู้ใช้) */
+              style={{ paddingLeft: 0, paddingRight: 0 }}
             />
             <PermissionTree permissions={permissions} onSetLeaves={applyLeaves} />
           </section>
