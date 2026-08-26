@@ -15,6 +15,8 @@ import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
 import SuccessToast from '@/components/toast/SuccessToast';
 import CenterEditPopup from '@/pages/system/CenterEditPopup';
+import Popup from '@/components/popup/Popup';
+import Icon from '@/components/icons/Icon';
 import Popover from '@/components/popup/Popover';
 import ActionList from '@/components/list/ActionList';
 import SYSTEM_NAV from '@/pages/system/systemNav';
@@ -175,6 +177,30 @@ function HoursCell({ hours }) {
   );
 }
 
+/* สาขาย่อยชุดตั้งต้นมีแต่รายการใน parent.branches ยังไม่มี record ของตัวเอง
+   — แปลงเป็นรูปศูนย์บริการเพื่อเปิดฟอร์มแก้ไขได้ทันที (รหัสหน่วยบริการยังว่าง
+   ผู้ใช้ต้องกรอกเองเพราะสาขาแต่ละแห่งมีรหัสของตัวเอง) พอกดบันทึก persistCenter
+   จะสร้าง record ให้และ sync ชื่อ/ที่อยู่/เบอร์ กลับเข้า branches ของศูนย์แม่ */
+function branchAsCenter(parent, branch) {
+  return {
+    id: branch.id,
+    branchId: branch.id,
+    parentId: parent.id,
+    hcode9: '',
+    hcode5: '',
+    code: '',
+    name: branch.name || '',
+    location: { ...(parent.location || {}), no: branch.address || '' },
+    phones: branch.phone ? [branch.phone] : [],
+    emails: [],
+    website: '',
+    hours: parent.hours,
+    branches: [],
+    active: branch.active !== false,
+    draft: false,
+  };
+}
+
 /* ชื่อศูนย์ + สาขาย่อย — ศูนย์ที่มีจุดให้บริการย่อย (เช่น ศูนย์ 49 ตลิ่งชัน)
    ต้องเห็นสาขาได้จากทะเบียนเลย ไม่ต้องเปิดเข้าไปแก้ไขก่อนถึงจะรู้ว่ามีสาขา */
 function NameCell({ row }) {
@@ -214,6 +240,11 @@ export default function SystemCentersPage() {
      PDF/Excel/CSV + ช่วงวันที่ + หัวข้อ + บันทึก log) ไม่สร้าง flow ใหม่ */
   /* ศูนย์ที่กำลังแก้ไข — เปิด popup ฟอร์มชุดเดียวกับตอนเพิ่มศูนย์ */
   const [editCenter, setEditCenter] = useState(null);
+  /* ศูนย์ที่มีสาขาย่อย: กด "แก้ไข" แล้วต้องเลือกก่อนว่าจะแก้ศูนย์หลักหรือสาขาไหน
+     — ป๊อปอัปเลือกอยู่ชั้นล่าง ฟอร์มซ้อนขึ้นมาข้างบนและกดย้อนกลับได้
+     (26 ส.ค. 2569 มติผู้ใช้) */
+  const [editPicker, setEditPicker] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
   /* เพิ่มศูนย์บริการ — popup ฟอร์มเดียวกัน แค่ไม่มีศูนย์ตั้งต้น */
   const [addOpen, setAddOpen] = useState(false);
   /* เมนูใต้ปุ่ม "เพิ่มศูนย์บริการ" — เลือกว่าจะเพิ่มศูนย์หลักหรือสาขาย่อย
@@ -223,6 +254,21 @@ export default function SystemCentersPage() {
   const [branchOpen, setBranchOpen] = useState(false);
   /* ศูนย์แม่ที่ตั้งไว้ล่วงหน้าเมื่อกดเพิ่มสาขาย่อยจากในแถว */
   const [branchParentId, setBranchParentId] = useState('');
+  /* branch = null → แก้ศูนย์หลัก · มี branch → แก้สาขานั้น (ใช้ record จริงถ้ามี
+     ไม่งั้นแปลงจากรายการใน parent.branches) */
+  const openEditTarget = (parent, branch) => {
+    if (!branch) {
+      setEditTarget({ center: parent, branchOf: false, parentIdInit: '' });
+      return;
+    }
+    const record = centers.find((c) => c.parentId === parent.id && c.name === branch.name);
+    setEditTarget({
+      center: record ? { ...record, branchId: branch.id } : branchAsCenter(parent, branch),
+      branchOf: true,
+      parentIdInit: parent.id,
+    });
+  };
+
   /* ทะเบียนรูปแบบโครงสร้าง — ใช้บอกว่าศูนย์ไหนผูกรูปแบบใดไว้ */
   const [structures, setStructures] = useState(() => readStructures());
   const [exportReport, setExportReport] = useState(null);
@@ -461,7 +507,11 @@ export default function SystemCentersPage() {
           <NeutralSubdueButton
             leadingIcon='edit'
             size='sm'
-            onClick={(e) => { e.stopPropagation(); setEditCenter(row); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              /* ไม่มีสาขา = เข้าฟอร์มตรง ๆ ไม่ต้องให้เลือกอะไรที่มีตัวเลือกเดียว */
+              if ((row.branches || []).length) setEditPicker(row); else setEditCenter(row);
+            }}
           >
             แก้ไข
           </NeutralSubdueButton>
@@ -665,6 +715,75 @@ export default function SystemCentersPage() {
           center={null}
           onClose={() => setAddOpen(false)}
           onSaved={() => { refresh(); showToast('เพิ่มศูนย์บริการแล้ว'); }}
+        />
+      ) : null}
+
+      {/* ศูนย์ที่มีสาขาย่อย — เลือกก่อนว่าจะแก้ศูนย์หลักหรือสาขาไหน แล้วฟอร์ม
+          เปิดซ้อนขึ้นมา กดลูกศรย้อนกลับที่หัวป๊อปอัปเพื่อกลับมาเลือกใหม่ได้ */}
+      {editPicker ? (
+        <Popup
+          open={!editTarget}
+          onClose={() => { setEditPicker(null); setEditTarget(null); }}
+          size='large'
+          title='แก้ไขศูนย์บริการ'
+          subtitle={`${editPicker.name} มีสาขาย่อย ${(editPicker.branches || []).length} แห่ง — เลือกที่ต้องการแก้ไข`}
+          tertiaryAction={{ label: 'ยกเลิก', onClick: () => { setEditPicker(null); setEditTarget(null); } }}
+        >
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+            {[{ branch: null, label: `ศูนย์บริการหลัก · ${editPicker.name}`, sub: editPicker.hcode9 ? `รหัสหน่วยบริการ ${editPicker.hcode9}` : 'ศูนย์หลัก', icon: 'domain' },
+              ...(editPicker.branches || []).map((b) => ({
+                branch: b,
+                label: b.name,
+                sub: b.address || 'สาขาย่อยของศูนย์นี้',
+                icon: 'store',
+              }))].map((opt) => (
+                <button
+                  key={opt.branch?.id || 'parent'}
+                  type='button'
+                  className='flex items-center w-full text-left'
+                  style={{
+                    gap: 'var(--dim-space-300)',
+                    padding: 'var(--dim-space-400)',
+                    borderRadius: 'var(--dim-radius-400)',
+                    border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+                    background: 'var(--surface-card-100)',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => openEditTarget(editPicker, opt.branch)}
+                >
+                  <span
+                    className='inline-flex items-center justify-center shrink-0'
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 'var(--dim-radius-200)',
+                      background: 'var(--surface-brandPrimary-quaternary)',
+                      color: 'var(--text-brandPrimary-default)',
+                    }}
+                  >
+                    <Icon name={opt.icon} size={18} />
+                  </span>
+                  <span className='flex flex-col min-w-0' style={{ flex: '1 1 auto' }}>
+                    <span className='truncate' style={TEXT_CELL}>{opt.label}</span>
+                    <span className='truncate' style={SUBTEXT_CELL}>{opt.sub}</span>
+                  </span>
+                  <Icon name='chevron_right' size={20} color='var(--icon-neutral-tertiary, #ADB2B7)' />
+                </button>
+            ))}
+          </div>
+        </Popup>
+      ) : null}
+
+      {editPicker && editTarget ? (
+        <CenterEditPopup
+          key={editTarget.center?.id || 'branch'}
+          open
+          center={editTarget.center}
+          branchOf={editTarget.branchOf}
+          parentIdInit={editTarget.parentIdInit}
+          onBack={() => setEditTarget(null)}
+          onClose={() => { setEditTarget(null); setEditPicker(null); }}
+          onSaved={() => { refresh(); showToast('บันทึกการแก้ไขศูนย์บริการแล้ว'); }}
         />
       ) : null}
 

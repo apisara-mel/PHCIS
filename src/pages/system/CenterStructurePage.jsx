@@ -13,6 +13,7 @@ import AlertDialog from '@/components/popup/AlertDialog';
 import CenterStructurePopup from '@/pages/system/CenterStructurePopup';
 import Popup from '@/components/popup/Popup';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
+import TabPill, { TabBar } from '@/components/tab/TabPill';
 import SYSTEM_NAV from '@/pages/system/systemNav';
 import { readCenters } from '@/data/centerStore';
 import {
@@ -76,6 +77,10 @@ export default function CenterStructurePage() {
   const refresh = useCallback(() => setRows(readStructures()), []);
   useEffect(() => { refresh(); }, [refresh]);
 
+  /* แท็บ "ทั้งหมด / ร่าง" — ร่างคือรูปแบบที่ยังบันทึกไม่ครบ ไม่ควรปนกับรูปแบบ
+     ที่พร้อมใช้ในทะเบียนเดียวกัน (26 ส.ค. 2569 มติผู้ใช้) */
+  const [tab, setTab] = useState('all');
+
   const persist = useCallback((next) => {
     writeStructures(next);
     setRows(next);
@@ -103,6 +108,16 @@ export default function CenterStructurePage() {
       applied: acc.applied + (t.appliedCenters || []).length,
     };
   }, { templates: 0, clinics: 0, applied: 0 }), [rows]);
+
+  /* แท็บ "ทั้งหมด" ไม่รวมร่าง — ไม่งั้นร่างจะโผล่สองที่และนับซ้ำ */
+  const draftRows = useMemo(() => rows.filter((t) => t.draft), [rows]);
+  const readyRows = useMemo(() => rows.filter((t) => !t.draft), [rows]);
+  const visibleRows = tab === 'draft' ? draftRows : readyRows;
+
+  const TABS = [
+    { key: 'all', label: 'ทั้งหมด', icon: 'account_tree', count: readyRows.length },
+    { key: 'draft', label: 'ร่าง', icon: 'edit_note', count: draftRows.length },
+  ];
 
   const summaryCards = useMemo(() => [
     { key: 'total', icon: 'account_tree', color: 'info', value: String(totals.templates), label: 'รูปแบบโครงสร้างทั้งหมด' },
@@ -220,7 +235,27 @@ export default function CenterStructurePage() {
               {/* rowKey ต้องเป็นฟังก์ชัน — ของเดิมส่ง string 'id' ซึ่ง Table เรียก
                   เป็นฟังก์ชัน (rowKey is not a function) แต่ไม่เคยพังเพราะตาราง
                   ว่างมาตลอด เพิ่งโผล่ตอนมีข้อมูลตัวอย่าง (25 ส.ค. 2569) */}
-              <Table columns={columns} rows={rows} rowKey={(row) => row.id} onRowClick={goEdit} />
+              <TabBar aria-label='กลุ่มรูปแบบโครงสร้างศูนย์' align='center' className='self-center shrink-0 max-w-full'>
+                {TABS.map((t) => (
+                  <TabPill
+                    key={t.key}
+                    size='large'
+                    selected={tab === t.key}
+                    leadingIcon={t.icon}
+                    count={t.count}
+                    onClick={() => setTab(t.key)}
+                  >
+                    {t.label}
+                  </TabPill>
+                ))}
+              </TabBar>
+              <Table
+                columns={columns}
+                rows={visibleRows}
+                rowKey={(row) => row.id}
+                onRowClick={goEdit}
+                emptyMessage={tab === 'draft' ? 'ยังไม่มีรูปแบบที่เป็นร่าง' : 'ยังไม่มีรูปแบบที่พร้อมใช้'}
+              />
               <BrandDashedAddButton className='w-full' style={{ width: '100%' }} onClick={goCreate}>
                 สร้างรูปแบบโครงสร้างศูนย์ใหม่
               </BrandDashedAddButton>
