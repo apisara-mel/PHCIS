@@ -10,6 +10,9 @@ import BrandButton from '@/components/button/BrandButton';
 import Radio from '@/components/radio/Radio';
 import Icon from '@/components/icons/Icon';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import DatePicker from '@/components/forms/DatePicker';
+import TimePicker from '@/components/forms/TimePicker';
+import Checkbox from '@/components/checkbox/Checkbox';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Popup from '@/components/popup/Popup';
 import StepProgress from '@/components/step/StepProgress';
@@ -87,10 +90,27 @@ const DESCRIPTION_SUGGESTIONS = [
   'สิทธิ์ผู้ดูแลระบบของศูนย์',
 ];
 
+/* เหตุผลที่ส่งถึงผู้อนุมัติมักเป็นคำเดิม ๆ ทั้งปีงบ — เสนอให้เลือกแล้วพิมพ์ต่อได้ */
+const APPROVAL_NOTE_SUGGESTIONS = [
+  'ขอเปิดสิทธิ์ให้บุคลากรที่รับผิดชอบงานนี้โดยตรง',
+  'ขอเปิดสิทธิ์ชั่วคราวระหว่างปฏิบัติงานแทน',
+  'ปรับสิทธิ์ตามโครงสร้างศูนย์ที่เปลี่ยนใหม่',
+  'ทบทวนสิทธิ์ประจำปีงบประมาณ',
+  'ขอปิดสิทธิ์ที่ไม่ได้ใช้งานแล้ว',
+];
+
+/* กลุ่มที่ไม่ต้องรองพื้น — คงระยะซ้าย/ขวาไว้เท่ากันเพื่อให้ช่องกรอกทุกขั้น
+   เรียงตรงคอลัมน์เดียวกัน */
+const CARD_PLAIN = {
+  background: 'transparent',
+  padding: 'var(--dim-space-400) 40px',
+};
+
 const CARD_FLAT = {
   background: 'var(--surface-neutral-quaternary, #F9FBFB)',
   borderRadius: 'var(--dim-radius-400)',
-  padding: 'var(--dim-space-400)',
+  /* ซ้าย/ขวา 40px ให้ช่องกรอกไม่ชนขอบกล่อง (26 ส.ค. 2569 มติผู้ใช้) */
+  padding: 'var(--dim-space-400) 40px',
 };
 
 const TABLE_FRAME = {
@@ -448,6 +468,8 @@ export default function AccessControlCreatePage({
   const [dailyFrom, setDailyFrom] = useState('');
   const [dailyTo, setDailyTo] = useState('');
   const [effectiveTo, setEffectiveTo] = useState('');
+  /* ติ๊ก = ไม่กำหนดวันสิ้นสุด (เก็บเป็นค่าว่างเหมือนเดิม แค่บอกผู้ใช้ให้ชัด) */
+  const [noEndDate, setNoEndDate] = useState(false);
   const [approvalNote, setApprovalNote] = useState('');
 
   const activities = useMemo(() => readActivities(), []);
@@ -475,6 +497,7 @@ export default function AccessControlCreatePage({
     setDailyFrom(existing.dailyFrom || '');
     setDailyTo(existing.dailyTo || '');
     setEffectiveTo(existing.effectiveTo || '');
+    setNoEndDate(!existing.effectiveTo);
     setApprovalNote(existing.approvalNote || '');
   }, [existing]);
 
@@ -511,6 +534,11 @@ export default function AccessControlCreatePage({
   const nameValid = templateName.trim().length > 0;
   /* ทั้ง 5 ช่องเป็นช่องบังคับ (26 ส.ค. 2569 มติผู้ใช้) — ยกเว้นสาขาย่อยของศูนย์
      ที่ไม่มีสาขาให้เลือกเลย ถือว่าผ่าน ไม่งั้นจะกดบันทึกไม่ได้ตลอดกาล */
+  /* ขั้น "ขอบเขตและช่วงเวลา" ต้องกรอกครบเช่นกัน — วันสิ้นสุดยกเว้นได้ด้วยการ
+     ติ๊ก "ยังไม่กำหนดวันสิ้นสุด" (26 ส.ค. 2569 มติผู้ใช้) */
+  const scopeValid = !!(dataScope && piiVisibility && effectiveFrom && dailyFrom && dailyTo
+    && (noEndDate || effectiveTo));
+
   const branchRequired = branchOpts.length > 1;
   const roleValid = !!(centerId && departmentId && positionId && activityId
     && (!branchRequired || branchId));
@@ -569,7 +597,7 @@ export default function AccessControlCreatePage({
 
   /* ปุ่ม primary เปิด modal ทวนสรุปก่อน — ยืนยันแล้วจึงบันทึกจริง */
   const handleSubmit = () => {
-    if (!nameValid || !roleValid || dateRangeError) return;
+    if (!nameValid || !roleValid || !scopeValid || dateRangeError) return;
     setConfirmSaveOpen(true);
   };
 
@@ -623,13 +651,16 @@ export default function AccessControlCreatePage({
     );
   }
 
-  const saveDisabled = !nameValid || !roleValid || !!dateRangeError;
+  const saveDisabled = !nameValid || !roleValid || !scopeValid || !!dateRangeError;
   const submitLabel = isEdit ? `ส่งขออนุมัติ ${formatVersion(nextVersion)}` : 'ส่งขออนุมัติสิทธิ์';
 
   /* ป๊อปอัปเดินเป็น step — ฟอร์มเดียวยาว 3 การ์ดกดยากบนจอเล็ก และการตั้งสิทธิ์
      ควรตั้งชื่อ/ผูกบทบาทให้เสร็จก่อนค่อยลงรายละเอียดสิทธิ์ (26 ส.ค. 69 มติผู้ใช้)
      หน้าเต็ม (route เดิม) ยังเป็นฟอร์มยาวเลื่อนเดียวเหมือนเดิม */
+  /* กลุ่มที่รองพื้นเทา = กลุ่มที่ต้องเห็นว่าอยู่ก้อนเดียวกัน (ชื่อแม่แบบ · ข้อมูล
+     บทบาท) ส่วนขั้นขอบเขตกับตารางสิทธิ์ไม่รองพื้น (26 ส.ค. 2569 มติผู้ใช้) */
   const sectionCard = asPopup ? CARD_FLAT : CARD;
+  const sectionPlain = asPopup ? CARD_PLAIN : CARD;
 
   const stepSections = [
     (
@@ -699,102 +730,118 @@ export default function AccessControlCreatePage({
               มติ คทง.2/3/4/10/11: ศบส. เห็นเฉพาะของตน · กอง/ผู้บริหารเห็น
               ภาพรวมแต่ปิดบัง PII · คทง.4: อสส. เห็นเฉพาะเคสที่ได้รับมอบหมาย
               มติ คทง.13 §2.3: กำหนดช่วงเวลาเริ่ม-สิ้นสุดการเข้าถึงได้ */}
-          <section className='flex flex-col w-full' style={{ ...sectionCard, gap: 'var(--dim-space-400)' }}>
-            <Topic
-              hierarchy='primary'
-              title='ขอบเขตข้อมูลและระยะเวลาที่มีผล'
-              subText='กำหนดว่าเห็นข้อมูลของหน่วยใดได้บ้าง เห็นข้อมูลระบุตัวตนหรือไม่ และสิทธิ์นี้มีผลช่วงใด'
-              showLeadingIcon={false}
-              showBadge={false}
-              showChevron={false}
-              showSuccess={false}
-              /* Topic มี padding ซ้าย/ขวา 12px ในตัว — หัวข้อจึงเยื้องจากช่องกรอก
-                 ข้างล่าง ตัดออกให้ชิดขอบเดียวกัน (26 ส.ค. 2569 มติผู้ใช้) */
-              style={{ paddingLeft: 0, paddingRight: 0 }}
-            />
+          {/* ระยะระหว่างแถว 24px (26 ส.ค. 2569 มติผู้ใช้) — แถวละ 4 ช่องพร้อม
+              helper text ใต้ช่อง ระยะ 16px แน่นเกินจนอ่านเป็นก้อนเดียว */}
+          <section className='flex flex-col w-full' style={{ ...sectionPlain, gap: 'var(--dim-space-600)' }}>
+            {/* ไม่มีหัวข้อการ์ด — ชื่อ step "ขอบเขตและช่วงเวลา" บนหัวป๊อปอัปบอกอยู่แล้ว
+                (26 ส.ค. 2569 มติผู้ใช้) */}
             <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
               <div style={{ flex: '1 1 320px', minWidth: 260 }}>
                 <Select
                   label='ขอบเขตข้อมูลที่มองเห็น'
+                  required
                   options={DATA_SCOPE_OPTIONS.map((o) => ({ value: o.value, label: o.label, subtext: o.hint }))}
                   value={dataScope}
                   onChange={setDataScope}
                   searchable={false}
                   showHelperText
-                  helperText='อสส./ผู้ช่วยงานชุมชน ให้เลือก "เฉพาะเคสที่ได้รับมอบหมาย" (มติ คทง.4)'
+                  helperText='อสส./ผู้ช่วยงานชุมชน ให้เลือก "เฉพาะเคสที่ได้รับมอบหมาย"'
                 />
               </div>
               <div style={{ flex: '1 1 320px', minWidth: 260 }}>
                 <Select
                   label='ข้อมูลระบุตัวตน (PII)'
+                  required
                   options={PII_OPTIONS}
                   value={piiVisibility}
                   onChange={setPiiVisibility}
                   searchable={false}
                   showHelperText
-                  helperText='ระดับกอง/ผู้บริหารให้ปิดบัง PII และดูผ่านรหัสนิรนาม (มติ คทง.10/11)'
+                  helperText='ระดับกอง/ผู้บริหารให้ปิดบัง PII และดูผ่านรหัสนิรนาม'
                 />
               </div>
             </div>
             <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
+              {/* ใช้ปฏิทินของ design system ไม่ใช่ <input type='date'> ของเบราว์เซอร์
+                  — ปฏิทินเจ้าถิ่นเป็นภาษาอังกฤษ/ค.ศ. และหน้าตาคนละชุดกับทั้งระบบ
+                  (26 ส.ค. 2569 มติผู้ใช้) เก็บค่าเป็น YYYY-MM-DD เหมือนเดิม */}
               <div style={{ flex: '1 1 240px', minWidth: 200 }}>
-                <InputField
+                <DatePicker
                   label='วันเริ่มมีผล'
-                  type='date'
-                  showLeadingIcon={false}
-                  value={effectiveFrom}
-                  onChange={setEffectiveFrom}
-                  helperText='เว้นว่าง = มีผลทันทีที่อนุมัติ'
+                  required
+                  size='md'
+                  showHelperText={false}
+                  value={effectiveFrom ? new Date(effectiveFrom) : undefined}
+                  onChange={(d) => setEffectiveFrom(d ? new Date(d).toISOString().slice(0, 10) : '')}
                 />
               </div>
-              <div style={{ flex: '1 1 240px', minWidth: 200 }}>
-                <InputField
+              <div className='flex flex-col' style={{ flex: '1 1 240px', minWidth: 200, gap: 'var(--dim-space-200)' }}>
+                <DatePicker
                   label='วันสิ้นสุด'
-                  type='date'
-                  showLeadingIcon={false}
-                  value={effectiveTo}
-                  onChange={setEffectiveTo}
-                  error={dateRangeError || undefined}
-                  helperText={dateRangeError || 'เว้นว่าง = ไม่กำหนดวันสิ้นสุด'}
+                  required
+                  size='md'
+                  disabled={noEndDate}
+                  error={!!dateRangeError}
+                  showHelperText={!!dateRangeError}
+                  helperText={dateRangeError}
+                  value={effectiveTo ? new Date(effectiveTo) : undefined}
+                  onChange={(d) => setEffectiveTo(d ? new Date(d).toISOString().slice(0, 10) : '')}
+                />
+                {/* ปฏิทินเลือก "ไม่มีวัน" ไม่ได้ — ต้องมีทางบอกว่ายังไม่กำหนด
+                    ให้ชัด ไม่ใช่ปล่อยว่างแล้วเดาเอา (26 ส.ค. 2569 มติผู้ใช้) */}
+                <Checkbox
+                  label='ยังไม่กำหนดวันสิ้นสุด'
+                  showDescription={false}
+                  checked={noEndDate}
+                  onChange={(next) => {
+                    const on = typeof next === 'boolean' ? next : !noEndDate;
+                    setNoEndDate(on);
+                    if (on) setEffectiveTo('');
+                  }}
                 />
               </div>
               {/* ช่วงเวลาเข้าใช้งานรายวัน — Figma "PHCIS | History and Access"
                   กำหนดหน้าต่างเวลาต่อวัน (เช่น 08.00-16.00 น.) แยกจากช่วง "วัน"
                   ข้างบน · เว้นว่าง = เข้าได้ตลอด 24 ชม. · ข้ามเที่ยงคืนได้ (เวรดึก) */}
               <div style={{ flex: '1 1 240px', minWidth: 200 }}>
-                <InputField
+                <TimePicker
                   label='เข้าใช้งานได้ตั้งแต่ (รายวัน)'
-                  type='time'
-                  showLeadingIcon={false}
+                  required
+                  size='md'
+                  showHelperText={false}
                   value={dailyFrom}
                   onChange={setDailyFrom}
-                  helperText='เว้นว่าง = เข้าได้ตลอด 24 ชม.'
                 />
               </div>
               <div style={{ flex: '1 1 240px', minWidth: 200 }}>
-                <InputField
+                {/* helper "เว้นว่าง = …" ถอดออก (26 ส.ค. 2569 มติผู้ใช้) — เหลือไว้
+                    เฉพาะตอนข้ามเที่ยงคืน ซึ่งเป็นเคสที่ต้องเตือนจริง */}
+                <TimePicker
                   label='ถึงเวลา (รายวัน)'
-                  type='time'
-                  showLeadingIcon={false}
+                  required
+                  size='md'
+                  showHelperText={!!(dailyFrom && dailyTo && dailyTo < dailyFrom)}
+                  helperText='ข้ามเที่ยงคืน — ใช้กับเวรดึก'
                   value={dailyTo}
                   onChange={setDailyTo}
-                  helperText={dailyFrom && dailyTo && dailyTo < dailyFrom
-                    ? 'ข้ามเที่ยงคืน — ใช้กับเวรดึก'
-                    : 'เว้นว่าง = ถึงสิ้นวัน'}
                 />
               </div>
             </div>
+            {/* ใช้ flex basis ชุดเดียวกับแถวขอบเขตข้อมูล + spacer อีกครึ่ง กล่อง
+                เหตุผลจึงกว้างเท่าช่อง "ขอบเขตข้อมูลที่มองเห็น" พอดี (26 ส.ค. 2569) */}
             <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
-              <div style={{ flex: '2 1 320px', minWidth: 260 }}>
-                <InputField
+              <div style={{ flex: '1 1 320px', minWidth: 260 }}>
+                <SuggestibleTextarea
                   label='เหตุผล/บันทึกถึงผู้อนุมัติ'
-                  showLeadingIcon={false}
                   value={approvalNote}
-                  onChange={setApprovalNote}
+                  onChange={(e) => setApprovalNote(e?.target ? e.target.value : e)}
                   placeholder='เช่น ขอเปิดสิทธิ์ให้ทีมสังคมสงเคราะห์ปีงบ 69'
                   helperText='แสดงให้ผู้มีอำนาจเห็นตอนพิจารณาอนุมัติ'
+                  suggestions={APPROVAL_NOTE_SUGGESTIONS}
+                  minChars={1}
                 />
               </div>
+              <div style={{ flex: '1 1 320px', minWidth: 260 }} aria-hidden />
             </div>
           </section>
 
@@ -803,7 +850,7 @@ export default function AccessControlCreatePage({
     (
 <>
           {/* Card 2 — สิทธิ์การเข้าถึงระบบ (Figma 15:30160 · card) */}
-          <section className='flex flex-col w-full' style={{ ...sectionCard, gap: 'var(--dim-space-600)' }}>
+          <section className='flex flex-col w-full' style={{ ...sectionPlain, gap: 'var(--dim-space-600)' }}>
             <Topic
               hierarchy='primary'
               title='สิทธิ์การเข้าถึงระบบ'
@@ -880,7 +927,14 @@ export default function AccessControlCreatePage({
              ขั้นแรกยังต้องมีชื่อแม่แบบก่อนถึงจะเดินหน้าได้ */
           primaryAction={isLastStep
             ? { label: submitLabel, trailingIcon: 'arrow_forward', disabled: saveDisabled, onClick: handleSubmit }
-            : { label: 'ถัดไป', trailingIcon: 'arrow_forward', disabled: stepIdx === 0 && (!nameValid || !roleValid), onClick: () => setStepIdx((i) => i + 1) }}
+            : {
+              label: 'ถัดไป',
+              trailingIcon: 'arrow_forward',
+              /* กันเดินข้ามขั้นที่ยังกรอกไม่ครบ — ขั้นสุดท้ายไม่มี "ถัดไป" */
+              disabled: (stepIdx === 0 && (!nameValid || !roleValid))
+                || (stepIdx === 1 && (!scopeValid || !!dateRangeError)),
+              onClick: () => setStepIdx((i) => i + 1),
+            }}
         >
           {shellBody(stepSections[stepIdx])}
         </Popup>

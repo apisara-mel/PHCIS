@@ -86,7 +86,7 @@ export const SCOPE_ZONE = 'zone';
 export const SCOPE_ALL = 'all';
 
 export const DATA_SCOPE_OPTIONS = [
-  { value: SCOPE_ASSIGNED, label: 'เฉพาะเคสที่ได้รับมอบหมาย', hint: 'อสส./ผู้ช่วยงานชุมชน — เห็นเฉพาะรายที่ถูกจ่ายงานให้ (มติ คทง.4)' },
+  { value: SCOPE_ASSIGNED, label: 'เฉพาะเคสที่ได้รับมอบหมาย', hint: 'อสส./ผู้ช่วยงานชุมชน — เห็นเฉพาะรายที่ถูกจ่ายงานให้' },
   { value: SCOPE_CENTER, label: 'เฉพาะศูนย์ของตนเอง', hint: 'ค่าเริ่มต้นของเจ้าหน้าที่ ศบส.' },
   { value: SCOPE_ZONE, label: 'ทุกศูนย์ในกลุ่มเขต', hint: 'หัวหน้ากลุ่มเขต/ผู้นิเทศ' },
   { value: SCOPE_ALL, label: 'ทุกศูนย์ (ภาพรวมสำนักอนามัย)', hint: 'กองแผนงาน/ผู้บริหาร — ดูสรุปได้ทั้งหมด' },
