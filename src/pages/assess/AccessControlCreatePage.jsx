@@ -39,6 +39,7 @@ import {
   PII_MASKED,
   dataScopeLabel,
 } from '@/data/accessControlStore';
+import { findCenterDetail } from '@/data/centerStore';
 import { readActivities } from '@/data/activityStore';
 import { readDepartments } from '@/data/departmentStore';
 import { readPositions, sortPositions } from '@/data/positionStore';
