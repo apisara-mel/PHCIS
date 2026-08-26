@@ -14,6 +14,7 @@ import {
   CONSENT_WORKLIST_FORM_POOL,
   CONSENT_WORKLIST_TYPES,
 } from '@/data/consentFormRecords';
+import { CLINIC_OPTIONS } from '@/components/layout/HeaderClinicContext';
 
 /* ── Consent type → ColorfulBadge tone (Figma type pills) ───────────── */
 /** tone ต่อหัวข้อหลัก 3 เรื่องของ consent — ชุดเดียวกับ FORM_TYPE_TONE
@@ -216,6 +217,10 @@ export const MOCK_PATIENTS = [
 /* ช่องทางลงนาม — เฉพาะ Mobile App หรือที่ศูนย์บริการ (ไม่มี "-") */
 const signChannelForStatus = (_status, id) => consentSignChannelOfIndex(id);
 
+/* ศูนย์ที่ใช้กระจายคำขอ — เอาแค่ต้นทะเบียนพอ ไม่ต้องครบ 69 ศูนย์ จะได้มีคำขอ
+   ต่อศูนย์มากพอให้กราฟและตัวกรองอ่านออก */
+const CONSENT_CENTER_POOL = CLINIC_OPTIONS.slice(0, 8);
+
 const buildConsentMockRecords = () => {
   const { month: thisMonth, year: thisYear } = getConsentCalendarNow();
   /* เดือนก่อนหน้า + ปีก่อน — ให้ยอดทั้งระบบ > ยอดเดือนนี้ใน summary */
@@ -269,6 +274,10 @@ const buildConsentMockRecords = () => {
     createdDate,
     signedDate,
     withdrawnDate,
+    /* ศูนย์ที่รับคำขอ — กระจายตามลำดับให้ทุกศูนย์ในพูลมีงานจริง เพื่อให้ตัวกรอง
+       "ศูนย์:" บนแดชบอร์ดความยินยอมกรองได้จริง ไม่ใช่ปุ่มตาย (26 ส.ค. 2569) */
+    centerId: CONSENT_CENTER_POOL[index % CONSENT_CENTER_POOL.length].value,
+    center: CONSENT_CENTER_POOL[index % CONSENT_CENTER_POOL.length].label,
     history: [],
   };
 
