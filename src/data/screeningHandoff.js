@@ -48,16 +48,30 @@ export const getCarriedScreening = (patient = {}) => {
   const pain = painLevelByKey(symptom?.pain);
   const triage = triageLevelByLevel(symptom?.triage);
 
-  /* ประวัติการแพ้ที่พยาบาลบันทึกในขั้นที่ 3 — ยา + สารเคมี + อาหาร + อื่น ๆ
-     รวมเป็นรายการเดียวโดยติดป้ายหมวดไว้ที่ชื่อ เพราะการ์ดฝั่งแพทย์เป็นการ์ดเดียว
-     ก่อนหน้านี้แท็บนี้อ่านจากโปรไฟล์ผู้ป่วย ไม่ใช่ของที่เพิ่งบันทึกวันนั้น */
+  /* หัวข้อฝั่งแพทย์ใช้ชุดเดียวกับแท็บในจุดคัดกรอง (แพ้ยา · แพ้อาหาร · แพ้สารเคมี ·
+     โรคประจำตัว · อื่น ๆ) แทนการยุบรวมเป็น "การแพ้ยา / สารเคมี" อันเดียว —
+     พยาบาลกรอกแยกหมวด หมอก็ควรอ่านแยกหมวดเดียวกัน (มติผู้ใช้ 28 ส.ค. 69) */
+  const byTopic = (key, map = (r) => r) => ({
+    records: asRecords(review[`allergy.${key}`], map),
+    denied: deniedPresence(review[`allergy.${key}`]),
+  });
+  const withProbability = (r) => ({ ...r, probability: r.status });
+
+  const allergyTopics = {
+    drug: byTopic('drug', withProbability),
+    food: byTopic('food', withProbability),
+    chemical: byTopic('chemical', withProbability),
+    other: byTopic('other', withProbability),
+    disease: byTopic('disease'),
+  };
+
   const allergyFromScreening = [
-    ...asRecords(review['allergy.drug'], (r) => ({ ...r, probability: r.status })),
-    ...asRecords(review['allergy.chemical'], (r) => ({ ...r, name: `${r.name} (สารเคมี)`, probability: r.status })),
-    ...asRecords(review['allergy.food'], (r) => ({ ...r, name: `${r.name} (อาหาร)`, probability: r.status })),
-    ...asRecords(review['allergy.other'], (r) => ({ ...r, name: `${r.name} (อื่น ๆ)`, probability: r.status })),
+    ...allergyTopics.drug.records,
+    ...allergyTopics.chemical.records.map((r) => ({ ...r, name: `${r.name} (สารเคมี)` })),
+    ...allergyTopics.food.records.map((r) => ({ ...r, name: `${r.name} (อาหาร)` })),
+    ...allergyTopics.other.records.map((r) => ({ ...r, name: `${r.name} (อื่น ๆ)` })),
   ];
-  const chronicFromScreening = asRecords(review['allergy.disease']);
+  const chronicFromScreening = allergyTopics.disease.records;
 
   return {
     captured,
@@ -95,6 +109,8 @@ export const getCarriedScreening = (patient = {}) => {
       { label: 'เส้นรอบเอว', value: measured(vitals?.waist) ? `${measured(vitals.waist)} ซม.` : '' },
     ],
     behaviour: review.behaviour || null,
+    /* รายหมวดตามแท็บของจุดคัดกรอง — แต่ละหมวดมีทั้งรายการและสถานะ "ระบุว่าไม่มี" */
+    allergyTopics,
     mobility: null,
     assessor: null,
     /* ของที่บันทึกวันนั้นมาก่อน — ไม่มีค่อยตกไปที่โปรไฟล์เวชระเบียน

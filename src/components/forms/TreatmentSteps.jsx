@@ -817,8 +817,8 @@ const HistoryInnerCard = ({ title, children }) => (
   </div>
 );
 
-const AllergyCard = ({ index, entry }) => (
-  <HistoryInnerCard title={`ยาตัวที่ ${index + 1}`}>
+const AllergyCard = ({ index, entry, recordLabel = 'ยาตัวที่' }) => (
+  <HistoryInnerCard title={`${recordLabel} ${index + 1}`}>
     <HistoryFieldRow>
       <HistoryInfoText label='ชื่อยา/ปัญหาที่แพ้' value={entry.name} />
       <HistoryInfoBadge
@@ -839,8 +839,8 @@ const AllergyCard = ({ index, entry }) => (
   </HistoryInnerCard>
 );
 
-const ChronicDiseaseCard = ({ index, entry }) => (
-  <HistoryInnerCard title={`โรคประจำตัวที่ ${index + 1}`}>
+const ChronicDiseaseCard = ({ index, entry, recordLabel = 'โรคประจำตัวที่' }) => (
+  <HistoryInnerCard title={`${recordLabel} ${index + 1}`}>
     <HistoryFieldRow>
       <HistoryInfoText label='โรคประจำตัว' value={entry.name} />
       <HistoryInfoBadge
@@ -1390,13 +1390,21 @@ export const Step1History = ({ patient, form, setForm, onStepChange, stepIndexes
      • Assessor row (avatar + role + name)
    ───────────────────────────────────────────────────────────── */
 
-/* แท็บล้อหมวดที่พยาบาลกรอกในจุดคัดกรองแบบหนึ่งต่อหนึ่ง — แท็บสุดท้ายเดิมชื่อ
-   "แบบประเมิน" แล้วโชว์ขีดกลางค้างไว้ ทั้งที่สิ่งที่พยาบาลกรอกจริงในขั้นที่ 4
-   คือพฤติกรรมสุขภาพ (28 ส.ค. 69) */
+/* หัวข้อล้อแท็บของจุดคัดกรองแบบหนึ่งต่อหนึ่ง — ขั้นที่ 3 ของ /opd/screening มี
+   5 หมวด (แพ้ยา · แพ้อาหาร · แพ้สารเคมี · โรคประจำตัว · อื่น ๆ) และขั้นที่ 4 คือ
+   พฤติกรรมสุขภาพ ฝั่งแพทย์เคยยุบสี่หมวดแรกเป็น "การแพ้ยา / สารเคมี" อันเดียว
+   ทำให้หาไม่เจอว่าที่พยาบาลกรอกไว้อยู่หมวดไหน (มติผู้ใช้ 28 ส.ค. 69) */
+const SCREENING_ALLERGY_TABS = [
+  { label: 'แพ้ยา', topic: 'drug', title: 'ประวัติการแพ้ยา', recordLabel: 'ยาตัวที่' },
+  { label: 'แพ้อาหาร', topic: 'food', title: 'ประวัติการแพ้อาหาร', recordLabel: 'อาหารที่' },
+  { label: 'แพ้สารเคมี', topic: 'chemical', title: 'ประวัติการแพ้สารเคมี', recordLabel: 'สารเคมีที่' },
+  { label: 'โรคประจำตัว', topic: 'disease', title: 'ประวัติโรคประจำตัว (Underlying Disease)', recordLabel: 'โรคประจำตัวที่', chronic: true },
+  { label: 'อื่น ๆ', topic: 'other', title: 'ประวัติการแพ้อื่น ๆ', recordLabel: 'รายการที่' },
+];
+
 const SCREENING_TABS = [
   'ผลการคัดกรอง',
-  'การแพ้ยา / สารเคมี',
-  'โรคประจำตัว',
+  ...SCREENING_ALLERGY_TABS.map((t) => t.label),
   'พฤติกรรมสุขภาพ',
 ];
 
@@ -1420,6 +1428,29 @@ const TriageBadge = ({ triage }) => (
     </div>
   </div>
 );
+
+/* หนึ่งหมวดของประวัติการแพ้/โรคประจำตัว ตามแท็บของจุดคัดกรอง */
+const ScreeningTopicPanel = ({ tab, data }) => {
+  const records = data?.records ?? [];
+  const Card = tab.chronic ? ChronicDiseaseCard : AllergyCard;
+  return (
+    <SummaryPanel title={tab.title}>
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+        {records.length > 0
+          ? records.map((entry, i) => (
+            <Card key={`${tab.topic}-${i}`} index={i} entry={entry} recordLabel={tab.recordLabel} />
+          ))
+          : (
+            <ValueText>
+              {data?.denied
+                ? `พยาบาลระบุว่าผู้รับบริการไม่มี${tab.label === 'โรคประจำตัว' ? 'โรคประจำตัว' : tab.label.replace('แพ้', 'ประวัติการแพ้')}`
+                : `ยังไม่ได้บันทึก${tab.title}`}
+            </ValueText>
+          )}
+      </div>
+    </SummaryPanel>
+  );
+};
 
 const AllergyHistoryPanel = ({ allergies = [], denied = false }) => (
   <SummaryPanel title='ประวัติการแพ้ยา / สารเคมี'>
@@ -1617,16 +1648,13 @@ export const Step2Screening = ({ patient, title = 'คัดกรองแล�
             />
           )
       )}
-      {activeTab === 1 && (
-        <AllergyHistoryPanel allergies={summary.allergies} denied={summary.deniedAllergy} />
+      {activeTab >= 1 && activeTab <= SCREENING_ALLERGY_TABS.length && (() => {
+        const tab = SCREENING_ALLERGY_TABS[activeTab - 1];
+        return <ScreeningTopicPanel tab={tab} data={summary.allergyTopics?.[tab.topic]} />;
+      })()}
+      {activeTab === SCREENING_ALLERGY_TABS.length + 1 && (
+        <BehaviourPanel behaviour={summary.behaviour} />
       )}
-      {activeTab === 2 && (
-        <ChronicHistoryPanel
-          chronicDiseases={summary.chronicDiseases}
-          denied={summary.deniedChronic}
-        />
-      )}
-      {activeTab === 3 && <BehaviourPanel behaviour={summary.behaviour} />}
     </section>
   );
 };
