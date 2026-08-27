@@ -63,7 +63,9 @@ const ALLERGY_SYMPTOM_SUGGESTIONS = [
 ];
 
 const SCHEMA = {
-  topic:        'ประวัติการแพ้ยา / สารเคมี',
+  topic:        'ประวัติการแพ้ยา',
+  /* แท็บ "แพ้ยา" ด้านบนบอกหมวดอยู่แล้ว หัวข้อซ้ำจึงปิดไว้ (มติผู้ใช้ 28 ส.ค. 69) */
+  showTopic:    false,
   icon:         'pill',
   /* Figma 299:53214 — each new entry header reads "ยาตัวที่ N" (mirrors
      how clinicians enumerate medication-by-medication allergies).
@@ -88,11 +90,11 @@ const SCHEMA = {
   /* Figma 335:57765 — two card-style radios before the repeating record list. */
   allergyModeToggle: {
     name:           'opd-screening-allergy-mode',
-    groupLabel:     'การแพ้ยาและสารเคมี',
-    negativeLabel: 'ไม่แพ้ยาและสารเคมี',
-    positiveLabel:  'แพ้ยาและสารเคมี',
+    groupLabel:     'การแพ้ยา',
+    negativeLabel: 'ไม่แพ้ยา',
+    positiveLabel:  'แพ้ยา',
     defaultHasAllergy: true,
-    noAllergyTitle: 'ระบุว่าผู้ป่วยไม่มีประวัติการแพ้ยาและสารเคมี',
+    noAllergyTitle: 'ระบุว่าผู้ป่วยไม่มีประวัติการแพ้ยา',
     noAllergyHint: 'ไม่ต้องกรอกรายการยา',
     noAllergyIllustrationPath: '/illustration/Medicine.json',
     /* Figma 335:54424 — zero allergen rows while "แพ้ยาและสารเคมี" is on. */

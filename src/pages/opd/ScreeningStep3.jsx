@@ -38,11 +38,41 @@ const LIKELIHOOD_OPTIONS = [
   { value: 'suspected', label: 'สงสัย'        },
 ];
 
+/* แถวคอลัมน์ซ้าย "ข้อมูลจากฝ่ายเวชระเบียน" — mock อย่างละ 5 รายการต่อหมวด
+   (มติผู้ใช้ 28 ส.ค. 69) เดิม `history: []` ทำให้คอลัมน์ซ้ายว่างเปล่าทั้งสามหมวด
+   จนดูเหมือนหน้าจอพัง ทั้งที่ทั้งขั้นตอนออกแบบมาให้คัดลอกจากเวชระเบียนมาฝั่งขวา
+   ชื่อรายการเลือกจาก `nameOptions` ของหมวดนั้น ๆ เพื่อให้คัดลอกแล้วดรอปดาวน์ตรงกัน */
+const MR_HISTORY = {
+  food: [
+    { name: 'อาหารทะเล (กุ้ง/ปู/หอย)', detail: 'ผื่นลมพิษขึ้นทั่วตัวภายใน 30 นาทีหลังรับประทาน', severity: 'high',   status: 'confirmed' },
+    { name: 'ถั่วลิสง',                 detail: 'ปากบวม ลิ้นบวม กลืนลำบาก',                       severity: 'high',   status: 'confirmed' },
+    { name: 'นมวัว',                    detail: 'คลื่นไส้ อาเจียน ปวดท้อง ถ่ายเหลว',              severity: 'medium', status: 'probable'  },
+    { name: 'ไข่',                       detail: 'คันในลำคอและเพดานปาก',                          severity: 'low',    status: 'suspected' },
+    { name: 'ผงชูรส (MSG)',             detail: 'ปวดศีรษะ หน้าแดง ใจสั่นหลังมื้ออาหาร',           severity: 'low',    status: 'suspected' },
+  ],
+  chemical: [
+    { name: 'น้ำยาง (Latex)',                  detail: 'ผื่นแดงคันเฉพาะบริเวณที่สัมผัส',            severity: 'medium', status: 'confirmed' },
+    { name: 'พลาสเตอร์ / เทปทางการแพทย์',      detail: 'บวมแดงบริเวณที่ติดพลาสเตอร์',              severity: 'low',    status: 'confirmed' },
+    { name: 'สารทึบรังสี (Contrast media)',    detail: 'อาการแพ้รุนแรงหลังฉีดสารทึบรังสี',          severity: 'high',   status: 'probable'  },
+    { name: 'ไอโอดีน / Betadine',              detail: 'ตุ่มน้ำใส ผิวลอกหลังสัมผัส 1-2 วัน',        severity: 'medium', status: 'probable'  },
+    { name: 'ผงซักฟอก / น้ำยาทำความสะอาด',     detail: 'หายใจไม่สะดวกเมื่อสูดดมไอระเหย',           severity: 'low',    status: 'suspected' },
+  ],
+  other: [
+    { name: 'ฝุ่น / ไรฝุ่น',              detail: 'จามติดต่อกัน คัดจมูก น้ำมูกไหล',              severity: 'medium', status: 'confirmed' },
+    { name: 'เกสรดอกไม้',                 detail: 'ตาคัน ตาแดง น้ำตาไหล',                        severity: 'low',    status: 'probable'  },
+    { name: 'ขนสัตว์',                    detail: 'หอบเหนื่อย แน่นหน้าอกเมื่อเจอฝุ่น',            severity: 'medium', status: 'probable'  },
+    { name: 'แมลงกัดต่อย (ผึ้ง/ต่อ/มด)',  detail: 'บวมแดงบริเวณที่ถูกแมลงต่อย',                  severity: 'high',   status: 'confirmed' },
+    { name: 'อากาศเย็น',                  detail: 'ผื่นลมพิษเมื่อสัมผัสอากาศเย็น',                severity: 'low',    status: 'suspected' },
+  ],
+};
+
 /* Shared skeleton — each category only overrides its own vocabulary so the
    five tabs stay visually identical to the existing ประวัติการแพ้ยา design. */
 const buildSchema = (o) => ({
   icon:              o.icon,
   topic:             o.topic,
+  /* แท็บด้านบนบอกหมวดอยู่แล้ว ไม่ต้องมีหัวข้อซ้ำในแผง */
+  showTopic:         false,
   recordLabel:       o.recordLabel,
   nameLabel:         o.nameLabel,
   statusLabel:       'ระดับความน่าจะเป็น',
@@ -51,7 +81,7 @@ const buildSchema = (o) => ({
   statusBadgeKind:   'likelihood',
   severityOptions:   SEVERITY_OPTIONS,
   addLabel:          o.addLabel,
-  history:           [],
+  history:           MR_HISTORY[o.key] || [],
   historyAsideWidthPx: 320,
   historyTitle:      'ข้อมูลจากฝ่ายเวชระเบียน',
   historySubtitle:   'คลิกไอคอนคัดลอกเพื่อนำรายการจากเวชระเบียนไปยังบันทึกประวัติใหม่',
@@ -212,8 +242,10 @@ const ScreeningStep3 = ({ onValidityChange, patient }) => {
 
   return (
     <div className='flex flex-col'>
+      {/* แถบหมวดอยู่กึ่งกลาง (มติผู้ใช้ 28 ส.ค. 69) — เดิมชิดซ้ายแล้วลอยอยู่มุมเดียว
+          ของแผงกว้าง ๆ ทั้งที่เป็นตัวสลับของทั้งขั้นตอน ไม่ใช่ของคอลัมน์ซ้าย */}
       <div
-        className='flex w-full'
+        className='flex w-full justify-center'
         style={{
           paddingTop: 'var(--dim-space-600)',
           paddingLeft: 'var(--dim-space-600)',
