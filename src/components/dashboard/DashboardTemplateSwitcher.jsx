@@ -10,9 +10,9 @@ import {
   WIDGET_DEFAULT_SPAN,
   listDashboardTemplates,
   saveDashboardTemplate,
-  widgetLabel,
 } from '@/data/dashboardTemplates';
 import ConsentDashboardTemplatePopup from '@/pages/consent/ConsentDashboardTemplatePopup';
+import DashboardWidget from '@/components/dashboard/dashboardWidgetRegistry';
 import SuccessPopup from '@/components/popup/SuccessPopup';
 
 /* PHCIS | แดชบอร์ด — ตัวสลับ "เทมเพลตหน้าจอ" + ปุ่มสร้างเทมเพลต
@@ -124,28 +124,9 @@ export default function DashboardTemplateSwitcher({
         defaultSpan={WIDGET_DEFAULT_SPAN}
         fallbackDataset='phcis'
         onSaveTemplate={saveDashboardTemplate}
-        /* การ์ดจริงของหน้านี้ผูกกับ state ของหน้าแดชบอร์ด เรนเดอร์นอกหน้าไม่ได้
-           ตัวอย่างในขั้นจัดวางจึงเป็นกล่องชื่อการ์ด ไม่ใช่กราฟจริง */
-        renderPreview={(w) => (
-          <span
-            className='flex items-center justify-center w-full h-full text-center'
-            style={{
-              minHeight: 'var(--dim-size-1900, 112px)',
-              borderRadius: 'var(--dim-radius-300)',
-              border: 'var(--dim-stroke-100) dashed var(--border-brandPrimary-quaternary)',
-              background: 'var(--surface-brandPrimary-quaternary)',
-              color: 'var(--text-content-secondary)',
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-xs)',
-              paddingTop: 'var(--dim-space-300)',
-              paddingBottom: 'var(--dim-space-300)',
-              paddingLeft: 'var(--dim-space-200)',
-              paddingRight: 'var(--dim-space-200)',
-            }}
-          >
-            {w.title || widgetLabel(w.type)}
-          </span>
-        )}
+        /* ตัวอย่างในขั้นจัดวางเรนเดอร์การ์ดจริงจากทะเบียนกลาง — สิ่งที่เห็น
+           ตอนจัดวางคือสิ่งที่ได้ (pattern เดียวกับฝั่งความยินยอม) */
+        renderPreview={(w) => <DashboardWidget type={w.type} />}
         onSaved={(result) => {
           onApply?.(result);
           if (result?.name) setSavedTemplate(result);
