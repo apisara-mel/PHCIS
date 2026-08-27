@@ -754,7 +754,7 @@ const ScreeningPage = () => {
      forwarding the patient to a destination department, which is what
      PRODUCES the Walk-in Request row consumed by /opd/requests. */
   const nextStepLabel = isLast
-    ? 'ส่งต่อไปยังแผนก'
+    ? 'บันทึกและส่งต่อ'
     : `ถัดไป: ${STEPS[current + 1]}`;
 
   /* Look up the selected patient from QueuePage's <Link state={...}>.
@@ -1328,7 +1328,9 @@ const ScreeningPage = () => {
           /* Forward action — icon goes on the trailing side per Figma
              "Brand Button" (PHCIS frame 2745:104612 footer). Matches the
              pattern used by FormShell / TreatmentFormShell. */
-          button1TrailingIcon={isLast ? 'move_down' : 'arrow_forward'}
+          /* ลูกศรทั้งสองกรณี (มติผู้ใช้ 28 ส.ค. 69) — `move_down` สื่อว่าย้ายลง
+             ไม่ใช่ส่งต่อ ทั้งที่ปุ่มคือ "บันทึกและส่งต่อ" */
+          button1TrailingIcon='arrow_forward'
           /* Two-tier gate, in priority order:
                1. Steps that have adopted the explicit `onValidityChange`
                   protocol (VitalsForm, SymptomStep, HistoryListForm via

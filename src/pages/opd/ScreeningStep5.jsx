@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import Icon from '@/components/icons/Icon';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
-import { getStationTimes } from '@/data/opdScreeningDrafts';
 import { getScreeningReview, meaningfulRecords } from '@/data/opdScreeningReview';
 
 /* ScreeningStep5 — OPD Screening last step: ตรวจสอบข้อมูล (review).
@@ -21,18 +20,6 @@ import { getScreeningReview, meaningfulRecords } from '@/data/opdScreeningReview
 
    TOR 1.2.3.4's per-station audit table stays at the bottom. */
 
-const cellStyle = {
-  fontFamily: 'var(--type-family-body)',
-  fontSize: 'var(--type-size-sm)',
-  color: 'var(--text-content-default, #363B3F)',
-  paddingTop: 'var(--dim-space-200)',
-  paddingBottom: 'var(--dim-space-200)',
-  paddingLeft: 'var(--dim-space-300)',
-  paddingRight: 'var(--dim-space-300)',
-  borderBottom: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
-  textAlign: 'left',
-  whiteSpace: 'nowrap',
-};
 
 const sectionTitleStyle = {
   marginTop: 'var(--dim-space-0, 0px)',
@@ -66,7 +53,10 @@ const Pairs = ({ items }) => (
   <div
     className='grid w-full'
     style={{
-      gridTemplateColumns: 'minmax(140px, max-content) minmax(0, 1fr)',
+      /* คอลัมน์ป้ายกว้างคงที่ ทุกกลุ่มจึงตรงคอลัมน์กัน (มติผู้ใช้ 28 ส.ค. 69) —
+         `max-content` เดิมทำให้แต่ละกลุ่มกว้างตามป้ายที่ยาวที่สุดของกลุ่มตัวเอง
+         ค่าจึงเริ่มคนละตำแหน่งเมื่อเลื่อนอ่านจากกลุ่มบนลงกลุ่มล่าง */
+      gridTemplateColumns: '240px minmax(0, 1fr)',
       columnGap: 'var(--dim-space-400)',
       rowGap: 'var(--dim-space-200)',
     }}
@@ -162,7 +152,6 @@ const ALLERGY_TABS = [
 ];
 
 const ScreeningStep5 = ({ onValidityChange, patient = {} }) => {
-  const stations = useMemo(() => getStationTimes(patient.hn || ''), [patient.hn]);
   /* Read once per mount — the nurse reaches this step after every earlier
      step has published, and steps are re-mounted on navigation. */
   const review = useMemo(() => getScreeningReview(patient.hn), [patient.hn]);
@@ -245,50 +234,6 @@ const ScreeningStep5 = ({ onValidityChange, patient = {} }) => {
         <Pairs items={behaviourItems} />
       </ReviewSection>
 
-      <ReviewSection icon='schedule' title='เวลารับบริการรายจุด (บันทึกอัตโนมัติ — อ่านอย่างเดียว)'>
-        {stations.length === 0 ? (
-          <span
-            style={{
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-sm)',
-              color: 'var(--text-content-tertiary, #858C92)',
-            }}
-          >
-            ยังไม่มีการบันทึกเวลารายจุดของการมารับบริการครั้งนี้
-          </span>
-        ) : (
-          <div className='w-full' style={{ overflowX: 'auto' }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-              <thead>
-                <tr>
-                  {['สถานี', 'เวลาเริ่ม', 'เวลาเสร็จ', 'ผู้ให้บริการ'].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        ...cellStyle,
-                        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-                        color: 'var(--text-content-secondary, #636B72)',
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {stations.map((st, i) => (
-                  <tr key={`${st.station}-${i}`}>
-                    <td style={{ ...cellStyle, fontWeight: 'var(--type-weight-medium)' }}>{st.station}</td>
-                    <td style={cellStyle}>{st.start || '—'} น.</td>
-                    <td style={cellStyle}>{st.end ? `${st.end} น.` : 'กำลังให้บริการ'}</td>
-                    <td style={cellStyle}>{st.provider || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </ReviewSection>
     </div>
   );
 };
