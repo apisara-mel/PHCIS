@@ -820,11 +820,14 @@ export const Step1History = ({ patient, form, setForm, onStepChange, stepIndexes
      • Assessor row (avatar + role + name)
    ───────────────────────────────────────────────────────────── */
 
+/* แท็บล้อหมวดที่พยาบาลกรอกในจุดคัดกรองแบบหนึ่งต่อหนึ่ง — แท็บสุดท้ายเดิมชื่อ
+   "แบบประเมิน" แล้วโชว์ขีดกลางค้างไว้ ทั้งที่สิ่งที่พยาบาลกรอกจริงในขั้นที่ 4
+   คือพฤติกรรมสุขภาพ (28 ส.ค. 69) */
 const SCREENING_TABS = [
   'ผลการคัดกรอง',
   'การแพ้ยา / สารเคมี',
   'โรคประจำตัว',
-  'แบบประเมิน',
+  'พฤติกรรมสุขภาพ',
 ];
 
 const TriageBadge = ({ triage }) => (
@@ -848,22 +851,27 @@ const TriageBadge = ({ triage }) => (
   </div>
 );
 
-const AllergyHistoryPanel = ({ allergies }) => (
+const AllergyHistoryPanel = ({ allergies = [], denied = false }) => (
   <SummaryPanel title='ประวัติการแพ้ยา / สารเคมี'>
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      {allergies.map((entry, i) => (
-        <AllergyCard key={`allergy-${i}`} index={i} entry={entry} />
-      ))}
+      {allergies.length > 0
+        ? allergies.map((entry, i) => (
+          <AllergyCard key={`allergy-${i}`} index={i} entry={entry} />
+        ))
+        /* "ระบุว่าไม่แพ้" คือคำตอบ ไม่ใช่ช่องว่าง — หมอต้องอ่านออกว่าถามแล้ว */
+        : <ValueText>{denied ? 'พยาบาลระบุว่าผู้รับบริการไม่มีประวัติการแพ้' : 'ยังไม่ได้บันทึกประวัติการแพ้'}</ValueText>}
     </div>
   </SummaryPanel>
 );
 
-const ChronicHistoryPanel = ({ chronicDiseases }) => (
+const ChronicHistoryPanel = ({ chronicDiseases = [], denied = false }) => (
   <SummaryPanel title='ประวัติโรคประจำตัว (Underlying Disease / Congenital Disease)'>
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      {chronicDiseases.map((entry, i) => (
-        <ChronicDiseaseCard key={`chronic-${i}`} index={i} entry={entry} />
-      ))}
+      {chronicDiseases.length > 0
+        ? chronicDiseases.map((entry, i) => (
+          <ChronicDiseaseCard key={`chronic-${i}`} index={i} entry={entry} />
+        ))
+        : <ValueText>{denied ? 'พยาบาลระบุว่าผู้รับบริการไม่มีโรคประจำตัว' : 'ยังไม่ได้บันทึกโรคประจำตัว'}</ValueText>}
     </div>
   </SummaryPanel>
 );
@@ -883,9 +891,17 @@ const ScreeningSummaryBody = ({ summary }) => {
     </SummaryPanel>
 
     <SummaryPanel title='อาการป่วย'>
-      <div className='flex w-full' style={{ gap: 'var(--dim-space-400)' }}>
-        <HistoryInfoText label='อาการ (Chief Complaint)' value={summary.cc || '—'} />
-        <HistoryInfoText label='ระยะเวลาที่มีอาการ (Duration of Illness)' value={summary.duration || '—'} />
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+        <div className='flex w-full' style={{ gap: 'var(--dim-space-400)' }}>
+          <HistoryInfoText label='อาการ (Chief Complaint)' value={summary.cc || '—'} />
+          <HistoryInfoText label='ระยะเวลาที่มีอาการ (Duration of Illness)' value={summary.duration || '—'} />
+        </div>
+        {/* พยาบาลพิมพ์ประวัติปัจจุบันไว้ตั้งแต่ขั้นคัดกรอง แต่ไม่เคยถูกแสดงฝั่งแพทย์
+            ทั้งที่เป็นเนื้อความยาวที่สุดของการซักประวัติ (28 ส.ค. 69) */}
+        <HistoryInfoText
+          label='ประวัติการเจ็บป่วยปัจจุบัน (Present Illness)'
+          value={summary.presentIllness || '—'}
+        />
       </div>
     </SummaryPanel>
 
@@ -908,8 +924,57 @@ const ScreeningSummaryBody = ({ summary }) => {
       </SummaryPanel>
     </div>
 
+    {(summary.cert !== null && summary.cert !== undefined) || summary.bedId ? (
+      <SummaryPanel title='สิ่งที่จุดคัดกรองระบุไว้'>
+        <div className='flex w-full' style={{ gap: 'var(--dim-space-400)' }}>
+          <HistoryInfoText
+            label='ใบรับรองแพทย์'
+            value={summary.cert === null || summary.cert === undefined
+              ? '—'
+              : (summary.cert ? 'ต้องการ' : 'ไม่ต้องการ')}
+          />
+          <HistoryInfoText
+            label='เตียงสังเกตอาการ'
+            value={summary.bedId || '—'}
+          />
+        </div>
+      </SummaryPanel>
+    ) : null}
+
     {summary.assessor && <AssessorRow assessor={summary.assessor} />}
     </>
+  );
+};
+
+/* พฤติกรรมสุขภาพจากขั้นที่ 4 ของการคัดกรอง (ToR 1.2.2.6) — เดิมแท็บ
+   "แบบประเมิน" ฝั่งแพทย์เป็นขีดกลางค้างไว้ ทั้งที่พยาบาลกรอกไว้แล้ว */
+const BEHAVIOUR_LABELS = {
+  smoking: 'การสูบบุหรี่',
+  alcohol: 'การดื่มแอลกอฮอล์',
+  exercise: 'การออกกำลังกาย',
+};
+
+const BehaviourPanel = ({ behaviour }) => {
+  const rows = Object.keys(BEHAVIOUR_LABELS)
+    .map((key) => ({ label: BEHAVIOUR_LABELS[key], value: behaviour?.[key] || '' }))
+    .filter((r) => r.value);
+  return (
+    <SummaryPanel title='พฤติกรรมสุขภาพ (Health Behaviour)'>
+      {rows.length > 0 || behaviour?.detail ? (
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          {rows.length > 0 && (
+            <div className='grid grid-cols-3 w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              {rows.map((r) => (
+                <HistoryInfoText key={r.label} label={r.label} value={r.value} />
+              ))}
+            </div>
+          )}
+          {behaviour?.detail && (
+            <HistoryInfoText label='รายละเอียดเพิ่มเติม' value={behaviour.detail} />
+          )}
+        </div>
+      ) : <ValueText>ยังไม่ได้บันทึกพฤติกรรมสุขภาพ</ValueText>}
+    </SummaryPanel>
   );
 };
 
@@ -982,13 +1047,16 @@ export const Step2Screening = ({ patient, title = 'คัดกรองแล�
             />
           )
       )}
-      {activeTab === 1 && <AllergyHistoryPanel allergies={summary.allergies} />}
-      {activeTab === 2 && <ChronicHistoryPanel chronicDiseases={summary.chronicDiseases} />}
-      {activeTab === 3 && (
-        <SummaryPanel title='แบบประเมิน'>
-          <ValueText>—</ValueText>
-        </SummaryPanel>
+      {activeTab === 1 && (
+        <AllergyHistoryPanel allergies={summary.allergies} denied={summary.deniedAllergy} />
       )}
+      {activeTab === 2 && (
+        <ChronicHistoryPanel
+          chronicDiseases={summary.chronicDiseases}
+          denied={summary.deniedChronic}
+        />
+      )}
+      {activeTab === 3 && <BehaviourPanel behaviour={summary.behaviour} />}
     </section>
   );
 };

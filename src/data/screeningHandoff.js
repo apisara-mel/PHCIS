@@ -23,6 +23,22 @@ const measured = (x) => {
 };
 
 /** ผลคัดกรองรอบล่าสุดของผู้รับบริการในรูปแบบอ่านอย่างเดียวของหน้าตรวจรักษา */
+/* บันทึกจาก HistoryListForm/AllergyForm/DiseaseForm มาในรูป
+   `{ topic, declaresPresence, records: [{ name, severity, status, symptom, note }] }`
+   — การ์ดฝั่งแพทย์อ่าน `probability` สำหรับการแพ้ (ระดับความน่าจะเป็น) จึง map
+   `status` → `probability` ให้ตรงชื่อช่องที่การ์ดใช้ · แถวที่ยังไม่ได้กรอกชื่อ
+   ถือว่ายังไม่ใช่บันทึกจริง ตัดออกไม่ให้ขึ้นเป็นการ์ดเปล่า */
+const asRecords = (section, extra = (r) => r) => {
+  if (!section) return [];
+  if (section.declaresPresence === false) return [];
+  return (section.records || [])
+    .filter((r) => String(r?.name || '').trim() !== '')
+    .map((r) => extra({ ...r }));
+};
+
+/* "ระบุว่าไม่มี" ต่างจาก "ยังไม่ได้กรอก" — หมอต้องอ่านออกว่าพยาบาลถามแล้ว */
+const deniedPresence = (section) => section?.declaresPresence === false;
+
 export const getCarriedScreening = (patient = {}) => {
   const review = getScreeningReview(patient.hn);
   const symptom = review.symptom || null;
@@ -31,6 +47,17 @@ export const getCarriedScreening = (patient = {}) => {
 
   const pain = painLevelByKey(symptom?.pain);
   const triage = triageLevelByLevel(symptom?.triage);
+
+  /* ประวัติการแพ้ที่พยาบาลบันทึกในขั้นที่ 3 — ยา + สารเคมี + อาหาร + อื่น ๆ
+     รวมเป็นรายการเดียวโดยติดป้ายหมวดไว้ที่ชื่อ เพราะการ์ดฝั่งแพทย์เป็นการ์ดเดียว
+     ก่อนหน้านี้แท็บนี้อ่านจากโปรไฟล์ผู้ป่วย ไม่ใช่ของที่เพิ่งบันทึกวันนั้น */
+  const allergyFromScreening = [
+    ...asRecords(review['allergy.drug'], (r) => ({ ...r, probability: r.status })),
+    ...asRecords(review['allergy.chemical'], (r) => ({ ...r, name: `${r.name} (สารเคมี)`, probability: r.status })),
+    ...asRecords(review['allergy.food'], (r) => ({ ...r, name: `${r.name} (อาหาร)`, probability: r.status })),
+    ...asRecords(review['allergy.other'], (r) => ({ ...r, name: `${r.name} (อื่น ๆ)`, probability: r.status })),
+  ];
+  const chronicFromScreening = asRecords(review['allergy.disease']);
 
   return {
     captured,
@@ -47,22 +74,39 @@ export const getCarriedScreening = (patient = {}) => {
     orders: (symptom?.orders || []).length > 0
       ? [...symptom.orders, ...(symptom.othersNote ? [symptom.othersNote] : [])]
       : [],
+    /* ใบรับรองแพทย์ + เตียงสังเกตอาการ ที่พยาบาลระบุไว้ตอนคัดกรอง */
+    cert: symptom?.cert ?? null,
+    bedId: symptom?.bedId || '',
+    vitalRound: vitals?.round || null,
     vitalItems: [
       { label: 'อุณหภูมิ', value: measured(vitals?.temp) ? `${measured(vitals.temp)} °C` : '' },
+      { label: 'ชีพจร', value: measured(vitals?.pulse) ? `${measured(vitals.pulse)} ครั้ง/นาที` : '' },
       {
         label: 'ความดันโลหิต',
         value: measured(vitals?.pressureSys) && measured(vitals?.pressureDia)
           ? `${measured(vitals.pressureSys)}/${measured(vitals.pressureDia)} mmHg`
           : '',
       },
+      { label: 'อัตราการหายใจ', value: measured(vitals?.respiration) ? `${measured(vitals.respiration)} ครั้ง/นาที` : '' },
+      { label: 'ออกซิเจนปลายนิ้ว', value: measured(vitals?.oxygen) ? `${measured(vitals.oxygen)} %` : '' },
       { label: 'น้ำหนัก', value: measured(vitals?.weight) ? `${measured(vitals.weight)} กก.` : '' },
       { label: 'ส่วนสูง', value: measured(vitals?.height) ? `${measured(vitals.height)} ซม.` : '' },
+      { label: 'BMI', value: measured(vitals?.bmi) || '' },
+      { label: 'เส้นรอบเอว', value: measured(vitals?.waist) ? `${measured(vitals.waist)} ซม.` : '' },
     ],
     behaviour: review.behaviour || null,
     mobility: null,
     assessor: null,
-    allergies: patient.drugAllergies || [],
-    chronic: patient.chronicDiseases || [],
+    /* ของที่บันทึกวันนั้นมาก่อน — ไม่มีค่อยตกไปที่โปรไฟล์เวชระเบียน
+       `deniedAllergy` / `deniedChronic` = พยาบาลถามแล้วและระบุว่าไม่มี */
+    allergies: allergyFromScreening.length > 0
+      ? allergyFromScreening
+      : (patient.drugAllergies || []),
+    deniedAllergy: allergyFromScreening.length === 0 && deniedPresence(review['allergy.drug']),
+    chronicDiseases: chronicFromScreening.length > 0
+      ? chronicFromScreening
+      : (patient.chronicDiseases || []),
+    deniedChronic: chronicFromScreening.length === 0 && deniedPresence(review['allergy.disease']),
   };
 };
 
