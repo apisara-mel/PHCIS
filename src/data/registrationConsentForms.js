@@ -2,6 +2,13 @@
    Cards: Figma 292:104252 · Detail fill: Figma 295:41105 layout.
    Cover art matches CreateConsentFormPage wizard (356:111486). */
 
+import { CONSENT_WORKLIST_FORM_POOL, CONSENT_TOPICS } from '@/data/consentFormRecords';
+
+const CONSENT_TOPIC_TONE = Object.fromEntries(
+  CONSENT_TOPICS.map((t) => [t.type, t.tone]),
+);
+
+
 /** Consent wizard cover thumbnails — `/illustration/consent/form-cover-NN.png`. */
 export const consentFormCoverUrl = (index = 0) => {
   const n = String((Number(index) % 20) + 1).padStart(2, '0');
@@ -232,8 +239,11 @@ export const REGISTRATION_PENDING_CONSENT_CARDS = Object.values(REGISTRATION_CON
   cover: f.cover,
 }));
 
-export const getRegistrationConsentForm = (id) =>
-  REGISTRATION_CONSENT_FORMS[id] || REGISTRATION_CONSENT_FORMS['PD-1011'];
+export const getRegistrationConsentForm = (id) => (
+  REGISTRATION_CONSENT_FORMS[id]
+  || REGISTRATION_OTHER_CONSENT_FORMS[id]
+  || REGISTRATION_CONSENT_FORMS['PD-1011']
+);
 
 /** เข้มกว่า `resolveRegistrationConsentFormId` — คืน `null` เมื่อ record ไม่ได้
     อยู่ในหัวข้อหลักทั้งสาม แทนที่จะ fallback เป็น PD-1011
@@ -263,3 +273,45 @@ export const resolveRegistrationConsentFormId = ({ formCode, type } = {}) => {
   if (t === 'PDPA' || /ส่วนบุคคล/.test(t) || /PDPA|ส่วนบุคคล/i.test(code)) return 'PD-1011';
   return 'PD-1011';
 };
+
+/* ── แบบฟอร์มอื่นๆ ของขั้นลงทะเบียน ────────────────────────────────────
+   ใบยินยอมที่เผยแพร่อยู่ในระบบจัดการความยินยอม แต่ไม่ได้อยู่ในชุดบังคับ 3 ใบ
+   ของการลงทะเบียน เจ้าหน้าที่พิมพ์หรือให้ลงนามที่เคาน์เตอร์ได้เช่นกัน
+
+   เนื้อข้อสัญญา/ช่องข้อมูล/ช่องลงนามยืมของใบบังคับที่อยู่ "หัวข้อหลัก" เดียวกัน
+   (ข้อมูลส่วนบุคคล → PD-1011 · ข้อมูลการรักษา → TX-1011 · การเบิกจ่าย → CL-1011)
+   ส่วนรหัส/ชื่อ/เวอร์ชันเป็นของใบนั้นเอง — ทะเบียนแบบฟอร์มยังไม่ได้เก็บตัวบทของ
+   แต่ละใบไว้ พอมีของจริงให้เปลี่ยนมาอ่านจากทะเบียนแทนการยืมนี้ */
+export const REGISTRATION_OTHER_CONSENT_FORMS = Object.fromEntries(
+  CONSENT_WORKLIST_FORM_POOL
+    .filter((f) => !Object.values(REGISTRATION_CONSENT_FORMS).some((r) => r.title === f.name))
+    .map((f, i) => {
+      const base = REGISTRATION_CONSENT_FORMS[
+        resolveRegistrationConsentFormId({ type: f.worklistType })
+      ];
+      const version = String(f.version || '').replace(/^V\s*/, '') || '1.0';
+      return [f.code, {
+        ...base,
+        id: f.code,
+        title: f.name,
+        version,
+        categoryLabel: f.worklistType,
+        categoryStyle: CONSENT_TOPIC_TONE[f.worklistType] || 'grey',
+        cardCategoryLabel: f.worklistType,
+        cardCategoryStyle: CONSENT_TOPIC_TONE[f.worklistType] || 'grey',
+        cardVersion: version,
+        cover: consentFormCoverUrl(i + 3),
+      }];
+    }),
+);
+
+export const REGISTRATION_OTHER_CONSENT_CARDS = Object.values(REGISTRATION_OTHER_CONSENT_FORMS)
+  .map((f) => ({
+    id: f.id,
+    categoryLabel: f.cardCategoryLabel,
+    categoryStyle: f.cardCategoryStyle,
+    version: f.cardVersion,
+    title: f.title,
+    code: f.id,
+    cover: f.cover,
+  }));

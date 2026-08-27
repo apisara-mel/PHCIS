@@ -22,9 +22,13 @@ import ConsentFormPrintConfirmDialog from '@/components/consent/ConsentFormPrint
 import SuccessPopup from '@/components/popup/SuccessPopup';
 import Alert from '@/components/alert/Alert';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
-import { REGISTRATION_PENDING_CONSENT_CARDS, consentFormCoverUrl } from '@/data/registrationConsentForms';
-import { CONSENT_WORKLIST_FORM_POOL, CONSENT_TOPICS } from '@/data/consentFormRecords';
+import {
+  REGISTRATION_PENDING_CONSENT_CARDS,
+  REGISTRATION_OTHER_CONSENT_CARDS,
+  getRegistrationConsentForm,
+} from '@/data/registrationConsentForms';
 import ConsentWithdrawRequestPopup from '@/components/consent/ConsentWithdrawRequestPopup';
+import AllConsentFormsPopup from '@/components/consent/AllConsentFormsPopup';
 import { saveRegistrationDraft, markRegistrationConsentCompleted } from '@/data/registrationForm';
 import healthInsuranceAnim from '@/assets/illustrations/Girl finding health insurance online.json';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
@@ -297,37 +301,8 @@ const PatientStatusSection = ({
 /* การ์ดใบนี้ย้ายไป `@/components/consent/PendingConsentFormCard` แล้ว —
    ระบบจัดการความยินยอม (popup กรอกแบบฟอร์มความยินยอม) ใช้ใบเดียวกัน */
 
-/* แบบฟอร์มอื่น ๆ — ใบยินยอมที่เผยแพร่อยู่ในระบบจัดการความยินยอมแต่ไม่ได้อยู่ในชุด
-   บังคับของการลงทะเบียน ใบพวกนี้จะลงนามตอนเข้ารับบริการที่ต้องใช้ (ผ่าตัด · วิจัย ·
-   ส่งต่อ ฯลฯ) ที่ขั้นลงทะเบียนจึงให้พิมพ์ไปเตรียมไว้ได้ ยังไม่เปิดให้กรอกที่นี่ —
-   ตัวกรอกของใบเหล่านี้อยู่ที่โมดูลต้นทาง ไม่ใช่ฟอร์มลงทะเบียน */
-const CONSENT_TOPIC_TONE = Object.fromEntries(
-  CONSENT_TOPICS.map((t) => [t.type, t.tone]),
-);
-
-const REGISTRATION_REQUIRED_TITLES = new Set(
-  REGISTRATION_PENDING_CONSENT_CARDS.map((f) => f.title),
-);
-
-/** จำนวนใบที่โชว์ในกลุ่ม "แบบฟอร์มอื่นๆ" — ทั้งพูลยาวเกินกว่าจะอ่านรวดเดียว */
-const OTHER_CONSENT_FORM_LIMIT = 8;
-
-const OTHER_CONSENT_FORM_POOL = CONSENT_WORKLIST_FORM_POOL
-  .filter((f) => !REGISTRATION_REQUIRED_TITLES.has(f.name));
-
-const OTHER_CONSENT_FORM_CARDS = OTHER_CONSENT_FORM_POOL
-  .slice(0, OTHER_CONSENT_FORM_LIMIT)
-  .map((f, i) => ({
-    id: f.code,
-    code: f.code,
-    title: f.name,
-    version: String(f.version || '').replace(/^V\s*/, '') || '1.0',
-    /* ป้ายหมวดใช้ "หัวข้อหลัก" สั้น ๆ (ข้อมูลส่วนบุคคล · ข้อมูลการรักษา · การเบิกจ่าย)
-       พร้อมสีประจำหัวข้อจาก CONSENT_TOPICS — ไม่ใช่ heading ซึ่งยาวเท่าชื่อใบ */
-    categoryLabel: f.worklistType,
-    categoryStyle: CONSENT_TOPIC_TONE[f.worklistType] || 'grey',
-    cover: consentFormCoverUrl(i + 3),
-  }));
+/** จำนวนใบที่โชว์ในกลุ่ม "แบบฟอร์มอื่นๆ" บนหน้า — ที่เหลือดูได้ในป๊อปอัปทั้งหมด */
+const OTHER_FORM_PREVIEW_COUNT = 4;
 
 /** Step 1 · แบบฟอร์มยินยอม — Figma Registration 292:104252.
  *  กรอกแบบฟอร์ม → /registration/consent/:formId (Figma 298:81941). */
@@ -346,6 +321,9 @@ export const StepConsent = ({ form, setForm, patient }) => {
   /* ขอถอนความยินยอม (ด.1.1.5) — คำขอเข้าแท็บรอดำเนินการของระบบจัดการความยินยอม */
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawnCount, setWithdrawnCount] = useState(0);
+  /* รายการแบบฟอร์มทั้งทะเบียน — หน้าโชว์แค่แถวแรกพอกวาดตา */
+  const [allFormsOpen, setAllFormsOpen] = useState(false);
+  const otherFormCards = REGISTRATION_OTHER_CONSENT_CARDS.slice(0, OTHER_FORM_PREVIEW_COUNT);
 
   const draftFullName = [form?.prefixTh, form?.firstNameTh, form?.lastNameTh]
     .map((p) => String(p || '').trim()).filter(Boolean).join(' ');
@@ -361,7 +339,9 @@ export const StepConsent = ({ form, setForm, patient }) => {
       return prev.includes(formId) ? s : { ...s, consentCompletedIds: [...prev, formId] };
     });
     setFillFormId(null);
-    setSignedForm(REGISTRATION_PENDING_CONSENT_CARDS.find((f) => f.id === formId) || { id: formId });
+    /* ใบที่ลงนามอาจเป็นใบบังคับหรือใบจากกลุ่ม "แบบฟอร์มอื่นๆ" ก็ได้ —
+       ถามทะเบียนกลางเพื่อให้ป๊อปอัปสำเร็จเรียกชื่อใบถูกทั้งสองทาง */
+    setSignedForm(getRegistrationConsentForm(formId) || { id: formId });
   };
 
   return (
@@ -412,27 +392,28 @@ export const StepConsent = ({ form, setForm, patient }) => {
       </SubCard>
 
       <SubCard>
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-050)' }}>
-          <SectionTitle icon='folder_open'>แบบฟอร์มอื่นๆ</SectionTitle>
-          <span style={{
-            color: 'var(--text-content-secondary)',
-            fontFamily: 'var(--type-family-body)',
-            fontSize: 'var(--type-size-xs)',
-            lineHeight: 1.5,
-          }}>
-            {`ใบยินยอมที่ไม่บังคับตอนลงทะเบียน — ลงนามเมื่อเข้ารับบริการที่ต้องใช้ พิมพ์เตรียมไว้ล่วงหน้าได้ · แสดง ${OTHER_CONSENT_FORM_CARDS.length} จาก ${OTHER_CONSENT_FORM_POOL.length} ใบที่เผยแพร่อยู่`}
-          </span>
+        <div className='flex w-full items-center' style={{ gap: 'var(--dim-space-300)' }}>
+          <div className='flex-1 min-w-0'>
+            <SectionTitle icon='folder_open'>แบบฟอร์มอื่นๆ</SectionTitle>
+          </div>
+          <NeutralSubdueButton
+            variant='outline'
+            size='md'
+            onClick={() => setAllFormsOpen(true)}
+          >
+            ดูแบบฟอร์มทั้งหมด
+          </NeutralSubdueButton>
         </div>
         <div
           className='grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 min-[1366px]:grid-cols-5 items-stretch'
           style={{ gap: 'var(--dim-space-400)' }}
         >
-          {OTHER_CONSENT_FORM_CARDS.map((item) => (
+          {otherFormCards.map((item) => (
             <PendingConsentFormCard
               key={item.id}
               {...item}
-              showFill={false}
               onPrint={() => setPrintForm(item)}
+              onFill={() => setFillFormId(item.id)}
             />
           ))}
         </div>
@@ -455,6 +436,13 @@ export const StepConsent = ({ form, setForm, patient }) => {
         }}
         onClose={() => setFillFormId(null)}
         onSaved={({ formId }) => markCompleted(formId)}
+      />
+
+      <AllConsentFormsPopup
+        open={allFormsOpen}
+        onClose={() => setAllFormsOpen(false)}
+        onPrint={(item) => setPrintForm(item)}
+        onFill={(item) => { setAllFormsOpen(false); setFillFormId(item.id); }}
       />
 
       <ConsentWithdrawRequestPopup
