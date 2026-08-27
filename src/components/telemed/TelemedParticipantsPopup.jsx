@@ -50,7 +50,7 @@ const FILTERS = [
    จึงได้ใบหน้าครึ่งซีก หลายหน้าในกรอบเดียว หรือวงกลมเปล่า และเพศไม่ตรงคำนำหน้า
    (นพ. ได้รูปผู้หญิง). ที่นี่ใช้รูปที่ครอปเป็นรายคนแล้ว และเลือกตามคำนำหน้าชื่อ */
 const DOCTOR_FEMALE = [1, 2, 3, 4, 5, 6].map((n) => `/avatars/telemed/staff-doctor-female-${n}.png`);
-const DOCTOR_MALE = ['a', 'b', 'c'].map((k) => `/avatars/mock-male-asian-${k}.png`);
+const DOCTOR_MALE = [1, 2, 3].map((n) => `/avatars/telemed/staff-doctor-male-${n}.png`);
 const NURSE_FEMALE = ['/avatars/telemed/staff-nurse-female-1.png'];
 const PATIENT_MALE = ['/avatars/somchai-mock.png', '/avatars/patient-male-d.png', '/avatars/patient-male-e.png'];
 const PATIENT_FEMALE = ['/avatars/patient-female-a.png', '/avatars/patient-female-b.png', '/avatars/patient-female-c.png'];
@@ -68,63 +68,31 @@ const avatarFor = (name, role, i = 0) => {
 
 
 
-/** Directory of inviteable staff/patients (Add Participant Panel). */
+/** ทะเบียนผู้ที่เชิญเข้าห้องปรึกษาได้ — เฉพาะ "บุคลากร" เท่านั้น
+    ผู้รับบริการเข้าห้องผ่านนัดหมายของตัวเอง ไม่ใช่ผ่านการเชิญของแพทย์
+    จึงถูกถอดออกจากทะเบียนนี้ทั้งหมด */
 export const TELEMED_INVITE_DIRECTORY = [
-  {
-    id: 'dir-doctor',
-    name: 'พญ.สมหญิง รักษาดี',
-    sub: 'somying@hospital.go.th',
-    filter: 'doctor',
-    avatar: null,
-    role: 'แพทย์',
-    accent: '#10B981',
-  },
-  {
-    id: 'dir-patient',
-    name: 'นายสมชาย มั่นใจดี',
-    sub: 'ผู้รับบริการ',
-    filter: 'all',
-    avatar: null,
-    role: 'ผู้รับบริการ',
-    accent: '#0EA5E9',
-  },
-  {
-    id: 'dir-nurse',
-    name: 'น.ส.ใจดี งามวงศ์',
-    sub: 'พยาบาล',
-    filter: 'nurse',
-    avatar: null,
-    role: 'พยาบาล',
-    accent: '#10B981',
-  },
-  {
-    id: 'dir-dentist',
-    name: 'นพ.ใจดีมาก งามวงศ์',
-    sub: 'ทันตแพทย์',
-    filter: 'doctor',
-    avatar: null,
-    role: 'ทันตแพทย์',
-    accent: '#8B5CF6',
-  },
-  /* Mock roster padded to 20 to demonstrate the popup's internal scrollbar
-     (Figma MIH-Design-System · Popup 362:25538 — scrolls past 4 rows). */
-  { id: 'dir-005', name: 'พญ.กมลชนก แสงทอง', sub: 'kamonchanok@hospital.go.th', filter: 'doctor', avatar: null, role: 'แพทย์', accent: '#10B981' },
-  { id: 'dir-006', name: 'นพ.ธนกร ใจดี', sub: 'thanakorn@hospital.go.th', filter: 'doctor', avatar: null, role: 'แพทย์', accent: '#8B5CF6' },
-  { id: 'dir-007', name: 'น.ส.พิมพ์ชนก รุ่งเรือง', sub: 'พยาบาล', filter: 'nurse', avatar: null, role: 'พยาบาล', accent: '#10B981' },
-  { id: 'dir-008', name: 'นายวีระชัย บุญมา', sub: 'ผู้รับบริการ', filter: 'all', avatar: null, role: 'ผู้รับบริการ', accent: '#0EA5E9' },
-  { id: 'dir-009', name: 'พญ.อรวรรณ ศรีสุข', sub: 'orawan@hospital.go.th', filter: 'doctor', avatar: null, role: 'แพทย์', accent: '#10B981' },
-  { id: 'dir-010', name: 'นพ.ปิยะ วัฒนกุล', sub: 'piya@hospital.go.th', filter: 'doctor', avatar: null, role: 'แพทย์', accent: '#8B5CF6' },
-  { id: 'dir-011', name: 'น.ส.สุพัตรา ยิ้มแย้ม', sub: 'พยาบาล', filter: 'nurse', avatar: null, role: 'พยาบาล', accent: '#10B981' },
-  { id: 'dir-012', name: 'นางสาวจิราพร แก้วมณี', sub: 'ผู้รับบริการ', filter: 'all', avatar: null, role: 'ผู้รับบริการ', accent: '#0EA5E9' },
-  { id: 'dir-013', name: 'พญ.นภัสสร ทองคำ', sub: 'napassorn@hospital.go.th', filter: 'doctor', avatar: null, role: 'แพทย์', accent: '#10B981' },
-  { id: 'dir-014', name: 'นพ.เอกชัย ไพศาล', sub: 'ekkachai@hospital.go.th', filter: 'doctor', avatar: null, role: 'ทันตแพทย์', accent: '#8B5CF6' },
-  { id: 'dir-015', name: 'น.ส.รัตนาภรณ์ หอมกลิ่น', sub: 'พยาบาล', filter: 'nurse', avatar: null, role: 'พยาบาล', accent: '#10B981' },
-  { id: 'dir-016', name: 'นายสมพงษ์ เจริญสุข', sub: 'ผู้รับบริการ', filter: 'all', avatar: null, role: 'ผู้รับบริการ', accent: '#0EA5E9' },
-  { id: 'dir-017', name: 'พญ.ชนิดา รักเรียน', sub: 'chanida@hospital.go.th', filter: 'doctor', avatar: null, role: 'แพทย์', accent: '#10B981' },
-  { id: 'dir-018', name: 'นพ.กิตติพงศ์ มั่งมี', sub: 'kittipong@hospital.go.th', filter: 'doctor', avatar: null, role: 'แพทย์', accent: '#8B5CF6' },
-  { id: 'dir-019', name: 'น.ส.วิภาวี ใจงาม', sub: 'พยาบาล', filter: 'nurse', avatar: null, role: 'พยาบาล', accent: '#10B981' },
-  { id: 'dir-020', name: 'นางสาวปาริชาติ สวยงาม', sub: 'ผู้รับบริการ', filter: 'all', avatar: null, role: 'ผู้รับบริการ', accent: '#0EA5E9' },
-].map((row, i) => ({ ...row, avatar: row.avatar || avatarFor(row.name, row.role, i) }));
+  { id: 'dir-doctor', name: 'พญ.สมหญิง รักษาดี', sub: 'somying@hospital.go.th', filter: 'doctor', role: 'แพทย์', accent: '#10B981' },
+  { id: 'dir-nurse', name: 'น.ส.ใจดี งามวงศ์', sub: 'jaidee@hospital.go.th', filter: 'nurse', role: 'พยาบาล', accent: '#10B981' },
+  { id: 'dir-dentist', name: 'นพ.ใจดีมาก งามวงศ์', sub: 'jaideemak@hospital.go.th', filter: 'doctor', role: 'ทันตแพทย์', accent: '#8B5CF6' },
+  { id: 'dir-005', name: 'พญ.กมลชนก แสงทอง', sub: 'kamonchanok@hospital.go.th', filter: 'doctor', role: 'แพทย์', accent: '#10B981' },
+  { id: 'dir-006', name: 'นพ.ธนกร ใจดี', sub: 'thanakorn@hospital.go.th', filter: 'doctor', role: 'แพทย์', accent: '#8B5CF6' },
+  { id: 'dir-007', name: 'น.ส.พิมพ์ชนก รุ่งเรือง', sub: 'pimchanok@hospital.go.th', filter: 'nurse', role: 'พยาบาล', accent: '#10B981' },
+  { id: 'dir-008', name: 'พญ.อรวรรณ ศรีสุข', sub: 'orawan@hospital.go.th', filter: 'doctor', role: 'แพทย์', accent: '#10B981' },
+  { id: 'dir-009', name: 'นพ.ปิยะ วัฒนกุล', sub: 'piya@hospital.go.th', filter: 'doctor', role: 'แพทย์', accent: '#8B5CF6' },
+  { id: 'dir-010', name: 'น.ส.สุพัตรา ยิ้มแย้ม', sub: 'supattra@hospital.go.th', filter: 'nurse', role: 'พยาบาล', accent: '#10B981' },
+  { id: 'dir-011', name: 'พญ.นภัสสร ทองคำ', sub: 'napassorn@hospital.go.th', filter: 'doctor', role: 'แพทย์', accent: '#10B981' },
+  { id: 'dir-012', name: 'นพ.เอกชัย ไพศาล', sub: 'ekkachai@hospital.go.th', filter: 'doctor', role: 'ทันตแพทย์', accent: '#8B5CF6' },
+  { id: 'dir-013', name: 'น.ส.รัตนาภรณ์ หอมกลิ่น', sub: 'rattanaporn@hospital.go.th', filter: 'nurse', role: 'พยาบาล', accent: '#10B981' },
+  { id: 'dir-014', name: 'พญ.ชนิดา รักเรียน', sub: 'chanida@hospital.go.th', filter: 'doctor', role: 'แพทย์', accent: '#10B981' },
+  { id: 'dir-015', name: 'นพ.กิตติพงศ์ มั่งมี', sub: 'kittipong@hospital.go.th', filter: 'doctor', role: 'แพทย์', accent: '#8B5CF6' },
+  { id: 'dir-016', name: 'น.ส.วิภาวี ใจงาม', sub: 'wipawee@hospital.go.th', filter: 'nurse', role: 'พยาบาล', accent: '#10B981' },
+  { id: 'dir-017', name: 'พญ.ธัญญาเรศ พูนผล', sub: 'thanyares@hospital.go.th', filter: 'doctor', role: 'แพทย์', accent: '#10B981' },
+  { id: 'dir-018', name: 'นพ.ภาณุพงศ์ ศรีวิไล', sub: 'panupong@hospital.go.th', filter: 'doctor', role: 'แพทย์', accent: '#8B5CF6' },
+  { id: 'dir-019', name: 'น.ส.กาญจนา ดวงแก้ว', sub: 'kanjana@hospital.go.th', filter: 'nurse', role: 'พยาบาล', accent: '#10B981' },
+  { id: 'dir-020', name: 'พญ.ปวีณา สุขสวัสดิ์', sub: 'paweena@hospital.go.th', filter: 'doctor', role: 'แพทย์', accent: '#10B981' },
+  { id: 'dir-021', name: 'น.ส.อารียา แสนดี', sub: 'areeya@hospital.go.th', filter: 'nurse', role: 'พยาบาล', accent: '#10B981' },
+].map((row, i) => ({ ...row, avatar: avatarFor(row.name, row.role, i) }));
 
 export const DEFAULT_TELEMED_EXTRA_PARTICIPANTS = [
   {

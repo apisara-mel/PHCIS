@@ -548,7 +548,7 @@ export const AddictionStep4Activity = ({ form, setForm, hn, sessionNo, readOnly,
               leadingIcon='videocam'
               disabled={readOnly}
               onClick={() => {
-                telemed.start();
+                telemed.start(hn);
                 setForm((f) => ({ ...f, telemedStatus: 'started' }));
               }}
             >

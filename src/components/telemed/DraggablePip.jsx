@@ -23,6 +23,7 @@ const DraggablePip = ({
   width = DEFAULT_SIZE.width,
   height = DEFAULT_SIZE.height,
   zIndex = 'var(--sm-z-overlay, 1300)',
+  className = '',
   style,
   children,
   'aria-label': ariaLabel = 'หน้าต่างวิดีโอ PiP',
@@ -55,7 +56,7 @@ const DraggablePip = ({
   const beginDrag = (event) => {
     if (event.button != null && event.button !== 0) return;
     const interactive = event.target?.closest?.(
-      'button, a, input, textarea, select, [data-no-drag], [role="button"]',
+      'button, a, input, textarea, select, label, [data-no-drag], [role="button"], [role="radio"], [role="dialog"]',
     );
     if (interactive) return;
 
@@ -110,6 +111,7 @@ const DraggablePip = ({
   return (
     <div
       ref={panelRef}
+      className={className}
       role='dialog'
       aria-label={ariaLabel}
       onPointerDown={beginDrag}

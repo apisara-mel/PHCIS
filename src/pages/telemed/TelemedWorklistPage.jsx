@@ -320,7 +320,8 @@ const TelemedWorklistPage = () => {
     if (!canJoin) return;
     setTelemedVisitStatus(row.id, 'inprogress', telemedActor(role));
     logTelemedEvent(role, 'เข้าร่วมสาย', { detail: `${row.name} (HN ${row.hn})` });
-    startCall();
+    /* ต้องส่ง id ของแถวที่กด ไม่งั้นห้องตรวจจะขึ้นผู้รับบริการค่าเริ่มต้นทุกครั้ง */
+    startCall(row.id);
   };
 
   /* ── ส่งข้อมูลเข้า PHCIS / ทำงานทางคลินิกต่อ (TOR §1.13.3) ─────────── */
