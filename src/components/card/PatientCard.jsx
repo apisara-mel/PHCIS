@@ -581,7 +581,7 @@ const PatientCard = ({
                 leadingIcon='history'
                 onClick={() => (onMedicalHistory ? onMedicalHistory(patient) : setHistoryOpen(true))}
               >
-                ประวัติการรักษา
+                ข้อมูลทางการแพทย์ (EMR)
               </BrandSubdueButton>
             </div>
           )}

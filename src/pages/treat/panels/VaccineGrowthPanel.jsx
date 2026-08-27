@@ -539,7 +539,9 @@ const VaccineGrowthPanel = ({ form, patient, section = 'all' }) => {
   return (
     <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
       {/* แท็บ "วัคซีน" กับ "กราฟการเจริญเติบโต" แยกกันแล้ว (มติผู้ใช้ 28 ส.ค. 69)
-          — แผงเดียวกันแต่แสดงคนละส่วนตาม prop `section` */}
+          — แผงเดียวกันแต่แสดงคนละส่วนตาม prop `section`
+          `epi` = เฉพาะตารางวัคซีนพื้นฐาน สำหรับป๊อปอัปประวัติที่วางตารางไว้เหนือ
+          ไทม์ไลน์เข็มของตัวเอง จึงไม่ต้องการทะเบียนการฉีดซ้ำอีกชุด */}
       {section !== 'growth' && (
       <>
       {/* ── ตาราง EPI ตามช่วงอายุ ─────────────────────────── */}
@@ -580,6 +582,8 @@ const VaccineGrowthPanel = ({ form, patient, section = 'all' }) => {
         </div>
       </PanelCard>
 
+      {section !== 'epi' && (
+      <>
       {/* ── ทะเบียนการฉีดรายคน ──────────────────────────── */}
       <PanelCard
         title='ประวัติการได้รับวัคซีน'
@@ -626,8 +630,10 @@ const VaccineGrowthPanel = ({ form, patient, section = 'all' }) => {
       </PanelCard>
       </>
       )}
+      </>
+      )}
 
-      {section !== 'vaccine' && (
+      {section !== 'vaccine' && section !== 'epi' && (
       <>
       {/* ── กราฟการเจริญเติบโต ──────────────────────────── */}
       <PanelCard

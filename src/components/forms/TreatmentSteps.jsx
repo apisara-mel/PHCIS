@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { getCarriedScreening } from '@/data/screeningHandoff';
 import {
@@ -58,6 +58,7 @@ import ReferralHistoryPanel from '@/pages/treat/panels/ReferralHistoryPanel';
 import { VisitJourneyStagePanel } from '@/pages/treat/panels/VisitJourneyPanel';
 import { vaccinesForPatient } from '@/data/treatmentVaccines';
 import { referralHistoryForPatient } from '@/data/treatmentRefer';
+import { consultsForPatient, clinicMeta, consultStatusMeta } from '@/data/treatmentConsult';
 import {
   imagingHistoryForPatient, FILM_ASSETS, RESULT_CLASS_META,
 } from '@/data/treatmentImagingHistory';
@@ -197,6 +198,8 @@ const HISTORY_TABS = [
   'กราฟการเจริญเติบโต',
   /* TOR §1.4.3.4 — แพทย์ต้องเห็นประวัติการส่งต่อของผู้ป่วยได้จากในหน้า
      บันทึกการรักษาโดยตรง ไม่ต้องข้ามไป /treat/refer */
+  'ประวัติการจ่ายยา',
+  'ประวัติการส่งปรึกษา',
   'ประวัติการส่งต่อ',
 ];
 
@@ -409,7 +412,7 @@ const RecordTimeline = ({ entries, emptyText }) => {
 /* ทะเบียนวัคซีนอ่านเป็นไทม์ไลน์เข็มต่อเข็ม — ดูอย่างเดียว ไม่มีปุ่มบันทึก/ยกเลิก
    เพราะป๊อปอัปประวัติเป็นหน้าอ่าน การบันทึกเข็มอยู่ที่คลินิกสร้างเสริมภูมิคุ้มกันโรค
    (มติผู้ใช้ 28 ส.ค. 69) */
-const VaccineDoseTimeline = ({ patient }) => {
+const VaccineDoseTimeline = ({ patient, form }) => {
   const doses = useMemo(() => vaccinesForPatient(patient?.hn || ''), [patient?.hn]);
   const entries = useMemo(() => doses.map((v, i) => ({
     key: v.id || `dose-${i}`,
@@ -426,7 +429,14 @@ const VaccineDoseTimeline = ({ patient }) => {
       ['สถานะ', v.cancelledAt ? `ยกเลิก — ${v.cancelReason || 'ไม่ระบุเหตุผล'}` : ''],
     ].filter(([, value]) => value),
   })), [doses]);
-  return <RecordTimeline entries={entries} emptyText='ยังไม่มีประวัติการได้รับวัคซีนในระบบ' />;
+  return (
+    <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-500)' }}>
+      {/* ตารางวัคซีนพื้นฐาน (EPI) ตามช่วงอายุ อยู่เหนือไทม์ไลน์ — บอกว่า "ยังขาด
+          เข็มไหน" ซึ่งไทม์ไลน์ของเข็มที่ฉีดไปแล้วตอบไม่ได้ (มติผู้ใช้ 28 ส.ค. 69) */}
+      <VaccineGrowthPanel patient={patient} form={form || {}} section='epi' />
+      <RecordTimeline entries={entries} emptyText='ยังไม่มีประวัติการได้รับวัคซีนในระบบ' />
+    </div>
+  );
 };
 
 /* ประวัติการส่งต่ออ่านเป็นไทม์ไลน์เช่นกัน (ToR §1.4.3.4) — ดูอย่างเดียว
@@ -488,6 +498,65 @@ const ImagingTimeline = ({ patient }) => {
   );
 };
 
+/* ประวัติการจ่ายยา — ไล่ตามครั้งที่มารับบริการ แต่ละครั้งกางรายการยาที่จ่าย
+   พร้อมวิธีใช้และจำนวน (มติผู้ใช้ 28 ส.ค. 69) */
+const MedicationTimeline = ({ visits }) => {
+  const entries = useMemo(
+    () => (visits || [])
+      .filter((v) => (v.meds || []).length > 0)
+      .map((v, i) => ({
+        key: `${v.date}-med-${i}`,
+        date: v.date,
+        subtitle: [v.center, v.doctor ? `สั่งโดย ${v.doctor}` : ''].filter(Boolean).join(' · '),
+        fields: [
+          ...(v.meds || []).flatMap((m, mi) => [
+            [`ยารายการที่ ${mi + 1}`, m.name],
+            [`วิธีใช้ (${m.name})`, m.sig],
+            [`จำนวนที่จ่าย (${m.name})`, m.qty],
+          ]),
+          ['การวินิจฉัยของครั้งนั้น', v.dx],
+        ].filter(([, value]) => value),
+      })),
+    [visits],
+  );
+  return (
+    <RecordTimeline
+      entries={entries}
+      emptyText='ยังไม่มีประวัติการจ่ายยาของผู้รับบริการรายนี้'
+    />
+  );
+};
+
+/* ประวัติการส่งปรึกษาแพทย์เฉพาะทาง (CPOE §1.5.6) — ดูอย่างเดียว
+   การเปิดใบปรึกษาใหม่อยู่ที่ทะเบียนการส่งปรึกษาแพทย์ */
+const ConsultTimeline = ({ patient }) => {
+  const rows = useMemo(() => consultsForPatient(patient?.hn || ''), [patient?.hn]);
+  const entries = useMemo(() => rows.map((c, i) => ({
+    key: c.id || `consult-${i}`,
+    date: c.requestedAt || c.createdAt || '—',
+    subtitle: [clinicMeta(c.toClinic)?.label, consultStatusMeta(c.status)?.label]
+      .filter(Boolean).join(' · '),
+    fields: [
+      ['เลขที่ใบปรึกษา', c.consultNo],
+      ['คลินิกที่ส่งปรึกษา', clinicMeta(c.toClinic)?.label],
+      ['การวินิจฉัยเบื้องต้น', c.provisionalDx],
+      ['ประเด็นที่ปรึกษา', c.question],
+      ['ข้อมูลประกอบ', c.context],
+      ['สิ่งที่ขอให้ช่วย', c.request],
+      ['ผู้ส่งปรึกษา', c.requestedBy],
+      ['ผู้ตอบกลับ', c.repliedBy],
+      ['ความเห็นที่ตอบกลับ', c.replyBody],
+      ['คำแนะนำการรักษา', c.replyAdvice],
+    ].filter(([, value]) => value),
+  })), [rows]);
+  return (
+    <RecordTimeline
+      entries={entries}
+      emptyText='ยังไม่มีประวัติการส่งปรึกษาของผู้รับบริการรายนี้'
+    />
+  );
+};
+
 const VisitFieldTimeline = ({ visits, tabLabel }) => {
   const fieldsOf = TIMELINE_FIELDS_BY_TAB[tabLabel];
   const entries = useMemo(
@@ -525,6 +594,8 @@ TIMELINE_FIELDS_BY_TAB[HISTORY_TAB_LABRAD] = (v) => [
 const HISTORY_TAB_VACCINE = 'วัคซีน';
 const HISTORY_TAB_GROWTH  = 'กราฟการเจริญเติบโต';
 const HISTORY_TAB_REFER   = 'ประวัติการส่งต่อ';
+const HISTORY_TAB_PHARMACY = 'ประวัติการจ่ายยา';
+const HISTORY_TAB_CONSULT  = 'ประวัติการส่งปรึกษา';
 
 /* Step 5 "สั่งการรักษา" อยู่ที่ index 4 ใน STEP_RENDERERS — ใช้โดย CTA
    ของ empty state ในแท็บผลแล็บ ("ไปสั่งตรวจ") */
@@ -931,6 +1002,69 @@ const XrayHistoryTabPanel = ({ patient }) => {
    ป๊อปอัปจึงมีตัวสลับให้เลือก โดยตั้งต้นที่ "ดูตามรายการตรวจ" ซึ่งเป็นวิธีที่
    หมอเปิดดูจริง (อยากรู้ว่าผลแล็บ/ภาพรังสีของคนนี้เป็นอย่างไร มากกว่าอยากรู้
    ว่าวันที่ 8 ม.ค. เกิดอะไรขึ้น) — มติผู้ใช้ 28 ส.ค. 69 */
+/* แถวชิปหมวดยาวเกินความกว้างเสมอ เดิมตัดขึ้นบรรทัดใหม่ทำให้กินความสูงสองแถว
+   ตอนนี้เลื่อนแนวนอนได้ พร้อมปุ่มลูกศรสองข้างที่โผล่เฉพาะตอนยังเลื่อนต่อได้
+   (มติผู้ใช้ 28 ส.ค. 69) */
+const ChipScroller = ({ children }) => {
+  const ref = useRef(null);
+  const [edge, setEdge] = useState({ left: false, right: false });
+
+  const sync = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    setEdge({ left: el.scrollLeft > 2, right: el.scrollLeft < max - 2 });
+  }, []);
+
+  useEffect(() => {
+    sync();
+    const el = ref.current;
+    if (!el) return undefined;
+    el.addEventListener('scroll', sync, { passive: true });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(sync) : null;
+    ro?.observe(el);
+    return () => { el.removeEventListener('scroll', sync); ro?.disconnect(); };
+  }, [sync, children]);
+
+  const nudge = (dir) => () => {
+    const el = ref.current;
+    if (el) el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.7), behavior: 'smooth' });
+  };
+
+  const arrow = (side) => (
+    <button
+      type='button'
+      onClick={nudge(side === 'left' ? -1 : 1)}
+      aria-label={side === 'left' ? 'เลื่อนหมวดไปทางซ้าย' : 'เลื่อนหมวดไปทางขวา'}
+      className='shrink-0 inline-flex items-center justify-center'
+      style={{
+        width: 28, height: 28,
+        borderRadius: 'var(--dim-radius-full, 999px)',
+        border: 'var(--dim-stroke-100) solid var(--border-neutralbutton-tertiary)',
+        background: 'var(--surface-neutralbutton-default, #FFFFFF)',
+        color: 'var(--text-neutralbutton-default)',
+        cursor: 'pointer',
+      }}
+    >
+      <Sym name={side === 'left' ? 'chevron_left' : 'chevron_right'} size={18} />
+    </button>
+  );
+
+  return (
+    <div className='flex items-center w-full shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
+      {edge.left ? arrow('left') : null}
+      <div
+        ref={ref}
+        className='flex flex-nowrap items-center overflow-x-auto'
+        style={{ gap: 'var(--dim-space-200)', flex: 1, scrollbarWidth: 'none' }}
+      >
+        {children}
+      </div>
+      {edge.right ? arrow('right') : null}
+    </div>
+  );
+};
+
 const HISTORY_VIEW_MODES = [
   { key: 'order', label: 'ดูตามรายการตรวจ' },
   { key: 'date', label: 'ดูตามวันที่รับบริการ' },
@@ -1085,28 +1219,37 @@ export const MedicalHistoryReadOnlyLayout = ({
           <SectionTitle icon='description'>ประวัติการรักษา (Medical History)</SectionTitle>
         )}
 
-        <div className='flex flex-wrap shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
+        <ChipScroller>
           {HISTORY_TABS.map((label, i) => (
-            <TabCapsule
-              key={label}
-              variant='filter'
-              label={label}
-              selected={i === activeTab}
-              onClick={() => setActiveTab(i)}
-            />
+            <span key={label} className='shrink-0'>
+              <TabCapsule
+                variant='filter'
+                label={label}
+                selected={i === activeTab}
+                onClick={() => setActiveTab(i)}
+              />
+            </span>
           ))}
-        </div>
+        </ChipScroller>
 
 
 
-        {byOrder && activeTabLabel === HISTORY_TAB_XRAY ? (
+        {byOrder && activeTabLabel === HISTORY_TAB_PHARMACY ? (
+          <MedicationTimeline visits={visits} />
+        ) : byOrder && activeTabLabel === HISTORY_TAB_CONSULT ? (
+          <ConsultTimeline patient={patient} />
+        ) : byOrder && activeTabLabel === HISTORY_TAB_XRAY ? (
           <ImagingTimeline patient={patient} />
         ) : byOrder && activeTabLabel === HISTORY_TAB_VACCINE ? (
-          <VaccineDoseTimeline patient={patient} />
+          <VaccineDoseTimeline patient={patient} form={form} />
         ) : byOrder && activeTabLabel === HISTORY_TAB_REFER ? (
           <ReferralTimeline patient={patient} />
         ) : byOrder && DATE_SCOPED_HISTORY_TABS.has(activeTabLabel) ? (
           <VisitFieldTimeline visits={visits} tabLabel={activeTabLabel} />
+        ) : activeTabLabel === HISTORY_TAB_PHARMACY ? (
+          <MedicationTimeline visits={visits} />
+        ) : activeTabLabel === HISTORY_TAB_CONSULT ? (
+          <ConsultTimeline patient={patient} />
         ) : activeTabLabel === HISTORY_TAB_XRAY ? (
           <XrayHistoryTabPanel patient={patient} />
         ) : activeTabLabel === HISTORY_TAB_LABRAD ? (
