@@ -127,7 +127,10 @@ export const resolveBox = ({ state, focused, hasValue, error, disabled }) => {
         bg:           'var(--surface-input-disabled)',
         ring:         'none',
         iconColor:    'var(--icon-input-disabled)',
-        valueColor:   'var(--text-input-disabled)',
+        /* Disabled ที่ "มีค่าอยู่แล้ว" ต้องอ่านออก — ใช้สีเดียวกับ filled
+                       ส่วน --text-input-disabled สงวนไว้ให้ช่องว่างที่ปิดใช้งาน
+                       (มติผู้ใช้ 27 ส.ค. 69 · design.md §6.4.2) */
+        valueColor:   hasValue ? 'var(--text-input-filled)' : 'var(--text-input-disabled)',
       };
     default:
       return {
@@ -151,6 +154,25 @@ export const composeBoxShadow = (s, includeRing) =>
 
 /* Renders the label row (Figma "Field name") + the helper text below the
    box. Wraps {children} which is the actual input box.                   */
+/* เครื่องหมายบังคับกรอก (*) — ตัวเดียวของทั้งระบบ
+   design.md แถว 1205 · text/input/require (red/600) ห้ามเขียน `*` ต่อท้าย
+   ข้อความ label เอง เพราะมันจะรับสีของ label (ดำ/เทา) แทนที่จะเป็นแดง
+   ผู้เรียกที่ประกอบ label เองให้ใช้ `<RequiredMark />` แทน */
+export const RequiredMark = ({ className = '', style }) => (
+  <span
+    aria-hidden
+    className={className}
+    style={{
+      color: 'var(--text-input-require, #DC2626)',
+      fontWeight: 'var(--type-weight-regular)',
+      marginLeft: 'var(--dim-space-050, 2px)',
+      ...style,
+    }}
+  >
+    *
+  </span>
+);
+
 export const FieldShell = ({
   label,
   required = false,
@@ -196,9 +218,7 @@ export const FieldShell = ({
           }}
         >
           <span>{label}</span>
-          {required && (
-            <span style={{ color: 'var(--text-input-require)', fontWeight: 'var(--type-weight-regular)' }}>*</span>
-          )}
+          {required && <RequiredMark style={{ marginLeft: 0 }} />}
         </label>
       )}
       {children}

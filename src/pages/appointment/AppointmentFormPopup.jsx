@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Popup from '@/components/popup/Popup';
 import MedicalHistoryPopup from '@/components/popup/MedicalHistoryPopup';
-import Topic from '@/components/topic/Topic';
 import Timeslot from '@/components/timeslot/Timeslot';
 import Select from '@/components/forms/Select';
 import DatePicker from '@/components/forms/DatePicker';
@@ -45,6 +44,8 @@ import { getResourcePattern } from './appointmentSettingsStore';
 import { getApptTypeOptions } from './appointmentTypeCatalog';
 import { APPT_DX_ICD10, APPT_PURPOSE_MASTER } from './appointmentHcisMasters';
 import { useActiveCenter } from '@/pages/users/usersShared';
+import { NEW_USER_AVATAR } from '@/data/avatarAssets';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 
 /** HCIS §2.3 "วันเวลาที่สั่งนัด" — auto, read-only. */
 const orderedAtStamp = (() => {
@@ -294,7 +295,7 @@ function mapApptToForm(appt, slotPick, mode, staff, patientSelectable = false) {
     base.patient = '';
     base.hn = '';
     base.rights = '';
-    base.patientAvatar = DEFAULT_PATIENT_AVATAR;
+    base.patientAvatar = NEW_USER_AVATAR;
   }
   if (staff?.name) {
     base.doctor = staff.name;
@@ -373,7 +374,7 @@ const STICKY_STRIP_WRAP = {
   paddingBottom: 'var(--dim-space-600)',
 };
 
-const AppointmentPatientStrip = ({ form, sticky = true }) => {
+const AppointmentPatientStrip = ({ form, sticky = true, trailing = null }) => {
   const { patient, hn, rights, patientAvatar } = form;
   const [imgError, setImgError] = useState(false);
   useEffect(() => { setImgError(false); }, [patientAvatar]);
@@ -464,6 +465,9 @@ const AppointmentPatientStrip = ({ form, sticky = true }) => {
           {rights || '—'}
         </ColorfulBadge>
       </div>
+      {trailing ? (
+        <div className='flex flex-1 min-w-0 justify-end'>{trailing}</div>
+      ) : null}
     </div>
   );
 
@@ -473,31 +477,58 @@ const AppointmentPatientStrip = ({ form, sticky = true }) => {
 };
 
 /* ทะเบียนผู้รับบริการสำหรับโหมด worklist — ป้ายเป็น "HN · ชื่อ" เพื่อให้พิมพ์
-   ค้นได้ทั้งสองทาง (Select ของระบบ searchable ทั้ง label และ value) */
+   ค้นได้ทั้งสองทาง (Select ของระบบ searchable ทั้ง label และ value)
+
+   ใส่รูป profile ทุกแถว (มติผู้ใช้ 27 ส.ค. 69) — รายชื่อ HN + ชื่อไทยล้วนกวาดตา
+   หายาก รูปช่วยยืนยันว่าเลือกถูกคนก่อนกดบันทึก. คนที่ยังไม่มีรูปใช้ avatar กลาง
+   `NEW_USER_AVATAR` ไม่ใช่ `DEFAULT_PATIENT_AVATAR` ซึ่งเป็นรูปคนไข้จริงคนหนึ่ง
+   — เอามาเป็น fallback เมื่อไรก็เท่ากับติดหน้าคนอื่นให้คนไข้ที่ไม่มีรูป */
 const PATIENT_PICK_OPTIONS = Object.values(APPOINTMENT_PATIENTS).map((p) => ({
   value: p.hn,
   label: `${p.hn} · ${p.patient}`,
+  image: p.avatar || NEW_USER_AVATAR,
 }));
 
 /* เปิดจาก worklist จึงยังไม่มีคนไข้ผูกมา — ต้องเลือกก่อน (มติผู้ใช้ 27 ส.ค. 69)
-   เลือกแล้วยังโชว์ strip เดิมต่อ เพื่อให้เห็นสิทธิ์การรักษา/รูป ตรงกับตอนเปิด
-   จากหน้าที่มีคนไข้อยู่แล้ว */
-const AppointmentPatientPicker = ({ form, onPick }) => (
-  <ApptCard title='ผู้รับบริการ'>
-    <Field label='ค้นหาและเลือกผู้รับบริการ' required>
-      <Select
-        size='large'
-        value={form.hn}
-        onChange={onPick}
-        options={PATIENT_PICK_OPTIONS}
-        placeholder='ค้นหา HN หรือชื่อผู้รับบริการ'
-        showLabel={false}
-        showHelperText={false}
+
+   เลือกแล้วช่องค้นหาหายไป เหลือแค่การ์ดผู้รับบริการ + ปุ่ม "เปลี่ยนผู้รับบริการ"
+   แบบเดียวกับหน้าติดตาม NCD / คิวกลาง — ค้างช่องค้นหาไว้ทั้งที่เลือกแล้วมีแต่
+   จะชวนให้กดพลาดเปลี่ยนคนไข้กลางฟอร์ม. หลังเลือกแล้วการ์ดเป็นตัวเดียวกับตอน
+   เปิดจากหน้าที่มีคนไข้อยู่แล้ว จึง sticky ตามไปด้วย */
+const AppointmentPatientPicker = ({ form, onPick }) => {
+  if (form.hn) {
+    return (
+      <AppointmentPatientStrip
+        form={form}
+        trailing={(
+          <BrandSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon='swap_horiz'
+            onClick={() => onPick('')}
+          >
+            เปลี่ยนผู้รับบริการ
+          </BrandSubdueButton>
+        )}
       />
-    </Field>
-    {form.hn ? <AppointmentPatientStrip form={form} sticky={false} /> : null}
-  </ApptCard>
-);
+    );
+  }
+  return (
+    <ApptCard title='ผู้รับบริการ'>
+      <Field label='ค้นหาและเลือกผู้รับบริการ' required>
+        <Select
+          size='large'
+          value={form.hn}
+          onChange={onPick}
+          options={PATIENT_PICK_OPTIONS}
+          placeholder='ค้นหา HN หรือชื่อผู้รับบริการ'
+          showLabel={false}
+          showHelperText={false}
+        />
+      </Field>
+    </ApptCard>
+  );
+};
 
 const AppointmentFormPopup = ({
   open,
@@ -555,7 +586,7 @@ const AppointmentFormPopup = ({
       hn: hn || '',
       patient: picked?.patient || '',
       rights: picked?.rights || '',
-      patientAvatar: picked?.avatar || DEFAULT_PATIENT_AVATAR,
+      patientAvatar: picked?.avatar || NEW_USER_AVATAR,
     }));
   };
 
@@ -711,25 +742,14 @@ const AppointmentFormPopup = ({
           </>
         ) : (
           <>
-        <Topic
-          hierarchy='primary'
-          title='นัดหมาย (Appointment)'
-          leadingIcon='calendar_clock'
-          showSubText={false}
-          showBadge={false}
-          showChevron={false}
-          showSuccess={false}
-          style={{
-            gap: 'var(--dim-space-300)',
-            paddingLeft: 0,
-            paddingRight: 0,
-          }}
-          trailing={(
-            <ApptDetailToolbar
-              hn={historyPatient.hn}
-              onMedicalHistory={() => setMedicalHistoryOpen(true)}
-            />
-          )}
+        {/* หัวข้อ "นัดหมาย (Appointment)" ถูกลบออก (มติผู้ใช้ 27 ส.ค. 69) — ซ้ำกับ
+            ชื่อ popup "รายละเอียดการนัดหมาย" ที่อยู่เหนือขึ้นไปสองบรรทัด และตั้งแต่
+            ย้ายปุ่มพิมพ์ใบนัดออกไป แถวนี้ก็ไม่เหลืออะไรนอกจากข้อความซ้ำ
+            <ApptDetailToolbar> ยังอยู่เพราะเป็นที่อยู่ของปุ่มประวัติการรักษาที่ซ่อนไว้
+            (คืนค่า null ตอนนี้ จึงไม่กินที่และไม่เกิด gap) */}
+        <ApptDetailToolbar
+          hn={historyPatient.hn}
+          onMedicalHistory={() => setMedicalHistoryOpen(true)}
         />
 
         {patientSelectable ? (

@@ -128,7 +128,9 @@ const resolveTrigger = ({ state, hasValue, error, disabled }) => {
         borderC:   'var(--border-input-disabled)',
         ring:      'none',
         iconColor: 'var(--icon-input-disabled)',
-        textColor: 'var(--text-input-disabled)',
+        /* เหมือน _inputBox: disabled ที่มีค่าแล้วใช้สี filled ให้อ่านออก
+           (มติผู้ใช้ 27 ส.ค. 69 · design.md §6.4.2) */
+        textColor: hasValue ? 'var(--text-input-filled)' : 'var(--text-input-disabled)',
       };
     default:
       return {

@@ -5280,12 +5280,24 @@ The Date Picker reuses `input` tokens for the field and `calendar` tokens for th
 | `border/input/error` | `--border-input-error` | `#DC2626` | red-600 | Error border |
 | `border/input/disabled` | `--border-input-disabled` | `#E2E4E6` | neutral-200 | Disabled border |
 | `surface/input/disabled` | `--surface-input-disabled` | `#F4F5F5` | neutral-100 | Disabled bg |
-| `text/input/disabled` | `--text-input-disabled` | `#ADB2B7` | neutral-400 | Disabled text |
+| `text/input/disabled` | `--text-input-disabled` | `#ADB2B7` | neutral-400 | Disabled text — **empty fields only** (see rule below) |
 | `border/input/hover` | `--border-input-hover` | `#08A768` | primary/600 | Hover border **(2px)** + Focus/Open border (2px) |
 | `focus-ring/input/hover` | `--focus-ring-input-hover` | `rgba(8,167,104,.14)` | primary/600 14% | Hover ring + Focus ring (4px) |
 | `icon/input/hover` | `--icon-input-hover` | `#08A768` | primary/600 | Calendar + chevron icon on hover |
 | `border/input/error` | `--border-input-error` | `#DC2626` | red-600 | Error border **(2px)** |
 | `focus-ring/input/error` | `--focus-ring-input-error` | `rgba(220,38,38,.12)` | red-600 12% | Error ring (4px) |
+
+**Disabled + filled → use the filled text colour.** A control that is disabled but already
+carries a value must render that value in `--text-input-filled` (`#4D5358`), not
+`--text-input-disabled` (`#ADB2B7`). Disabled means "you cannot change this", not "this is
+unimportant" — a read-only field such as *วันเวลาที่สั่งนัด* or a locked *หน่วยงานที่สั่งนัด* is
+often the field the user most needs to read, and it must match the weight of the editable
+fields beside it. `--text-input-disabled` stays reserved for a disabled field that is *empty*
+(its placeholder). This is resolved centrally — `resolveBox` in
+[`src/components/forms/_inputBox.jsx`](src/components/forms/_inputBox.jsx) (InputField ·
+Textarea · VoiceTextarea) and `resolveTrigger` in
+[`src/components/forms/Select.jsx`](src/components/forms/Select.jsx) — so every control picks
+it up without a per-page override. Borders, background and icons keep their disabled tokens.
 
 #### 6.4.3 Calendar Popup — Color Tokens
 
