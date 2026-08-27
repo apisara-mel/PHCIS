@@ -455,6 +455,10 @@ const TreatmentFormPage = () => {
         : '';
   const canSendToPharmacy = !sendBlockReason;
 
+  /* ⚠️ ไม่มีปุ่มไหนเรียกแล้ว — ปุ่ม "ส่งยาไปห้องยา" บนหัวการ์ดถูกเอาออก 28 ส.ค. 69
+     คงตัว handler ไว้ทั้งชุด (ToR §1.9.11.1: consent gate → sendPrescriptionToPharmacy
+     → toast) เพราะเป็นตรรกะจริงที่ต้องหาที่ผูกใหม่ ไม่ใช่โค้ดตกค้าง — pattern เดียว
+     กับ `ScreeningConfirmPopup` ตาม [[decisions-log|D-027]] */
   const handleSendToPharmacy = () => {
     if (!canSendToPharmacy) return;
     const gate = gateCpoeOrder(patient.hn, { orderKind: 'medication' });
@@ -616,22 +620,8 @@ const TreatmentFormPage = () => {
           chronicDiseases={patient.chronicDiseases}
           actions={
             <>
-              <BrandSubdueButton
-                variant='outline'
-                leadingIcon='assignment_add'
-                onClick={() => requestStepChange(CPOE_STEP_ORDERS)}
-              >
-                ไป Step 6: CPOE
-              </BrandSubdueButton>
-              <GuardedAction allowed={canSendToPharmacy} reason={sendBlockReason}>
-                <BrandSubdueButton
-                  variant='outline'
-                  leadingIcon='local_hospital'
-                  onClick={handleSendToPharmacy}
-                >
-                  ส่งยาไปห้องยา
-                </BrandSubdueButton>
-              </GuardedAction>
+              {/* ปุ่ม "ไป Step 6: CPOE" และ "ส่งยาไปห้องยา" ถูกเอาออกจากหัวการ์ด
+                  (มติผู้ใช้ 28 ส.ค. 69) */}
               {/* CPOE §1.5.10.1 — เดิมปุ่มนี้ยังไม่ผูก sheet จริง ตอนนี้พาไป
                   ศูนย์พิมพ์เอกสาร (step 8) ที่ต่อ PharmacyPrescriptionPrint
                   ไว้แล้ว พร้อม preview ก่อนพิมพ์ */}
