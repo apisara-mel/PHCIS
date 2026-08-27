@@ -141,12 +141,38 @@ const FALLBACK_VISITS = [
   { date: '17 ตุลาคม 2568',  center: 'ศูนย์ 8 บางนา',  dept: 'ตรวจรักษา',  doctor: 'พญ.วิภา สุขศรี',     cc: 'ตรวจสุขภาพประจำปี',           dx: 'Health check-up (Z00.0)',      rx: '—' },
 ];
 
+/* จำนวนครั้งที่ป๊อปอัป "ประวัติการรักษา" ต้องมีเสมอ (มติผู้ใช้ 28 ส.ค. 69) —
+   HN ส่วนใหญ่ใน `TREATMENT_VISITS` มีแค่ 1–2 ครั้ง แถบ "วันที่รับบริการ" จึงมี
+   บรรทัดเดียวและสลับวันที่ไม่ได้ */
+const VISIT_HISTORY_COUNT = 10;
+
+/* ครั้งเก่ากว่าที่ใช้เติมให้ครบ 10 — วันที่ไล่ย้อนหลังต่อจากรายการจริงของ HN
+   ไม่ให้ชนกัน และเนื้อหาหลากหลายพอให้แต่ละใบอ่านต่างกันจริง */
+const OLDER_VISIT_POOL = [
+  { date: '22 พฤศจิกายน 2568', center: 'ศูนย์ 4 ดินแดง', dept: 'ตรวจรักษา', doctor: 'พญ.วิภา สุขศรี',        cc: 'เจ็บคอ กลืนลำบาก',        dx: 'Acute tonsillitis (J03.9)',      rx: 'Amoxicillin, Paracetamol' },
+  { date: '9 ตุลาคม 2568',    center: 'ศูนย์ 8 บางนา',  dept: 'อายุรกรรม',  doctor: 'พญ.สมหญิง รักษ์ดี',    cc: 'ตรวจติดตามความดัน',        dx: 'Essential hypertension (I10)',   rx: 'Amlodipine 5 mg' },
+  { date: '3 กันยายน 2568',   center: 'ศูนย์ 4 ดินแดง', dept: 'ตรวจรักษา', doctor: 'นพ.สมชาย ใจดี',        cc: 'ผื่นคันตามแขน',            dx: 'Allergic dermatitis (L23.9)',    rx: 'CPM, Calamine' },
+  { date: '18 สิงหาคม 2568',  center: 'ศูนย์ 8 บางนา',  dept: 'อายุรกรรม',  doctor: 'นพ.วรวิทย์ เกียรติเจริญ', cc: 'เวียนศีรษะ บ้านหมุน',    dx: 'Vertigo (H81.1)',                rx: 'Betahistine' },
+  { date: '30 มิถุนายน 2568', center: 'ศูนย์ 4 ดินแดง', dept: 'ตรวจรักษา', doctor: 'พญ.ปรียาภรณ์ สุขสวัสดิ์', cc: 'ปวดท้องบิด ถ่ายเหลว',   dx: 'Acute gastroenteritis (A09)',    rx: 'ORS, Domperidone' },
+  { date: '12 พฤษภาคม 2568',  center: 'ศูนย์ 8 บางนา',  dept: 'อายุรกรรม',  doctor: 'พญ.สมหญิง รักษ์ดี',    cc: 'ตรวจติดตามระดับน้ำตาล',    dx: 'Follow-up T2DM (E11.9)',         rx: 'Metformin 500 mg' },
+  { date: '4 เมษายน 2568',    center: 'ศูนย์ 4 ดินแดง', dept: 'ตรวจรักษา', doctor: 'นพ.สมชาย ใจดี',        cc: 'ไอเรื้อรัง 3 สัปดาห์',      dx: 'Chronic cough (R05)',            rx: 'ส่ง X-ray ปอด' },
+  { date: '19 กุมภาพันธ์ 2568', center: 'ศูนย์ 8 บางนา', dept: 'ตรวจรักษา', doctor: 'พญ.วิภา สุขศรี',       cc: 'ปวดเมื่อยกล้ามเนื้อคอบ่า',  dx: 'Myofascial pain (M79.1)',        rx: 'NSAIDs, กายภาพบำบัด' },
+  { date: '7 มกราคม 2568',    center: 'ศูนย์ 4 ดินแดง', dept: 'อายุรกรรม',  doctor: 'นพ.วรวิทย์ เกียรติเจริญ', cc: 'ตรวจสุขภาพประจำปี',      dx: 'Health check-up (Z00.0)',        rx: '—' },
+  { date: '11 พฤศจิกายน 2567', center: 'ศูนย์ 8 บางนา', dept: 'ตรวจรักษา', doctor: 'พญ.ปรียาภรณ์ สุขสวัสดิ์', cc: 'ตาแดง เคืองตา',          dx: 'Acute conjunctivitis (H10.3)',   rx: 'ยาหยอดตา' },
+];
+
 /* Per-HN list of visit-detail records — most recent first. The simple
    `TREATMENT_VISITS` table above already lists the dates for each HN;
    here we just attach a center label to the top entry and reuse the
-   default detail block so every selected date renders a full panel. */
+   default detail block so every selected date renders a full panel.
+   เติมจาก `OLDER_VISIT_POOL` จนครบ `VISIT_HISTORY_COUNT` ครั้งเสมอ. */
 const buildVisitDetailsForHn = (hn) => {
-  const visits = TREATMENT_VISITS[hn]?.length ? TREATMENT_VISITS[hn] : FALLBACK_VISITS;
+  const seeded = TREATMENT_VISITS[hn]?.length ? TREATMENT_VISITS[hn] : FALLBACK_VISITS;
+  const seededDates = new Set(seeded.map((v) => v.date));
+  const padding = OLDER_VISIT_POOL
+    .filter((v) => !seededDates.has(v.date))
+    .slice(0, Math.max(0, VISIT_HISTORY_COUNT - seeded.length));
+  const visits = [...seeded, ...padding].slice(0, VISIT_HISTORY_COUNT);
   return visits.map((v) => ({
     ...DEFAULT_VISIT_DETAIL,
     date: v.date,

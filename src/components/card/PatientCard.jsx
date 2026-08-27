@@ -218,7 +218,11 @@ const PatientCard = ({
 }) => {
   const history = useHistory();
   const autoHide = useHeaderAutoHide();
-  const resolvedStickyTop = stickyTop ?? autoHide?.topbarOffset ?? APP_TOPBAR_HEIGHT;
+  /* `top:` อ่านจาก CSS var ที่ lerp อยู่แล้ว การ์ดจึงเลื่อนพร้อมแถบบนทุกเฟรม
+     โดยไม่ต้อง re-render · rootMargin ของ IntersectionObserver ใช้ความสูงตอน
+     แถบกางเต็ม เพราะจุดสลับเป็น/ไม่เป็น compact ไม่ควรขยับตามการซ่อนแถบ */
+  const resolvedStickyTop = stickyTop ?? MIH_TOPBAR_OFFSET;
+  const stickyTopPx = typeof stickyTop === 'number' ? stickyTop : APP_TOPBAR_HEIGHT;
   const [imgError, setImgError] = useState(false);
   const sentinelRef = useRef(null);
   const cardRef = useRef(null);
@@ -242,11 +246,11 @@ const PatientCard = ({
        card tucks under the app header. */
     const observer = new IntersectionObserver(
       ([entry]) => setStuck(!entry.isIntersecting),
-      { threshold: 0, rootMargin: `-${resolvedStickyTop}px 0px 0px 0px` },
+      { threshold: 0, rootMargin: `-${stickyTopPx}px 0px 0px 0px` },
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [sticky, resolvedStickyTop]);
+  }, [sticky, stickyTopPx]);
 
   /* Default — navigate one step back. The page can intercept (e.g. to
      show an unsaved-changes confirmation) by passing its own `onBack`. */

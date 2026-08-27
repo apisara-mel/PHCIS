@@ -151,7 +151,7 @@ const QueuePageShell = ({
     hasBelowSummary ? QUEUE_BELOW_SUMMARY_FALLBACK : 0,
   );
   const [tabsH, setTabsH] = useState(hasTabs ? QUEUE_TAB_STRIP_HEIGHT : 0);
-  const { topbarOffset } = useHeaderAutoHide() ?? { topbarOffset: stickyTopOffset };
+  useHeaderAutoHide();
 
   /* Pill status tabs: large at rest → small once scroll-morph engages.
      Hysteresis avoids flicker around the threshold. */
@@ -210,17 +210,26 @@ const QueuePageShell = ({
     return () => ro?.disconnect();
   }, [hasTabs, tabVariant, activeTab, tabs, pillSize]);
 
-  const tableStickyTop = topbarOffset + subHeaderH + belowSummaryH + tabsH;
+  /* ความสูงของ chrome ที่ค้างอยู่ใต้แถบบน — เปลี่ยนตอน resize เท่านั้น
+     ไม่เปลี่ยนตอน scroll */
+  const chromeStackH = subHeaderH + belowSummaryH + tabsH;
 
-  /* Publish live offset so page-sticky Table headers track Topbar auto-hide. */
+  /* Publish live offset so page-sticky Table headers track Topbar auto-hide.
+     เขียนเป็น `calc()` ที่อ้าง `--mih-topbar-offset` โดยตรง — เดิมบวกตัวเลข
+     `topbarOffset` จาก state แล้วเขียนทับทุกเฟรม หัวตารางจึงตามหลังแถบบนอยู่
+     หนึ่งเฟรมและเห็นแถวลอดออกมาเป็นช่องว่าง ตอนนี้ทั้งสองอ่านค่าเดียวกัน
+     เฟรมเดียวกัน (28 ส.ค. 69) */
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return undefined;
     const root = document.documentElement;
-    root.style.setProperty(STICKY_UNDER_TABS_VAR, `${tableStickyTop}px`);
+    root.style.setProperty(
+      STICKY_UNDER_TABS_VAR,
+      `calc(${MIH_TOPBAR_OFFSET} + ${chromeStackH}px)`,
+    );
     return () => {
       root.style.removeProperty(STICKY_UNDER_TABS_VAR);
     };
-  }, [tableStickyTop]);
+  }, [chromeStackH]);
 
   const consentSidebar = sidebarFallbackKey?.startsWith('consent-');
   const resolvedSidebarOpenWidth =

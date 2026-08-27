@@ -13,8 +13,11 @@
 import { getTreatmentCompletedSteps } from '@/data/treatmentVisits';
 import { soapHasContent } from '@/data/treatmentSoap';
 
+/* "ประวัติการรักษา" ถูกเอาออกจากลำดับขั้น 28 ส.ค. 69 — เป็นหน้าอ่านอย่างเดียว
+   ที่หมอเปิดดูตอนไหนก็ได้จากปุ่ม "ประวัติการรักษา" บนหัวการ์ดผู้ป่วย ไม่ใช่ขั้น
+   ที่ต้องเดินผ่านก่อนถึงจะบันทึกอะไรได้ · component `Step1History` ยังอยู่
+   เพราะคลินิก NCD / TB และ Components Library ใช้อยู่ */
 export const CPOE_TREATMENT_STEPS = [
-  { key: 'history',     title: 'ประวัติการรักษา',      subtitle: 'Medical History' },
   { key: 'screening',   title: 'คัดกรองและซักประวัติ',  subtitle: 'Screening' },
   { key: 'examination', title: 'ตรวจร่างกาย',          subtitle: 'Physical Examination' },
   { key: 'soap',        title: 'SOAP Note',            subtitle: 'Doctor Record' },
@@ -34,7 +37,6 @@ export const cpoeStepIndex = (key) => {
   return i < 0 ? 0 : i;
 };
 
-export const CPOE_STEP_HISTORY     = cpoeStepIndex('history');
 export const CPOE_STEP_SCREENING   = cpoeStepIndex('screening');
 export const CPOE_STEP_EXAMINATION = cpoeStepIndex('examination');
 export const CPOE_STEP_SOAP        = cpoeStepIndex('soap');
@@ -47,21 +49,21 @@ export const CPOE_STEP_DOCUMENTS   = cpoeStepIndex('documents');
    (ล้อ MIN_NOTE_CHARS ของ ClinicalNotesPanel ผ่าน soapHasContent) */
 export const isCpoeSoapComplete = (form) => soapHasContent(form?.soap);
 
-/* 8 ช่อง — แปลงจากผลลัพธ์ 7 ช่องของ getTreatmentCompletedSteps โดยแทรก
-   SOAP ไว้ที่ตำแหน่ง 4 และเลื่อนที่เหลือลง. legacyIndex คือ index ที่
-   ฟังก์ชันเดิมคาดหวัง (ก่อนแทรก SOAP). */
+/* 7 ช่อง — แปลงจากผลลัพธ์ 7 ช่องของ getTreatmentCompletedSteps โดยตัดช่อง
+   "ประวัติ" ทิ้ง (ไม่เป็นขั้นแล้ว) และแทรก SOAP เข้ามาแทน. legacyIndex คือ
+   index ที่ฟังก์ชันเดิมคาดหวัง — ชุดเดิมมี "ประวัติ" อยู่หน้าสุด ทุกขั้นก่อน
+   ถึง SOAP จึงต้องบวกกลับหนึ่งช่อง ส่วนขั้นหลัง SOAP ชดเชยกันพอดี */
 export const getCpoeCompletedSteps = (form, stepIndex = 0) => {
-  const legacyIndex = stepIndex <= CPOE_STEP_SOAP ? stepIndex : stepIndex - 1;
+  const legacyIndex = stepIndex <= CPOE_STEP_SOAP ? stepIndex + 1 : stepIndex;
   const legacy = getTreatmentCompletedSteps(form, legacyIndex);
   return [
-    legacy[0],                        /* 1 ประวัติ            */
-    legacy[1],                        /* 2 คัดกรอง            */
-    legacy[2],                        /* 3 ตรวจร่างกาย        */
-    isCpoeSoapComplete(form),         /* 4 SOAP Note          */
-    legacy[3],                        /* 5 วินิจฉัย            */
-    stepIndex > CPOE_STEP_ORDERS,     /* 6 สั่งการรักษา (ไม่บังคับ) */
-    legacy[5],                        /* 7 นัดหมาย            */
-    legacy[6],                        /* 8 เอกสาร/ใบรับรองแพทย์ */
+    legacy[1],                        /* 1 คัดกรอง            */
+    legacy[2],                        /* 2 ตรวจร่างกาย        */
+    isCpoeSoapComplete(form),         /* 3 SOAP Note          */
+    legacy[3],                        /* 4 วินิจฉัย            */
+    stepIndex > CPOE_STEP_ORDERS,     /* 5 สั่งการรักษา (ไม่บังคับ) */
+    legacy[5],                        /* 6 นัดหมาย            */
+    legacy[6],                        /* 7 เอกสาร/ใบรับรองแพทย์ */
   ];
 };
 
