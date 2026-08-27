@@ -22,7 +22,9 @@ import ConsentFormPrintConfirmDialog from '@/components/consent/ConsentFormPrint
 import SuccessPopup from '@/components/popup/SuccessPopup';
 import Alert from '@/components/alert/Alert';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
-import { REGISTRATION_PENDING_CONSENT_CARDS } from '@/data/registrationConsentForms';
+import { REGISTRATION_PENDING_CONSENT_CARDS, consentFormCoverUrl } from '@/data/registrationConsentForms';
+import { CONSENT_WORKLIST_FORM_POOL, CONSENT_TOPICS } from '@/data/consentFormRecords';
+import ConsentWithdrawRequestPopup from '@/components/consent/ConsentWithdrawRequestPopup';
 import { saveRegistrationDraft, markRegistrationConsentCompleted } from '@/data/registrationForm';
 import healthInsuranceAnim from '@/assets/illustrations/Girl finding health insurance online.json';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
@@ -31,6 +33,7 @@ import DeleteEmergencyContactConfirmPopup from '@/components/popup/DeleteEmergen
 import DeleteDrugAllergyConfirmPopup from '@/components/popup/DeleteDrugAllergyConfirmPopup';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import CameraCapturePopup from '@/components/popup/CameraCapturePopup';
+import RightsDocumentScanPopup from '@/components/popup/RightsDocumentScanPopup';
 import FaceScanVerifyPopup from '@/components/popup/FaceScanVerifyPopup';
 import Popup from '@/components/popup/Popup';
 import DragAndDrop from '@/components/form-builder/DragAndDrop';
@@ -294,6 +297,38 @@ const PatientStatusSection = ({
 /* การ์ดใบนี้ย้ายไป `@/components/consent/PendingConsentFormCard` แล้ว —
    ระบบจัดการความยินยอม (popup กรอกแบบฟอร์มความยินยอม) ใช้ใบเดียวกัน */
 
+/* แบบฟอร์มอื่น ๆ — ใบยินยอมที่เผยแพร่อยู่ในระบบจัดการความยินยอมแต่ไม่ได้อยู่ในชุด
+   บังคับของการลงทะเบียน ใบพวกนี้จะลงนามตอนเข้ารับบริการที่ต้องใช้ (ผ่าตัด · วิจัย ·
+   ส่งต่อ ฯลฯ) ที่ขั้นลงทะเบียนจึงให้พิมพ์ไปเตรียมไว้ได้ ยังไม่เปิดให้กรอกที่นี่ —
+   ตัวกรอกของใบเหล่านี้อยู่ที่โมดูลต้นทาง ไม่ใช่ฟอร์มลงทะเบียน */
+const CONSENT_TOPIC_TONE = Object.fromEntries(
+  CONSENT_TOPICS.map((t) => [t.type, t.tone]),
+);
+
+const REGISTRATION_REQUIRED_TITLES = new Set(
+  REGISTRATION_PENDING_CONSENT_CARDS.map((f) => f.title),
+);
+
+/** จำนวนใบที่โชว์ในกลุ่ม "แบบฟอร์มอื่นๆ" — ทั้งพูลยาวเกินกว่าจะอ่านรวดเดียว */
+const OTHER_CONSENT_FORM_LIMIT = 8;
+
+const OTHER_CONSENT_FORM_POOL = CONSENT_WORKLIST_FORM_POOL
+  .filter((f) => !REGISTRATION_REQUIRED_TITLES.has(f.name));
+
+const OTHER_CONSENT_FORM_CARDS = OTHER_CONSENT_FORM_POOL
+  .slice(0, OTHER_CONSENT_FORM_LIMIT)
+  .map((f, i) => ({
+    id: f.code,
+    code: f.code,
+    title: f.name,
+    version: String(f.version || '').replace(/^V\s*/, '') || '1.0',
+    /* ป้ายหมวดใช้ "หัวข้อหลัก" สั้น ๆ (ข้อมูลส่วนบุคคล · ข้อมูลการรักษา · การเบิกจ่าย)
+       พร้อมสีประจำหัวข้อจาก CONSENT_TOPICS — ไม่ใช่ heading ซึ่งยาวเท่าชื่อใบ */
+    categoryLabel: f.worklistType,
+    categoryStyle: CONSENT_TOPIC_TONE[f.worklistType] || 'grey',
+    cover: consentFormCoverUrl(i + 3),
+  }));
+
 /** Step 1 · แบบฟอร์มยินยอม — Figma Registration 292:104252.
  *  กรอกแบบฟอร์ม → /registration/consent/:formId (Figma 298:81941). */
 export const StepConsent = ({ form, setForm, patient }) => {
@@ -308,6 +343,9 @@ export const StepConsent = ({ form, setForm, patient }) => {
   /* ป๊อปอัปสำเร็จหลังลงนาม — ทุกการบันทึกใน popup ต้องยืนยันด้วยป๊อปอัป
      ไม่ใช่ toast (มติผู้ใช้ 27 ส.ค. 69) */
   const [signedForm, setSignedForm] = useState(null);
+  /* ขอถอนความยินยอม (ด.1.1.5) — คำขอเข้าแท็บรอดำเนินการของระบบจัดการความยินยอม */
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [withdrawnCount, setWithdrawnCount] = useState(0);
 
   const draftFullName = [form?.prefixTh, form?.firstNameTh, form?.lastNameTh]
     .map((p) => String(p || '').trim()).filter(Boolean).join(' ');
@@ -328,42 +366,77 @@ export const StepConsent = ({ form, setForm, patient }) => {
 
   return (
     <>
-      <div className='flex w-full items-center' style={{ gap: 'var(--dim-space-300)' }}>
-        <div className='flex-1 min-w-0'>
-          <SectionTitle icon='assignment'>แบบฟอร์มที่ยังไม่ขอความยินยอม</SectionTitle>
+      {/* สองกลุ่มแยกการ์ดคนละใบ — ใบบังคับของการลงทะเบียนกับใบเสริมของโมดูลอื่น
+          อยู่ในกล่องเดียวกันแล้วอ่านไม่ออกว่าอันไหนต้องทำก่อนไปขั้นถัดไป */}
+      <SubCard>
+        <div className='flex w-full items-center' style={{ gap: 'var(--dim-space-300)' }}>
+          <div className='flex-1 min-w-0'>
+            <SectionTitle icon='assignment'>แบบฟอร์มที่ยังไม่ขอความยินยอม</SectionTitle>
+          </div>
+          <NeutralSubdueButton
+            variant='outline'
+            size='md'
+            onClick={() => setWithdrawOpen(true)}
+          >
+            ขอถอนความยินยอม
+          </NeutralSubdueButton>
         </div>
-        <NeutralSubdueButton variant='outline' size='md'>
-          ขอถอนความยินยอม
-        </NeutralSubdueButton>
-      </div>
 
-      {/* ไม่มี Alert เตือนจำนวนใบที่ค้าง — หัวข้อ "แบบฟอร์มที่ยังไม่ขอความยินยอม"
-          ด้านบนบอกอยู่แล้ว การเตือนซ้ำเป็น noise */}
-      {pendingCount === 0 ? (
-        <Alert
-          type='success'
-          title='แบบฟอร์มยินยอมครบถ้วนแล้ว'
-          subtext='สามารถไปขั้นตอนถัดไปเพื่อกรอกข้อมูลส่วนตัวได้'
-          showCloseButton={false}
-          showBadge={false}
-          showIndicator={false}
-          style={{ maxWidth: 640, width: '100%' }}
-        />
-      ) : (
+        {/* ไม่มี Alert เตือนจำนวนใบที่ค้าง — หัวข้อ "แบบฟอร์มที่ยังไม่ขอความยินยอม"
+            ด้านบนบอกอยู่แล้ว การเตือนซ้ำเป็น noise */}
+        {pendingCount === 0 ? (
+          <Alert
+            type='success'
+            title='แบบฟอร์มยินยอมครบถ้วนแล้ว'
+            subtext='สามารถไปขั้นตอนถัดไปเพื่อกรอกข้อมูลส่วนตัวได้'
+            showCloseButton={false}
+            showBadge={false}
+            showIndicator={false}
+            style={{ maxWidth: 640, width: '100%' }}
+          />
+        ) : (
+          <div
+            className='grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 min-[1366px]:grid-cols-5 items-stretch'
+            style={{ gap: 'var(--dim-space-400)' }}
+          >
+            {pending.map((item) => (
+              <PendingConsentFormCard
+                key={item.id}
+                {...item}
+                onPrint={() => setPrintForm(item)}
+                onFill={() => setFillFormId(item.id)}
+              />
+            ))}
+          </div>
+        )}
+      </SubCard>
+
+      <SubCard>
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-050)' }}>
+          <SectionTitle icon='folder_open'>แบบฟอร์มอื่นๆ</SectionTitle>
+          <span style={{
+            color: 'var(--text-content-secondary)',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-xs)',
+            lineHeight: 1.5,
+          }}>
+            {`ใบยินยอมที่ไม่บังคับตอนลงทะเบียน — ลงนามเมื่อเข้ารับบริการที่ต้องใช้ พิมพ์เตรียมไว้ล่วงหน้าได้ · แสดง ${OTHER_CONSENT_FORM_CARDS.length} จาก ${OTHER_CONSENT_FORM_POOL.length} ใบที่เผยแพร่อยู่`}
+          </span>
+        </div>
         <div
           className='grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 min-[1366px]:grid-cols-5 items-stretch'
           style={{ gap: 'var(--dim-space-400)' }}
         >
-          {pending.map((item) => (
+          {OTHER_CONSENT_FORM_CARDS.map((item) => (
             <PendingConsentFormCard
               key={item.id}
               {...item}
+              showFill={false}
               onPrint={() => setPrintForm(item)}
-              onFill={() => setFillFormId(item.id)}
             />
           ))}
         </div>
-      )}
+      </SubCard>
 
       <ConsentFormPrintConfirmDialog
         form={printForm}
@@ -384,6 +457,22 @@ export const StepConsent = ({ form, setForm, patient }) => {
         onSaved={({ formId }) => markCompleted(formId)}
       />
 
+      <ConsentWithdrawRequestPopup
+        open={withdrawOpen}
+        onClose={() => setWithdrawOpen(false)}
+        hn={patient?.hn || form?.hn || ''}
+        patientName={draftFullName || patientFullName}
+        onSubmitted={(done) => setWithdrawnCount(done.length)}
+      />
+
+      <SuccessPopup
+        open={withdrawnCount > 0}
+        onClose={() => setWithdrawnCount(0)}
+        buttonLabel='เรียบร้อย'
+        title='ส่งคำขอถอนความยินยอมแล้ว'
+        description={`${withdrawnCount} ใบเข้าสถานะ “ขอเพิกถอน” รอเจ้าหน้าที่ผู้ดูแลอนุมัติในระบบจัดการความยินยอม`}
+      />
+
       {/* ลงนามสำเร็จ — ป๊อปอัป ไม่ใช่ toast */}
       <SuccessPopup
         open={Boolean(signedForm)}
@@ -397,6 +486,8 @@ export const StepConsent = ({ form, setForm, patient }) => {
     </>
   );
 };
+
+StepConsent.rendersOwnCards = true;
 
 /* PhotoCluster — empty: Figma 303:132572 · verified: success strip ยืนยันตัวตนสำเร็จ
    (แทนแถบ 96% / ความน่าเชื่อถือ). Tap empty → FaceScanVerifyPopup. */
@@ -1517,19 +1608,33 @@ const RIGHTS_GROUP_SHELL = {
   boxSizing: 'border-box',
 };
 
-const RIGHTS_PRIORITY_CHIP_STYLE = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 'var(--dim-space-200)',
-  minHeight: 56,
-  paddingLeft: 'var(--dim-space-400)',
-  paddingRight: 'var(--dim-space-400)',
-  paddingTop: 'var(--dim-space-200)',
-  paddingBottom: 'var(--dim-space-200)',
-  borderRadius: 'var(--dim-radius-200)',
-  background: 'var(--surface-neutralButton-quinary, #FFFFFF)',
-  border: 'var(--dim-stroke-100) solid var(--border-neutralButton-tertiary, #E2E4E6)',
-  flexShrink: 0,
+/* ปุ่มแนบไฟล์รูปสี่เหลี่ยมข้าง ๆ ช่องอัปโหลด (ถ่ายรูป · สแกน) — เส้นประเหมือน
+   DragAndDrop และเข้มขึ้นตอนเอาเมาส์ชี้ ปุ่มที่ไม่ตอบสนองการชี้อ่านเหมือนป้าย */
+const RightsAttachTile = ({ icon, label, onClick, htmlFor }) => {
+  const [hovered, setHovered] = useState(false);
+  const style = {
+    ...RIGHTS_PHOTO_CAPTURE_TILE,
+    background: hovered
+      ? 'var(--surface-formbuilder-hover, var(--surface-brandPrimary-tertiary))'
+      : RIGHTS_PHOTO_CAPTURE_TILE.background,
+    borderColor: hovered
+      ? 'var(--border-brandPrimary-default, #007549)'
+      : undefined,
+  };
+  const bind = {
+    style,
+    onMouseEnter: () => setHovered(true),
+    onMouseLeave: () => setHovered(false),
+  };
+  const body = (
+    <>
+      <Sym name={icon} size={20} color='currentColor' />
+      {label}
+    </>
+  );
+  return htmlFor
+    ? <label htmlFor={htmlFor} className='inline-flex cursor-pointer' {...bind}>{body}</label>
+    : <button type='button' onClick={onClick} {...bind}>{body}</button>;
 };
 
 /* Figma 1:4153 — inner white card sections inside RightsGroupCard. */
@@ -1553,7 +1658,7 @@ const RIGHTS_PHOTO_CAPTURE_TILE = {
   justifyContent: 'center',
   gap: 'var(--dim-space-200)',
   width: 128,
-  height: 128,
+  alignSelf: 'stretch',
   flexShrink: 0,
   padding: 'var(--dim-space-600)',
   borderRadius: 'var(--dim-radius-200)',
@@ -1648,94 +1753,6 @@ const reorderList = (list, fromIndex, toIndex) => {
   const [moved] = next.splice(fromIndex, 1);
   next.splice(toIndex, 0, moved);
   return next;
-};
-
-const RightsPriorityChip = ({
-  label,
-  draggable = false,
-  isDragging = false,
-  isDragOver = false,
-  onDragStart,
-  onDragEnd,
-  onDragOver,
-  onDrop,
-}) => (
-  <div
-    draggable={draggable}
-    onDragStart={onDragStart}
-    onDragEnd={onDragEnd}
-    onDragOver={onDragOver}
-    onDrop={onDrop}
-    style={{
-      ...RIGHTS_PRIORITY_CHIP_STYLE,
-      cursor: draggable ? (isDragging ? 'grabbing' : 'grab') : undefined,
-      opacity: isDragging ? 0.45 : 1,
-      boxShadow: isDragOver
-        ? '0 0 0 var(--dim-stroke-200) var(--border-brandPrimary-default, #007549)'
-        : RIGHTS_PRIORITY_CHIP_STYLE.boxShadow,
-      transition: 'opacity 120ms ease, box-shadow 120ms ease',
-    }}
-  >
-    <Sym name='drag_indicator' size={24} color='var(--brand-p500)' />
-    <span style={{
-      color: 'var(--text-content-default)',
-      fontFamily: 'var(--type-family-body)',
-      fontSize: 'var(--type-size-sm)',
-      lineHeight: 1.5,
-      whiteSpace: 'nowrap',
-    }}>
-      {label}
-    </span>
-  </div>
-);
-
-const RightsPriorityList = ({ items, onReorder, trailing = null }) => {
-  const [dragIndex, setDragIndex] = useState(null);
-  const [overIndex, setOverIndex] = useState(null);
-
-  const finishDrag = () => {
-    setDragIndex(null);
-    setOverIndex(null);
-  };
-
-  const handleDrop = (toIndex) => {
-    if (dragIndex == null || dragIndex === toIndex) {
-      finishDrag();
-      return;
-    }
-    onReorder(reorderList(items, dragIndex, toIndex));
-    finishDrag();
-  };
-
-  return (
-    <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-300)' }}>
-      {items.map((item, index) => (
-        <RightsPriorityChip
-          key={item.id}
-          label={item.label}
-          draggable
-          isDragging={dragIndex === index}
-          isDragOver={overIndex === index && dragIndex !== index}
-          onDragStart={(e) => {
-            setDragIndex(index);
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', String(index));
-          }}
-          onDragEnd={finishDrag}
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            setOverIndex(index);
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            handleDrop(index);
-          }}
-        />
-      ))}
-      {trailing}
-    </div>
-  );
 };
 
 const formatRightsFileSize = (bytes) => {
@@ -1897,17 +1914,68 @@ const RightsPhotoThumb = ({ previewUrl, name, onRemove }) => (
    เป็นข้อมูลของสิทธิใบเดียวกัน วางคนละบรรทัดแล้วอ่านเหมือนคนละเรื่อง และกิน
    ความสูงเป็นสองเท่าเมื่อมีหลายสิทธิ · flex-wrap ไว้ให้จอแคบตกบรรทัดเองแทน
    ที่จะบีบข้อความ */
-const RightsEntitlementDetails = ({ items = [] }) => {
+const RightsEntitlementDetails = ({ items = [], onReorder }) => {
+  const [dragIndex, setDragIndex] = useState(null);
+  const [overIndex, setOverIndex] = useState(null);
+
+  const finishDrag = () => {
+    setDragIndex(null);
+    setOverIndex(null);
+  };
+
+  const handleDrop = (toIndex) => {
+    if (dragIndex == null || dragIndex === toIndex) {
+      finishDrag();
+      return;
+    }
+    onReorder?.(reorderList(items, dragIndex, toIndex));
+    finishDrag();
+  };
+
   if (!items.length) return null;
+  const draggable = typeof onReorder === 'function' && items.length > 1;
   return (
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      {items.map((item) => (
+    /* คั่นแต่ละสิทธิด้วยเส้นบาง ๆ แทนช่องว่าง — ลำดับอ่านง่ายขึ้นเวลาลากสลับ */
+    <div className='flex flex-col w-full'>
+      {items.map((item, index) => (
         <div
           key={item.id}
+          draggable={draggable}
+          onDragStart={draggable ? (e) => {
+            setDragIndex(index);
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', String(index));
+          } : undefined}
+          onDragEnd={draggable ? finishDrag : undefined}
+          onDragOver={draggable ? (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            setOverIndex(index);
+          } : undefined}
+          onDrop={draggable ? (e) => {
+            e.preventDefault();
+            handleDrop(index);
+          } : undefined}
           className='flex items-center w-full flex-wrap'
-          style={{ gap: 'var(--dim-space-200) var(--dim-space-300)' }}
+          style={{
+            gap: 'var(--dim-space-200) var(--dim-space-300)',
+            padding: 'var(--dim-space-300) var(--dim-space-200)',
+            borderRadius: 'var(--dim-radius-200)',
+            borderTop: index === 0
+              ? undefined
+              : 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+            cursor: draggable ? (dragIndex === index ? 'grabbing' : 'grab') : undefined,
+            opacity: dragIndex === index ? 0.45 : 1,
+            boxShadow: overIndex === index && dragIndex !== index
+              ? '0 0 0 var(--dim-stroke-200) var(--border-brandPrimary-default, #007549)'
+              : undefined,
+            transition: 'opacity 120ms ease, box-shadow 120ms ease',
+          }}
         >
           <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
+            {draggable && (
+              <Sym name='drag_indicator' size={20} color='var(--brand-p500)' />
+            )}
             <Sym name='check_circle' size={18} color='var(--icon-positive-success, var(--text-brandPrimary-default))' />
             <span style={{
               color: 'var(--text-content-default)',
@@ -1984,6 +2052,7 @@ const RightsGroupCard = ({
   };
 
   const photos = group.photos ?? [];
+  const [scanOpen, setScanOpen] = useState(false);
 
   return (
     <div style={RIGHTS_GROUP_SHELL}>
@@ -2013,42 +2082,27 @@ const RightsGroupCard = ({
         </ColorfulBadge>
       </div>
 
+      {/* รายละเอียดสิทธิแบบเดียวกับตู้ Kiosk */}
       <div style={RIGHTS_INNER_CARD}>
-        <RightsPriorityList
+        <RightsEntitlementDetails
           items={group.priorityItems}
           onReorder={(nextItems) => onReorderPriorityItems(group.id, nextItems)}
-          trailing={group.showAddPriority ? (
-            <BrandDashedAddButton
-              type='button'
-              icon='add'
-              borderless
-              style={{ width: 'auto', flexShrink: 0 }}
-            >
-              เพิ่มสิทธิ
-            </BrandDashedAddButton>
-          ) : null}
         />
       </div>
 
-      {/* รายละเอียดสิทธิแบบเดียวกับตู้ Kiosk */}
+      {/* กล่องเดียวจบ (มติผู้ใช้ 27 ส.ค. 69) — เอกสารกับรูปภาพเป็นสิ่งแนบของเรื่อง
+          เดียวกัน แยกสองกล่องทำให้ต้องตัดสินใจก่อนว่าไฟล์ที่ถืออยู่นับเป็นอะไร
+          Figma 214:29504 (เอกสารประกอบ) + 216:28535 (รูปภาพประกอบ) รวมเป็นแถวเดียว */}
       <div style={RIGHTS_INNER_CARD}>
-        <RightsEntitlementDetails items={group.priorityItems} />
-      </div>
-
-      {/* สองกล่องอยู่แถวเดียวกัน (มติผู้ใช้ 27 ส.ค. 69) — เอกสารกับรูปภาพเป็น
-          สิ่งแนบของเรื่องเดียวกัน วางซ้อนกันทำให้การ์ดยาวเกินจำเป็น */}
-      <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-400)' }}>
-        <div className='flex-1 min-w-0'>
-        {/* Figma 214:29504 — เอกสารประกอบ: chips + sm DragAndDrop in one row. */}
-        <div style={RIGHTS_INNER_CARD}>
-          <span style={{
-            color: 'var(--text-topic-tertiary-title, var(--text-content-default))',
-            fontFamily: 'var(--type-family-body)',
-            fontSize: 'var(--type-size-sm)',
-            lineHeight: 1.5,
-          }}>
-            เอกสารประกอบ
-          </span>
+        <span style={{
+          color: 'var(--text-topic-tertiary-title, var(--text-content-default))',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+          lineHeight: 1.5,
+        }}>
+          เอกสารประกอบ
+        </span>
+        {(group.documents?.length || photos.length) ? (
           <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-400)' }}>
             {(group.documents ?? []).map((doc) => (
               <RightsUploadedDocChip
@@ -2058,28 +2112,6 @@ const RightsGroupCard = ({
                 onRemove={() => onRemoveDocument(group.id, doc.id)}
               />
             ))}
-            <DragAndDrop
-              size='sm'
-              className='shrink-0'
-              value={[]}
-              onChange={handleUploadFiles}
-              accept='image/*,.pdf'
-            />
-          </div>
-        </div>
-        </div>
-        <div className='flex-1 min-w-0'>
-        {/* Figma 216:28535 — รูปภาพประกอบ: thumbs + 128×128 capture tile. */}
-        <div style={RIGHTS_INNER_CARD}>
-          <span style={{
-            color: 'var(--text-topic-tertiary-title, var(--text-content-default))',
-            fontFamily: 'var(--type-family-body)',
-            fontSize: 'var(--type-size-sm)',
-            lineHeight: 1.5,
-          }}>
-            รูปภาพประกอบ
-          </span>
-          <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-400)' }}>
             {photos.map((photo) => (
               <RightsPhotoThumb
                 key={photo.id}
@@ -2088,34 +2120,36 @@ const RightsGroupCard = ({
                 onRemove={() => onRemovePhoto(group.id, photo.id)}
               />
             ))}
-            {useNativeCapture ? (
-              <>
-                <label
-                  htmlFor={cameraInputId}
-                  className='inline-flex shrink-0 cursor-pointer'
-                  style={RIGHTS_PHOTO_CAPTURE_TILE}
-                >
-                  <Sym name='image' size={20} color='currentColor' />
-                  ถ่ายรูป
-                </label>
-                <input
-                  ref={cameraInputRef}
-                  id={cameraInputId}
-                  type='file'
-                  accept='image/*'
-                  capture='environment'
-                  className='sr-only'
-                  onChange={handleNativeInput}
-                />
-              </>
-            ) : (
-              <button type='button' style={RIGHTS_PHOTO_CAPTURE_TILE} onClick={openTakePhoto}>
-                <Sym name='image' size={20} color='currentColor' />
-                ถ่ายรูป
-              </button>
-            )}
           </div>
-        </div>
+        ) : null}
+        {/* ช่องอัปโหลดกับปุ่มถ่ายรูปอยู่แถวเดียวกัน — เป็นสองทางของการแนบสิ่งเดียวกัน
+            ปุ่มถ่ายรูปยืดสูงเท่าช่องอัปโหลดแทนสี่เหลี่ยม 128×128 ตายตัว */}
+        <div className='flex items-stretch w-full' style={{ gap: 'var(--dim-space-400)' }}>
+          <div className='flex-1 min-w-0'>
+            <DragAndDrop
+              size='sm'
+              value={[]}
+              onChange={handleUploadFiles}
+              accept='image/*,.pdf'
+            />
+          </div>
+          {useNativeCapture ? (
+            <>
+              <RightsAttachTile icon='image' label='ถ่ายรูป' htmlFor={cameraInputId} />
+              <input
+                ref={cameraInputRef}
+                id={cameraInputId}
+                type='file'
+                accept='image/*'
+                capture='environment'
+                className='sr-only'
+                onChange={handleNativeInput}
+              />
+            </>
+          ) : (
+            <RightsAttachTile icon='image' label='ถ่ายรูป' onClick={openTakePhoto} />
+          )}
+          <RightsAttachTile icon='document_scanner' label='สแกน' onClick={() => setScanOpen(true)} />
         </div>
       </div>
       <CameraCapturePopup
@@ -2123,20 +2157,27 @@ const RightsGroupCard = ({
         onClose={closePopup}
         onCapture={handlePopupCapture}
       />
+      <RightsDocumentScanPopup
+        open={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onScanned={(entry) => onAddDocuments(group.id, [entry])}
+      />
     </div>
   );
 };
 
+/* ก่อนตรวจสอบสิทธิ์ — การ์ดขาวใบเดียวรองแผงค้นหาไว้ ทรงเดียวกับการ์ด
+   "ตรวจสอบสิทธิ์" ของสถานะหลังตรวจ และไม่มีหัวข้อ "สิทธิ์การรักษา" ซ้ำกับ
+   ชื่อ step (มติผู้ใช้ 27 ส.ค. 69) */
 const Step4RightsLookupEmpty = ({ form, setForm }) => (
-  <>
-    <SectionTitle icon='credit_card'>สิทธิ์การรักษา</SectionTitle>
+  <SubCard>
     <div
       className='flex w-full items-center justify-center'
-      style={{ minHeight: 400, marginTop: -80 }}
+      style={{ minHeight: 400 }}
     >
       <RightsLookupPanel form={form} setForm={setForm} />
     </div>
-  </>
+  </SubCard>
 );
 
 const Step4RightsResults = ({ form, setForm }) => {
@@ -2151,15 +2192,27 @@ const Step4RightsResults = ({ form, setForm }) => {
     }));
   };
 
-  const addDocuments = (groupId, files) => {
-    const entries = filesToRightsDocuments(files);
-    if (!entries.length) return;
+  const addDocuments = (groupId, filesOrEntries) => {
+    const list = Array.isArray(filesOrEntries) ? filesOrEntries : Array.from(filesOrEntries || []);
+    if (!list.length) return;
+    /* ไฟล์ที่สแกนมาถูกแปลงเป็น entry เรียบร้อยแล้ว (มี sizeLabel) ต่างจาก File
+       ที่ผู้ใช้ลากมาวางซึ่งยังต้องแปลงก่อน */
+    const entries = list[0]?.sizeLabel != null ? list : filesToRightsDocuments(list);
     setForm((s) => ({
       ...s,
       rightsGroups: s.rightsGroups.map((g) => (
         g.id === groupId
           ? { ...g, documents: [...(g.documents || []), ...entries] }
           : g
+      )),
+    }));
+  };
+
+  const reorderPriorityItems = (groupId, priorityItems) => {
+    setForm((s) => ({
+      ...s,
+      rightsGroups: s.rightsGroups.map((g) => (
+        g.id === groupId ? { ...g, priorityItems } : g
       )),
     }));
   };
@@ -2176,15 +2229,6 @@ const Step4RightsResults = ({ form, setForm }) => {
           photos: (g.photos || []).filter((p) => p.id !== photoId),
         };
       }),
-    }));
-  };
-
-  const reorderPriorityItems = (groupId, priorityItems) => {
-    setForm((s) => ({
-      ...s,
-      rightsGroups: s.rightsGroups.map((g) => (
-        g.id === groupId ? { ...g, priorityItems } : g
-      )),
     }));
   };
 
@@ -2208,7 +2252,7 @@ const Step4RightsResults = ({ form, setForm }) => {
     /* สามส่วนแยกการ์ดคนละใบ: การตรวจสอบสิทธิ์ · สิทธิที่ 1 · สิทธิที่ 2
        (มติผู้ใช้ 27 ส.ค. 69) และไม่มีหัวข้อ "สิทธิ์การรักษา" ซ้ำกับชื่อ step */
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
-      <SubCard titleTone='brand' titleIcon='credit_card' title='ตรวจสอบสิทธิ์'>
+      <SubCard>
         <div className='flex w-full justify-center'>
           <RightsLookupPanel form={form} setForm={setForm} />
         </div>
