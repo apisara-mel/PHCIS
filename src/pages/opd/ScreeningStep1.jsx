@@ -199,7 +199,8 @@ const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
 
   return (
     <div className='flex flex-col'>
-      {/* Alert strip + history button — sits above the shared VitalsForm */}
+      {/* ปุ่มดูประวัติสัญญาณชีพ — ตัดแถบสรุปค่าล่าสุดออกแล้ว ทั้งกรณีปกติและผิดปกติ
+          (มติผู้ใช้ 28 ส.ค. 69) ค่าที่ผิดปกติยังเห็นได้ในตัวฟอร์มและในประวัติ */}
       <div
         className='flex items-center flex-wrap w-full'
         style={{
@@ -210,26 +211,6 @@ const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
           paddingBottom: 'var(--dim-space-0, 0px)',
         }}
       >
-        {alerts.length > 0 ? (
-          <>
-            <span
-              className='inline-flex items-center'
-              style={{
-                gap: 'var(--dim-space-100)',
-                fontFamily: 'var(--type-family-body)',
-                fontSize: 'var(--type-size-sm)',
-                fontWeight: 'var(--type-weight-medium)',
-                color: 'var(--text-content-default, #363B3F)',
-              }}
-            >
-              <Icon name='monitor_heart' size={18} style={{ color: 'var(--text-danger-default, #B91C1C)' }} />
-              ค่าที่บันทึกล่าสุด · {latest.date} — ผิดปกติ:
-            </span>
-            {alerts.map((a) => (
-              <AlertPill key={a.key} label={a.label} value={a.value} unit={a.unit} tier={a.tier} dir={a.dir} />
-            ))}
-          </>
-        ) : null}
         <div className='flex-1' />
         <BrandSubdueButton
           variant='outline'
@@ -243,6 +224,9 @@ const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
 
       <VitalsForm
         onValidityChange={onValidityChange}
+        /* ToR ๑.๒.๒.๕ — ใช้ตัดสินว่าโชว์ BMI หรือกราฟการเจริญเติบโต */
+        patientSex={patient.sex || patient.gender}
+        patientAgeYears={parseInt(patient.age, 10) || undefined}
         /* ส่งค่าที่พยาบาลกรอกให้ step "ตรวจสอบข้อมูล" อ่านต่อ */
         onValuesChange={(v) => setScreeningSection(patient.hn, 'vitals', v)}
       />

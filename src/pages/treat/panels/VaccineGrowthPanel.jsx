@@ -87,7 +87,9 @@ const GrowthZoneLegend = ({ metric }) => {
   );
 };
 
-const GrowthChart = ({ bands, points, unit, metric, xMode = 'months' }) => {
+/* export ให้ `GrowthStatusCard` (ขั้นสัญญาณชีพของหน้าคัดกรอง) ใช้กราฟใบเดียวกับ
+   คลินิกวัคซีน — เกณฑ์กรมอนามัยจึงมาจากที่เดียวทั้งระบบ */
+export const GrowthChart = ({ bands, points, unit, metric, xMode = 'months' }) => {
   const hasBands = Array.isArray(bands) && bands.length > 0;
   const measured = points.filter((p) => Number.isFinite(p.value));
 

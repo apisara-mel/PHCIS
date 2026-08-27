@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Topic from '@/components/topic/Topic';
 import VitalCard, { PressureCard, BMICard } from '@/components/card/VitalCard';
+import GrowthStatusCard from '@/components/growth/GrowthStatusCard';
+import FilterTag from '@/components/forms/FilterTag';
 import HistoryTimeline from '@/components/timeline/HistoryTimeline';
 import VitalsSignGraphDialog from '@/components/vitals/VitalsSignGraphDialog';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
@@ -115,7 +117,7 @@ const REQUIRED_VITAL_FIELDS = [
   'waist',
 ];
 
-const VitalsForm = ({ onValidityChange, onValuesChange }) => {
+const VitalsForm = ({ onValidityChange, onValuesChange, patientSex, patientAgeYears }) => {
   const [roundVitalOverrides, setRoundVitalOverrides] = useState({});
 
   /* Per-field validity map populated by each VitalCard / PressureCard
@@ -130,6 +132,13 @@ const VitalsForm = ({ onValidityChange, onValuesChange }) => {
   }, []);
 
   const historyTimelineRef = useRef(null);
+  /* ToR ผนวก ก ๑.๒.๒.๕ — อายุ < 18 ปี เทียบกราฟการเจริญเติบโต · ตั้งแต่ 18 ปี
+     ขึ้นไปดูจาก BMI ปุ่มคู่นี้จึงสลับ "การ์ดภาวะโภชนาการ" ในกริดจริง ๆ ไม่ใช่
+     ตัวกรองเปล่า (ชิป ≥2 ปี ชุดเดิมถูกตัดออกเพราะกดไม่ได้ — มติผู้ใช้ 28 ส.ค. 69)
+     ค่าเริ่มต้นเดาจากอายุผู้รับบริการถ้ารู้ ไม่รู้ก็ถือเป็นผู้ใหญ่ */
+  const [ageBand, setAgeBand] = useState(
+    Number(patientAgeYears) > 0 && Number(patientAgeYears) < 18 ? 'child' : 'adult',
+  );
   const [activeRound, setActiveRound] = useState({
     id: 'seed-0',
     date: '6 พฤษภาคม 2569',
@@ -274,28 +283,16 @@ const VitalsForm = ({ onValidityChange, onValuesChange }) => {
          title used everywhere else in the design system. Trailing badge
          / success / chevron are off because this row only labels the
          form section and exposes no action affordance. */}
-      <Topic
-        hierarchy='primary'
-        title='สัญญาณชีพ'
-        leadingIcon='monitor_heart'
-        showSubText={false}
-        showBadge={false}
-        showSuccess={false}
-        showChevron={false}
-      />
-
-      {/* ตัดชิปช่วงอายุ (≥2 ปี / <2 ปี) ออกแล้ว — ขั้นนี้รองรับเฉพาะกลุ่ม ≥2 ปี
-         ชิปคู่นั้นจึงถูกล็อกไว้ตายตัว (ซ้ายเลือกค้าง ขวา disabled) กดอะไรไม่ได้
-         อ่านเหมือนตัวกรองที่ใช้ไม่ได้มากกว่าจะบอกอะไร
-
-         "ดูแบบกราฟ" = Neutral Subdue Button (h-40, leading icon bar_chart_4_bars)
-         เปิด VitalsSignGraphDialog (Popup Very Large 3185:144347) — ไม่ใช่ toggle */}
-      <div className='flex items-center gap-6 w-full'>
-        <div className='flex-1' />
-        <VitalsSignGraphDialog
-          subtitle={measurementTitle}
-          disabled={roundsCount === 0}
-          triggerSize='md'
+      <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
+        <FilterTag
+          value='ต่ำกว่า 18 ปี'
+          selected={ageBand === 'child'}
+          onClick={() => setAgeBand('child')}
+        />
+        <FilterTag
+          value='ตั้งแต่ 18 ปีขึ้นไป'
+          selected={ageBand === 'adult'}
+          onClick={() => setAgeBand('adult')}
         />
       </div>
 
@@ -324,14 +321,10 @@ const VitalsForm = ({ onValidityChange, onValuesChange }) => {
         </div>
 
         <div
-          className='flex-1 min-w-0 self-stretch flex flex-col gap-4 p-6 rounded-xl'
-          style={{
-            boxSizing: 'border-box',
-            background: 'var(--surface-neutral-quaternary)',
-            borderWidth: 'var(--dim-stroke-100)',
-            borderStyle: 'solid',
-            borderColor: 'var(--border-neutral-quaternary)',
-          }}
+          /* ไม่มีพื้นเทารองแล้ว (มติผู้ใช้ 28 ส.ค. 69) — การ์ดค่าแต่ละตัวมีขอบของ
+             ตัวเองอยู่แล้ว พื้นเทาอีกชั้นเลยเป็นกล่องซ้อนกล่องที่ไม่ได้แบ่งอะไรเพิ่ม */
+          className='flex-1 min-w-0 self-stretch flex flex-col gap-4'
+          style={{ boxSizing: 'border-box' }}
         >
           <h3 className='text-base font-bold text-token-topicTertiaryTitle'>
             {measurementTitle}
@@ -406,16 +399,26 @@ const VitalsForm = ({ onValidityChange, onValuesChange }) => {
               step={0.1}
               hint='น้ำหนักล่าสุด'
             />
-            <BMICard
-              weight={activeVitals.weight.value}
-              height={activeVitals.height.value}
-              /* On a first visit BOTH weight & height are 0, so anthro
-                 maths returns undefined (div-by-zero guard). Pass an
-                 explicit `0` so the card mirrors the rest of the panel
-                 instead of falling back to "—". BMICard's badge/marker
-                 are suppressed at the source (bmi ≤ 0). */
-              value={firstVisit ? '0' : undefined}
-            />
+            {ageBand === 'child' ? (
+              <GrowthStatusCard
+                sex={patientSex}
+                ageYears={patientAgeYears}
+                weight={activeVitals.weight.value}
+                height={activeVitals.height.value}
+                measuredLabel={measurementTitle}
+              />
+            ) : (
+              <BMICard
+                weight={activeVitals.weight.value}
+                height={activeVitals.height.value}
+                /* On a first visit BOTH weight & height are 0, so anthro
+                   maths returns undefined (div-by-zero guard). Pass an
+                   explicit `0` so the card mirrors the rest of the panel
+                   instead of falling back to "—". BMICard's badge/marker
+                   are suppressed at the source (bmi ≤ 0). */
+                value={firstVisit ? '0' : undefined}
+              />
+            )}
             <VitalCard
               label='เส้นรอบเอว'
               unit='ซม.'
