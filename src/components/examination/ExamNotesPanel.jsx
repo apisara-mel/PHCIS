@@ -292,12 +292,13 @@ const ExamNotesPanel = ({
   const setDoctorFromEvent = (key) => (e) =>
     onDoctorChange?.({ ...doctorNotes, [key]: e?.target?.value ?? '' });
 
+  /* embedded = หน้าที่เรียกใช้เป็นคนวางการ์ดขาวและ padding เอง พาเนลจึงโปร่งใส
+     ไม่งั้นจะได้พื้นเทาซ้อนอยู่ในการ์ดขาวอีกชั้น (มติผู้ใช้ 28 ส.ค. 69) */
   const shellStyle = embedded
     ? {
       gap: 'var(--dim-space-300)',
-      padding: 'var(--dim-space-600)',
-      borderRadius: 'var(--dim-radius-500)',
-      background: 'var(--surface-neutral-quaternary)',
+      padding: 0,
+      background: 'transparent',
     }
     : {
       gap: 'var(--dim-space-300)',

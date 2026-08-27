@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300" width="240" height="300" role="img" aria-label="ABDOMEN / KUB">
+  <defs>
+    <radialGradient id="g" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#3a4550"/><stop offset="100%" stop-color="#0d1216"/>
+    </radialGradient>
+  </defs>
+  <rect width="240" height="300" fill="url(#g)"/>
+  
+  <ellipse cx="120" cy="150" rx="86" ry="104" fill="#4d5a66" opacity=".4"/>
+  <ellipse cx="82" cy="126" rx="20" ry="30" fill="#c3cfd8" opacity=".55"/>
+  <ellipse cx="158" cy="126" rx="20" ry="30" fill="#c3cfd8" opacity=".55"/>
+  <rect x="114" y="60" width="12" height="150" rx="6" fill="#aebcc7" opacity=".5"/>
+  <path d="M46 226 Q120 258 194 226" stroke="#9dacb8" stroke-width="6" fill="none" opacity=".55"/>
+  <text x="12" y="288" fill="#8FA3B0" font-family="monospace" font-size="11">ABDOMEN / KUB</text>
+</svg>

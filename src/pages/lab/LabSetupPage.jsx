@@ -7,7 +7,6 @@ import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import SuccessToast from '@/components/toast/SuccessToast';
-import LabSubNav from '@/components/lab/LabSubNav';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
 import { SpecimenSticker, groupRowsByTube } from '@/components/lab/LabSpecimenLabel';
 import { MIH_TOPBAR_OFFSET } from '@/hooks/useHeaderAutoHide';
@@ -53,7 +52,7 @@ import {
        TMLT Browser, so whoever maintains the catalog can check a code
        against the national terminology without leaving the screen. */
 
-const breadcrumb = ['งานชันสูตรโรค (Lab)', 'ตั้งค่ารายการตรวจ'];
+const breadcrumb = ['จัดการระบบ', 'ทะเบียนรายการตรวจ'];
 
 /* Links.md in the Kaebrain folder: the open-source Thai lab terminology
    browser the team uses to look codes up. */
@@ -388,24 +387,9 @@ const LabSetupPage = () => {
 
   return (
     <div className='min-h-screen flex' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
-      <Sidebar activeKey='lab' />
+      <Sidebar activeKey='system-lab-registry' />
       <main className='flex-1 flex flex-col min-w-0'>
         <Header breadcrumb={breadcrumb} />
-        <div
-          className='w-full sticky'
-          style={{
-            top: MIH_TOPBAR_OFFSET,
-            zIndex: 1100,
-            background: 'var(--surface-card-100)',
-            paddingTop: 'var(--dim-space-200)',
-            paddingBottom: 'var(--dim-space-0)',
-            paddingLeft: 'var(--dim-space-400)',
-            paddingRight: 'var(--dim-space-400)',
-            boxShadow: 'var(--shadow-header)',
-          }}
-        >
-          <LabSubNav />
-        </div>
         <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
           <div className='flex items-center flex-wrap justify-end' style={{ gap: 'var(--dim-space-300)' }}>
             {/* The TMLT Browser the team nominated as the code reference.

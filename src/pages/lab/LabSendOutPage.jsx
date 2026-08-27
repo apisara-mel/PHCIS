@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
+import useSearchHistory from '@/components/search/useSearchHistory';
 import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
@@ -72,6 +74,37 @@ const TODAY = '2026-07-31';
 const CURRENT_ACTOR = 'ทนพ.ญ. อารีย์ วงศ์สุข';
 
 const ALL = '__all__';
+
+/* Recent-search list — same contract as the worklist (LabQueuePage); the
+   key is page-scoped so Lab-out's history stays out of the other screens'
+   dropdowns. */
+const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:lab-send-out';
+
+/* Confidential rows match on accession / batch only — the same masking rule
+   the worklist applies. Shared by the table filter and the suggestion list
+   so both agree on what "found" means. */
+const matchesQuery = (row, q) => {
+  const needle = String(q ?? '').trim().toLowerCase();
+  if (!needle) return true;
+  const haystack = row.confidential
+    ? `${row.accessionNo} ${row.sendOut?.batchNo ?? ''}`.toLowerCase()
+    : `${row.accessionNo} ${row.patient.hn} ${row.patient.shortName} ${row.testLabel} ${row.sendOut?.batchNo ?? ''}`.toLowerCase();
+  return haystack.includes(needle);
+};
+
+/* PrimarySearch item shape (Figma 3345:2981) — accession leads the pills,
+   with the consignment number as the sublabel once one exists. */
+const rowToSearchItem = (row) => ({
+  id: row.id,
+  label: row.confidential ? 'ปกปิด (VCT)' : row.patient.shortName,
+  sublabel: row.sendOut?.batchNo ? `${row.testLabel} · ใบนำส่ง ${row.sendOut.batchNo}` : `${row.testLabel} · ${row.location}`,
+  value: row.accessionNo,
+  badges: [
+    { label: row.accessionNo, tone: 'indigo' },
+    { label: row.confidential ? 'HN •••••' : row.patient.hn, tone: 'purple' },
+  ],
+  avatarSrc: row.confidential ? undefined : row.patient.avatarUrl,
+});
 const URGENCY_OPTIONS = [{ value: ALL, label: 'ทั้งหมด' }, ...LAB_URGENCIES.map((u) => ({ value: u.key, label: u.label }))];
 const GROUP_OPTIONS = [{ value: ALL, label: 'ทั้งหมด' }, ...LAB_GROUPS.map((g) => ({ value: g.key, label: g.thai }))];
 const LOCATION_OPTIONS = [{ value: ALL, label: 'ทั้งหมด' }, ...LAB_LOCATIONS.map((l) => ({ value: l, label: l }))];
@@ -141,13 +174,7 @@ const LabSendOutPage = () => {
       if (group !== ALL && r.group !== group) return false;
       if (location !== ALL && r.location !== location) return false;
       if (labFilter !== ALL && r.sendOut?.labKey !== labFilter) return false;
-      if (!q) return true;
-      /* Confidential rows match on accession only — same rule the worklist
-         applies at LabQueuePage.jsx L548. */
-      const haystack = r.confidential
-        ? `${r.accessionNo} ${r.sendOut?.batchNo ?? ''}`.toLowerCase()
-        : `${r.accessionNo} ${r.patient.hn} ${r.patient.shortName} ${r.testLabel} ${r.sendOut?.batchNo ?? ''}`.toLowerCase();
-      return haystack.includes(q);
+      return matchesQuery(r, q);
     });
     /* Overdue first on the outstanding tab — the consignment nobody has
        chased is the one that needs the screen's top row. */
@@ -161,6 +188,48 @@ const LabSendOutPage = () => {
     }
     return list;
   }, [tabRows, query, urgency, group, location, labFilter, tab]);
+
+  const {
+    history: searchHistory,
+    push: pushHistory,
+    clear: clearHistory,
+  } = useSearchHistory(SEARCH_HISTORY_KEY);
+
+  /* Suggestions are scoped to the current tab — offering a consignment that
+     already came back while the user is looking at "รอส่ง" would jump them
+     to a row that is not on screen. */
+  const searchSuggestions = useMemo(() => {
+    if (!query.trim()) return [];
+    const matches = [];
+    for (const row of tabRows) {
+      if (matches.length >= 8) break;
+      if (matchesQuery(row, query)) matches.push(rowToSearchItem(row));
+    }
+    return matches;
+  }, [tabRows, query]);
+
+  const resolveSearchRow = (q, item) => {
+    if (item?.id) {
+      const byId = tabRows.find((row) => row.id === item.id);
+      if (byId) return byId;
+    }
+    const needle = (q ?? item?.value ?? item?.label ?? '').toString().trim();
+    if (!needle) return null;
+    return tabRows.find((row) => matchesQuery(row, needle)) ?? null;
+  };
+
+  const searchAvatars = useMemo(() => {
+    const result = [];
+    for (const entry of searchHistory) {
+      if (result.length >= 3) break;
+      const direct = entry && typeof entry === 'object' ? entry.avatarSrc : null;
+      if (direct) { result.push(direct); continue; }
+      const q = typeof entry === 'string' ? entry : (entry?.value ?? entry?.label ?? '');
+      const row = q ? resolveSearchRow(q, null) : null;
+      if (row?.patient.avatarUrl && !row.confidential) result.push(row.patient.avatarUrl);
+    }
+    return result;
+  }, [searchHistory]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -480,7 +549,6 @@ const LabSendOutPage = () => {
         activeKey='lab'
         breadcrumb={breadcrumb}
         title='ส่งตรวจภายนอก (Lab-out)'
-        summaryCards={summaryCards}
         summaryFlushUnderSubHeader={false}
         belowSummary={<LabSubNav />}
       >
@@ -543,13 +611,30 @@ const LabSendOutPage = () => {
               aria-label='สถานะส่งตรวจภายนอก'
             />
 
-            <div className='w-full flex flex-wrap items-start' style={{ gap: 'var(--dim-space-300)' }}>
+            {/* Summary counts moved below the tab strip (มติผู้ใช้ 28 ส.ค. 69):
+                they describe the list the current tab is showing, so they now
+                sit with it and scroll away with it instead of riding in the
+                page header. Rendered as bare SummaryCard rows — the
+                SummaryCardsBar chrome would be a second card inside this one. */}
+            <div className='flex w-full flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+              {summaryCards.map((c) => <SummaryCard key={c.key} card={c} />)}
+            </div>
+
+            <div className='w-full flex flex-wrap items-center' style={{ gap: 'var(--dim-space-300)' }}>
               <PrimarySearch
                 value={query}
                 onChange={setQuery}
-                onSubmit={setQuery}
+                onSubmit={(v, item) => {
+                  const row = resolveSearchRow(v, item);
+                  pushHistory(row ? rowToSearchItem(row) : v);
+                  setQuery(row?.accessionNo ?? v);
+                }}
                 placeholder='ค้นหา Accession / HN / ชื่อ / เลขที่ใบนำส่ง'
                 width={520}
+                history={searchHistory}
+                onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
+                suggestions={searchSuggestions}
+                avatars={searchAvatars}
               />
               {tab === 'pending' && (
                 <BrandPrimaryButton

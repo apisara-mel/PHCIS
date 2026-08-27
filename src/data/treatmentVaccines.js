@@ -44,6 +44,35 @@ let seq = 0;
 const uid = () => `vac-${Date.now().toString(36)}-${(seq += 1)}`;
 
 const VACCINES = [
+  /* ทะเบียนวัคซีนของผู้รับบริการตัวอย่างหลัก (67-00007) — ป๊อปอัปประวัติการรักษา
+     ต้องมีข้อมูลให้อ่านทุกแท็บ (มติผู้ใช้ 28 ส.ค. 69) */
+  {
+    id: 'vac-seed-7a', hn: '67-00007', epiKey: 'flu', vaccine: 'ไข้หวัดใหญ่ตามฤดูกาล',
+    doseNo: 1, injectedOn: '12 มิถุนายน 2569', lot: 'FLU-2569-B07', expiry: '30 เมษายน 2570',
+    injectedBy: 'พว.สุชาดา แก้วมณี', unit: 'ศูนย์บริการสาธารณสุข 8 บางนา',
+    site: 'ต้นแขนซ้าย (IM)', reaction: 'ไม่พบปฏิกิริยาหลังฉีด สังเกตอาการ 30 นาทีแล้วปกติ',
+    ageMonthsAtDose: null, overdueDays: 0,
+    recordedBy: 'พว.สุชาดา แก้วมณี', recordedAt: '12 มิ.ย. 2569 · 09:40', amendedAt: '',
+    cancelledAt: '', cancelReason: '',
+  },
+  {
+    id: 'vac-seed-7b', hn: '67-00007', epiKey: 'td', vaccine: 'dT (คอตีบ-บาดทะยัก) กระตุ้นผู้ใหญ่',
+    doseNo: 1, injectedOn: '3 กันยายน 2568', lot: 'DT-2568-A19', expiry: '31 ธันวาคม 2569',
+    injectedBy: 'พว.มานพ เกษมสุข', unit: 'ศูนย์บริการสาธารณสุข 4 ดินแดง',
+    site: 'ต้นแขนขวา (IM)', reaction: 'ปวดบวมแดงบริเวณที่ฉีดเล็กน้อย หายเองภายใน 2 วัน',
+    ageMonthsAtDose: null, overdueDays: 0,
+    recordedBy: 'พว.มานพ เกษมสุข', recordedAt: '3 ก.ย. 2568 · 14:05', amendedAt: '',
+    cancelledAt: '', cancelReason: '',
+  },
+  {
+    id: 'vac-seed-7c', hn: '67-00007', epiKey: 'flu', vaccine: 'ไข้หวัดใหญ่ตามฤดูกาล',
+    doseNo: 1, injectedOn: '17 ตุลาคม 2567', lot: 'FLU-2567-C12', expiry: '30 เมษายน 2568',
+    injectedBy: 'พว.สุชาดา แก้วมณี', unit: 'ศูนย์บริการสาธารณสุข 8 บางนา',
+    site: 'ต้นแขนซ้าย (IM)', reaction: 'ไม่พบปฏิกิริยาหลังฉีด',
+    ageMonthsAtDose: null, overdueDays: 0,
+    recordedBy: 'พว.สุชาดา แก้วมณี', recordedAt: '17 ต.ค. 2567 · 10:22', amendedAt: '',
+    cancelledAt: '', cancelReason: '',
+  },
   {
     id: 'vac-seed-1', hn: '67-00001', epiKey: 'flu', vaccine: 'ไข้หวัดใหญ่ตามฤดูกาล',
     doseNo: 1, injectedOn: '18 มิถุนายน 2568', lot: 'FLU-2568-A21', expiry: '30 เมษายน 2569',

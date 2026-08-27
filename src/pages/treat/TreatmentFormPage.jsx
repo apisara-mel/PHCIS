@@ -502,18 +502,14 @@ const TreatmentFormPage = () => {
     return '';
   }, [completedSteps]);
 
-  const validateStep = useCallback((index) => {
-    const message = validationMessageForStep(index);
-    if (!message) return true;
-    setPageToast({ id: Date.now(), variant: 'error', message });
-    return false;
-  }, [validationMessageForStep]);
-
+  /* กดข้ามไปขั้นไหนก็ได้ (มติผู้ใช้ 28 ส.ค. 69) — เดิมการเดินหน้าถูกบล็อกไว้
+     จนกว่าขั้นปัจจุบันจะครบ ซึ่งขวางการทำงานจริงของแพทย์ที่มักกรอกไม่เรียงขั้น
+     (เช่นสั่ง Lab ก่อนแล้วค่อยกลับมาเขียน SOAP) ด่านตรวจความครบยังอยู่ครบที่
+     `validateBeforeFinish` ตอนกด "จบการบันทึก" ซึ่งเป็นจุดที่มันสำคัญจริง */
   const requestStepChange = useCallback((nextIndex) => {
     if (nextIndex === stepIndex) return;
-    if (nextIndex > stepIndex && !validateStep(stepIndex)) return;
     setStepIndex(nextIndex);
-  }, [stepIndex, validateStep]);
+  }, [stepIndex]);
 
   const validateBeforeFinish = useCallback(() => {
     const requiredSteps = [
@@ -617,10 +613,26 @@ const TreatmentFormPage = () => {
           title='ตรวจรักษาทั่วไป (OPD)'
           drugAllergies={patient.drugAllergies}
           chronicDiseases={patient.chronicDiseases}
+          /* ปุ่ม EMR ย้ายขึ้นแถวปุ่มด้านบน (มติผู้ใช้ 28 ส.ค. 69) */
+          medicalHistoryPlacement='actions'
           actions={
             <>
               {/* ปุ่ม "ไป Step 6: CPOE" และ "ส่งยาไปห้องยา" ถูกเอาออกจากหัวการ์ด
                   (มติผู้ใช้ 28 ส.ค. 69) */}
+              {/* บันทึกส่งตรวจ — งานสั่งตรวจแล็บอยู่ในขั้น "สั่งการรักษา" ของ visit นี้
+                  อยู่แล้ว ปุ่มนี้จึงพาไปที่นั่นพร้อมเปิดแท็บ "แล็บ" ให้เลย แทนที่จะ
+                  ให้หมอออกไปหน้าโมดูลแล็บ (/lab/order) แล้วค้น HN ใหม่
+                  (มติผู้ใช้ 28 ส.ค. 69) */}
+              <BrandSubdueButton
+                variant='outline'
+                leadingIcon='labs'
+                onClick={() => {
+                  setForm((s2) => ({ ...s2, orderCategory: 'lab' }));
+                  requestStepChange(CPOE_STEP_ORDERS);
+                }}
+              >
+                บันทึกส่งตรวจ
+              </BrandSubdueButton>
               {/* CPOE §1.5.10.1 — เดิมปุ่มนี้ยังไม่ผูก sheet จริง ตอนนี้พาไป
                   ศูนย์พิมพ์เอกสาร (step 8) ที่ต่อ PharmacyPrescriptionPrint
                   ไว้แล้ว พร้อม preview ก่อนพิมพ์ */}

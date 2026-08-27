@@ -84,6 +84,19 @@ export const LAB_EXCEPTION_BY_KEY = Object.fromEntries(
    `patientSafety` marks the two that are never salvageable by relabelling:
    an unlabelled or mislabelled tube must be discarded and re-drawn, because
    nobody can prove afterwards whose blood is in it. */
+/* Amendment reasons — the free-text box on บันทึกผลตรวจ offers these as
+   suggestions rather than a fixed list, because an amendment is by nature
+   the case the list did not anticipate. They are the recurring ones the
+   bench writes out longhand today. */
+export const LAB_AMEND_REASONS = [
+  'พบว่าสลับตัวอย่างกับ Accession อื่น ตรวจซ้ำแล้วได้ผลใหม่',
+  'คีย์ผลผิดตำแหน่ง แก้ไขให้ตรงกับใบรายงานของเครื่องตรวจ',
+  'เครื่องตรวจวิเคราะห์ให้ผลคลาดเคลื่อน สอบเทียบแล้วตรวจซ้ำ',
+  'ผลจากหน่วยงานภายนอกส่งฉบับแก้ไขกลับมา',
+  'ตรวจซ้ำเพื่อยืนยันค่าวิกฤต ได้ผลต่างจากเดิม',
+  'ตัวอย่างมีปัญหา (hemolysis / clotted) เจาะใหม่แล้วตรวจซ้ำ',
+];
+
 export const LAB_REJECT_REASONS = [
   { key: 'hemolysis',  label: 'เม็ดเลือดแดงแตก (Hemolysis)',        redrawRequired: true },
   { key: 'clotted',    label: 'ตัวอย่างแข็งตัว (Clotted)',           redrawRequired: true },

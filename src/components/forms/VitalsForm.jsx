@@ -248,18 +248,28 @@ const VitalsForm = ({
      OPD screening review step. Callers that omit it are unaffected. */
   useEffect(() => {
     if (typeof onValuesChange !== 'function') return;
+    /* ส่งครบทุกค่าที่วัด — เดิมส่งแค่ 6 ค่า ชีพจร/อัตราการหายใจ/ออกซิเจน/
+       เส้นรอบเอว/BMI จึงไปไม่ถึงหน้าตรวจรักษาของแพทย์ ทั้งที่พยาบาลกรอกไว้
+       (มติผู้ใช้ 28 ส.ค. 69) */
     onValuesChange({
       round: { date: activeRound.date, time: activeRound.time },
       temp: activeVitals.temp?.value ?? '',
+      pulse: activeVitals.pulse?.value ?? '',
       pressureSys: activeVitals.pressure?.sys ?? '',
       pressureDia: activeVitals.pressure?.dia ?? '',
+      respiration: activeVitals.respiration?.value ?? '',
+      oxygen: activeVitals.oxygen?.value ?? '',
       weight: activeVitals.weight?.value ?? '',
       height: activeVitals.height?.value ?? '',
+      waist: activeVitals.waist?.value ?? '',
+      bmi: activeVitals.bmi?.value ?? '',
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeRound.id, activeRound.date, activeRound.time,
     activeVitals.temp?.value, activeVitals.pressure?.sys, activeVitals.pressure?.dia,
+    activeVitals.pulse?.value, activeVitals.respiration?.value,
+    activeVitals.oxygen?.value, activeVitals.waist?.value, activeVitals.bmi?.value,
     activeVitals.weight?.value, activeVitals.height?.value,
   ]);
 

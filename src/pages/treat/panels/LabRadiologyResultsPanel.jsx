@@ -105,7 +105,6 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
     [hn],
   );
 
-  const [mode, setMode] = useState('single');       /* single | compare */
   const [visitId, setVisitId] = useState('');
   const [analyte, setAnalyte] = useState('');
   const [pacsResult, setPacsResult] = useState(null);
@@ -249,14 +248,9 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
       {/* ── ผลตรวจทางห้องปฏิบัติการ ─────────────────────── */}
       <PanelCard
         title='ผลตรวจทางห้องปฏิบัติการ'
-        subtitle='ดูผลรายครั้ง หรือเทียบค่าเดียวกันข้ามช่วงเวลาเพื่อดูแนวโน้ม'
+        subtitle='ผลตรวจของแต่ละครั้งที่ส่งตรวจ'
         action={<CountLabel n={visits.length} unit='ครั้ง' />}
       >
-        <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          <TabPill selected={mode === 'single'} onClick={() => setMode('single')}>ผลรายครั้ง</TabPill>
-          <TabPill selected={mode === 'compare'} onClick={() => setMode('compare')}>เปรียบเทียบช่วงเวลา</TabPill>
-        </div>
-
         {/* ── §1.4.3.2 ประตูข้อมูลข้ามหน่วยบริการ (HIE) ──────────────
              ยังไม่ยินยอม → ซ่อนแถวภายนอกแต่ "บอกจำนวนที่ซ่อน" เสมอ
              ยินยอมแล้ว → แสดงพร้อมป้ายแหล่งที่มาทุกแถว + ปุ่มปิดกลับได้ */}
@@ -308,7 +302,7 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
               </BrandButton>
             ) : null}
           />
-        ) : mode === 'single' ? (
+        ) : (
           <>
             <div style={{ minWidth: 320, maxWidth: 420 }}>
               <Select
@@ -357,50 +351,6 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
               </>
             ) : null}
           </>
-        ) : (
-          <>
-            {visits.length < 2 ? (
-              <PanelEmptyState
-                icon='compare_arrows'
-                title='ต้องมีผลตรวจอย่างน้อย 2 ครั้งจึงจะเปรียบเทียบได้'
-                subtitle={`ขณะนี้มีผลตรวจ ${visits.length} ครั้ง — เมื่อมีผลครั้งถัดไป ระบบจะแสดงแนวโน้มให้อัตโนมัติ`}
-              />
-            ) : (
-              <>
-                <div style={{ minWidth: 320, maxWidth: 420 }}>
-                  <Select
-                    label='เลือกค่าที่ต้องการเปรียบเทียบ'
-                    value={activeAnalyte}
-                    onChange={setAnalyte}
-                    options={analytes.map((a) => ({ value: a.key, label: `${a.name}${a.unit ? ` (${a.unit})` : ''}` }))}
-                    placeholder='เลือกรายการตรวจ'
-                  />
-                </div>
-
-                {series.length === 0 ? (
-                  <PanelEmptyState
-                    icon='search_off'
-                    title='ไม่พบผลของรายการนี้ในช่วงที่เลือก'
-                    subtitle='ลองเลือกรายการตรวจอื่น หรือขยายช่วงเวลาที่ต้องการดู'
-                  />
-                ) : (
-                  <>
-                    {series.every((s) => s.text) ? (
-                      <PanelAlert tone='info' icon='description' title='ผลรายการนี้เป็นข้อความ'>
-                        ค่าที่ห้องปฏิบัติการรายงานมาไม่ใช่ตัวเลข จึงแสดงเป็นข้อความพร้อมการแปลผล และไม่วาดเส้นแนวโน้ม
-                      </PanelAlert>
-                    ) : (
-                      <TrendLine series={series} />
-                    )}
-
-                    <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
-                      <Table columns={compareColumns} rows={series} rowKey={(r) => r.visitId} />
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-          </>
         )}
       </PanelCard>
 
@@ -410,13 +360,9 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
         subtitle='อ่านรายงานผลได้เสมอ — การเปิดภาพต้องอาศัยการเชื่อมต่อ PACS'
         action={<CountLabel n={studies.length} unit='รายการ' />}
       >
-        {!pacsUp ? (
-          <PanelAlert tone='error' icon='cloud_off' title='PACS ขาดการเชื่อมต่อ'>
-            ไม่สามารถเปิดภาพได้ตั้งแต่ {interfaces?.downSince || 'ไม่ทราบเวลา'} — ระบบยังให้อ่านรายงานผลที่ดึงมาแล้วได้ตามปกติ
-            (ซิงก์ล่าสุด {interfaces?.lastSyncAt || '—'})
-          </PanelAlert>
-        ) : null}
-
+        {/* แถบแจ้ง "PACS ขาดการเชื่อมต่อ" ถูกเอาออกจากแผงนี้ (มติผู้ใช้ 28 ส.ค. 69)
+            — ปุ่มเปิดภาพยังบอกเหตุผลผ่าน tooltip ของตัวเองอยู่ ส่วนหน้าติดตาม
+            สถานะการเชื่อมต่อ (/treat/interfaces) ยังมีแถบนี้ตามเดิม */}
         {studies.length === 0 ? (
           <PanelEmptyState
             icon='radiology'
@@ -479,10 +425,6 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
           </div>
         )}
 
-        <PanelAlert tone='warning' icon='info' title='ขอบเขตการเชื่อมต่อในเวอร์ชันนี้'>
-          หน้าจอนี้เป็นตัวติดตามสถานะการเชื่อมต่อ (interface monitor) — ยังไม่มี HL7 v2.5.1 หรือ DICOMweb engine จริง
-          ผลและรายการภาพเป็นข้อมูลจำลองที่จัดรูปแบบตามข้อกำหนดไว้ล่วงหน้า
-        </PanelAlert>
       </PanelCard>
 
       {/* ใบรายงานผลที่ดึงมาแล้ว — ไม่ขึ้นกับสถานะการเชื่อมต่อ PACS */}

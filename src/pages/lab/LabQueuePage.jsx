@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import Table, { EllipsisText } from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
 import PrimarySearch from '@/components/search/PrimarySearch';
@@ -13,6 +14,7 @@ import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import AlertDialog from '@/components/popup/AlertDialog';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import SelectableCardButton from '@/components/button/SelectableCardButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import Pagination from '@/components/pagination/Pagination';
 import { Icon } from '@/components/icons/Icon';
@@ -30,12 +32,14 @@ import { LAB_GROUPS, LAB_TUBES, LAB_TEST_BY_ID, duplicateWarning } from '@/data/
 import LabDetailPanel from '@/pages/lab/LabDetailPanel';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
 import LabSpecimenLabel from '@/components/lab/LabSpecimenLabel';
-import LabCollectionReport from '@/components/lab/LabCollectionReport';
-import LabCriticalLogPanel from '@/components/lab/LabCriticalLogPanel';
+import LabResultEntryPopup from '@/components/lab/LabResultEntryPopup';
+import LabReportPopup from '@/components/lab/LabReportPopup';
 import { printLab } from '@/data/labPrintSettings';
 import { LAB_AUDIT, LAB_AUDIT_SCOPES, appendLabAudit, subscribeLabAudit } from '@/data/labAudit';
-import { summariseCritical, subscribeCritical } from '@/data/labCritical';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import SuccessToast from '@/components/toast/SuccessToast';
+import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
+import QueuePatientAvatar, { resolveQueuePatientAvatarProps } from '@/components/patient/QueuePatientAvatar';
 
 /* งานชันสูตรโรค — Worklist. The lab's own working screen: every specimen
    the department owes somebody, from the moment a doctor's order lands to
@@ -90,13 +94,16 @@ const buildSummaryCards = (rows) => [
    mockup's tab strip renders them (รอรับคำขอ 4 · รอเก็บ/รับตัวอย่าง 9 ·
    กำลังตรวจ 6 · ส่งตรวจภายนอก 5 · รอรับรองผล 3 · รายงานผลแล้ว 58). */
 const buildTabs = (rows) => [
-  { key: 'all', label: 'ทั้งหมด', icon: 'biotech', count: rows.length },
   ...LAB_STATUSES.map((s) => ({
     key: s.key,
     label: s.label,
     icon: s.icon,
     count: rows.filter((r) => r.status === s.key).length,
   })),
+  /* ทั้งหมด sits LAST (มติผู้ใช้ 28 ส.ค. 69) — the strip then reads as the
+     pipeline first and the catch-all after it, rather than opening on the
+     one tab that is not a stage. */
+  { key: 'all', label: 'ทั้งหมด', icon: 'biotech', count: rows.length },
 ];
 
 /* Patient avatar chip — 36px circle, same shape/size as QueuePage.jsx's
@@ -137,6 +144,28 @@ const PatientAvatar = ({ patient, masked }) => {
 };
 
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:lab-queue';
+
+/* นำส่งออกรายงาน — ExportFormatPopup ตัวเดียวกับหน้าอื่นในระบบ (ความยินยอม /
+   เภสัชกรรม / เยี่ยมบ้าน) จึงได้เลือกรูปแบบไฟล์และมี log การส่งออกเหมือนกันหมด.
+   คอลัมน์ตามที่ตารางแสดง — แถวปกปิด (§1.15.2.4) ส่งออกเป็นค่าปกปิดเช่นเดียวกับ
+   บนหน้าจอ ไม่ใช่ชื่อจริง มิฉะนั้นการปกปิดจะรั่วออกทางไฟล์แทน. */
+const LAB_WORKLIST_EXPORT_COLUMNS = [
+  { key: 'queueNo', header: 'คิว', width: 70 },
+  { key: 'accessionNo', header: 'Accession', width: 130 },
+  { key: 'urgencyLabel', header: 'ความเร่งด่วน', width: 120 },
+  { key: 'hn', header: 'HN', width: 120 },
+  { key: 'name', header: 'ชื่อ-สกุล', width: 200 },
+  { key: 'ageSex', header: 'อายุ / เพศ', width: 120 },
+  { key: 'orderedAt', header: 'เวลาสั่ง', width: 100 },
+  { key: 'location', header: 'จุดสั่ง / ward', width: 150 },
+  { key: 'doctor', header: 'แพทย์ผู้สั่ง', width: 170 },
+  { key: 'testLabel', header: 'รายการ / กลุ่มตรวจ', width: 220 },
+  { key: 'tubeLabel', header: 'ตัวอย่าง + หลอด', width: 150 },
+  { key: 'volume', header: 'จำนวน / ปริมาตร', width: 150 },
+  { key: 'statusLabel', header: 'สถานะ', width: 140 },
+  { key: 'resultFlag', header: 'ผล', width: 120 },
+  { key: 'price', header: 'ราคา', width: 100 },
+];
 
 /* PrimarySearch suggestion/history item shape (Figma 3345:2981 — two
    colourful pills + label + sublabel), mirroring queueRowToSearchItem in
@@ -219,24 +248,7 @@ const formatAge = (mins) => {
 /* Table A from the team deck, in its order, minus การเตรียมตัว. `onAction`
    is the component's row-action closure, so columns are built inside the
    component via useMemo rather than declared at module scope. */
-const buildColumns = (onAction, historyFor, selection) => [
-  /* Selection — first column so the eye lands on it before the row content,
-     the same place every mail client and file manager puts it. */
-  {
-    /* Table renders headers as plain text (see Table.jsx `title`), so the
-       select-all control lives in the toolbar rather than this header. */
-    key: 'select', label: '', sortable: false, align: 'center',
-    render: (row) => (
-      <input
-        type='checkbox'
-        checked={selection.ids.includes(row.id)}
-        aria-label={`เลือก ${row.accessionNo}`}
-        onClick={(e) => e.stopPropagation()}
-        onChange={() => selection.toggle(row.id)}
-        style={{ width: 16, height: 16, accentColor: 'var(--surface-brandPrimary-default)', cursor: 'pointer' }}
-      />
-    ),
-  },
+const buildColumns = (onAction, historyFor) => [
   /* คิว / ลำดับ — "เรียงลำดับเรียกผู้ป่วย". */
   {
     key: 'queueNo', label: 'คิว', align: 'center',
@@ -247,8 +259,8 @@ const buildColumns = (onAction, historyFor, selection) => [
     ),
   },
   /* Accession / บาร์โค้ด — "สแกนพิมพ์สติกเกอร์ติดหลอด". Leads the row in the
-     mockup, and doubles as the sticker-printed state: a row whose label
-     hasn't been printed yet shows "รอพิมพ์ label" underneath. */
+     mockup. The "รอพิมพ์ label" sub-line was dropped 28 ส.ค. 69 (มติผู้ใช้);
+     `row.labeled` is still tracked and still set when a sticker prints. */
   {
     key: 'accessionNo', label: 'Accession / บาร์โค้ด',
     render: (row) => (
@@ -260,22 +272,19 @@ const buildColumns = (onAction, historyFor, selection) => [
           <Icon name='barcode' size={14} />
           {row.accessionNo}
         </span>
-        {!row.labeled && (
-          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-statusbadge-warning, #C2410C)' }}>
-            รอพิมพ์ label
-          </span>
-        )}
       </div>
     ),
   },
-  /* ความเร่งด่วน — STAT / ด่วน / Routine, "STAT ต้องเด้งขึ้นบนสุด (สีแดง)". */
+  /* ความเร่งด่วน — "STAT ต้องเด้งขึ้นบนสุด (สีแดง)". */
   {
     key: 'urgency', label: 'ความเร่งด่วน',
-    render: (row) => {
-      if (row.urgency === 'stat') return <Badge style='error' size='small'>STAT</Badge>;
-      if (row.urgency === 'urgent') return <Badge style='warning' size='small'>ด่วน</Badge>;
-      return <Badge style='neutral' size='small'>Routine</Badge>;
-    },
+    /* STAT is the only urgency that earns a badge (มติผู้ใช้ 28 ส.ค. 69) —
+       ด่วน / Routine render blank so the red pill keeps its meaning at a
+       glance. The urgency itself is unchanged: it still sorts, still
+       filters, and still drives the ความเร่งด่วน dropdown. */
+    render: (row) => (
+      row.urgency === 'stat' ? <Badge style='error' size='small'>STAT</Badge> : null
+    ),
   },
   /* HN + ชื่อ-สกุล — "ระบุตัวผู้ป่วย (ควร verify 2 identifiers)", so the two
      identifiers deliberately sit in one cell and are read together.
@@ -320,30 +329,15 @@ const buildColumns = (onAction, historyFor, selection) => [
       </span>
     ),
   },
-  /* เวลาสั่ง + aging — "ดู aging / SLA รอคิวนานเกินไหม". */
+  /* เวลาสั่ง — the aging / "เกิน SLA" sub-line was dropped 28 ส.ค. 69
+     (มติผู้ใช้); `slaMinutes` per urgency still lives in LAB_URGENCIES. */
   {
     key: 'orderedAt', label: 'เวลาสั่ง',
-    render: (row) => {
-      const age = ageMinutes(row);
-      const overdue = isOverdue(row);
-      return (
-        <div className='flex flex-col' style={{ gap: 2 }}>
-          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
-            {row.orderedAt}
-          </span>
-          <span
-            style={{
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-xs)',
-              color: overdue ? 'var(--text-statusbadge-error, #B91C1C)' : 'var(--text-content-tertiary)',
-              fontWeight: overdue ? 'var(--type-weight-medium)' : 'var(--type-weight-regular)',
-            }}
-          >
-            {overdue ? `เกิน SLA · ${formatAge(age)}` : formatAge(age)}
-          </span>
-        </div>
-      );
-    },
+    render: (row) => (
+      <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
+        {row.orderedAt}
+      </span>
+    ),
   },
   /* จุดสั่ง / ward — the team clarified this is the ordering clinic. */
   {
@@ -371,22 +365,6 @@ const buildColumns = (onAction, historyFor, selection) => [
       <div className='flex flex-col min-w-0' style={{ gap: 2 }}>
         <span className='inline-flex items-center min-w-0' style={{ gap: 'var(--dim-space-150)' }}>
           <EllipsisText text={row.testLabel} />
-          {/* Duplicate-order warning — TOR §1.15.4.7/§1.15 "เตือนสั่งซ้ำ".
-              Same helper the order-entry form uses, so a repeat flagged at
-              ordering time stays flagged here on the bench. */}
-          {historyFor(row) && (
-            <span className='shrink-0' title={historyFor(row).message} style={{ color: 'var(--text-statusbadge-warning, #C2410C)' }}>
-              <Icon name='content_copy' size={14} />
-            </span>
-          )}
-          {/* พยาบาลเจาะน้ำตาลปลายนิ้ว บันทึกผลเองได้เลย — a bedside test never
-              reaches the bench, so it is marked to explain why it has no
-              analyser step. */}
-          {row.bedside && (
-            <span className='shrink-0' title={`ตรวจข้างเตียงโดย ${row.performedBy ?? 'พยาบาล'}`} style={{ color: 'var(--text-colorfulbadge-purple, #7E22CE)' }}>
-              <Icon name='vaccines' size={14} />
-            </span>
-          )}
         </span>
         <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
           {row.groupLabel} · {row.testNameTh}
@@ -635,9 +613,11 @@ const LabQueuePage = () => {
       setTube('all');
     },
   );
-  /* "STAT ก่อน" — on by default, matching the mockup where the toggle is
-     already active and the STAT row sits at the top of the list. */
-  const [statFirst, setStatFirst] = useState(true);
+  /* STAT rows always sort to the top. It used to be a toggle beside the
+     filters; the pill is gone, but the behaviour it defaulted to is the
+     only one the bench ever wants — an urgent tube below a routine one is
+     a mistake, not a view preference. */
+  const statFirst = true;
   const [page, setPage] = useState(1);
 
   /* Rows are derived from the shared order store, not held in local state.
@@ -671,12 +651,17 @@ const LabQueuePage = () => {
   /* Rows handed to the print-only sticker sheet — set immediately before
      printing so one click prints one tube's label, not the whole table. */
   const [printRows, setPrintRows] = useState([]);
+  /* บันทึกผลตรวจ — holds the order id the result popup is editing. */
+  const [resultTarget, setResultTarget] = useState(null);
+  /* ใบผลตรวจ — holds the orderId whose patient report sheet is open. */
+  const [reportTarget, setReportTarget] = useState(null);
+  /* นำส่งออกรายงาน — the popup takes a built report, so state holds the
+     report (null = closed) rather than a bare open flag. */
+  const [exportReport, setExportReport] = useState(null);
+  const [exportDone, setExportDone] = useState(false);
   /* Rejection dialog — holds the row and the chosen reason. */
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
-  /* Bulk selection. A collection round is a dozen specimens; labelling them
-     one at a time meant a dozen clicks and a dozen print dialogs. */
-  const [selectedIds, setSelectedIds] = useState([]);
   const searchWrapRef = useRef(null);
   const handleScan = () => {
     setScanMode(true);
@@ -722,16 +707,6 @@ const LabQueuePage = () => {
     after: extra?.after,
   });
 
-  /* ทะเบียนค่าวิกฤต drawer — the doctor-acknowledgement half of the
-     critical-value loop (src/data/labCritical.js). Opened from the toolbar
-     rather than from the ค่าวิกฤต summary card, because SummaryCardsBar is a
-     shared layout component with no onClick contract and this module must
-     not change it. */
-  const [criticalOpen, setCriticalOpen] = useState(false);
-  const [criticalVersion, setCriticalVersion] = useState(0);
-  useEffect(() => subscribeCritical(() => setCriticalVersion((v) => v + 1)), []);
-  const criticalSummary = useMemo(() => summariseCritical(), [criticalVersion]);
-
   const rowLabel = (row) => `${row.testLabel} · ${row.accessionNo} — ${row.confidential ? 'ผู้ป่วยปกปิด' : row.patient.shortName}`;
 
   const handleAction = (kind, row) => {
@@ -757,14 +732,17 @@ const LabQueuePage = () => {
       return;
     }
     if (kind === 'patientReport') {
-      history.push(`/lab/report/${row.orderId}`);
+      /* Same sheet the /lab/report/:orderId route shows, opened over the
+         worklist — proofreading a report is a glance, not a destination. */
+      setReportTarget(row.orderId);
       return;
     }
     if (kind === 'result') {
-      /* Result entry is a full screen of its own (TOR §1.15.6.1) — it needs
-         room for one typed input per analyte plus the critical-value
-         notification block, which will not fit in a row action. */
-      history.push(`/lab/result/${row.id}`);
+      /* Result entry (TOR §1.15.6.1) opens over the worklist rather than
+         navigating away — the same form the /lab/result/:id route renders,
+         in an extraLarge popup, so the bench keeps its filters, its scroll
+         position and its place in the queue. */
+      setResultTarget(row.id);
       return;
     }
     setPendingAction({ kind, row });
@@ -776,6 +754,17 @@ const LabQueuePage = () => {
       confirmLabel: 'เก็บแล้ว',
       type: 'info',
       describe: (row) => `ตัวอย่าง ${row.tubeLabel} ของ${row.confidential ? 'ผู้ป่วยปกปิด' : row.patient.fullName ?? row.patient.shortName} (${row.accessionNo}) จะถูกบันทึกว่าเก็บเรียบร้อยและส่งเข้าขั้นตอนกำลังตรวจ`,
+    },
+
+    /* Cancelling an advance order is destructive in the same way a delete is
+       — the order vanishes before the patient ever arrives, and nothing in
+       the worklist will show it was ever placed — so it goes through the
+       same confirmation as every other row action. */
+    cancelAdvance: {
+      title: 'ยกเลิกคำสั่งตรวจล่วงหน้านี้?',
+      confirmLabel: 'ยกเลิกคำสั่ง',
+      type: 'warning',
+      describe: (adv) => `คำสั่งล่วงหน้า ${adv.testIds.map((t) => LAB_TEST_BY_ID[t]?.nameEn ?? t).join(' · ')} ของ${adv.patient.fullName ?? adv.patient.shortName} (นัด ${adv.scheduledFor} · ${adv.location}) จะถูกยกเลิก และจะไม่ถูกดึงมาใช้เมื่อผู้ป่วยมาถึง`,
     },
 
     /* TOR §1.15.4.9 "สามารถลบข้อมูลได้". */
@@ -800,6 +789,9 @@ const LabQueuePage = () => {
       deleteLabOrder(row.id);
       setSelectedId((prev) => (prev === row.id ? null : prev));
       logAudit('ลบรายการขอตรวจ', rowLabel(row));
+    } else if (kind === 'cancelAdvance') {
+      cancelAdvanceOrder(row.id);
+      logAudit('ยกเลิกคำสั่งตรวจล่วงหน้า', `${row.patient.shortName} (${row.id})`);
     }
     setPendingAction(null);
   };
@@ -824,12 +816,6 @@ const LabQueuePage = () => {
     setRejectTarget(null);
     setRejectReason('');
   };
-
-  /* ─── Bulk actions ─── */
-  const toggleSelect = (id) => setSelectedIds((prev) => (
-    prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-  ));
-  const clearSelection = () => setSelectedIds([]);
 
   const handleRevealConfidential = (order) => {
     logAudit('ดูผลตรวจที่เป็นความลับ', `${order.testLabel} — HN ${order.patient.hn}`, { scope: 'confidential' });
@@ -863,48 +849,53 @@ const LabQueuePage = () => {
     [filtered, sortConfig, statFirst],
   );
 
-  /* The collection round only covers specimens not yet in the lab's hands —
-     printing a walking list that includes results already reported would
-     send someone to draw blood that is already on the analyser. Takes the
-     filtered view, so the toolbar's filters scope the printed sheet. */
-  const collectionRows = useMemo(
-    () => sorted.filter((r) => r.status === 'requested' || r.status === 'collect'),
-    [sorted],
-  );
-
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const pageRows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const columns = useMemo(
-    () => buildColumns(handleAction, historyFor, {
-      ids: selectedIds,
-      toggle: toggleSelect,
-      allOnPage: pageRows.length > 0 && pageRows.every((r) => selectedIds.includes(r.id)),
-      toggleAll: () => setSelectedIds((prev) => {
-        const pageIds = pageRows.map((r) => r.id);
-        const allOn = pageIds.every((id) => prev.includes(id));
-        return allOn ? prev.filter((id) => !pageIds.includes(id)) : [...new Set([...prev, ...pageIds])];
-      }),
-    }),
+    () => buildColumns(handleAction, historyFor),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [historyFor, selectedIds, pageRows],
+    [historyFor],
   );
 
-  /* Derived selection facts the bulk bar needs. Sticker count is by TUBE,
-     not by row — selecting a CBC and an HbA1c drawn into the same EDTA tube
-     is one label, and promising two would be wrong. */
-  const selectedRows = useMemo(
-    () => liveRows.filter((r) => selectedIds.includes(r.id)),
-    [liveRows, selectedIds],
-  );
-  const selectedTubeCount = useMemo(
-    () => new Set(selectedRows.map((r) => r.accessionNo)).size,
-    [selectedRows],
-  );
-  const selectedCollectable = useMemo(
-    () => selectedRows.filter((r) => r.status === 'requested' || r.status === 'collect'),
-    [selectedRows],
-  );
-  const allOnPageSelected = pageRows.length > 0 && pageRows.every((r) => selectedIds.includes(r.id));
+  /* What the file says it contains. Built from the same filter state the
+     table reads, so an exported sheet can never claim a scope the screen
+     was not showing. */
+  const exportFilterSummary = [
+    activeTab !== 'all' && LAB_STATUS_BY_KEY[activeTab]?.label,
+    urgency !== 'all' && LAB_URGENCY_BY_KEY[urgency]?.label,
+    group !== 'all' && LAB_GROUPS.find((g) => g.key === group)?.thai,
+    location !== 'all' && location,
+    tube !== 'all' && LAB_TUBES[tube]?.thai,
+    query.trim() && `ค้นหา "${query.trim()}"`,
+  ].filter(Boolean).join(' · ');
+
+  const buildExportReport = () => ({
+    key: 'lab-worklist',
+    title: 'คิวห้องปฏิบัติการ (Lab worklist)',
+    subtitle: exportFilterSummary || 'รายการขอตรวจทั้งหมดของวันนี้',
+    table: {
+      columns: LAB_WORKLIST_EXPORT_COLUMNS,
+      rows: sorted.map((r) => ({
+        queueNo: r.queueNo,
+        accessionNo: r.accessionNo,
+        urgencyLabel: LAB_URGENCY_BY_KEY[r.urgency]?.label ?? r.urgency,
+        hn: r.confidential ? 'HN •••••' : r.patient.hn,
+        name: r.confidential ? 'ปกปิด (VCT)' : (r.patient.fullName ?? r.patient.shortName),
+        ageSex: r.confidential ? '—' : `${parseInt(r.patient.age, 10) || '—'} ปี / ${r.patient.sex}`,
+        orderedAt: r.orderedAt,
+        location: r.location,
+        doctor: r.doctor,
+        testLabel: `${r.testLabel} · ${r.groupLabel}`,
+        tubeLabel: r.tubeLabel,
+        volume: `${r.tubeCount} หลอด · ${r.volumeMl} mL`,
+        statusLabel: r.exception === 'rejected' ? 'ปฏิเสธตัวอย่าง'
+          : r.exception === 'redraw' ? 'รอเจาะซ้ำ'
+            : r.statusLabel,
+        resultFlag: r.critical ? 'ค่าวิกฤต' : r.abnormal ? 'ผิดปกติ' : '',
+        price: r.price,
+      })),
+    },
+  });
 
   const rangeStart = sorted.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(page * PAGE_SIZE, sorted.length);
@@ -1000,14 +991,18 @@ const LabQueuePage = () => {
           aria-modal='true'
           aria-label='ปฏิเสธสิ่งส่งตรวจ'
           className='fixed inset-0 flex items-center justify-center'
-          style={{ background: 'rgba(0,0,0,0.45)', zIndex: 60 }}
+          /* 1400 = Popup.jsx's BASE_MODAL_Z. This dialog is hand-rolled
+             rather than a <Popup>, and at z-60 it rendered *under* the
+             sticky sub-nav and status-tab bar (zIndex 1090–1101), which cut
+             a band across the reason list. */
+          style={{ background: 'rgba(0,0,0,0.45)', zIndex: 1400 }}
           onClick={() => setRejectTarget(null)}
         >
           <div
             className='flex flex-col'
             onClick={(e) => e.stopPropagation()}
             style={{
-              width: 'min(560px, 92vw)',
+              width: 'min(920px, 94vw)',
               maxHeight: '86vh',
               overflowY: 'auto',
               background: 'var(--surface-card-100)',
@@ -1028,54 +1023,48 @@ const LabQueuePage = () => {
                 {rejectTarget.accessionNo} · {rejectTarget.testLabel} ·{' '}
                 {rejectTarget.confidential ? 'ผู้ป่วยปกปิด' : rejectTarget.patient.shortName}
               </span>
-              <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
-                ต้องระบุเหตุผล — ระบบจะแจ้ง{rejectTarget.location}และบันทึกไว้ในประวัติการดำเนินการ
-              </span>
             </div>
 
-            <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+            {/* Two columns — eleven reasons stacked single-file ran past the
+                fold, so the last few (including the two no-redraw cases)
+                were only reachable by scrolling. Collapses to one column on
+                a narrow viewport. */}
+            <div
+              className='grid'
+              style={{
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: 'var(--dim-space-300)',
+              }}
+            >
               {LAB_REJECT_REASONS.map((r) => {
                 const on = rejectReason === r.key;
                 return (
-                  <button
+                  /* DS SelectableCardButton (Figma PHCIS-OPD 160:26432) — the
+                     same card the pain / triage chip rows use, so hover, the
+                     selected stroke and the trailing check all come from the
+                     design system instead of being re-styled here. */
+                  <SelectableCardButton
                     key={r.key}
-                    type='button'
+                    selected={on}
                     onClick={() => setRejectReason(r.key)}
-                    className='flex items-center w-full text-left'
-                    style={{
-                      gap: 'var(--dim-space-200)',
-                      paddingTop: 'var(--dim-space-250, 10px)',
-                      paddingRight: 'var(--dim-space-300)',
-                      paddingBottom: 'var(--dim-space-250, 10px)',
-                      paddingLeft: 'var(--dim-space-300)',
-                      background: on ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-card-100)',
-                      border: `var(--dim-stroke-100) solid ${on ? 'var(--border-brandPrimary-default)' : 'var(--border-card-default)'}`,
-                      borderRadius: 'var(--dim-radius-200)',
-                      cursor: 'pointer',
-                    }}
+                    ariaLabel={r.label}
+                    className='w-full'
                   >
-                    <Icon
-                      name={on ? 'radio_button_checked' : 'radio_button_unchecked'}
-                      size={16}
-                      style={{ color: on ? 'var(--text-brandPrimary-default)' : 'var(--text-content-tertiary)' }}
-                    />
-                    <span className='flex-1 min-w-0' style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: on ? 'var(--text-brandPrimary-default)' : 'var(--text-content-primary)' }}>
-                      {r.label}
-                    </span>
+                    <span className='flex-1 min-w-0 text-left'>{r.label}</span>
                     {/* An unlabelled or mislabelled tube is the one case that
                         can never be fixed by relabelling — say so here, not
                         after the fact. */}
                     {r.patientSafety && (
-                      <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)', color: 'var(--text-statusbadge-error, #B91C1C)' }}>
+                      <span className='shrink-0' style={{ fontSize: 'var(--type-size-xs)', fontWeight: 'var(--type-weight-medium)', color: 'var(--text-statusbadge-error, #B91C1C)' }}>
                         ต้องทิ้งหลอดและเจาะใหม่
                       </span>
                     )}
                     {!r.redrawRequired && (
-                      <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+                      <span className='shrink-0' style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
                         ไม่ต้องเจาะซ้ำ
                       </span>
                     )}
-                  </button>
+                  </SelectableCardButton>
                 );
               })}
             </div>
@@ -1086,7 +1075,7 @@ const LabQueuePage = () => {
                   ? (LAB_REJECT_REASON_BY_KEY[rejectReason].redrawRequired
                     ? 'ระบบจะส่งกลับไปยังขั้นตอนรอเก็บตัวอย่างเพื่อเจาะซ้ำ'
                     : 'ระบบจะบันทึกการปฏิเสธโดยไม่สั่งเจาะซ้ำ')
-                  : 'เลือกเหตุผลก่อนจึงจะยืนยันได้'}
+                  : ''}
               </span>
               <NeutralSubdueButton variant='outline' size='md' onClick={() => setRejectTarget(null)}>
                 ยกเลิก
@@ -1103,7 +1092,6 @@ const LabQueuePage = () => {
         activeKey='lab'
         breadcrumb={breadcrumb}
         title='งานชันสูตรโรค (Lab)'
-        summaryCards={summaryCards}
         summaryFlushUnderSubHeader={false}
         belowSummary={<LabSubNav />}
       >
@@ -1129,7 +1117,7 @@ const LabQueuePage = () => {
               style={{
                 background: 'var(--surface-card-100)',
                 borderRadius: 'var(--dim-radius-500)',
-                border: 'var(--dim-stroke-100) solid var(--border-statusbadge-warning, #C2410C)',
+                border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
                 boxShadow: 'var(--shadow-card)',
                 paddingTop: 'var(--dim-space-400)',
                 paddingRight: 'var(--dim-space-600)',
@@ -1162,8 +1150,14 @@ const LabQueuePage = () => {
                     paddingLeft: 'var(--dim-space-400)',
                   }}
                 >
-                  <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-medium)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)', minWidth: 150 }}>
-                    {a.patient.shortName}
+                  <span className='flex items-center' style={{ gap: 'var(--dim-space-300)', minWidth: 150 }}>
+                    <QueuePatientAvatar
+                      size={32}
+                      {...resolveQueuePatientAvatarProps({ hn: a.patient.hn, displayName: a.patient.shortName })}
+                    />
+                    <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-medium)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
+                      {a.patient.shortName}
+                    </span>
                   </span>
                   <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)', minWidth: 110 }}>
                     HN {a.patient.hn}
@@ -1194,10 +1188,7 @@ const LabQueuePage = () => {
                     size='sm'
                     aria-label={`ยกเลิกคำสั่งล่วงหน้า ${a.id}`}
                     title='ยกเลิกคำสั่งล่วงหน้า'
-                    onClick={() => {
-                      cancelAdvanceOrder(a.id);
-                      logAudit('ยกเลิกคำสั่งตรวจล่วงหน้า', `${a.patient.shortName} (${a.id})`);
-                    }}
+                    onClick={() => setPendingAction({ kind: 'cancelAdvance', row: a })}
                   />
                 </div>
               ))}
@@ -1221,9 +1212,18 @@ const LabQueuePage = () => {
                 onChange={setActiveTab}
               />
 
+              {/* Summary counts moved below the tab strip (มติผู้ใช้ 28 ส.ค. 69):
+                  they describe the list the current tab is showing, so they now
+                  sit with it and scroll away with it instead of riding in the
+                  page header. Rendered as bare SummaryCard rows — the
+                  SummaryCardsBar chrome would be a second card inside this one. */}
+              <div className='flex w-full flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+                {summaryCards.map((c) => <SummaryCard key={c.key} card={c} />)}
+              </div>
+
               {/* Search + scan. The mockup puts "สแกนบาร์โค้ด" as the widget's
                   one primary action, to the right of the search field. */}
-              <div className='w-full flex items-start justify-center' style={{ gap: 'var(--dim-space-300)' }} ref={searchWrapRef}>
+              <div className='w-full flex items-center justify-center' style={{ gap: 'var(--dim-space-300)' }} ref={searchWrapRef}>
                 <PrimarySearch
                   value={query}
                   onChange={(v) => { setQuery(v); if (scanMode && v === '') setScanMode(false); }}
@@ -1249,95 +1249,19 @@ const LabQueuePage = () => {
                 >
                   สแกนบาร์โค้ด
                 </BrandPrimaryButton>
-                {/* The other two lab screens. Ordering is upstream of this
-                    worklist and Setup is what defines every row in it, so
-                    both are reachable from here rather than only from the
-                    hub. */}
                 <NeutralSubdueButton
                   variant='outline'
                   size='md'
-                  leadingIcon='add'
-                  onClick={() => history.push('/lab/order')}
+                  leadingIcon='ios_share'
+                  collapseLabelBelow='lg'
+                  accessibilityLabel='นำส่งออกรายงาน'
+                  onClick={() => setExportReport(buildExportReport())}
                 >
-                  สั่งตรวจ
+                  นำส่งออกรายงาน
                 </NeutralSubdueButton>
-                <NeutralSubdueIconButton
-                  icon='settings'
-                  variant='outline'
-                  size='md'
-                  aria-label='ตั้งค่ารายการตรวจ'
-                  title='ตั้งค่ารายการตรวจ'
-                  onClick={() => history.push('/lab/setup')}
-                />
               </div>
 
               <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-                {/* §1.15.5.2 — the round sheet. Prints whatever the current
-                    filters have narrowed the list to, so "พิมพ์รายการเก็บ
-                    ตัวอย่างของ ER เฉพาะ STAT" is just filter-then-print
-                    rather than a separate report builder. Only rows still
-                    awaiting collection are worth walking to. */}
-                <NeutralSubdueButton
-                  variant='outline'
-                  size='sm'
-                  leadingIcon='print'
-                  disabled={collectionRows.length === 0}
-                  onClick={() => {
-                    setPrintRows(collectionRows);
-                    logAudit('พิมพ์รายการเก็บตัวอย่าง', `${collectionRows.length} รายการ`);
-                    window.setTimeout(() => printLab('collection'), 0);
-                  }}
-                >
-                  พิมพ์รายการเก็บตัวอย่าง ({collectionRows.length})
-                </NeutralSubdueButton>
-                <NeutralSubdueButton
-                  variant='outline'
-                  size='sm'
-                  leadingIcon='history'
-                  disabled={!selected}
-                  title={selected ? 'ดูผลย้อนหลังของผู้ป่วยที่เลือก' : 'เลือกรายการในตารางก่อนจึงจะดูผลย้อนหลังได้'}
-                  onClick={() => selected && history.push(`/lab/history/${selected.patient.hn}`)}
-                >
-                  ประวัติผล / เปรียบเทียบ
-                </NeutralSubdueButton>
-                {/* ทะเบียนค่าวิกฤต — the acknowledgement register. Destructive
-                    styling only when something is genuinely open past the
-                    30-minute window, so the colour keeps meaning something. */}
-                <NeutralSubdueButton
-                  variant='outline'
-                  size='sm'
-                  leadingIcon={criticalSummary.escalated > 0 ? 'running_with_errors' : 'warning'}
-                  active={criticalSummary.escalated > 0}
-                  onClick={() => setCriticalOpen(true)}
-                >
-                  ทะเบียนค่าวิกฤต ({criticalSummary.open} รอรับทราบ)
-                </NeutralSubdueButton>
-                {/* "STAT ก่อน" — the mockup renders it as a pressed pill
-                    beside the filters, so it reads as a mode not a filter:
-                    it re-orders the list, it doesn't remove rows. */}
-                <NeutralSubdueButton
-                  variant='outline'
-                  size='sm'
-                  leadingIcon={allOnPageSelected ? 'check_box' : 'check_box_outline_blank'}
-                  onClick={() => setSelectedIds((prev) => {
-                    const pageIds = pageRows.map((r) => r.id);
-                    return allOnPageSelected
-                      ? prev.filter((id) => !pageIds.includes(id))
-                      : [...new Set([...prev, ...pageIds])];
-                  })}
-                >
-                  {allOnPageSelected ? 'ยกเลิกเลือกทั้งหน้า' : 'เลือกทั้งหน้า'}
-                </NeutralSubdueButton>
-                <NeutralSubdueButton
-                  variant='outline'
-                  size='sm'
-                  leadingIcon='priority_high'
-                  active={statFirst}
-                  aria-pressed={statFirst}
-                  onClick={() => setStatFirst((v) => !v)}
-                >
-                  STAT ก่อน
-                </NeutralSubdueButton>
                 <FilterDropdown prefix='ความเร่งด่วน:' options={URGENCY_OPTIONS} value={urgency} onChange={setUrgency} />
                 <FilterDropdown prefix='กลุ่มตรวจ:' options={GROUP_OPTIONS} value={group} onChange={setGroup} />
                 <FilterDropdown prefix='จุดสั่ง:' options={LOCATION_OPTIONS} value={location} onChange={setLocation} />
@@ -1347,62 +1271,6 @@ const LabQueuePage = () => {
 
               <SmoothFilterResults opaque={resultsOpaque}>
               <SearchResultCount found={sorted.length} total={liveRows.length} />
-
-              {/* Bulk action bar. Appears only when something is selected,
-                  so it costs nothing in the normal scanning case, and it is
-                  what turns a 12-specimen collection round from 12 clicks
-                  and 12 print dialogs into one of each. */}
-              {selectedIds.length > 0 && (
-                <div
-                  className='flex flex-wrap items-center w-full'
-                  style={{
-                    gap: 'var(--dim-space-300)',
-                    background: 'var(--surface-brandPrimary-quaternary)',
-                    borderRadius: 'var(--dim-radius-300)',
-                    border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-default)',
-                    paddingTop: 'var(--dim-space-300)',
-                    paddingRight: 'var(--dim-space-400)',
-                    paddingBottom: 'var(--dim-space-300)',
-                    paddingLeft: 'var(--dim-space-400)',
-                  }}
-                >
-                  <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-medium)', fontSize: 'var(--type-size-sm)', color: 'var(--text-brandPrimary-default)' }}>
-                    เลือกไว้ {selectedIds.length} รายการ
-                    {selectedTubeCount !== selectedIds.length && ` · ${selectedTubeCount} หลอด`}
-                  </span>
-                  <NeutralSubdueButton
-                    variant='outline'
-                    size='sm'
-                    leadingIcon='print'
-                    onClick={() => {
-                      const rows = liveRows.filter((r) => selectedIds.includes(r.id));
-                      setPrintRows(rows);
-                      rows.forEach((r) => updateLabOrder(r.id, { labeled: true }));
-                      logAudit('พิมพ์สติกเกอร์ (หลายรายการ)', `${selectedTubeCount} หลอด · ${rows.length} รายการ`);
-                      window.setTimeout(() => printLab('sticker'), 0);
-                    }}
-                  >
-                    พิมพ์สติกเกอร์ {selectedTubeCount} หลอด
-                  </NeutralSubdueButton>
-                  <NeutralSubdueButton
-                    variant='outline'
-                    size='sm'
-                    leadingIcon='check'
-                    disabled={selectedCollectable.length === 0}
-                    onClick={() => {
-                      selectedCollectable.forEach((r) => updateLabOrder(r.id, { status: 'analysing', exception: undefined, labeled: true }));
-                      logAudit('บันทึกเก็บ/รับตัวอย่าง (หลายรายการ)', `${selectedCollectable.length} รายการ`);
-                      clearSelection();
-                    }}
-                  >
-                    เก็บแล้ว {selectedCollectable.length} รายการ
-                  </NeutralSubdueButton>
-                  <div className='flex-1' />
-                  <NeutralSubdueButton variant='outline' size='sm' onClick={clearSelection}>
-                    ล้างการเลือก
-                  </NeutralSubdueButton>
-                </div>
-              )}
 
               <Table
                 columns={columns}
@@ -1414,29 +1282,6 @@ const LabQueuePage = () => {
                 stickyColCount={2}
                 emptyMessage='ไม่พบรายการตรวจที่ตรงกับการค้นหา'
               />
-
-              {/* Legend — the strip along the bottom of the mockup widget:
-                  ค่าวิกฤต (แจ้งแพทย์) · ผลปิด/ปกติ · เตือนสั่งซ้ำ · EDTA · Clot ·
-                  Fluoride/Hep. Tube swatches read straight off LAB_TUBES so
-                  they can never drift from the colours in the table. */}
-              <div
-                className='flex flex-wrap items-center w-full'
-                style={{
-                  gap: 'var(--dim-space-400)',
-                  paddingTop: 'var(--dim-space-300)',
-                  borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-                }}
-              >
-                <LegendItem icon='warning' color='var(--text-statusbadge-error, #B91C1C)' label='ค่าวิกฤต (แจ้งแพทย์)' />
-                <LegendItem icon='lock' color='var(--text-content-quaternary)' label='ผลปิด / ปกปิด' />
-                <LegendItem icon='content_copy' color='var(--text-statusbadge-warning, #C2410C)' label='เตือนสั่งซ้ำ' />
-                <LegendItem icon='vaccines' color='var(--text-colorfulbadge-purple, #7E22CE)' label='ตรวจข้างเตียง (พยาบาลบันทึกเอง)' />
-                <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
-                  {Object.values(LAB_TUBES).map((t) => (
-                    <LabTubeDot key={t.key} tube={t} size={8} />
-                  ))}
-                </span>
-              </div>
 
               <div
                 className='flex items-center w-full'
@@ -1556,43 +1401,41 @@ const LabQueuePage = () => {
         </div>
       </QueuePageShell>
 
-      {/* Print-only documents (TOR §1.15.5). Always mounted but hidden;
-          `printLab(mode)` sets the root attribute that decides which one
-          @media print reveals, so the sticker button and the round-sheet
-          button never print each other's content. Kept OUTSIDE
-          QueuePageShell so the print stylesheet's "hide everything except
-          the print root" rule has nothing of the app chrome to fight. */}
-      {/* ทะเบียนค่าวิกฤต — opened from the toolbar. Mounted here so the
-          drawer's own AlertDialog stacks above the worklist rather than
-          inside the scrolling content card. */}
-      <LabCriticalLogPanel
-        open={criticalOpen}
-        onClose={() => setCriticalOpen(false)}
-        onOpenResult={(record) => { setCriticalOpen(false); history.push(`/lab/result/${record.rowId}`); }}
+      <LabResultEntryPopup
+        open={!!resultTarget}
+        orderId={resultTarget}
+        onClose={() => setResultTarget(null)}
+      />
+      <LabReportPopup
+        open={!!reportTarget}
+        orderId={reportTarget}
+        onClose={() => setReportTarget(null)}
+      />
+      <ExportFormatPopup
+        open={!!exportReport}
+        report={exportReport}
+        onClose={() => setExportReport(null)}
+        onExported={() => {
+          setExportDone(true);
+          logAudit('นำส่งออกรายงานคิวห้องปฏิบัติการ', `${sorted.length} รายการ${exportFilterSummary ? ` · ${exportFilterSummary}` : ''}`);
+        }}
+      />
+      <SuccessToast
+        open={exportDone}
+        message='นำส่งออกรายงานคิวห้องปฏิบัติการแล้ว — ระบบบันทึก log การส่งออกข้อมูล'
+        onClose={() => setExportDone(false)}
       />
 
+      {/* Print-only sticker sheet (TOR §1.15.5.1). Always mounted but
+          hidden; `printLab('sticker')` sets the root attribute that
+          @media print reveals. Kept OUTSIDE QueuePageShell so the print
+          stylesheet's "hide everything except the print root" rule has
+          nothing of the app chrome to fight. */}
       <div className='mih-lab-print-root'>
         <LabSpecimenLabel rows={printRows} />
-        <LabCollectionReport
-          rows={printRows}
-          filterNote={[
-            activeTab !== 'all' && LAB_STATUS_BY_KEY[activeTab]?.label,
-            location !== 'all' && location,
-            urgency !== 'all' && LAB_URGENCY_BY_KEY[urgency]?.label,
-            group !== 'all' && LAB_GROUPS.find((g) => g.key === group)?.thai,
-          ].filter(Boolean).join(' · ') || null}
-        />
       </div>
     </>
   );
 };
-
-/* One legend entry — glyph + caption, sized to sit quietly under the table. */
-const LegendItem = ({ icon, color, label }) => (
-  <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)', color: 'var(--text-content-tertiary)' }}>
-    <span style={{ color }}><Icon name={icon} size={14} /></span>
-    <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{label}</span>
-  </span>
-);
 
 export default LabQueuePage;

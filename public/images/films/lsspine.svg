@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300" width="240" height="300" role="img" aria-label="L-S SPINE">
+  <defs>
+    <radialGradient id="g" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#3a4550"/><stop offset="100%" stop-color="#0d1216"/>
+    </radialGradient>
+  </defs>
+  <rect width="240" height="300" fill="url(#g)"/>
+  
+  <g fill="#cbd6de" opacity=".7">
+    <rect x="96" y="40" width="52" height="30" rx="7"/><rect x="94" y="82" width="56" height="32" rx="7"/>
+    <rect x="92" y="126" width="60" height="34" rx="7"/><rect x="90" y="172" width="64" height="34" rx="7"/>
+    <rect x="88" y="218" width="68" height="34" rx="7"/>
+  </g>
+  <path d="M120 34 L120 258" stroke="#8fa3b0" stroke-width="2" opacity=".5"/>
+  <text x="12" y="288" fill="#8FA3B0" font-family="monospace" font-size="11">L-S SPINE</text>
+</svg>

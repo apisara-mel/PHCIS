@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
+import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import Badge from '@/components/badge/Badge';
 import Alert from '@/components/alert/Alert';
 import Information from '@/components/information/Information';
@@ -386,7 +387,6 @@ const LabInterfacePage = () => {
         activeKey='lab'
         breadcrumb={breadcrumb}
         title='เชื่อมต่อ LIS และเครื่องตรวจวิเคราะห์'
-        summaryCards={summaryCards}
         summaryFlushUnderSubHeader={false}
         belowSummary={<LabSubNav />}
       >
@@ -431,6 +431,15 @@ const LabInterfacePage = () => {
             onChange={handleTabChange}
             aria-label='ส่วนเชื่อมต่อ LIS'
           />
+
+            {/* Summary counts moved below the tab strip (มติผู้ใช้ 28 ส.ค. 69):
+                they describe the list the current tab is showing, so they now
+                sit with it and scroll away with it instead of riding in the
+                page header. Rendered as bare SummaryCard rows — the
+                SummaryCardsBar chrome would be a second card inside this one. */}
+            <div className='flex w-full flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+              {summaryCards.map((c) => <SummaryCard key={c.key} card={c} />)}
+            </div>
 
           {tab === 'connection' && (
             <>

@@ -4,7 +4,11 @@ import TabUnderline from '@/components/tab/TabUnderline';
 
 /* Cross-links the lab module pages — same pattern as PharmacySubNav.
    Sidebar `lab` stays a flat item pointing at the queue; this row is the
-   page-level TabUnderline nav. Labels match the lab menu list. */
+   page-level TabUnderline nav. Labels match the lab menu list.
+
+   ทะเบียนรายการตรวจ is deliberately absent — it moved to จัดการระบบ
+   (/admin/lab/registry) on 28 ส.ค. 69: master data the admin owns, not a
+   screen the bench switches to mid-shift. */
 
 const LINKS = [
   { key: 'queue',     label: 'คิวห้องปฏิบัติการ',                   path: '/lab/queue'     },
@@ -12,7 +16,6 @@ const LINKS = [
   { key: 'receive',   label: 'สถานีรับสิ่งส่งตรวจ',                  path: '/lab/receive'   },
   { key: 'send-out',  label: 'ส่งตรวจภายนอก (Lab-out)',             path: '/lab/send-out'  },
   { key: 'interface', label: 'เชื่อมต่อ LIS และเครื่องตรวจวิเคราะห์', path: '/lab/interface' },
-  { key: 'setup',     label: 'ทะเบียนรายการตรวจ',                   path: '/lab/setup'     },
 ];
 
 const TABS = LINKS.map(({ key, label }) => ({ key, label }));
@@ -22,7 +25,6 @@ const resolveActiveKey = (pathname) => {
   if (pathname.startsWith('/lab/receive')) return 'receive';
   if (pathname.startsWith('/lab/send-out')) return 'send-out';
   if (pathname.startsWith('/lab/interface')) return 'interface';
-  if (pathname.startsWith('/lab/setup')) return 'setup';
   if (pathname.startsWith('/lab/queue') || pathname === '/lab' || pathname === '/lab/') return 'queue';
   /* Secondary screens (report / history) — keep queue highlighted. */
   if (pathname.startsWith('/lab/')) return 'queue';

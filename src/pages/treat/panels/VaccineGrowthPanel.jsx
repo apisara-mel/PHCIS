@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import Table from '@/components/table/Table';
-import TabPill from '@/components/tab/TabPill';
+import TabPill, { TabBar } from '@/components/tab/TabPill';
 import StatusBadge from '@/components/badge/StatusBadge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import InputField from '@/components/forms/InputField';
@@ -352,7 +352,7 @@ const blankVaccine = () => ({
   epiKey: '', doseNo: 1, injectedOn: '', lot: '', expiry: '', site: '', reaction: '',
 });
 
-const VaccineGrowthPanel = ({ form, patient }) => {
+const VaccineGrowthPanel = ({ form, patient, section = 'all' }) => {
   const access = useTreatmentAccess();
   const hn = patient?.hn || '';
   const gender = patient?.gender || '';
@@ -538,6 +538,12 @@ const VaccineGrowthPanel = ({ form, patient }) => {
 
   return (
     <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+      {/* แท็บ "วัคซีน" กับ "กราฟการเจริญเติบโต" แยกกันแล้ว (มติผู้ใช้ 28 ส.ค. 69)
+          — แผงเดียวกันแต่แสดงคนละส่วนตาม prop `section`
+          `epi` = เฉพาะตารางวัคซีนพื้นฐาน สำหรับป๊อปอัปประวัติที่วางตารางไว้เหนือ
+          ไทม์ไลน์เข็มของตัวเอง จึงไม่ต้องการทะเบียนการฉีดซ้ำอีกชุด */}
+      {section !== 'growth' && (
+      <>
       {/* ── ตาราง EPI ตามช่วงอายุ ─────────────────────────── */}
       <PanelCard
         title='ตารางวัคซีนพื้นฐาน (EPI) ตามช่วงอายุ'
@@ -561,13 +567,13 @@ const VaccineGrowthPanel = ({ form, patient }) => {
             >
               <span style={PANEL_VALUE_STYLE}>{s.vaccine}</span>
               <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                {/* ป้าย "ถึงกำหนด" ถูกเอาออก 28 ส.ค. 69 — เหลือครบแล้ว/ค้างรับ
+                    ส่วนที่ยังไม่ถึงคิวบอกด้วยตัวเลข n/N เข็มพอ */}
                 {s.status === 'complete' ? (
                   <StatusBadge style='success' size='small' icon='check_circle'>ครบแล้ว</StatusBadge>
                 ) : s.status === 'overdue' ? (
                   <StatusBadge style='error' size='small' icon='schedule'>ค้างรับ</StatusBadge>
-                ) : (
-                  <StatusBadge style='warning' size='small' icon='event_upcoming'>ถึงกำหนด</StatusBadge>
-                )}
+                ) : null}
                 <span style={PANEL_LABEL_STYLE}>{s.doneCount}/{s.dose} เข็ม</span>
               </div>
               {s.lastDate ? <span style={PANEL_LABEL_STYLE}>ล่าสุด {s.lastDate}</span> : null}
@@ -576,6 +582,8 @@ const VaccineGrowthPanel = ({ form, patient }) => {
         </div>
       </PanelCard>
 
+      {section !== 'epi' && (
+      <>
       {/* ── ทะเบียนการฉีดรายคน ──────────────────────────── */}
       <PanelCard
         title='ประวัติการได้รับวัคซีน'
@@ -620,7 +628,13 @@ const VaccineGrowthPanel = ({ form, patient }) => {
           </>
         )}
       </PanelCard>
+      </>
+      )}
+      </>
+      )}
 
+      {section !== 'vaccine' && section !== 'epi' && (
+      <>
       {/* ── กราฟการเจริญเติบโต ──────────────────────────── */}
       <PanelCard
         title='กราฟการเจริญเติบโต (0–5 ปี)'
@@ -648,50 +662,22 @@ const VaccineGrowthPanel = ({ form, patient }) => {
           </PanelAlert>
         ) : null}
 
-        {isDemo ? (
-          <PanelAlert tone='info' icon='child_care' title='แสดงกราฟตัวอย่าง (เกณฑ์อ้างอิง)'>
-            {Number.isFinite(ageYears) && ageYears > 18
-              ? `ผู้รับบริการอายุ ${ageYears} ปี — กราฟการเจริญเติบโตใช้กับเด็ก 0–5 ปี ระบบจึงแสดงตัวอย่างจาก ${growthCtx.demoMeta?.label || 'เด็กตัวอย่าง'} (HN ${growthCtx.demoMeta?.hn}) เทียบเกณฑ์กรมอนามัย`
-              : `ยังไม่มีค่าวัดของผู้รับบริการรายนี้ — แสดงตัวอย่างจาก ${growthCtx.demoMeta?.label || 'เด็กตัวอย่าง'} (HN ${growthCtx.demoMeta?.hn})`}
-            {' '}
-            <a
-              href={growthCtx.demoMeta?.referenceUrl || 'https://cf.mahidol.ac.th/factsforlifethai/nutrition/graph05.html'}
-              target='_blank'
-              rel='noopener noreferrer'
-              style={{ color: 'var(--text-brandPrimary-default, #007549)', textDecoration: 'underline' }}
-            >
-              อ่านวิธีแปลผล (Facts for Life)
-            </a>
-          </PanelAlert>
-        ) : (
-          /* §1.4.3.10 — ที่มาของแถบ percentile แบบมีโครงสร้าง (ไม่ hard-code
-             ข้อความ) เพื่อให้ผู้ใช้ตรวจสอบได้ว่าเส้นอ้างอิงมาจากไหนและ
-             ยังขาดอะไรจึงจะเป็นชุดทางการ */
-          <PanelAlert tone='warning' icon='science' title={`แถบ percentile: ${GROWTH_BAND_PROVENANCE.statusLabel}`}>
-            <span style={{ display: 'block' }}>
-              <b>ควรอ้างอิง:</b> {GROWTH_BAND_PROVENANCE.intendedSource}
-            </span>
-            <span style={{ display: 'block' }}>
-              <b>ที่ใช้อยู่จริง:</b> {GROWTH_BAND_PROVENANCE.actualSource}
-            </span>
-            <span style={{ display: 'block' }}>
-              {GROWTH_BAND_PROVENANCE.ageRange} · {GROWTH_BAND_PROVENANCE.percentiles} · {GROWTH_BAND_PROVENANCE.interpolation}
-            </span>
-            <span style={{ display: 'block' }}>
-              <b>ข้อจำกัด:</b> {GROWTH_BAND_PROVENANCE.limitation}
-            </span>
-            <span style={{ display: 'block' }}>
-              ทบทวนล่าสุด {GROWTH_BAND_PROVENANCE.lastReviewedAt} โดย {GROWTH_BAND_PROVENANCE.reviewedBy}
-            </span>
-          </PanelAlert>
-        )}
+        {/* แถบอธิบายที่มาของแถบ percentile และแถบกราฟตัวอย่าง ถูกเอาออก 28 ส.ค. 69 */}
 
-        <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+
+        {/* TabPill ต้องอยู่ใน TabBar ถึงจะเป็นแคปซูลเต็มรูปพร้อมตัวบอกตำแหน่ง
+            เดิมวางลอยใน div ธรรมดา ตัวที่ไม่ถูกเลือกจึงเป็นข้อความเปล่า ๆ
+            (มติผู้ใช้ 28 ส.ค. 69) */}
+        {/* กว้างเท่าตัวอักษร ไม่ยืดเต็มแถว — ห่อด้วย flex row ให้ TabBar เป็น
+            flex item ที่ขนาดตามเนื้อหา (มติผู้ใช้ 28 ส.ค. 69) */}
+        <div className='flex w-full shrink-0'>
+        <TabBar aria-label='หน่วยวัดของกราฟการเจริญเติบโต'>
           {[...GROWTH_METRICS, { key: 'bmi', label: 'ดัชนีมวลกาย (BMI)', unit: 'kg/m²' }].map((m) => (
             <TabPill key={m.key} selected={metric === m.key} onClick={() => setMetric(m.key)}>
               {m.label}
             </TabPill>
           ))}
+        </TabBar>
         </div>
 
         {!showGrowthChart ? (
@@ -708,11 +694,6 @@ const VaccineGrowthPanel = ({ form, patient }) => {
               />
         ) : (
           <>
-            {bmiBandsMissing ? (
-              <PanelAlert tone='info' icon='info' title='แท็บ BMI ยังไม่มีแถบเปอร์เซ็นไทล์'>
-                ระบบยังไม่มีชุดข้อมูล BMI-for-age (kg/m² ตามอายุ) จึงแสดงเป็นเส้นแนวโน้มอย่างเดียว
-              </PanelAlert>
-            ) : null}
             {growthPoints.filter((p) => Number.isFinite(p.value)).length === 1 ? (
               <PanelAlert tone='info' icon='scatter_plot' title='มีค่าที่วัดเพียงจุดเดียว'>
                 ระบบจะพล็อตจุดกากบาทบนแถบสีให้ แต่ยังลากเส้นแนวโน้มไม่ได้จนกว่าจะมีการวัดครั้งที่ 2
@@ -753,6 +734,8 @@ const VaccineGrowthPanel = ({ form, patient }) => {
           </>
         )}
       </PanelCard>
+      </>
+      )}
 
       {/* ── ฟอร์มบันทึก/แก้ไขเข็ม ───────────────────────── */}
       <AlertDialog

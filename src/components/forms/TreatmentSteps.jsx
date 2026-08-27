@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { getCarriedScreening } from '@/data/screeningHandoff';
 import {
@@ -55,7 +55,13 @@ import ExamNotesPanel from '@/components/examination/ExamNotesPanel';
 import LabRadiologyResultsPanel from '@/pages/treat/panels/LabRadiologyResultsPanel';
 import VaccineGrowthPanel from '@/pages/treat/panels/VaccineGrowthPanel';
 import ReferralHistoryPanel from '@/pages/treat/panels/ReferralHistoryPanel';
-import VisitJourneyPanel, { VisitJourneyStagePanel } from '@/pages/treat/panels/VisitJourneyPanel';
+import { VisitJourneyStagePanel } from '@/pages/treat/panels/VisitJourneyPanel';
+import { vaccinesForPatient } from '@/data/treatmentVaccines';
+import { referralHistoryForPatient } from '@/data/treatmentRefer';
+import { consultsForPatient, clinicMeta, consultStatusMeta } from '@/data/treatmentConsult';
+import {
+  imagingHistoryForPatient, FILM_ASSETS, RESULT_CLASS_META,
+} from '@/data/treatmentImagingHistory';
 import VisitAttachmentsPanel from '@/pages/treat/panels/VisitAttachmentsPanel';
 import ProblemListPanel from '@/pages/treat/panels/ProblemListPanel';
 import DiagnosisCodingPanel from '@/pages/treat/panels/DiagnosisCodingPanel';
@@ -176,8 +182,10 @@ import DoctorProfileAvatar, { DOCTOR_PROFILE_AVATAR_SRC } from '@/components/lay
    via `MedicalHistoryReadOnlyLayout`.
    ───────────────────────────────────────────────────────────── */
 
+/* แท็บ "ภาพรวมการรักษา (ลงทะเบียน → ชำระเงิน)" ถูกเอาออก 28 ส.ค. 69 —
+   ไฟล์ VisitJourneyPanel.jsx ยังอยู่เพราะ `VisitJourneyStagePanel` ในไฟล์
+   เดียวกันยังถูกใช้โดยแท็บผลแล็บ / ตรวจร่างกาย / วินิจฉัย */
 const HISTORY_TABS = [
-  'ภาพรวมการรักษา (ลงทะเบียน → ชำระเงิน)',
   'ผลการคัดกรองและซักประวัติ',
   'ผลการตรวจแล็บ',
   'ผลการ X-ray / RIS',
@@ -185,14 +193,16 @@ const HISTORY_TABS = [
   'ผลการวินิจฉัย',
   /* EMR §1.4 — แท็บที่เพิ่มในเวฟ TOR §1.4. แต่ละแท็บมี panel เป็นไฟล์ของ
      ตัวเองใน src/pages/treat/panels/ เพื่อไม่ให้ไฟล์นี้บวมต่อ */
-  'ผลตรวจแล็บและรังสีวิทยา (เปรียบเทียบ)',
-  'วัคซีนและกราฟการเจริญเติบโต',
+  'ผลตรวจแล็บและรังสีวิทยา',
+  'วัคซีน',
+  'กราฟการเจริญเติบโต',
   /* TOR §1.4.3.4 — แพทย์ต้องเห็นประวัติการส่งต่อของผู้ป่วยได้จากในหน้า
      บันทึกการรักษาโดยตรง ไม่ต้องข้ามไป /treat/refer */
+  'ประวัติการจ่ายยา',
+  'ประวัติการส่งปรึกษา',
   'ประวัติการส่งต่อ',
 ];
 
-const HISTORY_TAB_JOURNEY = 'ภาพรวมการรักษา (ลงทะเบียน → ชำระเงิน)';
 const HISTORY_TAB_SCREENING = 'ผลการคัดกรองและซักประวัติ';
 const HISTORY_TAB_LAB = 'ผลการตรวจแล็บ';
 const HISTORY_TAB_EXAM = 'ผลการตรวจร่างกาย';
@@ -204,10 +214,388 @@ const HISTORY_TAB_DX = 'ผลการวินิจฉัย';
    capsules still all show the same summary; that predates the RIS module. */
 const HISTORY_TAB_XRAY = 'ผลการ X-ray / RIS';
 
+/* แท็บที่อ่านข้อมูลของ "การรับบริการครั้งเดียว" — ต้องมีตัวเลือกวันที่กำกับ
+   เมื่อรางวันที่ถูกซ่อนในโหมดดูตามรายการตรวจ */
+const DATE_SCOPED_HISTORY_TABS = new Set([
+  HISTORY_TAB_SCREENING,
+  HISTORY_TAB_LAB,
+  HISTORY_TAB_EXAM,
+  HISTORY_TAB_DX,
+]);
+
+/* แต่ละหมวดอ่านคนละช่องของบันทึกการรับบริการ จึงประกาศไว้ที่เดียว —
+   ช่องที่ครั้งนั้นไม่มีค่าจะถูกตัดออก ไม่แสดงเป็นขีดกลางเรียงกันเป็นพืด */
+const TIMELINE_FIELDS_BY_TAB = {
+  [HISTORY_TAB_SCREENING]: (v) => [
+    ['อาการสำคัญ (CC)', v.cc],
+    ['ระยะเวลาที่มีอาการ', v.duration],
+    ['ระดับความเจ็บปวด', v.painLabel],
+    ['ความเร่งด่วน (Triage)', v.triage],
+    ['อุณหภูมิ', v.temp],
+    ['ความดันโลหิต', v.bp],
+    ['ชีพจร', v.pulse],
+    ['น้ำหนัก', v.weightText],
+    ['ห้องตรวจ', v.room],
+    ['สิทธิการรักษา', v.rights],
+  ],
+  [HISTORY_TAB_LAB]: (v) => [
+    ['ผลตรวจทางห้องปฏิบัติการ', v.labs],
+    ['ผลตรวจทางรังสีวิทยา', v.imaging],
+    ['การวินิจฉัย', v.dx],
+    ['การรักษา/ยาที่สั่ง', v.rx],
+    ['แพทย์ผู้สั่งตรวจ', v.doctor],
+    ['แผนก/คลินิก', v.dept],
+    ['การนัดติดตาม', v.followUp],
+  ],
+  [HISTORY_TAB_EXAM]: (v) => [
+    ['อาการสำคัญ (CC)', v.cc],
+    ['อุณหภูมิ', v.temp],
+    ['ความดันโลหิต', v.bp],
+    ['ชีพจร', v.pulse],
+    ['น้ำหนัก', v.weightText],
+    ['แผนก/คลินิก', v.dept],
+    ['แพทย์ผู้ตรวจ', v.doctor],
+    ['ห้องตรวจ', v.room],
+    ['บันทึกเพิ่มเติม', v.note],
+  ],
+  [HISTORY_TAB_DX]: (v) => [
+    ['การวินิจฉัย', v.dx],
+    ['การรักษา/ยาที่สั่ง', v.rx],
+    ['อาการสำคัญ (CC)', v.cc],
+    ['ระยะเวลาที่มีอาการ', v.duration],
+    ['แพทย์ผู้ตรวจ', v.doctor],
+    ['แผนก/คลินิก', v.dept],
+    ['การนัดติดตาม', v.followUp],
+    ['บันทึกเพิ่มเติม', v.note],
+  ],
+};
+
+const TimelineField = ({ label, value }) => (
+  <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+    <span style={{
+      color: 'var(--text-content-tertiary)',
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-xs)',
+      lineHeight: 1.5,
+    }}>{label}</span>
+    <span style={{
+      color: 'var(--text-content-default)',
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-sm)',
+      lineHeight: 1.5,
+    }}>{value}</span>
+  </div>
+);
+
+const TIMELINE_RAIL_X = 7;   /* กึ่งกลางจุด 14px */
+const TIMELINE_INDENT = 32;  /* ระยะจากรางถึงเนื้อหา */
+
+/* หนึ่งครั้งที่มารับบริการ = หนึ่งหมุดบนราง — จุด + เส้นต่อเนื่อง + การ์ดเนื้อหา */
+const VisitTimelineEntry = ({ entry, isLast }) => (
+  <li className='relative w-full min-w-0' style={{ paddingLeft: TIMELINE_INDENT }}>
+    {/* เส้นรางต่อลงไปหาหมุดถัดไป — หมุดสุดท้ายไม่มีเส้นห้อย */}
+    {!isLast && (
+      <span
+        aria-hidden
+        style={{
+          position: 'absolute', left: TIMELINE_RAIL_X - 1, top: 18, bottom: -18, width: 2,
+          background: 'var(--border-brandPrimary-quaternary, #E2F3EB)',
+        }}
+      />
+    )}
+    <span
+      aria-hidden
+      style={{
+        position: 'absolute', left: 0, top: 4, width: 14, height: 14,
+        borderRadius: '50%',
+        background: 'var(--surface-card-default, #FFFFFF)',
+        border: 'var(--dim-stroke-200, 2px) solid var(--border-brandPrimary-secondary, #08A768)',
+      }}
+    />
+
+    <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+      <div className='flex flex-wrap items-baseline' style={{ gap: 'var(--dim-space-200)' }}>
+        <span style={{
+          color: 'var(--text-content-default)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+          fontWeight: 'var(--type-weight-medium)',
+          lineHeight: 1.5,
+        }}>{entry.date}</span>
+        {entry.subtitle && (
+          <span style={{
+            color: 'var(--text-content-tertiary)',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-xs)',
+            lineHeight: 1.5,
+          }}>{entry.subtitle}</span>
+        )}
+      </div>
+
+      {entry.films?.length ? (
+        <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+          {entry.films.map((film, i) => (
+            <figure
+              key={`${film.label}-${i}`}
+              className='flex flex-col'
+              style={{ gap: 'var(--dim-space-150)', margin: 0 }}
+            >
+              <img
+                src={film.src}
+                alt={film.label}
+                loading='lazy'
+                style={{
+                  width: 132, height: 165, objectFit: 'cover',
+                  borderRadius: 'var(--dim-radius-300)',
+                  border: 'var(--dim-stroke-100) solid var(--border-neutral-tertiary)',
+                  background: 'var(--surface-neutral-secondary, #1B2227)',
+                }}
+              />
+              <figcaption style={{
+                color: 'var(--text-content-tertiary)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs)',
+              }}>{film.label}</figcaption>
+            </figure>
+          ))}
+        </div>
+      ) : null}
+
+      {entry.fields.length === 0 ? (
+        <span style={{
+          color: 'var(--text-content-tertiary)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+        }}>ไม่มีข้อมูลหมวดนี้ในครั้งนั้น</span>
+      ) : (
+        <div
+          className='grid w-full'
+          style={{
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: 'var(--dim-space-300)',
+            padding: 'var(--dim-space-400)',
+            borderRadius: 'var(--dim-radius-400)',
+            border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+            background: 'var(--surface-neutral-quaternary)',
+          }}
+        >
+          {entry.fields.map(([label, value]) => (
+            <TimelineField key={label} label={label} value={value} />
+          ))}
+        </div>
+      )}
+    </div>
+  </li>
+);
+
+/* ── Timeline ของโหมด "ดูตามรายการตรวจ" ─────────────────────────────────
+   หมวดที่ผูกกับการรับบริการครั้งเดียวไม่ได้อ่านทีละใบ แต่ไล่ทุกครั้งที่มา
+   รับบริการเป็นไทม์ไลน์แนวตั้ง — จุดบนรางเดียวกันทั้งชุด ใหม่สุดอยู่บน
+   ตัวหนังสือขนาด xs (ป้ายกำกับ) / sm (ค่า) ล้วน เพราะเป็นรายการที่ต้องกวาดตา
+   อ่านย้อนหลัง ไม่ใช่หน้าอ่านทีละใบ · แต่ละหมวดอ่านคนละช่องของบันทึก จึง
+   ประกาศ TIMELINE_FIELDS_BY_TAB ไว้ที่เดียว (มติผู้ใช้ 28 ส.ค. 69) */
+const RecordTimeline = ({ entries, emptyText }) => {
+  if (!entries.length) return <ValueText>{emptyText}</ValueText>;
+  return (
+    <ol className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-600)' }}>
+      {entries.map((entry, i) => (
+        <VisitTimelineEntry
+          key={entry.key}
+          entry={entry}
+          isLast={i === entries.length - 1}
+        />
+      ))}
+    </ol>
+  );
+};
+
+/* ทะเบียนวัคซีนอ่านเป็นไทม์ไลน์เข็มต่อเข็ม — ดูอย่างเดียว ไม่มีปุ่มบันทึก/ยกเลิก
+   เพราะป๊อปอัปประวัติเป็นหน้าอ่าน การบันทึกเข็มอยู่ที่คลินิกสร้างเสริมภูมิคุ้มกันโรค
+   (มติผู้ใช้ 28 ส.ค. 69) */
+const VaccineDoseTimeline = ({ patient, form }) => {
+  const doses = useMemo(() => vaccinesForPatient(patient?.hn || ''), [patient?.hn]);
+  const entries = useMemo(() => doses.map((v, i) => ({
+    key: v.id || `dose-${i}`,
+    date: v.injectedOn,
+    subtitle: v.unit,
+    fields: [
+      ['วัคซีน', v.vaccine],
+      ['เข็มที่', v.doseNo ? `เข็มที่ ${v.doseNo}` : ''],
+      ['Lot', v.lot],
+      ['วันหมดอายุ', v.expiry],
+      ['ตำแหน่ง/วิธีให้', v.site],
+      ['ผู้ฉีด', v.injectedBy],
+      ['ปฏิกิริยาหลังฉีด', v.reaction],
+      ['สถานะ', v.cancelledAt ? `ยกเลิก — ${v.cancelReason || 'ไม่ระบุเหตุผล'}` : ''],
+    ].filter(([, value]) => value),
+  })), [doses]);
+  return (
+    <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-500)' }}>
+      {/* ตารางวัคซีนพื้นฐาน (EPI) ตามช่วงอายุ อยู่เหนือไทม์ไลน์ — บอกว่า "ยังขาด
+          เข็มไหน" ซึ่งไทม์ไลน์ของเข็มที่ฉีดไปแล้วตอบไม่ได้ (มติผู้ใช้ 28 ส.ค. 69) */}
+      <VaccineGrowthPanel patient={patient} form={form || {}} section='epi' />
+      <RecordTimeline entries={entries} emptyText='ยังไม่มีประวัติการได้รับวัคซีนในระบบ' />
+    </div>
+  );
+};
+
+/* ประวัติการส่งต่ออ่านเป็นไทม์ไลน์เช่นกัน (ToR §1.4.3.4) — ดูอย่างเดียว
+   การออกใบส่งต่ออยู่ที่ /treat/refer */
+const REFER_DIRECTION_LABEL = { out: 'ส่งต่อออก', in: 'รับเข้า', internal: 'ส่งต่อภายในหน่วยงาน' };
+
+const ReferralTimeline = ({ patient }) => {
+  const rows = useMemo(
+    () => referralHistoryForPatient(patient?.hn || ''),
+    [patient?.hn],
+  );
+  const entries = useMemo(() => rows.map((r, i) => ({
+    key: r.id || `refer-${i}`,
+    date: r.sentDate || r.lastVisitDate || '—',
+    subtitle: REFER_DIRECTION_LABEL[r.direction] || '',
+    fields: [
+      ['เลขที่ใบส่งต่อ', r.referNo],
+      ['ปลายทาง', r.targetLabel],
+      ['อาการ', r.symptom],
+      ['ผลตรวจที่ส่งไปด้วย', r.labResult],
+      ['การรักษาที่ให้ก่อนส่ง', r.treatmentGiven],
+      ['เหตุผลที่ส่งต่อ', r.requirement],
+      ['ผู้ส่ง', r.sender],
+      ['ใช้ได้ถึง', r.validUntil],
+      ['สถานะ', r.status === 'cancelled' ? 'ยกเลิกแล้ว' : (r.expired ? 'หมดอายุแล้ว' : '')],
+    ].filter(([, value]) => value),
+  })), [rows]);
+  return <RecordTimeline entries={entries} emptyText='ผู้รับบริการรายนี้ยังไม่เคยถูกส่งต่อ' />;
+};
+
+/* ผลตรวจทางรังสีวิทยาอ่านเป็นไทม์ไลน์พร้อมภาพฟิล์ม — ภาพเป็นภาพแทนแบบ stylized
+   ใน public/images/films/ ไม่ใช่ภาพรังสีจริง (ต้นแบบยังไม่มี PACS/DICOMweb) */
+const ImagingTimeline = ({ patient }) => {
+  const studies = useMemo(
+    () => imagingHistoryForPatient(patient?.hn || ''),
+    [patient?.hn],
+  );
+  const entries = useMemo(() => studies.map((st, i) => ({
+    key: st.id || `img-${i}`,
+    date: st.reportedOn,
+    subtitle: [st.center, st.reportedAt ? `อ่านผล ${st.reportedAt}` : ''].filter(Boolean).join(' · '),
+    films: (st.films || []).map((f) => ({ label: f.label, src: FILM_ASSETS[f.key] })),
+    fields: [
+      ['รายการตรวจ', st.bodyPart],
+      ['วิธีตรวจ', st.modality],
+      ['เลข XN', st.xn],
+      ['ผลการอ่าน', RESULT_CLASS_META[st.resultClass]?.label],
+      ['แพทย์ผู้สั่งตรวจ', st.orderedBy],
+      ['รังสีแพทย์ผู้อ่านผล', st.radiologist],
+      ['สิ่งที่ตรวจพบ (Findings)', st.findings],
+      ['สรุปผล (Impression)', st.impression],
+    ].filter(([, value]) => value),
+  })), [studies]);
+  return (
+    <RecordTimeline
+      entries={entries}
+      emptyText='ยังไม่มีผลตรวจทางรังสีวิทยาของผู้รับบริการรายนี้'
+    />
+  );
+};
+
+/* ประวัติการจ่ายยา — ไล่ตามครั้งที่มารับบริการ แต่ละครั้งกางรายการยาที่จ่าย
+   พร้อมวิธีใช้และจำนวน (มติผู้ใช้ 28 ส.ค. 69) */
+const MedicationTimeline = ({ visits }) => {
+  const entries = useMemo(
+    () => (visits || [])
+      .filter((v) => (v.meds || []).length > 0)
+      .map((v, i) => ({
+        key: `${v.date}-med-${i}`,
+        date: v.date,
+        subtitle: [v.center, v.doctor ? `สั่งโดย ${v.doctor}` : ''].filter(Boolean).join(' · '),
+        fields: [
+          ...(v.meds || []).flatMap((m, mi) => [
+            [`ยารายการที่ ${mi + 1}`, m.name],
+            [`วิธีใช้ (${m.name})`, m.sig],
+            [`จำนวนที่จ่าย (${m.name})`, m.qty],
+          ]),
+          ['การวินิจฉัยของครั้งนั้น', v.dx],
+        ].filter(([, value]) => value),
+      })),
+    [visits],
+  );
+  return (
+    <RecordTimeline
+      entries={entries}
+      emptyText='ยังไม่มีประวัติการจ่ายยาของผู้รับบริการรายนี้'
+    />
+  );
+};
+
+/* ประวัติการส่งปรึกษาแพทย์เฉพาะทาง (CPOE §1.5.6) — ดูอย่างเดียว
+   การเปิดใบปรึกษาใหม่อยู่ที่ทะเบียนการส่งปรึกษาแพทย์ */
+const ConsultTimeline = ({ patient }) => {
+  const rows = useMemo(() => consultsForPatient(patient?.hn || ''), [patient?.hn]);
+  const entries = useMemo(() => rows.map((c, i) => ({
+    key: c.id || `consult-${i}`,
+    date: c.requestedAt || c.createdAt || '—',
+    subtitle: [clinicMeta(c.toClinic)?.label, consultStatusMeta(c.status)?.label]
+      .filter(Boolean).join(' · '),
+    fields: [
+      ['เลขที่ใบปรึกษา', c.consultNo],
+      ['คลินิกที่ส่งปรึกษา', clinicMeta(c.toClinic)?.label],
+      ['การวินิจฉัยเบื้องต้น', c.provisionalDx],
+      ['ประเด็นที่ปรึกษา', c.question],
+      ['ข้อมูลประกอบ', c.context],
+      ['สิ่งที่ขอให้ช่วย', c.request],
+      ['ผู้ส่งปรึกษา', c.requestedBy],
+      ['ผู้ตอบกลับ', c.repliedBy],
+      ['ความเห็นที่ตอบกลับ', c.replyBody],
+      ['คำแนะนำการรักษา', c.replyAdvice],
+    ].filter(([, value]) => value),
+  })), [rows]);
+  return (
+    <RecordTimeline
+      entries={entries}
+      emptyText='ยังไม่มีประวัติการส่งปรึกษาของผู้รับบริการรายนี้'
+    />
+  );
+};
+
+const VisitFieldTimeline = ({ visits, tabLabel }) => {
+  const fieldsOf = TIMELINE_FIELDS_BY_TAB[tabLabel];
+  const entries = useMemo(
+    () => (visits || []).map((v, i) => ({
+      key: `${v.date}-${i}`,
+      date: v.date,
+      subtitle: v.center,
+      fields: (fieldsOf ? fieldsOf(v) : []).filter(([, value]) => value),
+    })),
+    [visits, fieldsOf],
+  );
+
+  return (
+    <RecordTimeline
+      entries={entries}
+      emptyText='ยังไม่มีประวัติการรับบริการของผู้รับบริการรายนี้'
+    />
+  );
+};
+
 /* EMR §1.4 tab → panel component (ไฟล์แยกใน src/pages/treat/panels/) */
-const HISTORY_TAB_LABRAD  = 'ผลตรวจแล็บและรังสีวิทยา (เปรียบเทียบ)';
-const HISTORY_TAB_VACCINE = 'วัคซีนและกราฟการเจริญเติบโต';
+const HISTORY_TAB_LABRAD  = 'ผลตรวจแล็บและรังสีวิทยา';
+/* แท็บนี้อ่านเป็นไทม์ไลน์ด้วยเหมือนหมวดอื่น (มติผู้ใช้ 28 ส.ค. 69) — แผงเดิม
+   ยังใช้อยู่ในโหมด "ดูตามวันที่รับบริการ" */
+DATE_SCOPED_HISTORY_TABS.add(HISTORY_TAB_LABRAD);
+TIMELINE_FIELDS_BY_TAB[HISTORY_TAB_LABRAD] = (v) => [
+  ['ผลตรวจทางห้องปฏิบัติการ', v.labs],
+  ['ผลตรวจทางรังสีวิทยา', v.imaging],
+  ['การวินิจฉัย', v.dx],
+  ['การรักษา/ยาที่สั่ง', v.rx],
+  ['แพทย์ผู้สั่งตรวจ', v.doctor],
+  ['แผนก/คลินิก', v.dept],
+  ['การนัดติดตาม', v.followUp],
+];
+const HISTORY_TAB_VACCINE = 'วัคซีน';
+const HISTORY_TAB_GROWTH  = 'กราฟการเจริญเติบโต';
 const HISTORY_TAB_REFER   = 'ประวัติการส่งต่อ';
+const HISTORY_TAB_PHARMACY = 'ประวัติการจ่ายยา';
+const HISTORY_TAB_CONSULT  = 'ประวัติการส่งปรึกษา';
 
 /* Step 5 "สั่งการรักษา" อยู่ที่ index 4 ใน STEP_RENDERERS — ใช้โดย CTA
    ของ empty state ในแท็บผลแล็บ ("ไปสั่งตรวจ") */
@@ -429,8 +817,8 @@ const HistoryInnerCard = ({ title, children }) => (
   </div>
 );
 
-const AllergyCard = ({ index, entry }) => (
-  <HistoryInnerCard title={`ยาตัวที่ ${index + 1}`}>
+const AllergyCard = ({ index, entry, recordLabel = 'ยาตัวที่' }) => (
+  <HistoryInnerCard title={`${recordLabel} ${index + 1}`}>
     <HistoryFieldRow>
       <HistoryInfoText label='ชื่อยา/ปัญหาที่แพ้' value={entry.name} />
       <HistoryInfoBadge
@@ -451,8 +839,8 @@ const AllergyCard = ({ index, entry }) => (
   </HistoryInnerCard>
 );
 
-const ChronicDiseaseCard = ({ index, entry }) => (
-  <HistoryInnerCard title={`โรคประจำตัวที่ ${index + 1}`}>
+const ChronicDiseaseCard = ({ index, entry, recordLabel = 'โรคประจำตัวที่' }) => (
+  <HistoryInnerCard title={`${recordLabel} ${index + 1}`}>
     <HistoryFieldRow>
       <HistoryInfoText label='โรคประจำตัว' value={entry.name} />
       <HistoryInfoBadge
@@ -482,6 +870,38 @@ const ChronicDiseaseCard = ({ index, entry }) => (
    ยืนยันผลแล้ว is the clinically citable state, so an unverified report is
    labelled as such rather than silently mixed in. Newest first — the most
    recent film is what the doctor is comparing against. */
+/* เลือกภาพฟิล์มแทนจากบริเวณที่ตรวจ — ต้นแบบยังไม่มี PACS/DICOMweb จริง จึงใช้
+   ภาพแทนแบบ stylized ใน public/images/films/ (ดู treatmentImagingHistory.js) */
+const filmForRegion = (text) => {
+  const t = String(text || '');
+  if (/เข่า|knee/i.test(t)) return FILM_ASSETS.knee;
+  if (/ท้อง|KUB|abdomen/i.test(t)) return FILM_ASSETS.kub;
+  if (/สันหลัง|spine|เอว|L-S/i.test(t)) return FILM_ASSETS.lsspine;
+  return FILM_ASSETS.cxr;
+};
+
+const FilmThumb = ({ src, label }) => (
+  <figure className='flex flex-col shrink-0' style={{ gap: 'var(--dim-space-150)', margin: 0 }}>
+    <img
+      src={src}
+      alt={label}
+      loading='lazy'
+      style={{
+        width: 108, height: 135, objectFit: 'cover',
+        borderRadius: 'var(--dim-radius-300)',
+        border: 'var(--dim-stroke-100) solid var(--border-neutral-tertiary)',
+        background: 'var(--surface-neutral-secondary, #1B2227)',
+      }}
+    />
+    <figcaption style={{
+      color: 'var(--text-content-tertiary)',
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-xs)',
+      maxWidth: 108,
+    }}>{label}</figcaption>
+  </figure>
+);
+
 const XrayHistoryTabPanel = ({ patient }) => {
   const rows = useMemo(() => {
     const hn = patient?.hn;
@@ -513,9 +933,9 @@ const XrayHistoryTabPanel = ({ patient }) => {
         {rows.map((r) => (
           <div
             key={r.id}
-            className='flex flex-col w-full'
+            className='flex w-full'
             style={{
-              gap: 'var(--dim-space-200)',
+              gap: 'var(--dim-space-400)',
               paddingTop: 'var(--dim-space-400)',
               paddingRight: 'var(--dim-space-400)',
               paddingBottom: 'var(--dim-space-400)',
@@ -525,6 +945,11 @@ const XrayHistoryTabPanel = ({ patient }) => {
               background: 'var(--surface-card-100)',
             }}
           >
+            <FilmThumb
+              src={filmForRegion(`${r.regionLabel} ${r.examLabel}`)}
+              label={r.regionLabel || r.examLabel}
+            />
+            <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-200)', flex: 1 }}>
             <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-200)' }}>
               <span style={{
                 color: 'var(--text-content-default)',
@@ -559,6 +984,7 @@ const XrayHistoryTabPanel = ({ patient }) => {
             {r.impression ? (
               <HistoryInfoText label='Impression' value={r.impression} />
             ) : null}
+            </div>
           </div>
         ))}
       </div>
@@ -571,8 +997,83 @@ const XrayHistoryTabPanel = ({ patient }) => {
 /* `form` / `setForm` / `onStepChange` เป็น optional เพื่อความเข้ากันได้ย้อนหลัง:
    Step 6 และ ANC เรียก layout นี้โดยไม่ส่ง form มา — แท็บ EMR §1.4 ที่ต้องใช้
    form จะ fallback เป็น object ว่างแทนที่จะพัง */
+/* สองแกนของประวัติการรักษา — เดิมมีทั้งคู่บนจอพร้อมกัน (รายวันที่อยู่ราง
+   ซ้าย · รายการตรวจเป็นชิปด้านบน) แต่ไม่มีอะไรบอกว่าแกนไหนเป็นตัวนำ
+   ป๊อปอัปจึงมีตัวสลับให้เลือก โดยตั้งต้นที่ "ดูตามรายการตรวจ" ซึ่งเป็นวิธีที่
+   หมอเปิดดูจริง (อยากรู้ว่าผลแล็บ/ภาพรังสีของคนนี้เป็นอย่างไร มากกว่าอยากรู้
+   ว่าวันที่ 8 ม.ค. เกิดอะไรขึ้น) — มติผู้ใช้ 28 ส.ค. 69 */
+/* แถวชิปหมวดยาวเกินความกว้างเสมอ เดิมตัดขึ้นบรรทัดใหม่ทำให้กินความสูงสองแถว
+   ตอนนี้เลื่อนแนวนอนได้ พร้อมปุ่มลูกศรสองข้างที่โผล่เฉพาะตอนยังเลื่อนต่อได้
+   (มติผู้ใช้ 28 ส.ค. 69) */
+const ChipScroller = ({ children }) => {
+  const ref = useRef(null);
+  const [edge, setEdge] = useState({ left: false, right: false });
+
+  const sync = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    setEdge({ left: el.scrollLeft > 2, right: el.scrollLeft < max - 2 });
+  }, []);
+
+  useEffect(() => {
+    sync();
+    const el = ref.current;
+    if (!el) return undefined;
+    el.addEventListener('scroll', sync, { passive: true });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(sync) : null;
+    ro?.observe(el);
+    return () => { el.removeEventListener('scroll', sync); ro?.disconnect(); };
+  }, [sync, children]);
+
+  const nudge = (dir) => () => {
+    const el = ref.current;
+    if (el) el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.7), behavior: 'smooth' });
+  };
+
+  const arrow = (side) => (
+    <button
+      type='button'
+      onClick={nudge(side === 'left' ? -1 : 1)}
+      aria-label={side === 'left' ? 'เลื่อนหมวดไปทางซ้าย' : 'เลื่อนหมวดไปทางขวา'}
+      className='shrink-0 inline-flex items-center justify-center'
+      style={{
+        width: 28, height: 28,
+        borderRadius: 'var(--dim-radius-full, 999px)',
+        border: 'var(--dim-stroke-100) solid var(--border-neutralbutton-tertiary)',
+        background: 'var(--surface-neutralbutton-default, #FFFFFF)',
+        color: 'var(--text-neutralbutton-default)',
+        cursor: 'pointer',
+      }}
+    >
+      <Sym name={side === 'left' ? 'chevron_left' : 'chevron_right'} size={18} />
+    </button>
+  );
+
+  return (
+    <div className='flex items-center w-full shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
+      {edge.left ? arrow('left') : null}
+      <div
+        ref={ref}
+        className='flex flex-nowrap items-center overflow-x-auto'
+        style={{ gap: 'var(--dim-space-200)', flex: 1, scrollbarWidth: 'none' }}
+      >
+        {children}
+      </div>
+      {edge.right ? arrow('right') : null}
+    </div>
+  );
+};
+
+const HISTORY_VIEW_MODES = [
+  { key: 'order', label: 'ดูตามรายการตรวจ' },
+  { key: 'date', label: 'ดูตามวันที่รับบริการ' },
+];
+
 export const MedicalHistoryReadOnlyLayout = ({
   patient, hideSectionTitle = false, independentScroll = false,
+  /** แสดงตัวสลับแกน (ป๊อปอัปประวัติการรักษาใช้ · ขั้นในหน้าคลินิกไม่ใช้) */
+  viewModes = false,
   form = null, setForm = null, onStepChange = null,
   /* CPOE §1.5 — /treat/record มี 8 ขั้นแล้ว (แทรก SOAP Note) ทำให้ index
      ของ "สั่งการรักษา" เลื่อนจาก 4 → 5. ผู้เรียกที่ส่ง `stepIndexes` มา
@@ -600,6 +1101,12 @@ export const MedicalHistoryReadOnlyLayout = ({
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activeTab, setActiveTab] = useState(0);
+  const [viewMode, setViewMode] = useState('order');
+  /* โหมด "ตามรายการตรวจ" ซ่อนรางวันที่ — แผงที่ผูกกับครั้งเดียว (ภาพรวมการรักษา ·
+     ผลแล็บ · ตรวจร่างกาย · วินิจฉัย · สรุปคัดกรอง) ได้ตัวเลือกวันที่แบบดรอปดาวน์
+     ไว้ในแผงแทน ส่วนแผงที่รวมข้ามครั้งอยู่แล้ว (X-ray · เปรียบเทียบแล็บ/รังสี ·
+     วัคซีน · ส่งต่อ) ไม่ต้องเลือกวันที่เลย */
+  const byOrder = viewModes && viewMode === 'order';
   const selected = visits[selectedIndex] ?? visits[0];
   const isCurrentVisit = Boolean(selected?.isCurrent);
 
@@ -615,6 +1122,35 @@ export const MedicalHistoryReadOnlyLayout = ({
   const activeTabLabel = HISTORY_TABS[activeTab];
 
   return (
+    <div
+      className='flex flex-col w-full min-w-0'
+      style={{
+        gap: 'var(--dim-space-400)',
+        ...(independentScroll
+          ? { flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }
+          : null),
+      }}
+    >
+    {/* ตัวสลับแกนอยู่บนสุดของป๊อปอัป เหนือทั้งรางวันที่และแผงขวา กว้างเท่า
+        ตัวอักษรและจัดกึ่งกลาง — มันคุมทั้งจอ ไม่ใช่ของคอลัมน์ใดคอลัมน์หนึ่ง
+        (มติผู้ใช้ 28 ส.ค. 69) */}
+    {viewModes && (
+      <div className='flex w-full justify-center shrink-0'>
+        <TabBar aria-label='มุมมองประวัติการรักษา'>
+          {HISTORY_VIEW_MODES.map((m) => (
+            <TabPill
+              key={m.key}
+              size='small'
+              selected={viewMode === m.key}
+              onClick={() => setViewMode(m.key)}
+            >
+              {m.label}
+            </TabPill>
+          ))}
+        </TabBar>
+      </div>
+    )}
+
     <div
       className='flex w-full min-w-0'
       style={{
@@ -634,19 +1170,21 @@ export const MedicalHistoryReadOnlyLayout = ({
           already has `shrink-0 + flex flex-col`; wrapping it in this
           fixed-width scroll container keeps its width while letting
           the rows scroll within the popup viewport. */}
-      <div
-        style={
-          independentScroll
-            ? { flexShrink: 0, height: '100%', overflowY: 'auto', overflowX: 'hidden' }
-            : undefined
-        }
-      >
-        <ServiceDateList
-          items={dateItems}
-          selectedIndex={selectedIndex}
-          onSelect={setSelectedIndex}
-        />
-      </div>
+      {!byOrder && (
+        <div
+          style={
+            independentScroll
+              ? { flexShrink: 0, height: '100%', overflowY: 'auto', overflowX: 'hidden' }
+              : undefined
+          }
+        >
+          <ServiceDateList
+            items={dateItems}
+            selectedIndex={selectedIndex}
+            onSelect={setSelectedIndex}
+          />
+        </div>
+      )}
 
       <section
         className='flex flex-col flex-1 min-w-0'
@@ -681,31 +1219,37 @@ export const MedicalHistoryReadOnlyLayout = ({
           <SectionTitle icon='description'>ประวัติการรักษา (Medical History)</SectionTitle>
         )}
 
-        <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+        <ChipScroller>
           {HISTORY_TABS.map((label, i) => (
-            <TabCapsule
-              key={label}
-              variant='filter'
-              label={label}
-              selected={i === activeTab}
-              onClick={() => setActiveTab(i)}
-            />
+            <span key={label} className='shrink-0'>
+              <TabCapsule
+                variant='filter'
+                label={label}
+                selected={i === activeTab}
+                onClick={() => setActiveTab(i)}
+              />
+            </span>
           ))}
-        </div>
+        </ChipScroller>
 
-        <div style={{
-          height: 1,
-          background: 'var(--border-neutral-tertiary, var(--border-card-default))',
-        }} />
 
-        {activeTabLabel === HISTORY_TAB_JOURNEY ? (
-          <VisitJourneyPanel
-            patient={patient}
-            visitDate={isCurrentVisit ? 'ครั้งนี้' : selected.date}
-            visitDetail={selected}
-            form={form}
-            isCurrentVisit={isCurrentVisit}
-          />
+
+        {byOrder && activeTabLabel === HISTORY_TAB_PHARMACY ? (
+          <MedicationTimeline visits={visits} />
+        ) : byOrder && activeTabLabel === HISTORY_TAB_CONSULT ? (
+          <ConsultTimeline patient={patient} />
+        ) : byOrder && activeTabLabel === HISTORY_TAB_XRAY ? (
+          <ImagingTimeline patient={patient} />
+        ) : byOrder && activeTabLabel === HISTORY_TAB_VACCINE ? (
+          <VaccineDoseTimeline patient={patient} form={form} />
+        ) : byOrder && activeTabLabel === HISTORY_TAB_REFER ? (
+          <ReferralTimeline patient={patient} />
+        ) : byOrder && DATE_SCOPED_HISTORY_TABS.has(activeTabLabel) ? (
+          <VisitFieldTimeline visits={visits} tabLabel={activeTabLabel} />
+        ) : activeTabLabel === HISTORY_TAB_PHARMACY ? (
+          <MedicationTimeline visits={visits} />
+        ) : activeTabLabel === HISTORY_TAB_CONSULT ? (
+          <ConsultTimeline patient={patient} />
         ) : activeTabLabel === HISTORY_TAB_XRAY ? (
           <XrayHistoryTabPanel patient={patient} />
         ) : activeTabLabel === HISTORY_TAB_LABRAD ? (
@@ -716,7 +1260,9 @@ export const MedicalHistoryReadOnlyLayout = ({
               : undefined}
           />
         ) : activeTabLabel === HISTORY_TAB_VACCINE ? (
-          <VaccineGrowthPanel patient={patient} form={form || {}} />
+          <VaccineGrowthPanel patient={patient} form={form || {}} section='vaccine' />
+        ) : activeTabLabel === HISTORY_TAB_GROWTH ? (
+          <VaccineGrowthPanel patient={patient} form={form || {}} section='growth' />
         ) : activeTabLabel === HISTORY_TAB_REFER ? (
           /* TOR §1.4.3.4 — อ่านจาก store เดียวกับ /treat/refer ไม่มีสำเนาข้อมูล */
           <ReferralHistoryPanel
@@ -757,28 +1303,45 @@ export const MedicalHistoryReadOnlyLayout = ({
           />
         ) : (
         <>
+        {/* สัญญาณชีพเป็นแถวเดียว (`single`) แทนกริด 5×2 ของ `tablet` — ประหยัด
+            ความสูงไปครึ่งหนึ่ง และค่าทั้ง 9 อ่านไล่ไปทางเดียวได้ในสายตาเดียว
+            อาการป่วย + Pain score วางคู่กันเป็นสองคอลัมน์แทนการซ้อนกันเต็มแถว
+            (มติผู้ใช้ 28 ส.ค. 69) */}
         <VitalsSignHorizontalPanel
           key={selected.date}
-          layout='tablet'
+          layout='single'
           measurementRounds={selected.measurementRounds ?? DEFAULT_MEASUREMENT_ROUNDS}
           graphSubtitle={selected.date ? `การวัด — ${selected.date}` : undefined}
         />
 
-        {/* อาการป่วย */}
-        <SummaryPanel title='อาการป่วย'>
-          <div className='flex w-full' style={{ gap: 'var(--dim-space-400)' }}>
-            <HistoryInfoText label='อาการ (Chief Complaint)' value={selected.cc} />
-            <HistoryInfoText label='ระยะเวลาที่มีอาการ (Duration of Illness)' value={selected.duration} />
-          </div>
-        </SummaryPanel>
+        <div
+          className='grid w-full'
+          style={{
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: 'var(--dim-space-400)',
+            alignItems: 'start',
+          }}
+        >
+          <SummaryPanel title='อาการป่วย'>
+            <div className='flex w-full' style={{ gap: 'var(--dim-space-400)' }}>
+              <HistoryInfoText label='อาการ (Chief Complaint)' value={selected.cc} />
+              <HistoryInfoText label='ระยะเวลาที่มีอาการ (Duration of Illness)' value={selected.duration} />
+            </div>
+          </SummaryPanel>
 
-        {/* ระดับความเจ็บปวด (Pain Score) */}
-        <SummaryPanel title='ระดับความเจ็บปวด (Pain Score)'>
-          <PainTile pain={selected.pain} />
-        </SummaryPanel>
+          <SummaryPanel title='ระดับความเจ็บปวด (Pain Score)'>
+            <PainTile pain={selected.pain} />
+          </SummaryPanel>
+        </div>
 
         <SummaryPanel title='ประวัติการแพ้ยา / สารเคมี'>
-          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          <div
+            className='grid w-full'
+            style={{
+              gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+              gap: 'var(--dim-space-300)',
+            }}
+          >
             {selected.allergies.map((entry, i) => (
               <AllergyCard key={`allergy-${i}`} index={i} entry={entry} />
             ))}
@@ -786,7 +1349,13 @@ export const MedicalHistoryReadOnlyLayout = ({
         </SummaryPanel>
 
         <SummaryPanel title='ประวัติโรคประจำตัว (Underlying Disease / Congenital Disease)'>
-          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          <div
+            className='grid w-full'
+            style={{
+              gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+              gap: 'var(--dim-space-300)',
+            }}
+          >
             {selected.chronicDiseases.map((entry, i) => (
               <ChronicDiseaseCard key={`chronic-${i}`} index={i} entry={entry} />
             ))}
@@ -795,6 +1364,7 @@ export const MedicalHistoryReadOnlyLayout = ({
         </>
         )}
       </section>
+    </div>
     </div>
   );
 };
@@ -820,11 +1390,22 @@ export const Step1History = ({ patient, form, setForm, onStepChange, stepIndexes
      • Assessor row (avatar + role + name)
    ───────────────────────────────────────────────────────────── */
 
+/* หัวข้อล้อแท็บของจุดคัดกรองแบบหนึ่งต่อหนึ่ง — ขั้นที่ 3 ของ /opd/screening มี
+   5 หมวด (แพ้ยา · แพ้อาหาร · แพ้สารเคมี · โรคประจำตัว · อื่น ๆ) และขั้นที่ 4 คือ
+   พฤติกรรมสุขภาพ ฝั่งแพทย์เคยยุบสี่หมวดแรกเป็น "การแพ้ยา / สารเคมี" อันเดียว
+   ทำให้หาไม่เจอว่าที่พยาบาลกรอกไว้อยู่หมวดไหน (มติผู้ใช้ 28 ส.ค. 69) */
+const SCREENING_ALLERGY_TABS = [
+  { label: 'แพ้ยา', topic: 'drug', title: 'ประวัติการแพ้ยา', recordLabel: 'ยาตัวที่' },
+  { label: 'แพ้อาหาร', topic: 'food', title: 'ประวัติการแพ้อาหาร', recordLabel: 'อาหารที่' },
+  { label: 'แพ้สารเคมี', topic: 'chemical', title: 'ประวัติการแพ้สารเคมี', recordLabel: 'สารเคมีที่' },
+  { label: 'โรคประจำตัว', topic: 'disease', title: 'ประวัติโรคประจำตัว (Underlying Disease)', recordLabel: 'โรคประจำตัวที่', chronic: true },
+  { label: 'อื่น ๆ', topic: 'other', title: 'ประวัติการแพ้อื่น ๆ', recordLabel: 'รายการที่' },
+];
+
 const SCREENING_TABS = [
   'ผลการคัดกรอง',
-  'การแพ้ยา / สารเคมี',
-  'โรคประจำตัว',
-  'แบบประเมิน',
+  ...SCREENING_ALLERGY_TABS.map((t) => t.label),
+  'พฤติกรรมสุขภาพ',
 ];
 
 const TriageBadge = ({ triage }) => (
@@ -848,22 +1429,50 @@ const TriageBadge = ({ triage }) => (
   </div>
 );
 
-const AllergyHistoryPanel = ({ allergies }) => (
+/* หนึ่งหมวดของประวัติการแพ้/โรคประจำตัว ตามแท็บของจุดคัดกรอง */
+const ScreeningTopicPanel = ({ tab, data }) => {
+  const records = data?.records ?? [];
+  const Card = tab.chronic ? ChronicDiseaseCard : AllergyCard;
+  return (
+    <SummaryPanel title={tab.title}>
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+        {records.length > 0
+          ? records.map((entry, i) => (
+            <Card key={`${tab.topic}-${i}`} index={i} entry={entry} recordLabel={tab.recordLabel} />
+          ))
+          : (
+            <ValueText>
+              {data?.denied
+                ? `พยาบาลระบุว่าผู้รับบริการไม่มี${tab.label === 'โรคประจำตัว' ? 'โรคประจำตัว' : tab.label.replace('แพ้', 'ประวัติการแพ้')}`
+                : `ยังไม่ได้บันทึก${tab.title}`}
+            </ValueText>
+          )}
+      </div>
+    </SummaryPanel>
+  );
+};
+
+const AllergyHistoryPanel = ({ allergies = [], denied = false }) => (
   <SummaryPanel title='ประวัติการแพ้ยา / สารเคมี'>
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      {allergies.map((entry, i) => (
-        <AllergyCard key={`allergy-${i}`} index={i} entry={entry} />
-      ))}
+      {allergies.length > 0
+        ? allergies.map((entry, i) => (
+          <AllergyCard key={`allergy-${i}`} index={i} entry={entry} />
+        ))
+        /* "ระบุว่าไม่แพ้" คือคำตอบ ไม่ใช่ช่องว่าง — หมอต้องอ่านออกว่าถามแล้ว */
+        : <ValueText>{denied ? 'พยาบาลระบุว่าผู้รับบริการไม่มีประวัติการแพ้' : 'ยังไม่ได้บันทึกประวัติการแพ้'}</ValueText>}
     </div>
   </SummaryPanel>
 );
 
-const ChronicHistoryPanel = ({ chronicDiseases }) => (
+const ChronicHistoryPanel = ({ chronicDiseases = [], denied = false }) => (
   <SummaryPanel title='ประวัติโรคประจำตัว (Underlying Disease / Congenital Disease)'>
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      {chronicDiseases.map((entry, i) => (
-        <ChronicDiseaseCard key={`chronic-${i}`} index={i} entry={entry} />
-      ))}
+      {chronicDiseases.length > 0
+        ? chronicDiseases.map((entry, i) => (
+          <ChronicDiseaseCard key={`chronic-${i}`} index={i} entry={entry} />
+        ))
+        : <ValueText>{denied ? 'พยาบาลระบุว่าผู้รับบริการไม่มีโรคประจำตัว' : 'ยังไม่ได้บันทึกโรคประจำตัว'}</ValueText>}
     </div>
   </SummaryPanel>
 );
@@ -874,18 +1483,56 @@ const ScreeningSummaryBody = ({ summary }) => {
     <>
     <SummaryPanel title='สัญญาณชีพล่าสุด'>
       {vitalItems.length > 0 ? (
-        <div className='grid grid-cols-2 w-full' style={{ gap: 'var(--dim-space-300)' }}>
+        /* ป้ายกำกับกับค่าอยู่บรรทัดเดียวกัน ซ้าย-ขวา — เดิมซ้อนกันสองบรรทัดต่อค่า
+            กินความสูงเป็นเท่าตัวและเหลือที่ว่างด้านขวาเปล่า ๆ (มติผู้ใช้ 28 ส.ค. 69) */
+        <div
+          className='grid w-full'
+          style={{
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            columnGap: 'var(--dim-space-500)',
+          }}
+        >
           {vitalItems.map((item) => (
-            <HistoryInfoText key={item.label} label={item.label} value={item.value} />
+            <div
+              key={item.label}
+              className='flex items-baseline w-full'
+              style={{
+                gap: 'var(--dim-space-300)',
+                paddingTop: 'var(--dim-space-150)',
+                paddingBottom: 'var(--dim-space-150)',
+                borderBottom: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+              }}
+            >
+              <span style={{
+                color: 'var(--text-content-tertiary)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs)',
+                lineHeight: 1.5,
+              }}>{item.label}</span>
+              <span className='ml-auto text-right' style={{
+                color: 'var(--text-content-default)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm)',
+                lineHeight: 1.5,
+              }}>{item.value}</span>
+            </div>
           ))}
         </div>
       ) : <ValueText>ยังไม่มีค่าสัญญาณชีพที่บันทึก</ValueText>}
     </SummaryPanel>
 
     <SummaryPanel title='อาการป่วย'>
-      <div className='flex w-full' style={{ gap: 'var(--dim-space-400)' }}>
-        <HistoryInfoText label='อาการ (Chief Complaint)' value={summary.cc || '—'} />
-        <HistoryInfoText label='ระยะเวลาที่มีอาการ (Duration of Illness)' value={summary.duration || '—'} />
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+        <div className='flex w-full' style={{ gap: 'var(--dim-space-400)' }}>
+          <HistoryInfoText label='อาการ (Chief Complaint)' value={summary.cc || '—'} />
+          <HistoryInfoText label='ระยะเวลาที่มีอาการ (Duration of Illness)' value={summary.duration || '—'} />
+        </div>
+        {/* พยาบาลพิมพ์ประวัติปัจจุบันไว้ตั้งแต่ขั้นคัดกรอง แต่ไม่เคยถูกแสดงฝั่งแพทย์
+            ทั้งที่เป็นเนื้อความยาวที่สุดของการซักประวัติ (28 ส.ค. 69) */}
+        <HistoryInfoText
+          label='ประวัติการเจ็บป่วยปัจจุบัน (Present Illness)'
+          value={summary.presentIllness || '—'}
+        />
       </div>
     </SummaryPanel>
 
@@ -908,8 +1555,57 @@ const ScreeningSummaryBody = ({ summary }) => {
       </SummaryPanel>
     </div>
 
+    {(summary.cert !== null && summary.cert !== undefined) || summary.bedId ? (
+      <SummaryPanel title='สิ่งที่จุดคัดกรองระบุไว้'>
+        <div className='flex w-full' style={{ gap: 'var(--dim-space-400)' }}>
+          <HistoryInfoText
+            label='ใบรับรองแพทย์'
+            value={summary.cert === null || summary.cert === undefined
+              ? '—'
+              : (summary.cert ? 'ต้องการ' : 'ไม่ต้องการ')}
+          />
+          <HistoryInfoText
+            label='เตียงสังเกตอาการ'
+            value={summary.bedId || '—'}
+          />
+        </div>
+      </SummaryPanel>
+    ) : null}
+
     {summary.assessor && <AssessorRow assessor={summary.assessor} />}
     </>
+  );
+};
+
+/* พฤติกรรมสุขภาพจากขั้นที่ 4 ของการคัดกรอง (ToR 1.2.2.6) — เดิมแท็บ
+   "แบบประเมิน" ฝั่งแพทย์เป็นขีดกลางค้างไว้ ทั้งที่พยาบาลกรอกไว้แล้ว */
+const BEHAVIOUR_LABELS = {
+  smoking: 'การสูบบุหรี่',
+  alcohol: 'การดื่มแอลกอฮอล์',
+  exercise: 'การออกกำลังกาย',
+};
+
+const BehaviourPanel = ({ behaviour }) => {
+  const rows = Object.keys(BEHAVIOUR_LABELS)
+    .map((key) => ({ label: BEHAVIOUR_LABELS[key], value: behaviour?.[key] || '' }))
+    .filter((r) => r.value);
+  return (
+    <SummaryPanel title='พฤติกรรมสุขภาพ (Health Behaviour)'>
+      {rows.length > 0 || behaviour?.detail ? (
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          {rows.length > 0 && (
+            <div className='grid grid-cols-3 w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              {rows.map((r) => (
+                <HistoryInfoText key={r.label} label={r.label} value={r.value} />
+              ))}
+            </div>
+          )}
+          {behaviour?.detail && (
+            <HistoryInfoText label='รายละเอียดเพิ่มเติม' value={behaviour.detail} />
+          )}
+        </div>
+      ) : <ValueText>ยังไม่ได้บันทึกพฤติกรรมสุขภาพ</ValueText>}
+    </SummaryPanel>
   );
 };
 
@@ -951,7 +1647,12 @@ export const Step2Screening = ({ patient, title = 'คัดกรองแล�
   );
   const [activeTab, setActiveTab] = useState(0);
   return (
-    <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+    /* เนื้อหาเดิมชนขอบการ์ดทั้งสี่ด้าน — เว้นระยะรอบให้เท่ากับการ์ดอื่นในขั้นตอน
+       (มติผู้ใช้ 28 ส.ค. 69) */
+    <section
+      className='flex flex-col w-full'
+      style={{ gap: 'var(--dim-space-500)', padding: 'var(--dim-space-500)' }}
+    >
       <SectionTitle icon='description'>{title}</SectionTitle>
 
       <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
@@ -966,11 +1667,6 @@ export const Step2Screening = ({ patient, title = 'คัดกรองแล�
         ))}
       </div>
 
-      <div style={{
-        height: 1,
-        background: 'var(--border-neutral-tertiary, var(--border-card-default))',
-      }} />
-
       {activeTab === 0 && (
         summary.captured
           ? <ScreeningSummaryBody summary={summary} />
@@ -982,12 +1678,12 @@ export const Step2Screening = ({ patient, title = 'คัดกรองแล�
             />
           )
       )}
-      {activeTab === 1 && <AllergyHistoryPanel allergies={summary.allergies} />}
-      {activeTab === 2 && <ChronicHistoryPanel chronicDiseases={summary.chronicDiseases} />}
-      {activeTab === 3 && (
-        <SummaryPanel title='แบบประเมิน'>
-          <ValueText>—</ValueText>
-        </SummaryPanel>
+      {activeTab >= 1 && activeTab <= SCREENING_ALLERGY_TABS.length && (() => {
+        const tab = SCREENING_ALLERGY_TABS[activeTab - 1];
+        return <ScreeningTopicPanel tab={tab} data={summary.allergyTopics?.[tab.topic]} />;
+      })()}
+      {activeTab === SCREENING_ALLERGY_TABS.length + 1 && (
+        <BehaviourPanel behaviour={summary.behaviour} />
       )}
     </section>
   );
@@ -1196,20 +1892,40 @@ export const Step3Examination = ({ form, setForm, patient }) => {
 
   return (
     <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      <Topic
-        hierarchy='primary'
-        title='ตรวจร่างกาย'
-        leadingIcon='description'
-        showSubText={false}
-        showBadge={false}
-        showChevron={false}
-        showSuccess={false}
-      />
-
+      {/* หัวข้อ "ตรวจร่างกาย" ถูกเอาออก — แถบขั้นตอนด้านบนบอกอยู่แล้ว (28 ส.ค. 69) */}
       <VitalsSignHorizontalPanel
         variant='exam'
+        surface='card'
         measurementRounds={DEFAULT_MEASUREMENT_ROUNDS}
       />
+
+      {/* บันทึกการตรวจ (บันทึกจากพยาบาล ↔ บันทึกของแพทย์) ย้ายขึ้นบนสุดและแยก
+          เป็นการ์ดของตัวเอง — เดิมอยู่ท้ายการ์ดเดียวกับแผนภาพร่างกายและไฟล์แนบ
+          ทั้งที่เป็นคนละงาน: อันนี้คือ "พิมพ์สิ่งที่ตรวจพบ" ส่วนอีกอันคือ
+          "ชี้ตำแหน่งบนภาพ" (มติผู้ใช้ 28 ส.ค. 69) */}
+      <div
+        className='flex flex-col w-full'
+        style={{
+          gap: 'var(--dim-space-400)',
+          padding: 'var(--dim-space-600)',
+          borderRadius: 'var(--dim-radius-400)',
+          background: 'var(--surface-card-100)',
+        }}
+      >
+        <ExamNotesPanel
+          embedded
+          nurseNotes={form.nurseExam}
+          doctorNotes={form.doctorExam}
+          attachments={form.examAttachments}
+          onDoctorChange={set('doctorExam')}
+          onCopyFromNurse={handleCopyFromNurse}
+          onAttachmentsChange={handleAttachmentsChange}
+          onRemoveAttachment={(id) => setForm((s) => ({
+            ...s,
+            examAttachments: (s.examAttachments || []).filter((f) => f.id !== id),
+          }))}
+        />
+      </div>
 
       <div
         className='flex flex-col w-full'
@@ -1242,20 +1958,6 @@ export const Step3Examination = ({ form, setForm, patient }) => {
           onSystemChange={set('examSystem')}
           onViewChange={set('examView')}
           sidebar={<ExamSupportList width={320} patientHn={patient?.hn} />}
-        />
-
-        <ExamNotesPanel
-          embedded
-          nurseNotes={form.nurseExam}
-          doctorNotes={form.doctorExam}
-          attachments={form.examAttachments}
-          onDoctorChange={set('doctorExam')}
-          onCopyFromNurse={handleCopyFromNurse}
-          onAttachmentsChange={handleAttachmentsChange}
-          onRemoveAttachment={(id) => setForm((s) => ({
-            ...s,
-            examAttachments: (s.examAttachments || []).filter((f) => f.id !== id),
-          }))}
         />
 
         {/* EMR §1.4.3.22 / §1.4.6.5 — ไฟล์แนบ multimedia พร้อมโควตาจริง

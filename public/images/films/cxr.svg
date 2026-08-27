@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300" width="240" height="300" role="img" aria-label="CHEST PA">
+  <defs>
+    <radialGradient id="g" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#3a4550"/><stop offset="100%" stop-color="#0d1216"/>
+    </radialGradient>
+  </defs>
+  <rect width="240" height="300" fill="url(#g)"/>
+  
+  <ellipse cx="82" cy="140" rx="46" ry="82" fill="#5c6b78" opacity=".45"/>
+  <ellipse cx="158" cy="140" rx="46" ry="82" fill="#5c6b78" opacity=".45"/>
+  <rect x="112" y="60" width="16" height="170" rx="8" fill="#c3cfd8" opacity=".7"/>
+  <path d="M40 70 Q120 44 200 70" stroke="#aebcc7" stroke-width="5" fill="none" opacity=".6"/>
+  <path d="M52 214 Q120 244 188 214" stroke="#9dacb8" stroke-width="4" fill="none" opacity=".5"/>
+  <text x="12" y="288" fill="#8FA3B0" font-family="monospace" font-size="11">CHEST PA</text>
+</svg>

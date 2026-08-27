@@ -105,6 +105,9 @@ const HorizontalVitalItem = ({
   slot,
   variant = 'strip',
   equalColumns = 5,
+  /* พื้นที่ขั้นต่ำต่อช่อง — โหมด `single` วางครบ 9 ค่าในแถวเดียว ถ้าปล่อยให้
+     ยืดหดอิสระ ป้ายภาษาอังกฤษจะถูกตัดกลางคำ ("Temperatur / e") */
+  minTileWidth = null,
 }) => {
   const variantClass = variant === 'grid' || variant === 'tablet-grid'
     ? 'w-full min-w-0'
@@ -116,7 +119,7 @@ const HorizontalVitalItem = ({
     ? { width: '100%' }
     : variant === 'tablet'
       ? equalColumnStyle(equalColumns)
-      : undefined;
+      : (minTileWidth ? { flex: '1 0 auto', minWidth: minTileWidth, maxWidth: 'none' } : undefined);
 
   return (
     <div
@@ -297,7 +300,12 @@ export const VitalsSignHorizontalStrip = ({
         >
           {tiles.map((tile, i) => (
             <React.Fragment key={tile.key}>
-              <HorizontalVitalItem tile={tile} slot={vitals?.[tile.key]} variant='strip' />
+              <HorizontalVitalItem
+                tile={tile}
+                slot={vitals?.[tile.key]}
+                variant='strip'
+                minTileWidth={116}
+              />
               {i < tiles.length - 1 && <TileDivider />}
             </React.Fragment>
           ))}
@@ -356,6 +364,10 @@ const VitalsSignHorizontalPanel = ({
   tiles = VITAL_SIGN_TILES,
   layout = 'responsive',
   variant = 'default',
+  /* 'quaternary' (ค่าเดิม) = พื้นเทาอ่อน · 'card' = การ์ดขาวยืนเดี่ยว
+     (ขั้นตรวจร่างกายใช้ card เพราะอยู่บนพื้นหน้าไม่ได้ซ้อนในการ์ดอื่น
+      — มติผู้ใช้ 28 ส.ค. 69) */
+  surface = 'quaternary',
   graphSubtitle,
   graphDisabled = false,
   className = '',
@@ -389,7 +401,9 @@ const VitalsSignHorizontalPanel = ({
         padding: 'var(--dim-space-400)',
         borderRadius: 'var(--dim-radius-500)',
         border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
-        background: 'var(--surface-neutral-quaternary)',
+        background: surface === 'card'
+          ? 'var(--surface-card-100, #FFFFFF)'
+          : 'var(--surface-neutral-quaternary)',
         ...style,
       }}
     >

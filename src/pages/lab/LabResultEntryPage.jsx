@@ -6,6 +6,11 @@ import Icon from '@/components/icons/Icon';
 import Badge from '@/components/badge/Badge';
 import Alert from '@/components/alert/Alert';
 import BrandButton from '@/components/button/BrandButton';
+import InputField from '@/components/forms/InputField';
+import Textarea from '@/components/forms/Textarea';
+import Select from '@/components/forms/Select';
+import Checkbox from '@/components/checkbox/Checkbox';
+import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import AlertDialog from '@/components/popup/AlertDialog';
@@ -13,6 +18,7 @@ import LabTubeDot from '@/pages/lab/LabTubeDot';
 import {
   getLabOrder, updateLabOrder, subscribeOrders, withTestLabel, LAB_STATUS_BY_KEY,
   previousResultFor,
+  LAB_AMEND_REASONS,
 } from '@/data/labOrders';
 import { resolveAnalyteRange } from '@/data/labCatalog';
 import {
@@ -80,19 +86,6 @@ const SectionCard = ({ icon, title, subtitle, children, action, tone }) => (
   </section>
 );
 
-const FIELD_STYLE = {
-  width: '100%',
-  paddingTop: 'var(--dim-space-150)',
-  paddingRight: 'var(--dim-space-300)',
-  paddingBottom: 'var(--dim-space-150)',
-  paddingLeft: 'var(--dim-space-300)',
-  background: 'var(--surface-input-default)',
-  border: 'var(--dim-stroke-100) solid var(--border-input-default)',
-  borderRadius: 'var(--dim-radius-200)',
-  fontSize: 'var(--type-size-sm)',
-  outline: 'none',
-};
-
 /* Per-status colouring for a result row — critical and abnormal must be
    distinguishable at a glance while keying, not only after saving. */
 const STATUS_TONE = {
@@ -142,12 +135,17 @@ const AnalyteField = ({ test, analyte, value, onChange, row, patient, disabled, 
 
   return (
     <div
-      className='flex flex-wrap items-start w-full'
+      /* items-center so the analyte name, the input box and the status
+         column sit on one baseline. The frame stays neutral whatever the
+         result is (มติผู้ใช้ 28 ส.ค. 69) — the ค่าวิกฤต / ผิดปกติ marker in
+         the status column is what carries the severity, and a red box round
+         the whole row on top of it was reading as an input error. */
+      className='flex flex-wrap items-center w-full'
       style={{
         gap: 'var(--dim-space-300)',
         background: 'var(--surface-card-200)',
         borderRadius: 'var(--dim-radius-200)',
-        border: `var(--dim-stroke-100) solid ${err ? 'var(--border-statusbadge-error, #B91C1C)' : tone.border}`,
+        border: 'var(--dim-stroke-100) solid var(--border-card-default)',
         paddingTop: 'var(--dim-space-300)',
         paddingRight: 'var(--dim-space-400)',
         paddingBottom: 'var(--dim-space-300)',
@@ -170,48 +168,57 @@ const AnalyteField = ({ test, analyte, value, onChange, row, patient, disabled, 
       </div>
 
       <div className='flex flex-col' style={{ flex: '0 1 260px', minWidth: 200 }}>
+        {/* Design-system fields (InputField / Select / Textarea) rather than
+            bare <input>/<select>/<textarea>: focus ring, error state, sizing
+            and disabled styling then come from the DS in every branch. The
+            analyte name is the visible label, so the fields render bare
+            (`showLabel={false}`) with an aria-label instead. */}
         {type === 'enum' ? (
-          <select
+          <Select
             value={value ?? ''}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={handleKeyDown}
+            options={(analyte.options ?? []).map((o) => ({ value: o, label: o }))}
+            onChange={(v) => onChange(v ?? '')}
+            placeholder='— เลือกผล —'
+            size='lg'
+            searchable={false}
             disabled={disabled}
-            style={FIELD_STYLE}
+            error={err || undefined}
+            showHelperText={!!err}
             aria-label={analyte.label}
-          >
-            <option value=''>— เลือกผล —</option>
-            {(analyte.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
+          />
         ) : type === 'numeric' ? (
           <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-            <input
-              type='text'
+            <InputField
+              className='flex-1 min-w-0'
+              size='lg'
+              showLabel={false}
+              showLeadingIcon={false}
+              showHelperText={!!err}
               inputMode='decimal'
               value={value ?? ''}
-              onChange={(e) => onChange(e.target.value)}
+              onChange={(v) => onChange(typeof v === 'string' ? v : v?.target?.value ?? '')}
               onKeyDown={handleKeyDown}
               disabled={disabled}
               placeholder='ตัวเลข'
+              error={err || undefined}
               aria-label={analyte.label}
-              style={{ ...FIELD_STYLE, fontFamily: 'var(--type-family-mono, monospace)' }}
+              inputStyle={{ fontFamily: 'var(--type-family-mono, monospace)' }}
             />
             {analyte.unit && <span className='text-xs text-ink-tertiary shrink-0'>{analyte.unit}</span>}
           </div>
         ) : (
-          <textarea
+          <Textarea
+            showLabel={false}
+            showHelperText={!!err}
             value={value ?? ''}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(v) => onChange(typeof v === 'string' ? v : v?.target?.value ?? '')}
             disabled={disabled}
             rows={2}
+            minHeight={64}
             placeholder='พิมพ์ผลเป็นข้อความ'
+            error={err || undefined}
             aria-label={analyte.label}
-            style={{ ...FIELD_STYLE, resize: 'vertical' }}
           />
-        )}
-        {err && (
-          <span className='text-xs' style={{ marginTop: 'var(--dim-space-100)', color: 'var(--text-statusbadge-error, #B91C1C)' }}>
-            {err}
-          </span>
         )}
       </div>
 
@@ -251,9 +258,13 @@ const AnalyteField = ({ test, analyte, value, onChange, row, patient, disabled, 
   );
 };
 
-const LabResultEntryPage = () => {
-  const history = useHistory();
-  const { id } = useParams();
+/* The screen's body, decoupled from the route. `/lab/result/:id` still
+   renders it inside the app shell (deep links from the critical register and
+   the patient history sheet rely on that), and the worklist opens the very
+   same body in a popup so the bench never loses its place in the queue —
+   both paths therefore share one implementation, not two that drift. */
+export const LabResultEntryBody = ({ orderId, onDone }) => {
+  const id = orderId;
 
   const [version, setVersion] = useState(0);
   useEffect(() => subscribeOrders(() => setVersion((v) => v + 1)), []);
@@ -303,14 +314,8 @@ const LabResultEntryPage = () => {
 
   if (!order) {
     return (
-      <div className='min-h-screen flex' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
-        <Sidebar activeKey='lab' />
-        <main className='flex-1 flex flex-col min-w-0'>
-          <Header breadcrumb={['งานชันสูตรโรค (Lab)', 'บันทึกผลตรวจ', 'ไม่พบรายการ']} />
-          <div className='flex flex-1 items-center justify-center text-ink-tertiary'>
-            ไม่พบรายการตรวจที่ตรงกับลิงก์นี้
-          </div>
-        </main>
+      <div className='flex flex-1 items-center justify-center text-ink-tertiary' style={{ padding: 'var(--dim-space-600)' }}>
+        ไม่พบรายการตรวจที่ตรงกับลิงก์นี้
       </div>
     );
   }
@@ -412,41 +417,12 @@ const LabResultEntryPage = () => {
     setConfirmRelease(false);
     setSavedMsg(alreadyReleased ? 'ออกรายงานผลฉบับแก้ไขแล้ว' : 'รับรองและรายงานผลแล้ว');
     setSaved(true);
-    setTimeout(() => history.push('/lab/queue'), 900);
+    setTimeout(() => onDone?.(), 900);
   };
 
   return (
-    <div className='min-h-screen flex' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
-      <Sidebar activeKey='lab' />
-      <main className='flex-1 flex flex-col min-w-0'>
-        <Header breadcrumb={['งานชันสูตรโรค (Lab)', 'บันทึกผลตรวจ', order.accessionNo]} />
-        <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
-          <div>
-            <button
-              type='button'
-              onClick={() => history.push('/lab/queue')}
-              className='inline-flex items-center gap-1 text-sm text-ink-secondary hover:text-brand-500'
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 'var(--dim-space-0)' }}
-            >
-              <Icon name='chevron-left' size={16} />
-              กลับไปยังงานชันสูตรโรค (Lab)
-            </button>
-          </div>
-
-          {/* Amending an already-released result is the exception, so it is
-              announced before anything else on the page. */}
-          {alreadyReleased && (
-            <Alert
-              type='warning'
-              iconName='history'
-              iconFill={1}
-              title='ผลนี้รายงานไปแล้ว — การแก้ไขจะออกเป็นรายงานฉบับแก้ไข (Amended report)'
-              subtext='ผลเดิมจะถูกเก็บไว้ และต้องระบุเหตุผลในการแก้ไข เนื่องจากหน่วยงานที่สั่งอาจดำเนินการตามผลเดิมไปแล้ว'
-              showBadge={false}
-              showIndicator={false}
-              showDetail={false}
-            />
-          )}
+    <>
+      <div className='flex-1 flex flex-col min-w-0' style={{ gap: 'var(--dim-space-500)' }}>
 
           {/* Specimen header — 2 identifiers, accession, tube. Confidential
               tests stay masked here (§1.15.6.4): the technician needs the
@@ -489,16 +465,18 @@ const LabResultEntryPage = () => {
               title='ผลจากหน่วยงานภายนอก'
               subtitle={`ส่งตรวจที่ ${order.externalLab ?? '—'}${order.sentOutAt ? ` · ${order.sentOutAt}` : ''}`}
             >
-              <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)', maxWidth: 360 }}>
-                <span className='text-xs text-ink-secondary'>เลขที่อ้างอิงของหน่วยงานภายนอก</span>
-                <input
-                  type='text'
-                  value={externalRef}
-                  onChange={(e) => setExternalRef(e.target.value)}
-                  placeholder='เช่น EXT-2569-004512'
-                  style={{ ...FIELD_STYLE, fontFamily: 'var(--type-family-mono, monospace)' }}
-                />
-              </label>
+              <InputField
+                className='w-full'
+                style={{ maxWidth: 360 }}
+                size='lg'
+                label='เลขที่อ้างอิงของหน่วยงานภายนอก'
+                showLeadingIcon={false}
+                showHelperText={false}
+                value={externalRef}
+                onChange={(v) => setExternalRef(typeof v === 'string' ? v : v?.target?.value ?? '')}
+                placeholder='เช่น EXT-2569-004512'
+                inputStyle={{ fontFamily: 'var(--type-family-mono, monospace)' }}
+              />
             </SectionCard>
           )}
 
@@ -567,57 +545,51 @@ const LabResultEntryPage = () => {
                 showDetail={false}
               />
               <div className='grid grid-cols-1 md:grid-cols-3 gap-3 w-full'>
-                <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                  <span className='text-xs text-ink-secondary'>แจ้งแก่ (ชื่อผู้รับแจ้ง) <span style={{ color: 'var(--text-input-require)' }}>*</span></span>
-                  <input
-                    type='text'
-                    value={notify.notifiedTo}
-                    onChange={(e) => setNotify((n) => ({ ...n, notifiedTo: e.target.value }))}
-                    placeholder={order.doctor}
-                    style={FIELD_STYLE}
-                  />
-                </label>
-                <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                  <span className='text-xs text-ink-secondary'>เวลาที่แจ้ง <span style={{ color: 'var(--text-input-require)' }}>*</span></span>
-                  <input
-                    type='time'
-                    value={notify.notifiedAt}
-                    onChange={(e) => setNotify((n) => ({ ...n, notifiedAt: e.target.value }))}
-                    style={FIELD_STYLE}
-                  />
-                </label>
-                <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                  <span className='text-xs text-ink-secondary'>ผู้แจ้ง <span style={{ color: 'var(--text-input-require)' }}>*</span></span>
-                  <input
-                    type='text'
-                    value={notify.notifiedBy}
-                    onChange={(e) => setNotify((n) => ({ ...n, notifiedBy: e.target.value }))}
-                    placeholder={CURRENT_ACTOR}
-                    style={FIELD_STYLE}
-                  />
-                </label>
+                <InputField
+                  size='lg'
+                  label='แจ้งแก่ (ชื่อผู้รับแจ้ง)'
+                  required
+                  showLeadingIcon={false}
+                  showHelperText={false}
+                  value={notify.notifiedTo}
+                  onChange={(v) => setNotify((n) => ({ ...n, notifiedTo: typeof v === 'string' ? v : v?.target?.value ?? '' }))}
+                  placeholder={order.doctor}
+                />
+                <InputField
+                  size='lg'
+                  type='time'
+                  label='เวลาที่แจ้ง'
+                  required
+                  showLeadingIcon={false}
+                  showHelperText={false}
+                  value={notify.notifiedAt}
+                  onChange={(v) => setNotify((n) => ({ ...n, notifiedAt: typeof v === 'string' ? v : v?.target?.value ?? '' }))}
+                />
+                <InputField
+                  size='lg'
+                  label='ผู้แจ้ง'
+                  required
+                  showLeadingIcon={false}
+                  showHelperText={false}
+                  value={notify.notifiedBy}
+                  onChange={(v) => setNotify((n) => ({ ...n, notifiedBy: typeof v === 'string' ? v : v?.target?.value ?? '' }))}
+                  placeholder={CURRENT_ACTOR}
+                />
               </div>
-              <label className='inline-flex items-start cursor-pointer' style={{ gap: 'var(--dim-space-200)' }}>
-                <input
-                  type='checkbox'
-                  checked={notify.readBack}
-                  onChange={(e) => setNotify((n) => ({ ...n, readBack: e.target.checked }))}
-                  style={{ width: 'var(--dim-size-300, 16px)', height: 'var(--dim-size-300, 16px)', accentColor: 'var(--surface-brandPrimary-default)', marginTop: 2 }}
-                />
-                <span className='text-sm text-ink-secondary'>
-                  ผู้รับสายทวนค่าวิกฤตกลับถูกต้องแล้ว (read-back confirmed)
-                </span>
-              </label>
-              <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                <span className='text-xs text-ink-secondary'>บันทึกเพิ่มเติม</span>
-                <textarea
-                  value={notify.note}
-                  onChange={(e) => setNotify((n) => ({ ...n, note: e.target.value }))}
-                  rows={2}
-                  placeholder='เช่น แจ้งทางโทรศัพท์ภายใน 1234 · แพทย์รับทราบและสั่งตรวจซ้ำ'
-                  style={{ ...FIELD_STYLE, resize: 'vertical' }}
-                />
-              </label>
+              <Checkbox
+                checked={notify.readBack}
+                onChange={(next) => setNotify((n) => ({ ...n, readBack: next }))}
+                label='ผู้รับสายทวนค่าวิกฤตกลับถูกต้องแล้ว (read-back confirmed)'
+              />
+              <Textarea
+                label='บันทึกเพิ่มเติม'
+                showHelperText={false}
+                value={notify.note}
+                onChange={(v) => setNotify((n) => ({ ...n, note: typeof v === 'string' ? v : v?.target?.value ?? '' }))}
+                rows={2}
+                minHeight={64}
+                placeholder='เช่น แจ้งทางโทรศัพท์ภายใน 1234 · แพทย์รับทราบและสั่งตรวจซ้ำ'
+              />
             </SectionCard>
           )}
 
@@ -628,12 +600,19 @@ const LabResultEntryPage = () => {
               title='เหตุผลในการแก้ไขผล'
               subtitle='บังคับกรอก — จะถูกบันทึกคู่กับผลเดิมในรายงานฉบับแก้ไข'
             >
-              <textarea
+              {/* Voice + suggestions: an amendment is usually keyed one-handed
+                  while the bench is still holding the tube or the phone, and
+                  the recurring reasons (สลับตัวอย่าง / คีย์ผิด / ตรวจซ้ำ) are
+                  worth offering rather than retyping. */}
+              <SuggestibleTextarea
+                voice
                 value={amendReason}
-                onChange={(e) => setAmendReason(e.target.value)}
+                onChange={(e) => setAmendReason(e?.target?.value ?? '')}
+                suggestions={LAB_AMEND_REASONS}
+                minChars={2}
                 rows={2}
+                style={{ maxWidth: 'none' }}
                 placeholder='เช่น พบว่าสลับตัวอย่างกับ Accession L69-0718 · ตรวจซ้ำแล้วได้ผลใหม่'
-                style={{ ...FIELD_STYLE, resize: 'vertical' }}
               />
               {(order.amendments?.length ?? 0) > 0 && (
                 <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
@@ -667,7 +646,7 @@ const LabResultEntryPage = () => {
                       : 'พร้อมรายงานผล'}
             </span>
             <div className='flex-1' />
-            <NeutralSubdueButton variant='outline' size='md' onClick={() => history.push('/lab/queue')}>
+            <NeutralSubdueButton variant='outline' size='md' onClick={() => onDone?.()}>
               ยกเลิก
             </NeutralSubdueButton>
             <NeutralSubdueButton variant='outline' size='md' leadingIcon='save' disabled={!canSave} onClick={handleSave}>
@@ -681,9 +660,8 @@ const LabResultEntryPage = () => {
             >
               {alreadyReleased ? 'ออกรายงานฉบับแก้ไข' : 'รับรองและรายงานผล'}
             </BrandButton>
-          </section>
-        </div>
-      </main>
+        </section>
+      </div>
 
       <AlertDialog
         open={confirmRelease}
@@ -701,6 +679,36 @@ const LabResultEntryPage = () => {
         onConfirm={handleRelease}
       />
       <SuccessToast open={saved} message={savedMsg} onClose={() => setSaved(false)} />
+    </>
+  );
+};
+
+/* Route shell — /lab/result/:id. Owns the sidebar, header and back link;
+   everything below the breadcrumb is LabResultEntryBody. */
+const LabResultEntryPage = () => {
+  const history = useHistory();
+  const { id } = useParams();
+
+  return (
+    <div className='min-h-screen flex' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
+      <Sidebar activeKey='lab' />
+      <main className='flex-1 flex flex-col min-w-0'>
+        <Header breadcrumb={['งานชันสูตรโรค (Lab)', 'บันทึกผลตรวจ']} />
+        <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
+          <div>
+            <button
+              type='button'
+              onClick={() => history.push('/lab/queue')}
+              className='inline-flex items-center gap-1 text-sm text-ink-secondary hover:text-brand-500'
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 'var(--dim-space-0)' }}
+            >
+              <Icon name='chevron-left' size={16} />
+              กลับไปยังงานชันสูตรโรค (Lab)
+            </button>
+          </div>
+          <LabResultEntryBody orderId={id} onDone={() => history.push('/lab/queue')} />
+        </div>
+      </main>
     </div>
   );
 };

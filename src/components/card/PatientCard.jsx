@@ -192,6 +192,9 @@ const PatientCard = ({
      ประวัติการรักษา popup itself. `showMedicalHistory={false}` hides it. */
   onMedicalHistory,
   showMedicalHistory = true,
+  /* 'alert' (ค่าเดิม) = ปุ่มอยู่ท้ายแถวแพ้ยา/โรคประจำตัว · 'actions' = ย้ายขึ้นไป
+     อยู่แถวปุ่มด้านบนพร้อมปุ่มพิมพ์ต่าง ๆ (มติผู้ใช้ 28 ส.ค. 69) */
+  medicalHistoryPlacement = 'alert',
   /* Pharmacy / clinical dispense — always show แพ้ยา + โรคประจำตัว columns
      (empty → "—") so the alert band matches TreatmentForm even when this
      HN has no seeded allergies yet. */
@@ -399,7 +402,18 @@ const PatientCard = ({
           {title}
         </h1>
         {actions && (
-          <div className='ml-auto flex items-center gap-2'>{actions}</div>
+          <div className='ml-auto flex items-center gap-2'>
+            {showMedicalHistory && medicalHistoryPlacement === 'actions' && (
+              <BrandSubdueButton
+                variant='outline'
+                leadingIcon='history'
+                onClick={() => (onMedicalHistory ? onMedicalHistory(patient) : setHistoryOpen(true))}
+              >
+                ข้อมูลทางการแพทย์ (EMR)
+              </BrandSubdueButton>
+            )}
+            {actions}
+          </div>
         )}
       </div>
       </ButtonSizeAliasProvider>
@@ -571,7 +585,7 @@ const PatientCard = ({
         >
           <AlertBadgeColumn label='แพ้ยา' items={allergiesList} compact={compact} />
           <AlertBadgeColumn label='โรคประจำตัว' items={diseasesList} compact={compact} />
-          {showMedicalHistory && (
+          {showMedicalHistory && medicalHistoryPlacement === 'alert' && (
             /* shrink-0 + ml-auto keeps the button pinned to the end of the
                row no matter how many badges wrap above it */
             <div className='shrink-0 ml-auto self-center'>
@@ -581,7 +595,7 @@ const PatientCard = ({
                 leadingIcon='history'
                 onClick={() => (onMedicalHistory ? onMedicalHistory(patient) : setHistoryOpen(true))}
               >
-                ประวัติการรักษา
+                ข้อมูลทางการแพทย์ (EMR)
               </BrandSubdueButton>
             </div>
           )}
