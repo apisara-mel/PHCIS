@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import VitalsForm from '@/components/forms/VitalsForm';
 import { setScreeningSection } from '@/data/opdScreeningReview';
 import VitalsGraphPopup from '@/components/popup/VitalsGraphPopup';
-import DatePickerRange from '@/components/forms/DatePickerRange';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import Icon from '@/components/icons/Icon';
 
@@ -134,7 +133,6 @@ const AlertPill = ({ label, value, unit, tier, dir }) => {
 
 const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [range, setRange] = useState(['', '']);
 
   const series = useMemo(() => buildVitalsSeries(patient.hn || ''), [patient.hn]);
   const latest = series[series.length - 1];
@@ -157,32 +155,10 @@ const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
     return list.sort((a, b) => (a.tier === b.tier ? 0 : a.tier === 'danger' ? -1 : 1));
   }, [latest]);
 
-  /* Range filter (dd/mm/yyyy strings from DatePickerRange) — compares the
-     picked window against each row's real `when` date. */
-  const parseDMY = (s) => {
-    if (!s) return null;
-    const parts = s.split('/').map(Number);
-    if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
-    return new Date(parts[2] > 2400 ? parts[2] - 543 : parts[2], parts[1] - 1, parts[0]);
-  };
-  const fmtDMY = (d) =>
-    `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear() + 543}`;
+  /* ตัดตัวกรองช่วงเวลาออกแล้ว (มติผู้ใช้ 28 ส.ค. 69) — ประวัติของผู้รับบริการราย
+     นี้สั้นพอจะกวาดตาอ่านทั้งชุด การบังคับเลือกช่วงก่อนถึงจะเห็นข้อมูลเป็นขั้นตอนเกิน */
+  const visibleSeries = series;
 
-  const visibleSeries = useMemo(() => {
-    const [startRaw, endRaw] = range;
-    if (!startRaw && !endRaw) return series;
-    const start = parseDMY(startRaw);
-    const end = parseDMY(endRaw);
-    if (start) start.setHours(0, 0, 0, 0);
-    if (end) end.setHours(23, 59, 59, 999);
-    return series.filter((r) => {
-      if (!r.when) return true;
-      if (start && r.when < start) return false;
-      if (end && r.when > end) return false;
-      return true;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [series, range]);
 
   const cellStyle = {
     fontFamily: 'var(--type-family-body)',
@@ -199,29 +175,6 @@ const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
 
   return (
     <div className='flex flex-col'>
-      {/* ปุ่มดูประวัติสัญญาณชีพ — ตัดแถบสรุปค่าล่าสุดออกแล้ว ทั้งกรณีปกติและผิดปกติ
-          (มติผู้ใช้ 28 ส.ค. 69) ค่าที่ผิดปกติยังเห็นได้ในตัวฟอร์มและในประวัติ */}
-      <div
-        className='flex items-center flex-wrap w-full'
-        style={{
-          gap: 'var(--dim-space-200)',
-          paddingTop: 'var(--dim-space-400)',
-          paddingLeft: 'var(--dim-space-600)',
-          paddingRight: 'var(--dim-space-600)',
-          paddingBottom: 'var(--dim-space-0, 0px)',
-        }}
-      >
-        <div className='flex-1' />
-        <BrandSubdueButton
-          variant='outline'
-          size='sm'
-          leadingIcon='monitoring'
-          onClick={() => setHistoryOpen(true)}
-        >
-          ดูประวัติสัญญาณชีพ
-        </BrandSubdueButton>
-      </div>
-
       <VitalsForm
         onValidityChange={onValidityChange}
         /* ToR ๑.๒.๒.๕ — ใช้ตัดสินว่าโชว์ BMI หรือกราฟการเจริญเติบโต */
@@ -229,44 +182,29 @@ const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
         patientAgeYears={parseInt(patient.age, 10) || undefined}
         /* ส่งค่าที่พยาบาลกรอกให้ step "ตรวจสอบข้อมูล" อ่านต่อ */
         onValuesChange={(v) => setScreeningSection(patient.hn, 'vitals', v)}
+        /* ปุ่มไปอยู่แถวเดียวกับชิปช่วงอายุใน VitalsForm (มติผู้ใช้ 28 ส.ค. 69) —
+           เดิมเป็นแถวของตัวเองเหนือฟอร์ม เสียบรรทัดเปล่าไปหนึ่งแถว */
+        headerAction={(
+          <BrandSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon='monitoring'
+            onClick={() => setHistoryOpen(true)}
+          >
+            ดูประวัติสัญญาณชีพ
+          </BrandSubdueButton>
+        )}
       />
 
-      {/* TOR 1.2.2.4 — history popup with date-range window */}
+      {/* TOR 1.2.2.4 — ป๊อปอัปประวัติสัญญาณชีพ (แสดงทั้งชุด ไม่มีตัวกรองช่วงเวลา) */}
       <VitalsGraphPopup
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
         title='ประวัติสัญญาณชีพ น้ำหนัก และส่วนสูง'
-        subtitle={patient.hn ? `HN ${patient.hn} · เลือกช่วงเวลาที่ต้องการดู` : 'เลือกช่วงเวลาที่ต้องการดู'}
+        subtitle={patient.hn ? `HN ${patient.hn}` : undefined}
         showFooter={false}
       >
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
-          <DatePickerRange
-            label='ช่วงเวลา'
-            value={range}
-            onChange={setRange}
-            format={fmtDMY}
-            parse={parseDMY}
-            showHelperText={false}
-          />
-          {visibleSeries.length === 0 && (
-            <div
-              className='flex items-center'
-              style={{
-                gap: 'var(--dim-space-200)',
-                paddingTop: 'var(--dim-space-200)',
-                paddingBottom: 'var(--dim-space-200)',
-                paddingLeft: 'var(--dim-space-300)',
-                paddingRight: 'var(--dim-space-300)',
-                background: 'var(--surface-alert-info, #F0F6FF)',
-                borderRadius: 'var(--dim-radius-300, 10px)',
-              }}
-            >
-              <Icon name='search_off' size={16} style={{ color: 'var(--text-info-default, #1D4ED8)' }} />
-              <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-info-default, #1D4ED8)' }}>
-                ไม่พบการวัดในช่วงเวลาที่เลือก — ลองขยายช่วงวันที่
-              </span>
-            </div>
-          )}
           {visibleSeries.length === 1 && (
             <div
               className='flex items-center'
@@ -282,7 +220,7 @@ const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
             >
               <Icon name='info' size={16} style={{ color: 'var(--text-info-default, #1D4ED8)' }} />
               <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-info-default, #1D4ED8)' }}>
-                ผู้ป่วยมีการวัดเพียงครั้งเดียวในช่วงเวลานี้ — แสดงจุดข้อมูลเดียว
+                ผู้ป่วยมีการวัดเพียงครั้งเดียว — แสดงจุดข้อมูลเดียว
               </span>
             </div>
           )}

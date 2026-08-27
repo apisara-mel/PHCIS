@@ -69,9 +69,12 @@ const ScreeningStep4 = ({ onValidityChange, patient }) => {
       {/* TOR 1.2.2.6 — พฤติกรรมสุขภาพ captured in the screening record */}
       <section
         className='flex flex-col'
+        /* ระยะจากเนื้อหาถึงขอบแผง 24px ทุกด้าน และระหว่างข้อ 24px
+           (มติผู้ใช้ 28 ส.ค. 69) — เดิมไม่มีระยะด้านบนเลย หัวข้อจึงชนขอบ
+           และระยะระหว่างข้อเป็น 16px ทำให้สามข้อดูติดกันเป็นก้อนเดียว */
         style={{
-          gap: 'var(--dim-space-400)',
-          paddingTop: 'var(--dim-space-0, 0px)',
+          gap: 'var(--dim-space-600)',
+          paddingTop: 'var(--dim-space-600)',
           paddingBottom: 'var(--dim-space-600)',
           paddingLeft: 'var(--dim-space-600)',
           paddingRight: 'var(--dim-space-600)',

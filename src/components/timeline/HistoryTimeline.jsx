@@ -390,7 +390,10 @@ const HistoryTimeline = forwardRef(function HistoryTimeline(
         </div>
       </Popup>
 
-      <div className='relative min-h-0 flex-1'>
+      {/* ลิสต์ข้างในวางแบบ absolute ทับพื้นที่นี้ ถ้าพื้นที่สูง 0 การ์ดรอบวัดจะหายไป
+          ทั้งหมด — พอเลิกล็อกความสูงจอตายตัว (self-stretch) พื้นที่นี้ก็เหลือ 0 เพราะ
+          ความสูงของพาเนลมาจากเนื้อหาเอง จึงกันด้วย min-height ไว้ */}
+      <div className='relative min-h-0 flex-1' style={{ minHeight: 240 }}>
         <div
           ref={listScrollRef}
           className='absolute inset-0 flex flex-col gap-2 overflow-y-auto scrollbar-thin pr-1'

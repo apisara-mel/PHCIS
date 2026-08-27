@@ -75,11 +75,14 @@ export function InternalReferFields({
   onNoteChange,
   departmentOptions,
   servicePointOptions,
+  /** ช่องเพิ่มเติมของผู้เรียก (เช่น ESI) — วางก่อน "หมายเหตุ" เพราะเป็นข้อมูล
+      ของการส่งต่อ ส่วนหมายเหตุเป็นข้อความปิดท้าย (มติผู้ใช้ 28 ส.ค. 69) */
+  extra,
 }) {
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
       <Select
-        label='แผนกปลายทาง'
+        label='แผนกหรือคลินิกปลายทาง'
         value={department}
         onChange={(val) => {
           onDepartmentChange?.(val);
@@ -89,16 +92,7 @@ export function InternalReferFields({
         placeholder={REFER_DEPARTMENT_PLACEHOLDER}
         required
       />
-      <Select
-        label='จุดบริการปลายทาง'
-        helperText='เลือกจากจุดบริการทั้งหมดในระบบ (ผังจุดบริการ)'
-        value={servicePoint}
-        onChange={onServicePointChange}
-        options={servicePointOptions}
-        placeholder={REFER_SERVICE_POINT_PLACEHOLDER}
-        required
-        disabled={!department}
-      />
+      {extra}
       <SuggestibleTextarea
         voice
         label='หมายเหตุ'
@@ -157,7 +151,10 @@ export default function InternalReferPopup({
 
   const departmentOptions = listInternalReferDepartments(centerId);
   const servicePointOptions = listInternalReferServicePoints();
-  const incomplete = !String(department || '').trim() || !String(servicePoint || '').trim();
+  /* ช่อง "จุดบริการปลายทาง" ถูกถอดออกแล้ว (มติผู้ใช้ 28 ส.ค. 69) — ถ้ายังนับเป็น
+     เงื่อนไขอยู่ ปุ่มยืนยันจะ disabled ตลอดกาลทุกหน้าที่เรียกป๊อปอัปนี้
+     ค่ายังส่งกลับไปเป็นค่าว่างตามเดิม ผู้เรียกที่อ่าน servicePoint จึงไม่พัง */
+  const incomplete = !String(department || '').trim();
 
   const handleConfirm = () => {
     if (incomplete) return;
@@ -193,9 +190,11 @@ export default function InternalReferPopup({
         {fromDepartment ? (
           <div
             className='flex items-center flex-wrap'
+            /* ขยายฟอนต์ให้อ่านง่าย (มติผู้ใช้ 28 ส.ค. 69) — บรรทัดนี้บอกว่ากำลังส่งต่อ
+               มาจากไหน ซึ่งเป็นบริบทหลักของป๊อปอัป ไม่ควรเล็กกว่าช่องกรอกด้านล่าง */
             style={{
               gap: 'var(--dim-space-200, 8px)',
-              fontSize: 'var(--type-size-xs)',
+              fontSize: 'var(--type-size-base)',
             }}
           >
             <span
@@ -226,9 +225,8 @@ export default function InternalReferPopup({
           onNoteChange={setNote}
           departmentOptions={departmentOptions}
           servicePointOptions={servicePointOptions}
+          extra={extra}
         />
-
-        {extra}
       </div>
     </Popup>
   );
