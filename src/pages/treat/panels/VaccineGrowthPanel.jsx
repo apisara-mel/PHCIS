@@ -565,13 +565,13 @@ const VaccineGrowthPanel = ({ form, patient, section = 'all' }) => {
             >
               <span style={PANEL_VALUE_STYLE}>{s.vaccine}</span>
               <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                {/* ป้าย "ถึงกำหนด" ถูกเอาออก 28 ส.ค. 69 — เหลือครบแล้ว/ค้างรับ
+                    ส่วนที่ยังไม่ถึงคิวบอกด้วยตัวเลข n/N เข็มพอ */}
                 {s.status === 'complete' ? (
                   <StatusBadge style='success' size='small' icon='check_circle'>ครบแล้ว</StatusBadge>
                 ) : s.status === 'overdue' ? (
                   <StatusBadge style='error' size='small' icon='schedule'>ค้างรับ</StatusBadge>
-                ) : (
-                  <StatusBadge style='warning' size='small' icon='event_upcoming'>ถึงกำหนด</StatusBadge>
-                )}
+                ) : null}
                 <span style={PANEL_LABEL_STYLE}>{s.doneCount}/{s.dose} เข็ม</span>
               </div>
               {s.lastDate ? <span style={PANEL_LABEL_STYLE}>ล่าสุด {s.lastDate}</span> : null}

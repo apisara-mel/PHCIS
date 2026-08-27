@@ -56,6 +56,8 @@ import LabRadiologyResultsPanel from '@/pages/treat/panels/LabRadiologyResultsPa
 import VaccineGrowthPanel from '@/pages/treat/panels/VaccineGrowthPanel';
 import ReferralHistoryPanel from '@/pages/treat/panels/ReferralHistoryPanel';
 import { VisitJourneyStagePanel } from '@/pages/treat/panels/VisitJourneyPanel';
+import { vaccinesForPatient } from '@/data/treatmentVaccines';
+import { referralHistoryForPatient } from '@/data/treatmentRefer';
 import VisitAttachmentsPanel from '@/pages/treat/panels/VisitAttachmentsPanel';
 import ProblemListPanel from '@/pages/treat/panels/ProblemListPanel';
 import DiagnosisCodingPanel from '@/pages/treat/panels/DiagnosisCodingPanel';
@@ -314,13 +316,13 @@ const VisitTimelineEntry = ({ entry, isLast }) => (
           fontWeight: 'var(--type-weight-medium)',
           lineHeight: 1.5,
         }}>{entry.date}</span>
-        {entry.center && (
+        {entry.subtitle && (
           <span style={{
             color: 'var(--text-content-tertiary)',
             fontFamily: 'var(--type-family-body)',
             fontSize: 'var(--type-size-xs)',
             lineHeight: 1.5,
-          }}>{entry.center}</span>
+          }}>{entry.subtitle}</span>
         )}
       </div>
 
@@ -357,22 +359,8 @@ const VisitTimelineEntry = ({ entry, isLast }) => (
    ตัวหนังสือขนาด xs (ป้ายกำกับ) / sm (ค่า) ล้วน เพราะเป็นรายการที่ต้องกวาดตา
    อ่านย้อนหลัง ไม่ใช่หน้าอ่านทีละใบ · แต่ละหมวดอ่านคนละช่องของบันทึก จึง
    ประกาศ TIMELINE_FIELDS_BY_TAB ไว้ที่เดียว (มติผู้ใช้ 28 ส.ค. 69) */
-const VisitFieldTimeline = ({ visits, tabLabel }) => {
-  const fieldsOf = TIMELINE_FIELDS_BY_TAB[tabLabel];
-  const entries = useMemo(
-    () => (visits || []).map((v, i) => ({
-      key: `${v.date}-${i}`,
-      date: v.date,
-      center: v.center,
-      fields: (fieldsOf ? fieldsOf(v) : []).filter(([, value]) => value),
-    })),
-    [visits, fieldsOf],
-  );
-
-  if (!entries.length) {
-    return <ValueText>ยังไม่มีประวัติการรับบริการของผู้รับบริการรายนี้</ValueText>;
-  }
-
+const RecordTimeline = ({ entries, emptyText }) => {
+  if (!entries.length) return <ValueText>{emptyText}</ValueText>;
   return (
     <ol className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-600)' }}>
       {entries.map((entry, i) => (
@@ -383,6 +371,77 @@ const VisitFieldTimeline = ({ visits, tabLabel }) => {
         />
       ))}
     </ol>
+  );
+};
+
+/* ทะเบียนวัคซีนอ่านเป็นไทม์ไลน์เข็มต่อเข็ม — ดูอย่างเดียว ไม่มีปุ่มบันทึก/ยกเลิก
+   เพราะป๊อปอัปประวัติเป็นหน้าอ่าน การบันทึกเข็มอยู่ที่คลินิกสร้างเสริมภูมิคุ้มกันโรค
+   (มติผู้ใช้ 28 ส.ค. 69) */
+const VaccineDoseTimeline = ({ patient }) => {
+  const doses = useMemo(() => vaccinesForPatient(patient?.hn || ''), [patient?.hn]);
+  const entries = useMemo(() => doses.map((v, i) => ({
+    key: v.id || `dose-${i}`,
+    date: v.injectedOn,
+    subtitle: v.unit,
+    fields: [
+      ['วัคซีน', v.vaccine],
+      ['เข็มที่', v.doseNo ? `เข็มที่ ${v.doseNo}` : ''],
+      ['Lot', v.lot],
+      ['วันหมดอายุ', v.expiry],
+      ['ตำแหน่ง/วิธีให้', v.site],
+      ['ผู้ฉีด', v.injectedBy],
+      ['ปฏิกิริยาหลังฉีด', v.reaction],
+      ['สถานะ', v.cancelledAt ? `ยกเลิก — ${v.cancelReason || 'ไม่ระบุเหตุผล'}` : ''],
+    ].filter(([, value]) => value),
+  })), [doses]);
+  return <RecordTimeline entries={entries} emptyText='ยังไม่มีประวัติการได้รับวัคซีนในระบบ' />;
+};
+
+/* ประวัติการส่งต่ออ่านเป็นไทม์ไลน์เช่นกัน (ToR §1.4.3.4) — ดูอย่างเดียว
+   การออกใบส่งต่ออยู่ที่ /treat/refer */
+const REFER_DIRECTION_LABEL = { out: 'ส่งต่อออก', in: 'รับเข้า', internal: 'ส่งต่อภายในหน่วยงาน' };
+
+const ReferralTimeline = ({ patient }) => {
+  const rows = useMemo(
+    () => referralHistoryForPatient(patient?.hn || ''),
+    [patient?.hn],
+  );
+  const entries = useMemo(() => rows.map((r, i) => ({
+    key: r.id || `refer-${i}`,
+    date: r.sentDate || r.lastVisitDate || '—',
+    subtitle: REFER_DIRECTION_LABEL[r.direction] || '',
+    fields: [
+      ['เลขที่ใบส่งต่อ', r.referNo],
+      ['ปลายทาง', r.targetLabel],
+      ['อาการ', r.symptom],
+      ['ผลตรวจที่ส่งไปด้วย', r.labResult],
+      ['การรักษาที่ให้ก่อนส่ง', r.treatmentGiven],
+      ['เหตุผลที่ส่งต่อ', r.requirement],
+      ['ผู้ส่ง', r.sender],
+      ['ใช้ได้ถึง', r.validUntil],
+      ['สถานะ', r.status === 'cancelled' ? 'ยกเลิกแล้ว' : (r.expired ? 'หมดอายุแล้ว' : '')],
+    ].filter(([, value]) => value),
+  })), [rows]);
+  return <RecordTimeline entries={entries} emptyText='ผู้รับบริการรายนี้ยังไม่เคยถูกส่งต่อ' />;
+};
+
+const VisitFieldTimeline = ({ visits, tabLabel }) => {
+  const fieldsOf = TIMELINE_FIELDS_BY_TAB[tabLabel];
+  const entries = useMemo(
+    () => (visits || []).map((v, i) => ({
+      key: `${v.date}-${i}`,
+      date: v.date,
+      subtitle: v.center,
+      fields: (fieldsOf ? fieldsOf(v) : []).filter(([, value]) => value),
+    })),
+    [visits, fieldsOf],
+  );
+
+  return (
+    <RecordTimeline
+      entries={entries}
+      emptyText='ยังไม่มีประวัติการรับบริการของผู้รับบริการรายนี้'
+    />
   );
 };
 
@@ -939,7 +998,11 @@ export const MedicalHistoryReadOnlyLayout = ({
 
 
 
-        {byOrder && DATE_SCOPED_HISTORY_TABS.has(activeTabLabel) ? (
+        {byOrder && activeTabLabel === HISTORY_TAB_VACCINE ? (
+          <VaccineDoseTimeline patient={patient} />
+        ) : byOrder && activeTabLabel === HISTORY_TAB_REFER ? (
+          <ReferralTimeline patient={patient} />
+        ) : byOrder && DATE_SCOPED_HISTORY_TABS.has(activeTabLabel) ? (
           <VisitFieldTimeline visits={visits} tabLabel={activeTabLabel} />
         ) : activeTabLabel === HISTORY_TAB_XRAY ? (
           <XrayHistoryTabPanel patient={patient} />

@@ -91,6 +91,14 @@ const mapChargeLines = (items = []) =>
   }));
 
 /** สร้าง snapshot ครบวงจรสำหรับ visit ที่เลือก */
+/* ผลที่เก็บเป็นข้อความเดียวคั่นด้วย " · " → รายการ · "ไม่ได้สั่งตรวจ" ถือว่า
+   ไม่มีรายการ ไม่ใช่ผลหนึ่งบรรทัด */
+const splitResultList = (text) => {
+  const t = String(text || '').trim();
+  if (!t || t === '—' || t === 'ไม่ได้สั่งตรวจ') return [];
+  return t.split('·').map((x) => x.trim()).filter(Boolean);
+};
+
 export const buildVisitJourney = ({
   hn,
   visitDate,
@@ -237,12 +245,19 @@ export const buildVisitJourney = ({
       icon: 'medication',
       status: medications?.length ? 'completed' : 'pending',
       medications: mapMedicationLines(medications),
+      /* ครั้งเก่าที่ไม่มีรายการในใบเสร็จ ให้ตกไปอ่านผลที่บันทึกไว้กับตัว visit
+         (`labs` / `imaging` ใน treatmentVisits) — เดิมแท็บ "ผลการตรวจแล็บ" ของ
+         โหมดดูตามวันที่จึงว่างเปล่าทุกครั้ง ทั้งที่ประวัติมีผลอยู่ (28 ส.ค. 69) */
       labs: isCurrentVisit && form?.labs?.length
         ? form.labs.map((l) => l.name ?? l.label ?? String(l))
-        : (payment?.items?.filter((i) => i.category === 'lab').map((i) => i.label) ?? []),
+        : (payment?.items?.filter((i) => i.category === 'lab').map((i) => i.label).length
+          ? payment.items.filter((i) => i.category === 'lab').map((i) => i.label)
+          : splitResultList(visitDetail?.labs)),
       imaging: isCurrentVisit && form?.xrayOrders?.length
         ? form.xrayOrders.map((o) => o.examId ?? String(o))
-        : (payment?.items?.filter((i) => i.category === 'radiology').map((i) => i.label) ?? []),
+        : (payment?.items?.filter((i) => i.category === 'radiology').map((i) => i.label).length
+          ? payment.items.filter((i) => i.category === 'radiology').map((i) => i.label)
+          : splitResultList(visitDetail?.imaging)),
     },
     {
       key: 'pharmacy',
