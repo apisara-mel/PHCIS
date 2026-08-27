@@ -82,7 +82,9 @@ const buildLayout = (record) => {
   }
   ops.push({ kind: 'gap', h: 8 * SCALE });
 
-  (draft.sections || []).forEach((sec, i) => {
+  /* ใบที่มีตัวบทของตัวเองอยู่แล้ว (เช่นใบยินยอมของขั้นลงทะเบียน) ส่ง `sections`
+     มาตรง ๆ ได้ — ไม่งั้นจะได้ข้อสัญญากลางของ wizard ซึ่งไม่ใช่ตัวบทของใบนั้น */
+  (record.sections || draft.sections || []).forEach((sec, i) => {
     ops.push({ kind: 'clauseTitle', text: `${i + 1}. ${sec.title || '—'}` });
     ops.push({ kind: 'body', text: sec.detail || '—', detailFormat: sec.detailFormat || {} });
     ops.push({ kind: 'checkbox', text: '☐  ข้าพเจ้าได้อ่านและเข้าใจข้อความข้างต้นแล้ว' });

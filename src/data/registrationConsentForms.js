@@ -239,6 +239,23 @@ export const REGISTRATION_PENDING_CONSENT_CARDS = Object.values(REGISTRATION_CON
   cover: f.cover,
 }));
 
+/** การ์ดหน้าตาเดียวกับที่ใช้ในขั้นที่ 1 — ประกอบจาก meta ของใบ */
+export const consentFormToCard = (f) => (f ? {
+  id: f.id,
+  categoryLabel: f.cardCategoryLabel,
+  categoryStyle: f.cardCategoryStyle,
+  version: f.cardVersion,
+  title: f.title,
+  code: f.id,
+  cover: f.cover,
+} : null);
+
+/** เข้มกว่า `getRegistrationConsentForm` — ไม่ fallback เป็น PD-1011
+    ใช้ตอนถามว่า "รหัสนี้เป็นใบของขั้นลงทะเบียนจริงไหม" */
+export const findRegistrationConsentForm = (id) => (
+  REGISTRATION_CONSENT_FORMS[id] || REGISTRATION_OTHER_CONSENT_FORMS[id] || null
+);
+
 export const getRegistrationConsentForm = (id) => (
   REGISTRATION_CONSENT_FORMS[id]
   || REGISTRATION_OTHER_CONSENT_FORMS[id]

@@ -2,7 +2,10 @@ import React, { useMemo, useState } from 'react';
 
 import Popup from '@/components/popup/Popup';
 import Checkbox from '@/components/checkbox/Checkbox';
-import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
+import SelectWithOther, {
+  OTHER_OPTION_VALUE,
+  isOtherSelected,
+} from '@/components/forms/SelectWithOther';
 import Alert from '@/components/alert/Alert';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import {
@@ -20,28 +23,45 @@ import { AUTO_MR_REQUEST_CHANNEL } from '@/data/consentRecords';
 
    ช่องทางบันทึกเป็น «เวชระเบียน» ต่างจากคำขอที่มาจาก Mobile App ของผู้รับบริการเอง */
 
-const WITHDRAW_REASON_SUGGESTIONS = [
+/** ค่าที่ระบบใช้แทน "ไม่มีข้อมูล" ในทะเบียนความยินยอม */
+const EMPTY_MARKS = ['', '-', '—'];
+
+const hasFormIdentity = (r) => (
+  !EMPTY_MARKS.includes(String(r.formName || '').trim())
+  && !EMPTY_MARKS.includes(String(r.formCode || '').trim())
+);
+
+const WITHDRAW_REASONS = [
   'ผู้รับบริการขอถอนด้วยตนเองที่เคาน์เตอร์',
   'ไม่ประสงค์ให้เปิดเผยข้อมูลแก่หน่วยงานภายนอกแล้ว',
   'ให้ความยินยอมผิดฉบับ',
   'เปลี่ยนสถานพยาบาลประจำ',
-];
+  'ผู้รับบริการเพิกถอนตามสิทธิ PDPA',
+  OTHER_OPTION_VALUE,
+].map((label) => ({ value: label, label }));
 
 const ConsentWithdrawRequestPopup = ({ open, onClose, hn, patientName, onSubmitted }) => {
   const [selected, setSelected] = useState([]);
   const [reason, setReason] = useState('');
+  const [reasonOther, setReasonOther] = useState('');
 
-  /* อ่านรายการใหม่ทุกครั้งที่เปิด — สถานะอาจเปลี่ยนจากแท็บอื่นระหว่างที่ค้างหน้าไว้ */
+  /* อ่านรายการใหม่ทุกครั้งที่เปิด — สถานะอาจเปลี่ยนจากแท็บอื่นระหว่างที่ค้างหน้าไว้
+
+     แถวที่ไม่มีตัวตนของใบ (ชื่อ/รหัสเป็น '-' หรือว่าง) คือแถวที่ยังไม่เคยผูกกับ
+     ใบยินยอมจริง — ไม่ใช่สิ่งที่ผู้รับบริการเคยเซ็น จึงไม่ควรให้เลือกถอน */
   const records = useMemo(() => {
     if (!open || !hn) return [];
     return getConsentRecords().filter((r) => (
-      r.hn === hn && WITHDRAWABLE_CONSENT_STATUSES.includes(r.status)
+      r.hn === hn
+      && WITHDRAWABLE_CONSENT_STATUSES.includes(r.status)
+      && hasFormIdentity(r)
     ));
   }, [open, hn]);
 
   const close = () => {
     setSelected([]);
     setReason('');
+    setReasonOther('');
     onClose?.();
   };
 
@@ -49,13 +69,16 @@ const ConsentWithdrawRequestPopup = ({ open, onClose, hn, patientName, onSubmitt
     s.includes(id) ? s.filter((x) => x !== id) : [...s, id]
   ));
 
-  const canSubmit = selected.length > 0 && reason.trim().length > 0;
+  /* เลือก "อื่นๆ" แล้วไม่พิมพ์ = ไม่รู้เหตุผลจริง ปล่อยผ่านไม่ได้ (D-018) */
+  const otherPicked = isOtherSelected(reason);
+  const reasonText = otherPicked ? reasonOther.trim() : reason.trim();
+  const canSubmit = selected.length > 0 && reasonText.length > 0;
 
   const submit = () => {
     if (!canSubmit) return;
     const done = selected
       .map((id) => requestConsentWithdrawal(id, {
-        reason: reason.trim(),
+        reason: reasonText,
         channel: AUTO_MR_REQUEST_CHANNEL,
       }))
       .filter(Boolean);
@@ -112,24 +135,27 @@ const ConsentWithdrawRequestPopup = ({ open, onClose, hn, patientName, onSubmitt
                 </div>
               ))}
             </div>
-            <SuggestibleTextarea
-              label='เหตุผลในการถอน'
-              required
-              value={reason}
-              onChange={setReason}
-              placeholder='ระบุเหตุผลที่ผู้รับบริการแจ้ง'
-              suggestions={WITHDRAW_REASON_SUGGESTIONS}
-              rows={3}
-              style={{ maxWidth: 'none', width: '100%' }}
-            />
-            <Alert
-              type='warning'
-              title='คำขอนี้ยังไม่ตัดสิทธิ์ทันที'
-              subtext='รายการจะเข้าสถานะ "ขอเพิกถอน" ในระบบจัดการความยินยอม รอเจ้าหน้าที่ผู้ดูแลอนุมัติ'
-              showCloseButton={false}
-              showBadge={false}
-              showIndicator={false}
-            />
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+              <span style={{
+                color: 'var(--text-content-default)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm)',
+                lineHeight: 1.5,
+              }}>
+                เหตุผลในการถอน
+                <span style={{ color: 'var(--text-danger-default, #DC2626)' }}> *</span>
+              </span>
+              <SelectWithOther
+                value={reason}
+                onChange={setReason}
+                otherValue={reasonOther}
+                onOtherChange={setReasonOther}
+                options={WITHDRAW_REASONS}
+                placeholder='เลือกเหตุผล'
+                otherPlaceholder='ระบุเหตุผลที่ผู้รับบริการแจ้ง'
+                otherLabel='เหตุผลในการถอน (อื่นๆ)'
+              />
+            </div>
           </>
         )}
       </div>

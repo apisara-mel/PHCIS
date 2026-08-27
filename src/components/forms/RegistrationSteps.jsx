@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   SectionTitle, SectionTitleIcon, SubCard, FieldGrid, Field,
@@ -26,9 +26,16 @@ import {
   REGISTRATION_PENDING_CONSENT_CARDS,
   REGISTRATION_OTHER_CONSENT_CARDS,
   getRegistrationConsentForm,
+  findRegistrationConsentForm,
+  consentFormToCard,
 } from '@/data/registrationConsentForms';
+import {
+  getConsentRecords,
+  WITHDRAWABLE_CONSENT_STATUSES,
+} from '@/data/consentWorkflowStore';
 import ConsentWithdrawRequestPopup from '@/components/consent/ConsentWithdrawRequestPopup';
 import AllConsentFormsPopup from '@/components/consent/AllConsentFormsPopup';
+import { downloadRegistrationConsentPdf } from '@/data/registrationConsentDownload';
 import { saveRegistrationDraft, markRegistrationConsentCompleted } from '@/data/registrationForm';
 import healthInsuranceAnim from '@/assets/illustrations/Girl finding health insurance online.json';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
@@ -36,6 +43,7 @@ import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import DeleteEmergencyContactConfirmPopup from '@/components/popup/DeleteEmergencyContactConfirmPopup';
 import DeleteDrugAllergyConfirmPopup from '@/components/popup/DeleteDrugAllergyConfirmPopup';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import SelectableCardButton from '@/components/button/SelectableCardButton';
 import CameraCapturePopup from '@/components/popup/CameraCapturePopup';
 import RightsDocumentScanPopup from '@/components/popup/RightsDocumentScanPopup';
 import FaceScanVerifyPopup from '@/components/popup/FaceScanVerifyPopup';
@@ -323,7 +331,33 @@ export const StepConsent = ({ form, setForm, patient }) => {
   const [withdrawnCount, setWithdrawnCount] = useState(0);
   /* รายการแบบฟอร์มทั้งทะเบียน — หน้าโชว์แค่แถวแรกพอกวาดตา */
   const [allFormsOpen, setAllFormsOpen] = useState(false);
-  const otherFormCards = REGISTRATION_OTHER_CONSENT_CARDS.slice(0, OTHER_FORM_PREVIEW_COUNT);
+
+  /* ใบที่ให้ความยินยอมไปแล้ว — รวมสองทาง: ใบที่เพิ่งลงนามในรอบนี้ (ยังไม่มี HN
+     ก็เห็น) กับใบที่เคยลงนามไว้ตามทะเบียนความยินยอมของ HN นี้ ใช้ตัวค้นแบบเข้ม
+     ไม่ให้ record ของโมดูลอื่นตกมาเป็น PD-1011 */
+  const consentedCards = useMemo(() => {
+    const byId = new Map();
+    completed.forEach((id) => {
+      const meta = findRegistrationConsentForm(id);
+      if (meta) byId.set(meta.id, consentFormToCard(meta));
+    });
+    const hn = patient?.hn || form?.hn || '';
+    if (hn) {
+      getConsentRecords()
+        .filter((r) => r.hn === hn && WITHDRAWABLE_CONSENT_STATUSES.includes(r.status))
+        .forEach((r) => {
+          const meta = findRegistrationConsentForm(r.formCode);
+          if (meta && !byId.has(meta.id)) byId.set(meta.id, consentFormToCard(meta));
+        });
+    }
+    return [...byId.values()];
+  }, [completed, patient?.hn, form?.hn]);
+
+  /* ใบที่ให้ความยินยอมไปแล้วขึ้นอยู่กลุ่มบนแล้ว ไม่ต้องโผล่ซ้ำในกลุ่ม "อื่นๆ" */
+  const consentedIds = new Set(consentedCards.map((c) => c.id));
+  const otherFormCards = REGISTRATION_OTHER_CONSENT_CARDS
+    .filter((c) => !consentedIds.has(c.id))
+    .slice(0, OTHER_FORM_PREVIEW_COUNT);
 
   const draftFullName = [form?.prefixTh, form?.firstNameTh, form?.lastNameTh]
     .map((p) => String(p || '').trim()).filter(Boolean).join(' ');
@@ -384,12 +418,34 @@ export const StepConsent = ({ form, setForm, patient }) => {
                 key={item.id}
                 {...item}
                 onPrint={() => setPrintForm(item)}
+                onDownload={() => downloadRegistrationConsentPdf(item)}
                 onFill={() => setFillFormId(item.id)}
               />
             ))}
           </div>
         )}
       </SubCard>
+
+      {consentedCards.length > 0 && (
+        <SubCard>
+          <SectionTitle icon='task_alt'>แบบฟอร์มที่ให้ความยินยอมแล้ว</SectionTitle>
+          <div
+            className='grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 min-[1366px]:grid-cols-5 items-stretch'
+            style={{ gap: 'var(--dim-space-400)' }}
+          >
+            {consentedCards.map((item) => (
+              <PendingConsentFormCard
+                key={item.id}
+                {...item}
+                status={{ label: 'ยินยอมแล้ว', tone: 'teal' }}
+                showFill={false}
+                onPrint={() => setPrintForm(item)}
+                onDownload={() => downloadRegistrationConsentPdf(item)}
+              />
+            ))}
+          </div>
+        </SubCard>
+      )}
 
       <SubCard>
         <div className='flex w-full items-center' style={{ gap: 'var(--dim-space-300)' }}>
@@ -413,6 +469,7 @@ export const StepConsent = ({ form, setForm, patient }) => {
               key={item.id}
               {...item}
               onPrint={() => setPrintForm(item)}
+              onDownload={() => downloadRegistrationConsentPdf(item)}
               onFill={() => setFillFormId(item.id)}
             />
           ))}
@@ -458,7 +515,6 @@ export const StepConsent = ({ form, setForm, patient }) => {
         onClose={() => setWithdrawnCount(0)}
         buttonLabel='เรียบร้อย'
         title='ส่งคำขอถอนความยินยอมแล้ว'
-        description={`${withdrawnCount} ใบเข้าสถานะ “ขอเพิกถอน” รอเจ้าหน้าที่ผู้ดูแลอนุมัติในระบบจัดการความยินยอม`}
       />
 
       {/* ลงนามสำเร็จ — ป๊อปอัป ไม่ใช่ toast */}
@@ -2319,6 +2375,46 @@ const SEVERITY = [
   { value: 'high',   label: 'มาก',     badge: { style: 'red',    label: 'มาก'     } },
 ];
 
+/* ระดับความรุนแรงเป็นการ์ดให้กด ไม่ใช่ดรอปดาวน์ (มติผู้ใช้ 27 ส.ค. 69) —
+   ตัวเลือกมีแค่ 3 ระดับ ซ่อนไว้ใต้ดรอปดาวน์ทำให้ต้องกดสองครั้งกว่าจะเห็น
+   ทรงเดียวกับการ์ดระดับความเร่งด่วนของหน้าคัดกรอง (SelectableCardButton) */
+const SeverityCards = ({ value, onChange, ariaPrefix = 'ระดับความรุนแรง' }) => (
+  <div className='flex flex-wrap items-stretch w-full' style={{ gap: 'var(--dim-space-300)' }}>
+    {SEVERITY.map((lv, i) => (
+      <div key={lv.value} style={{ flex: '0 0 auto', minWidth: 180 }}>
+        <SelectableCardButton
+          selected={value === lv.value}
+          onClick={() => onChange(lv.value)}
+          ariaLabel={`${ariaPrefix} ${lv.label}`}
+          minHeight={56}
+          padX='var(--dim-space-300, 12px)'
+        >
+          {/* badge บอกลำดับระดับ · ข้อความบอกชื่อระดับ — ทรงเดียวกับการ์ด ESI */}
+          <span className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
+            <ColorfulBadge
+              badgeStyle={lv.badge.style}
+              hierarchy='secondary'
+              size='small'
+              width='hug'
+            >
+              {`ระดับ ${i + 1}`}
+            </ColorfulBadge>
+            <span style={{
+              color: 'var(--text-content-default)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm)',
+              lineHeight: 1.5,
+              whiteSpace: 'nowrap',
+            }}>
+              {lv.label}
+            </span>
+          </span>
+        </SelectableCardButton>
+      </div>
+    ))}
+  </div>
+);
+
 /* Voice-textarea suggestions for "อาการแพ้" — stock Thai allergy
    reactions surfaced after 1+ chars typed, matching the project rule
    that every voice textarea ships with a suggestion popover. */
@@ -2740,6 +2836,9 @@ export const Step5Flags = ({ form, setForm }) => {
                     <Field label='ชื่ออาหาร' required style={{ flex: '1 1 0' }}>
                       <SuggestibleTextarea
                         voice
+                        /* เต็มความกว้างของคอลัมน์ (ครึ่งการ์ด) — ค่าเริ่มต้นของ
+                           FieldShell คุม maxWidth 640 ไว้ กล่องเลยไม่เต็มพื้นที่ */
+                        style={{ maxWidth: 'none', width: '100%' }}
                         value={a.name}
                         onChange={(e) => updateFoodAllergy(idx, 'name', e?.target?.value ?? '')}
                         placeholder='เช่น กุ้ง, ปลาทะเล, นมวัว, ถั่วลิสง'
@@ -2758,6 +2857,9 @@ export const Step5Flags = ({ form, setForm }) => {
                     >
                       <SuggestibleTextarea
                         voice
+                        /* เต็มความกว้างของคอลัมน์ (ครึ่งการ์ด) — ค่าเริ่มต้นของ
+                           FieldShell คุม maxWidth 640 ไว้ กล่องเลยไม่เต็มพื้นที่ */
+                        style={{ maxWidth: 'none', width: '100%' }}
                         value={a.symptom}
                         onChange={(e) => updateFoodAllergy(idx, 'symptom', e?.target?.value ?? '')}
                         placeholder='อาการแพ้รุนแรง เช่น Anaphylaxis, ผื่นลมพิษทั่วตัว, หน้าบวม, หายใจไม่ออก'
@@ -2768,11 +2870,9 @@ export const Step5Flags = ({ form, setForm }) => {
                     </Field>
                   </div>
                   <Field label='ระดับความรุนแรง' required>
-                    <Select
+                    <SeverityCards
                       value={a.severity}
                       onChange={(v) => updateFoodAllergy(idx, 'severity', v)}
-                      options={SEVERITY}
-                      placeholder='เลือกระดับความรุนแรง'
                     />
                   </Field>
                 </SubCard>
@@ -2834,6 +2934,9 @@ export const Step5Flags = ({ form, setForm }) => {
                     <Field label='ชื่อยา' required style={{ flex: '1 1 0' }}>
                       <SuggestibleTextarea
                         voice
+                        /* เต็มความกว้างของคอลัมน์ (ครึ่งการ์ด) — ค่าเริ่มต้นของ
+                           FieldShell คุม maxWidth 640 ไว้ กล่องเลยไม่เต็มพื้นที่ */
+                        style={{ maxWidth: 'none', width: '100%' }}
                         value={a.name}
                         onChange={(e) => updateAllergy(idx, 'name', e?.target?.value ?? '')}
                         placeholder='Penicillin'
@@ -2853,6 +2956,9 @@ export const Step5Flags = ({ form, setForm }) => {
                     >
                       <SuggestibleTextarea
                         voice
+                        /* เต็มความกว้างของคอลัมน์ (ครึ่งการ์ด) — ค่าเริ่มต้นของ
+                           FieldShell คุม maxWidth 640 ไว้ กล่องเลยไม่เต็มพื้นที่ */
+                        style={{ maxWidth: 'none', width: '100%' }}
                         value={a.symptom}
                         onChange={(e) => updateAllergy(idx, 'symptom', e?.target?.value ?? '')}
                         placeholder='อาการแพ้รุนแรง เช่น Anaphylaxis, ผื่นลมพิษทั่วตัว, หน้าบวม, หายใจไม่ออก'
@@ -2863,11 +2969,9 @@ export const Step5Flags = ({ form, setForm }) => {
                     </Field>
                   </div>
                   <Field label='ระดับความรุนแรง' required>
-                    <Select
+                    <SeverityCards
                       value={a.severity}
                       onChange={(v) => updateAllergy(idx, 'severity', v)}
-                      options={SEVERITY}
-                      placeholder='เลือกระดับความรุนแรง'
                     />
                   </Field>
                 </SubCard>
@@ -2926,6 +3030,9 @@ export const Step5Flags = ({ form, setForm }) => {
                     <Field label='ชื่อสารเคมี' required style={{ flex: '1 1 0' }}>
                       <SuggestibleTextarea
                         voice
+                        /* เต็มความกว้างของคอลัมน์ (ครึ่งการ์ด) — ค่าเริ่มต้นของ
+                           FieldShell คุม maxWidth 640 ไว้ กล่องเลยไม่เต็มพื้นที่ */
+                        style={{ maxWidth: 'none', width: '100%' }}
                         value={a.name}
                         onChange={(e) => updateChemicalAllergy(idx, 'name', e?.target?.value ?? '')}
                         placeholder='เช่น น้ำยาฟอกขาว, ลาเท็กซ์, นิกเกิล'
@@ -2944,6 +3051,9 @@ export const Step5Flags = ({ form, setForm }) => {
                     >
                       <SuggestibleTextarea
                         voice
+                        /* เต็มความกว้างของคอลัมน์ (ครึ่งการ์ด) — ค่าเริ่มต้นของ
+                           FieldShell คุม maxWidth 640 ไว้ กล่องเลยไม่เต็มพื้นที่ */
+                        style={{ maxWidth: 'none', width: '100%' }}
                         value={a.symptom}
                         onChange={(e) => updateChemicalAllergy(idx, 'symptom', e?.target?.value ?? '')}
                         placeholder='อาการแพ้รุนแรง เช่น ผื่นแดงคัน, ผื่นลมพิษ, ปวดแสบปวดร้อน'
@@ -2954,11 +3064,9 @@ export const Step5Flags = ({ form, setForm }) => {
                     </Field>
                   </div>
                   <Field label='ระดับความรุนแรง' required>
-                    <Select
+                    <SeverityCards
                       value={a.severity}
                       onChange={(v) => updateChemicalAllergy(idx, 'severity', v)}
-                      options={SEVERITY}
-                      placeholder='เลือกระดับความรุนแรง'
                     />
                   </Field>
                 </SubCard>
@@ -3031,11 +3139,9 @@ export const Step5Flags = ({ form, setForm }) => {
                     />
                   </Field>
                   <Field label='ระดับความรุนแรง' required>
-                    <Select
+                    <SeverityCards
                       value={a.severity}
                       onChange={(v) => updateChronicCondition(idx, 'severity', v)}
-                      options={SEVERITY}
-                      placeholder='เลือกระดับความรุนแรง'
                     />
                   </Field>
                 </SubCard>

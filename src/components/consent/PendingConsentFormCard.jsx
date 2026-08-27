@@ -16,6 +16,8 @@ const PendingConsentFormCard = ({
   code,
   cover,
   onPrint,
+  /** ดาวน์โหลดใบเป็น PDF ลงเครื่อง — ไม่ส่งมาก็ไม่มีปุ่ม */
+  onDownload,
   onFill,
   fillLabel = 'กรอกแบบฟอร์ม',
   /* ใบที่เคยขอความยินยอมไปแล้ว — ไม่มีปุ่มกรอก แต่ติดป้ายสถานะล่าสุดแทน
@@ -123,6 +125,16 @@ const PendingConsentFormCard = ({
           icon='visibility'
           aria-label='ดูแบบฟอร์มที่ลงนามแล้ว'
           onClick={onView}
+        />
+      )}
+      {onDownload && (
+        <BrandSubdueIconButton
+          type='button'
+          size='sm'
+          variant='outline'
+          icon='download'
+          aria-label='ดาวน์โหลดแบบฟอร์มเป็น PDF'
+          onClick={onDownload}
         />
       )}
       <BrandSubdueIconButton

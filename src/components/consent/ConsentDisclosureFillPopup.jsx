@@ -27,6 +27,9 @@ export const recordDisclosureFill = ({ outcome, fullName, hn, meta: formMeta }, 
     hn: hn || patient?.hn,
     name: fullName,
     formId: formMeta.id,
+    /* ส่ง formCode ไปด้วย ไม่งั้น `recordMrConsentSigning` จะไปเดาชื่อใบจาก
+       หัวข้อหลัก แล้วได้ '-' ทั้งรหัสและชื่อเมื่อหัวข้อไม่ตรงทะเบียน */
+    formCode: formMeta.id,
     formTitle: formMeta.title,
     type: formMeta.categoryLabel,
     version: formMeta.version,
