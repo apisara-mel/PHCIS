@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { ALL_CLINICS_VALUE, useClinicFilter } from '@/components/layout/HeaderClinicContext';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
 import Select from '@/components/forms/Select';
@@ -203,7 +204,10 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
   const navigate = useHistory();
   /* ขอบเขตรายงานการใช้งาน — ยึดคู่มือ MIS: ทุกศูนย์ หรือเจาะรายศูนย์
      (ศูนย์ที่ยังไม่เปิดใช้ระบบไม่มีข้อมูลใช้งาน จึงมีแค่ REPORT_CENTERS) */
-  const [scopeCenter, setScopeCenter] = useState('all');
+  /* ขอบเขตศูนย์อ่านจากชิปบน Header (แหล่งความจริงเดียวกับ PHCIS) — เดิมหน้านี้
+     มีชิป `ศูนย์:` ของตัวเอง ย้ายขึ้นไปข้างบนแล้ว (มติผู้ใช้ 27 ส.ค. 69) */
+  const { clinic } = useClinicFilter() || {};
+  const scopeCenter = !clinic || clinic === ALL_CLINICS_VALUE ? 'all' : clinic;
   /* ตัวกรองวันที่ — ชุดเดียวกับแดชบอร์ดระบบความยินยอม ค่าเริ่มต้น "ปีนี้"
      เพราะยอดผู้ใช้งานเก็บย้อนหลัง 12 เดือน ถ้าตั้ง "เดือนนี้" กราฟจะเหลือแท่งเดียว */
   const [pageDate, setPageDate] = useState({ quick: 'thisyear' });
@@ -470,13 +474,6 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
       /* ขอบเขตศูนย์อยู่ติดชื่อหน้า — เปลี่ยนแล้วการ์ดการใช้งานเปลี่ยนตามทันที */
       afterTitle={(
         <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-          <FilterDropdown
-            prefix='ศูนย์:'
-            options={scopeOptions}
-            value={scopeCenter}
-            onChange={setScopeCenter}
-            placeholder='ทุกศูนย์บริการ'
-          />
           <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thisyear' />
           <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
         </span>

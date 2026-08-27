@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import FilterDateTag from '@/components/forms/FilterDateTag';
@@ -12,7 +12,7 @@ import {
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import Select from '@/components/forms/Select';
 import { FilterDropdown } from '@/components/forms/FilterTag';
-import { CLINIC_OPTIONS } from '@/components/layout/HeaderClinicContext';
+import { ALL_CLINICS_VALUE, useClinicFilter } from '@/components/layout/HeaderClinicContext';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import {
   DASHBOARD_LAYOUTS,
@@ -24,9 +24,7 @@ import {
   ConsentDashboardWidget,
   buildConsentWidgetContext,
 } from '@/data/consentDashboardWidgets';
-import Popup from '@/components/popup/Popup';
-import LottieIllustration from '@/components/illustrations/LottieIllustration';
-import { SUCCESS_LOTTIE } from '@/components/layout/SuccessScreen';
+import SuccessPopup from '@/components/popup/SuccessPopup';
 import ConsentDashboardTemplatePopup from '@/pages/consent/ConsentDashboardTemplatePopup';
 import CONSENT_NAV from '@/pages/consent/consentNav';
 import { ConsentReportSections, ReportCard, reportsForDateFilter } from '@/pages/consent/ConsentReportPage';
@@ -67,39 +65,23 @@ const periodLabelOf = (dateFilter) => {
 
 export default function ConsentDashboardPage() {
   const [pageDate, setPageDate] = useState({ quick: 'thismonth' });
-  /* ตัวกรองศูนย์ — คู่กับตัวกรองวันที่ เหมือนแดชบอร์ดจัดการระบบ (26 ส.ค. 2569
-     มติผู้ใช้) ศูนย์ที่ไม่มีคำขอเลยไม่ต้องอยู่ในตัวเลือก จะได้ไม่เลือกไปเจอหน้าว่าง */
-  const [pageCenter, setPageCenter] = useState('');
-  const centerOptions = useMemo(() => {
-    const used = new Set(CONSENT_RECORDS.map((r) => r.centerId).filter(Boolean));
-    return [
-      { value: '', label: 'ทุกศูนย์บริการ' },
-      ...CLINIC_OPTIONS.filter((c) => used.has(c.value)),
-    ];
-  }, []);
+  /* ศูนย์บริการอ่านจากชิปบน Header (แหล่งความจริงเดียวกับ PHCIS) — เดิมหน้านี้
+     มีชิป `ศูนย์:` ของตัวเอง ย้ายขึ้นไปข้างบนแล้ว (มติผู้ใช้ 27 ส.ค. 69) */
+  const { clinic } = useClinicFilter() || {};
+  const pageCenter = !clinic || clinic === ALL_CLINICS_VALUE ? '' : clinic;
   /* หน้าจอรวมของแดชบอร์ดมาจาก "เทมเพลต" ที่สร้างไว้ (ด.1.1.12) — เทมเพลต
      มาตรฐานให้ผลเหมือนหน้าเดิมทุกประการ เปลี่ยนเทมเพลตคือเปลี่ยนทั้งหน้าจอ */
   const [templates, setTemplates] = useState(() => listDashboardTemplates());
   const [templateId, setTemplateId] = useState(() => getDefaultDashboardTemplateId());
   const [templatePopup, setTemplatePopup] = useState(false);
   const [savedTemplate, setSavedTemplate] = useState(null);
-  const [successAnim, setSuccessAnim] = useState(null);
-
-  /* โหลด Lottie เช็คถูกของ SuccessScreen มาใช้ในป๊อปอัปสำเร็จ (ไฟล์เดียวกับทั้งระบบ) */
-  useEffect(() => {
-    let alive = true;
-    fetch(SUCCESS_LOTTIE)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (alive) setSuccessAnim(d); })
-      .catch(() => { /* ไม่มีไฟล์ก็ข้ามภาพประกอบไป */ });
-    return () => { alive = false; };
-  }, []);
   const [exportReport, setExportReport] = useState(null);
   const [viewReport, setViewReport] = useState(null);
-  const filtersActive = (pageDate?.quick || 'thismonth') !== 'thismonth' || !!pageCenter;
+  /* ศูนย์เป็น scope ระดับระบบ (ชิปบน Header) ไม่ใช่ตัวกรองของหน้า — ปุ่มล้าง
+     ตัวกรองจึงคุมแค่ช่วงวันที่ */
+  const filtersActive = (pageDate?.quick || 'thismonth') !== 'thismonth';
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(filtersActive, () => {
     setPageDate({ quick: 'thismonth' });
-    setPageCenter('');
   });
 
   const periodReports = useMemo(() => reportsForDateFilter(pageDate), [pageDate]);
@@ -157,13 +139,6 @@ export default function ConsentDashboardPage() {
       /* ตัวกรองวันที่อยู่ติดกับชื่อหน้า — ไม่ปนกับปุ่มคำสั่งฝั่งขวา */
       afterTitle={(
         <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-          <FilterDropdown
-            prefix='ศูนย์:'
-            options={centerOptions}
-            value={pageCenter}
-            onChange={setPageCenter}
-            placeholder='ทุกศูนย์บริการ'
-          />
           <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thismonth' />
           <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
         </span>
@@ -314,44 +289,15 @@ export default function ConsentDashboardPage() {
       />
 
       {/* ป๊อปอัปสำเร็จหลังบันทึกเทมเพลต (ไม่ใช้จอเต็มหน้า) */}
-      <Popup
+      <SuccessPopup
         open={Boolean(savedTemplate)}
         onClose={() => setSavedTemplate(null)}
-        size='default'
-        showCloseButton={false}
-        primaryAction={{ label: 'ไปที่แดชบอร์ด', onClick: () => setSavedTemplate(null) }}
-      >
-        <div
-          className='flex flex-col items-center text-center w-full'
-          style={{ gap: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-400)' }}
-        >
-          {successAnim && (
-            <LottieIllustration animationData={successAnim} size={160} loop={false} ariaLabel='' />
-          )}
-          <span
-            style={{
-              color: 'var(--text-brandPrimary-default)',
-              fontFamily: 'var(--type-family-heading-graphic2)',
-              fontSize: 'var(--type-size-lg)',
-              lineHeight: 1.4,
-            }}
-          >
-            {savedTemplate?.isEdit
-              ? `บันทึกการแก้ไข “${savedTemplate?.name}” สำเร็จ`
-              : `สร้างเทมเพลต “${savedTemplate?.name}” สำเร็จ`}
-          </span>
-          <span
-            style={{
-              color: 'var(--text-content-tertiary)',
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-sm)',
-              lineHeight: 1.5,
-            }}
-          >
-            เลือกใช้ได้จากช่อง Template บนหัวหน้าแดชบอร์ด
-          </span>
-        </div>
-      </Popup>
+        buttonLabel='ไปที่แดชบอร์ด'
+        title={savedTemplate?.isEdit
+          ? `บันทึกการแก้ไข “${savedTemplate?.name}” สำเร็จ`
+          : `สร้างเทมเพลต “${savedTemplate?.name}” สำเร็จ`}
+        description='เลือกใช้ได้จากช่อง Template บนหัวหน้าแดชบอร์ด'
+      />
     </QueuePageShell>
   );
 }

@@ -3,7 +3,7 @@ import { useHistory } from 'react-router-dom';
 import Icon from '@/components/icons/Icon';
 import BrandButton from '@/components/button/BrandButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
-import { CLINIC_OPTIONS, DEFAULT_CLINIC_VALUE, useClinicFilter } from '@/components/layout/HeaderClinicContext';
+import { ALL_CLINICS_VALUE, CLINIC_OPTIONS, DEFAULT_CLINIC_VALUE, useClinicFilter } from '@/components/layout/HeaderClinicContext';
 import { readActiveCenter, writeActiveCenter } from '@/data/centerStore';
 import { appendAuditEvent } from '@/pages/audit/auditData';
 import { getUserById } from '@/data/usersAccess';
@@ -44,7 +44,10 @@ export const centerLabel = (value) =>
  */
 export function useActiveCenter() {
   const ctx = useClinicFilter();
-  const clinic = ctx?.clinic ?? DEFAULT_CLINIC_VALUE;
+  /* 'ทุกศูนย์บริการ' เป็นมุมมองของแดชบอร์ดระดับสำนัก — หน้าจอปฏิบัติการต้องมี
+     ศูนย์เดียวเสมอ (กติกา scope MIS §1.17.5.4) จึงตีกลับเป็นศูนย์เริ่มต้น */
+  const raw = ctx?.clinic ?? DEFAULT_CLINIC_VALUE;
+  const clinic = raw === ALL_CLINICS_VALUE ? DEFAULT_CLINIC_VALUE : raw;
   const restored = React.useRef(false);
 
   React.useEffect(() => {

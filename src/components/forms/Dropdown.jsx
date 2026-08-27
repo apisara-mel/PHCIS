@@ -117,9 +117,14 @@ const Dropdown = ({
   const borderWidth = (isError || isOpen || isHover) ? 'var(--dim-stroke-200, 2px)' : 'var(--dim-stroke-100, 1px)';
   const ring = (isOpen || isHover) ? '0 0 0 4px var(--focus-ring-input-hover, var(--primaryBorder-600))' : 'none';
 
+  /* `isFilled` เป็นเท็จระหว่าง hover/open (มันเป็นสถานะ "นิ่ง") — ถ้าไล่ตาม
+     ลำดับนั้นตรง ๆ ข้อความของค่าที่เลือกไว้จะจางลงเป็นสี default ตอนเอาเมาส์ไปชี้
+     เช็ค `hasValue` ก่อน สีของค่าที่เลือกจึงคงที่ทุกสถานะ (มติผู้ใช้ 27 ส.ค. 69) */
   const textColor = (() => {
     if (isDisabled) return 'var(--text-input-disabled)';
-    if (isFilled)   return 'var(--text-input-filled)';
+    if (hasValue)   return isOpen
+      ? 'var(--text-input-typing, var(--text-input-filled))'
+      : 'var(--text-input-filled)';
     if (isOpen)     return 'var(--text-input-typing, var(--text-input-filled))';
     if (isHover)    return 'var(--text-input-hover, var(--text-input-default))';
     return 'var(--text-input-default)';
@@ -127,7 +132,7 @@ const Dropdown = ({
 
   const iconColor = (() => {
     if (isDisabled || isError) return 'var(--icon-input-default)';
-    if (isOpen || isFilled)    return 'var(--icon-input-filled)';
+    if (isOpen || isFilled || hasValue) return 'var(--icon-input-filled)';
     if (isHover)               return 'var(--icon-input-hover, var(--icon-input-default))';
     return 'var(--icon-input-default)';
   })();

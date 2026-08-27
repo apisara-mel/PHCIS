@@ -232,6 +232,11 @@ export const FilterDropdown = ({
   className = '',
   variant = 'brand',
   size = 'lg',
+  /* บังคับสถานะ selected ของชิป — ค่าเริ่มต้นเดาจาก "ค่าที่เลือกไม่ใช่ตัวแรก
+     ในลิสต์" ซึ่งใช้ไม่ได้กับชิปที่มีค่าเสมอ (เช่น ปีงบประมาณ ที่ค่า default คือ
+     ปีปัจจุบัน = ตัวแรกพอดี) ทำให้ชิปเป็นสีขาวทั้งที่มีค่าอยู่.
+     ชื่อ `active` ไม่ใช่ `selected` เพราะ `selected` ในสโคปนี้เป็นตัวเลือกที่ match อยู่ */
+  active,
   /* Stack above modals / MarkNoteEditor when nested in portalled overlays. */
   menuZIndex = 'var(--sm-z-popover-nested, calc(1300 + 2))',
   /* Forwarded to the underlying FilterTag — lets callers override
@@ -243,7 +248,8 @@ export const FilterDropdown = ({
   const triggerRef = useRef(null);
   const selected = options.find((o) => o.value === value);
   const label = selected?.label || placeholder || options[0]?.label;
-  const isActive = selected && options.length > 0 && value !== options[0].value;
+  const autoActive = Boolean(selected) && options.length > 0 && value !== options[0].value;
+  const isActive = active ?? autoActive;
 
   return (
     <div className={`relative shrink-0 ${className}`}>

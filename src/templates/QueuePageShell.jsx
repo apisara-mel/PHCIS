@@ -74,7 +74,10 @@ export const QUEUE_STICKY_UNDER_TABS =
 
 const STICKY_UNDER_TABS_VAR = '--mih-queue-sticky-under-tabs';
 
-const CLINIC_CHIP_HIDDEN_SYSTEMS = ['จัดการระบบ', 'ระบบจัดการความยินยอม'];
+/* เดิมซ่อนชิปศูนย์ในระบบความยินยอม/จัดการระบบ เพราะสองระบบนั้นมีชิป `ศูนย์:`
+   ของตัวเองอยู่ในหน้า — ย้ายขึ้น Header ให้เหมือน PHCIS แล้ว จึงไม่มีระบบไหน
+   ต้องซ่อนอีก (มติผู้ใช้ 27 ส.ค. 69) */
+const CLINIC_CHIP_HIDDEN_SYSTEMS = [];
 
 const QueuePageShell = ({
   activeKey,

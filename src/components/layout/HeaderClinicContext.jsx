@@ -89,10 +89,22 @@ export const CLINIC_OPTIONS = RAW_CLINICS.map(([n, name]) => ({
 /** Default clinic — pinned to ศูนย์ 4 ดินแดง so demo screens & Figma references stay stable. */
 export const DEFAULT_CLINIC_VALUE = 'hc-4';
 
+/** "ทุกศูนย์บริการ" — ภาพรวมข้ามศูนย์ ใช้กับแดชบอร์ดระดับสำนัก (ความยินยอม /
+    จัดการระบบ) ที่เดิมมีชิป `ศูนย์:` ของตัวเองในหน้า (มติผู้ใช้ 27 ส.ค. 69).
+    หน้าจอปฏิบัติการยังต้องผูกกับศูนย์เดียวตามกติกา MIS §1.17.5.4 — `useActiveCenter`
+    จึงตีค่านี้กลับเป็นศูนย์เริ่มต้นให้ ไม่ปล่อยให้ scope หลุด */
+export const ALL_CLINICS_VALUE = 'all';
+
+/** ตัวเลือกของชิปบน Header / แถวในลิ้นชักมือถือ — "ทุกศูนย์" มาก่อน 69 ศูนย์ */
+export const CLINIC_FILTER_OPTIONS = [
+  { value: ALL_CLINICS_VALUE, label: 'ทุกศูนย์บริการ' },
+  ...CLINIC_OPTIONS,
+];
+
 const CLINIC_STORAGE_KEY = 'mih:selected-clinic';
 
 const isValidClinicValue = (value) =>
-  CLINIC_OPTIONS.some((o) => o.value === value);
+  value === ALL_CLINICS_VALUE || CLINIC_OPTIONS.some((o) => o.value === value);
 
 /** Restore the last selected ศูนย์ (Hub header chip → every PHCIS screen). */
 const readStoredClinic = () => {
@@ -131,7 +143,7 @@ export function ClinicFilterProvider({ children }) {
   }, [clinic]);
 
   const value = useMemo(
-    () => ({ clinic, setClinic, options: CLINIC_OPTIONS }),
+    () => ({ clinic, setClinic, options: CLINIC_FILTER_OPTIONS }),
     [clinic, setClinic],
   );
   return (
