@@ -799,6 +799,38 @@ const ChronicDiseaseCard = ({ index, entry }) => (
    ยืนยันผลแล้ว is the clinically citable state, so an unverified report is
    labelled as such rather than silently mixed in. Newest first — the most
    recent film is what the doctor is comparing against. */
+/* เลือกภาพฟิล์มแทนจากบริเวณที่ตรวจ — ต้นแบบยังไม่มี PACS/DICOMweb จริง จึงใช้
+   ภาพแทนแบบ stylized ใน public/images/films/ (ดู treatmentImagingHistory.js) */
+const filmForRegion = (text) => {
+  const t = String(text || '');
+  if (/เข่า|knee/i.test(t)) return FILM_ASSETS.knee;
+  if (/ท้อง|KUB|abdomen/i.test(t)) return FILM_ASSETS.kub;
+  if (/สันหลัง|spine|เอว|L-S/i.test(t)) return FILM_ASSETS.lsspine;
+  return FILM_ASSETS.cxr;
+};
+
+const FilmThumb = ({ src, label }) => (
+  <figure className='flex flex-col shrink-0' style={{ gap: 'var(--dim-space-150)', margin: 0 }}>
+    <img
+      src={src}
+      alt={label}
+      loading='lazy'
+      style={{
+        width: 108, height: 135, objectFit: 'cover',
+        borderRadius: 'var(--dim-radius-300)',
+        border: 'var(--dim-stroke-100) solid var(--border-neutral-tertiary)',
+        background: 'var(--surface-neutral-secondary, #1B2227)',
+      }}
+    />
+    <figcaption style={{
+      color: 'var(--text-content-tertiary)',
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-xs)',
+      maxWidth: 108,
+    }}>{label}</figcaption>
+  </figure>
+);
+
 const XrayHistoryTabPanel = ({ patient }) => {
   const rows = useMemo(() => {
     const hn = patient?.hn;
@@ -830,9 +862,9 @@ const XrayHistoryTabPanel = ({ patient }) => {
         {rows.map((r) => (
           <div
             key={r.id}
-            className='flex flex-col w-full'
+            className='flex w-full'
             style={{
-              gap: 'var(--dim-space-200)',
+              gap: 'var(--dim-space-400)',
               paddingTop: 'var(--dim-space-400)',
               paddingRight: 'var(--dim-space-400)',
               paddingBottom: 'var(--dim-space-400)',
@@ -842,6 +874,11 @@ const XrayHistoryTabPanel = ({ patient }) => {
               background: 'var(--surface-card-100)',
             }}
           >
+            <FilmThumb
+              src={filmForRegion(`${r.regionLabel} ${r.examLabel}`)}
+              label={r.regionLabel || r.examLabel}
+            />
+            <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-200)', flex: 1 }}>
             <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-200)' }}>
               <span style={{
                 color: 'var(--text-content-default)',
@@ -876,6 +913,7 @@ const XrayHistoryTabPanel = ({ patient }) => {
             {r.impression ? (
               <HistoryInfoText label='Impression' value={r.impression} />
             ) : null}
+            </div>
           </div>
         ))}
       </div>
