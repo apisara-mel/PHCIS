@@ -10,6 +10,7 @@ import FontSizeControls from '@/components/layout/FontSizeControls';
 import { useHeaderAutoHide } from '@/context/HeaderAutoHideContext';
 import {
   APP_TOPBAR_HEIGHT,
+  useLerpedTopbarOffset,
   CHROME_TRANSITION_EASE,
   CHROME_TRANSITION_MS,
 } from '@/hooks/useHeaderAutoHide';
@@ -70,7 +71,10 @@ const Header = ({
   collapsed: collapsedProp,
 }) => {
   const autoHideCtx = useHeaderAutoHide();
-  const liveTop = autoHideCtx?.topbarOffset ?? APP_TOPBAR_HEIGHT;
+  /* แถบบนเป็นที่เดียวที่ต้องใช้ "ตัวเลข" ของ offset ต่อเฟรม (ความสูง · ความทึบ ·
+     ระยะเลื่อน) จึงสมัครรับเอง — provider ไม่เก็บค่านี้เป็น state แล้ว หน้าที่
+     เหลือทั้งแอปจึงไม่ re-render ตามทุกเฟรมของการ scroll (28 ส.ค. 69) */
+  const liveTop = useLerpedTopbarOffset();
   const driveHeightFromLerp = autoHide && collapsedProp === undefined && autoHideCtx;
   const collapsed = collapsedProp ?? (autoHide && liveTop <= 0);
   const barHeight = driveHeightFromLerp

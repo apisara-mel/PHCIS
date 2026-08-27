@@ -125,6 +125,29 @@ export function clearLerpedCssLength(varName) {
   }
 }
 
+/**
+ * Subscribe to a lerped CSS length and re-render ONLY this component on each
+ * frame. เดิมค่านี้ถูกเก็บเป็น state ของ provider ทั้งแอป ทุกเฟรมของการ scroll
+ * จึง re-render ทุกหน้าจอที่อยู่ใต้ provider (ตารางคิวเป็นพันแถวก็โดนด้วย) —
+ * นั่นคือต้นเหตุที่เลื่อนแล้วกระตุก · ตอนนี้ provider ถือแค่ boolean ที่เปลี่ยน
+ * นาน ๆ ครั้ง ส่วนแถบที่ต้องขยับตามจริง ๆ (Header) มาสมัครรับเอง
+ */
+export function useLerpedCssLength(varName, initial, unit = 'px') {
+  const [value, setValue] = useState(initial);
+  useEffect(() => {
+    const ch = lerpChannels.get(varName);
+    if (ch) setValue(ch.current);
+    return setLerpedCssLength(varName, ch?.target ?? initial, setValue, unit);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [varName, unit]);
+  return value;
+}
+
+/** Live topbar height (0…64) — re-renders the caller once per frame. */
+export function useLerpedTopbarOffset() {
+  return useLerpedCssLength(MIH_TOPBAR_OFFSET_VAR, APP_TOPBAR_HEIGHT);
+}
+
 /** Mark page-level scroll containers — always drive header auto-hide. */
 export const MIH_SCROLL_ROOT_ATTR = 'data-mih-scroll-root';
 
@@ -203,8 +226,6 @@ const applyChromeScroll = (metrics, lastRef, setHeaderHidden, setFooterHidden) =
 export function useHeaderAutoHideState() {
   const [headerHidden, setHeaderHidden] = useState(false);
   const [footerHidden, setFooterHidden] = useState(false);
-  const [topbarOffset, setTopbarOffset] = useState(APP_TOPBAR_HEIGHT);
-  const [footerMotion, setFooterMotion] = useState(0);
   const lastWindowScrollY = useRef(0);
   const lastElementScrollY = useRef(new WeakMap());
   const { pathname } = useLocation();
@@ -218,8 +239,8 @@ export function useHeaderAutoHideState() {
     lastElementScrollY.current = new WeakMap();
     setHeaderHidden(false);
     setFooterHidden(false);
-    snapLerpedCssLength(MIH_TOPBAR_OFFSET_VAR, APP_TOPBAR_HEIGHT, setTopbarOffset);
-    snapLerpedCssLength(MIH_FOOTER_MOTION_VAR, 0, setFooterMotion, '');
+    snapLerpedCssLength(MIH_TOPBAR_OFFSET_VAR, APP_TOPBAR_HEIGHT);
+    snapLerpedCssLength(MIH_FOOTER_MOTION_VAR, 0, undefined, '');
   }, [pathname]);
 
   useEffect(() => {
@@ -274,12 +295,15 @@ export function useHeaderAutoHideState() {
     };
   }, []);
 
+  /* ค่าที่ lerp ถูกเขียนลง CSS var ตรง ๆ ไม่ผ่าน state — แถบต่าง ๆ อ่านจาก
+     `var(--mih-topbar-offset)` ใน `top:`/`calc()` จึงขยับพร้อมกันทุกเฟรมโดย
+     ไม่ต้อง re-render อะไรเลย (ดู `useLerpedTopbarOffset` สำหรับคนที่ต้องใช้เลข) */
   useEffect(() => {
-    return setLerpedCssLength(MIH_TOPBAR_OFFSET_VAR, targetOffset, setTopbarOffset);
+    return setLerpedCssLength(MIH_TOPBAR_OFFSET_VAR, targetOffset);
   }, [targetOffset]);
 
   useEffect(() => {
-    return setLerpedCssLength(MIH_FOOTER_MOTION_VAR, targetFooterMotion, setFooterMotion, '');
+    return setLerpedCssLength(MIH_FOOTER_MOTION_VAR, targetFooterMotion, undefined, '');
   }, [targetFooterMotion]);
 
   useEffect(() => {
@@ -309,5 +333,5 @@ export function useHeaderAutoHideState() {
     clearLerpedCssLength(MIH_FOOTER_MOTION_VAR);
   }, []);
 
-  return { headerHidden, footerHidden, topbarOffset, footerMotion };
+  return { headerHidden, footerHidden };
 }
