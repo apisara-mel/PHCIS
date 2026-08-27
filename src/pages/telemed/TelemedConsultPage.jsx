@@ -10,6 +10,8 @@ import BrandButton from '@/components/button/BrandButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import AlertDialog from '@/components/popup/AlertDialog';
+import Popover from '@/components/popup/Popover';
+import Popup from '@/components/popup/Popup';
 import VirtualBackgroundFeed from '@/components/telemed/VirtualBackgroundFeed';
 import TelemedParticipantsPopup, {
   DEFAULT_TELEMED_EXTRA_PARTICIPANTS,
@@ -607,58 +609,57 @@ const TELEMED_CAMERA_DEVICES = [
    selected device, matching the shared Dropdown popover chrome). */
 const DevicePickerPill = ({ icon, value, options, onChange, ariaLabel }) => {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDocClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', onDocClick);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDocClick);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  const anchorRef = useRef(null);
 
   const selected = options.find((o) => o.value === value) || options[0];
   const tagColor = open ? 'var(--text-brandtag-selected, #007549)' : 'var(--text-brandtag-default, #4D5358)';
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button
-        type='button'
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup='listbox'
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        style={{
-          height: 40, display: 'inline-flex', alignItems: 'center', gap: 'var(--dim-space-150, 6px)',
-          paddingLeft: 'var(--dim-space-300, 12px)', paddingRight: 'var(--dim-space-300, 12px)',
-          borderRadius: 'var(--dim-radius-full, 9999px)', cursor: 'pointer',
-          border: `var(--dim-stroke-100, 1px) solid ${open ? 'var(--border-brandtag-selected, #C5EDDA)' : 'var(--border-brandtag-default, #E2E4E6)'}`,
-          background: open ? 'var(--surface-brandtag-selected, #F4FBF8)' : 'var(--surface-brandtag-default, #FFFFFF)',
-        }}
-      >
-        <Sym name={icon} size={16} color={tagColor} />
-        <span style={{ fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)', color: tagColor, whiteSpace: 'nowrap' }}>
-          {selected?.label}
-        </span>
-        <Sym
-          name='keyboard_arrow_down'
-          size={16}
-          color={tagColor}
-          style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 160ms ease' }}
-        />
-      </button>
+    <>
+      <span ref={anchorRef} className='inline-flex' style={{ position: 'relative' }}>
+        <button
+          type='button'
+          onClick={() => setOpen((v) => !v)}
+          aria-haspopup='listbox'
+          aria-expanded={open}
+          aria-label={ariaLabel}
+          style={{
+            height: 40, display: 'inline-flex', alignItems: 'center', gap: 'var(--dim-space-150, 6px)',
+            paddingLeft: 'var(--dim-space-300, 12px)', paddingRight: 'var(--dim-space-300, 12px)',
+            borderRadius: 'var(--dim-radius-full, 9999px)', cursor: 'pointer',
+            border: `var(--dim-stroke-100, 1px) solid ${open ? 'var(--border-brandtag-selected, #C5EDDA)' : 'var(--border-brandtag-default, #E2E4E6)'}`,
+            background: open ? 'var(--surface-brandtag-selected, #F4FBF8)' : 'var(--surface-brandtag-default, #FFFFFF)',
+          }}
+        >
+          <Sym name={icon} size={16} color={tagColor} />
+          <span style={{ fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)', color: tagColor, whiteSpace: 'nowrap' }}>
+            {selected?.label}
+          </span>
+          <Sym
+            name='keyboard_arrow_down'
+            size={16}
+            color={tagColor}
+            style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 160ms ease' }}
+          />
+        </button>
+      </span>
 
-      {open && (
+      {/* แถวเลือกอุปกรณ์อยู่ติดขอบล่างของการ์ด — dropdown ที่วางแบบ absolute
+          ในตัวเองจะถูกกรอบ/ขอบจอตัดหัวท้าย. ใช้ Popover ของระบบซึ่ง portal ไป
+          document.body, ตรึงตำแหน่งแบบ fixed และพลิกขึ้นด้านบนเองเมื่อพื้นที่
+          ด้านล่างไม่พอ (ตัวเดียวกับที่ DatePicker/เมนูแถวใช้อยู่) */}
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={anchorRef}
+        style={{ zIndex: TELEMED_Z_TOP + 1 }}
+      >
         <div
           role='listbox'
           aria-label={ariaLabel}
           style={{
-            position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: 264, maxHeight: 260,
-            overflowY: 'auto', zIndex: 20, padding: 'var(--dim-space-100, 4px)',
+            minWidth: 264, maxHeight: 260, overflowY: 'auto',
+            padding: 'var(--dim-space-100, 4px)',
             borderRadius: 'var(--dim-radius-400, 12px)',
             background: 'var(--surface-dropdown-default, #FFFFFF)',
             border: 'var(--dim-stroke-100, 1px) solid var(--border-dropdown-default, #E2E4E6)',
@@ -695,8 +696,8 @@ const DevicePickerPill = ({ icon, value, options, onChange, ariaLabel }) => {
             );
           })}
         </div>
-      )}
-    </div>
+      </Popover>
+    </>
   );
 };
 
@@ -1195,7 +1196,8 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
   const pinned = participants.find((p) => p.id === pinnedId) || null;
   const togglePin = (id) => setPinnedId((cur) => (cur === id ? null : id));
   const [linkCopied, setLinkCopied] = useState(false);
-  const meetingLink = `https://meet.google.com/abc-defg-hij`;
+  /* ลิงก์เข้าห้องต้องเป็นของ bma.health ไม่ใช่ผู้ให้บริการภายนอก */
+  const meetingLink = 'https://bma-health.mih.co.th/telemed/join/TM-8842-2024';
   const copyLink = () => {
     try { navigator.clipboard?.writeText(meetingLink); } catch (e) { /* ignore */ }
     setLinkCopied(true);
@@ -1224,6 +1226,12 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
       ];
     });
   };
+  /* ถอนการเชิญจากหน้ารายชื่อ — จับคู่ด้วย directoryId ก่อน แล้วค่อยตกลงที่ชื่อ
+     เพราะรายการที่เชิญไว้ก่อนหน้าอาจถูกสร้างจากชื่ออย่างเดียว */
+  const uninviteFromDirectory = (preset) => {
+    setParticipants((ps) => ps.filter((pp) => !(pp.directoryId === preset.id || pp.name === preset.name)));
+  };
+
   const removeParticipant = (id) => {
     setParticipants((ps) => ps.filter((p) => p.id !== id));
     setPinnedId((cur) => (cur === id ? null : cur));
@@ -1984,447 +1992,164 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
      Device check + virtual-background picker before entering the waiting room. */
   if (phase === 'prepare') {
     return (
-      <div style={{
-        /* --sm-z-overlay (1300), NOT an ad-hoc mega z-index — must stay below
-           --sm-z-modal (1400) so Popup-based dialogs (TelemedParticipantsPopup,
-           AlertDialog, …) opened from within this screen render on top of it. */
-        position: 'fixed', inset: 0, zIndex: 'var(--sm-z-overlay, 1300)',
-        display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-600, 24px)',
-        alignItems: 'center', background: 'var(--background-screen-brand-100, #F4FBF8)',
-        fontFamily: 'var(--type-family-body, "Sarabun", sans-serif)', overflow: 'hidden',
-      }}
-      >
-        {/* Header Bar */}
-        <header style={{
-          display: 'flex', alignItems: 'center', gap: 'var(--dim-space-600, 24px)',
-          padding: 'var(--dim-space-300, 12px) var(--dim-space-600, 24px)', width: '100%',
-          background: 'var(--surface-card-100, #FFFFFF)',
-          borderBottom: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
-          flexShrink: 0,
-        }}
+      <>
+        {/* หน้าเตรียมตัวก่อนเข้าห้องแสดงเป็นป๊อปอัปของระบบ ไม่ใช่หน้าเต็มจอ:
+            แพทย์เปิดสายจากหน้างานที่ทำค้างไว้ (เช่น บันทึกการรักษา) หน้านั้นจึงควร
+            ยังอยู่ข้างหลังให้เห็น และปิดกลับไปทำงานต่อได้ทันที */}
+        <Popup
+          open
+          onClose={onClose}
+          width={1180}
+          title='ห้องตรวจรักษาออนไลน์'
+          subtitle='Session ID: TM-8842-2024'
+          headerStyle={{ alignItems: 'center' }}
+          bodyStyle={{ paddingTop: 0 }}
         >
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-050, 2px)' }}>
-            <span style={{ fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)', fontSize: 'var(--type-size-base, 16px)', fontWeight: 'var(--type-weight-regular, 400)', color: 'var(--text-topic-secondary-title, #007549)', lineHeight: 1.5 }}>ห้องตรวจรักษาออนไลน์</span>
-            <span style={{ fontFamily: 'var(--type-family-body, "Sarabun", sans-serif)', fontSize: 'var(--type-size-xs, 12px)', fontWeight: 'var(--type-weight-medium, 500)', color: 'var(--text-topic-tertiary-subtext, #ADB2B7)', lineHeight: 1.5 }}>Session ID: TM-8842-2024</span>
-          </div>
-          <button type='button' onClick={onClose} aria-label='ปิด' title='ปิด' style={iconBtnStyle}>
-            <Sym name='close' size={20} />
-          </button>
-        </header>
-
         {/* Content — two columns */}
-        <div style={{ flex: 1, minHeight: 0, width: 1280, maxWidth: '100%', display: 'flex', gap: 'var(--dim-space-400, 16px)', alignItems: 'stretch', justifyContent: 'center', padding: '0 var(--dim-space-400, 16px)' }}>
-          {/* Left — video preview column */}
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-400, 16px)', height: '100%' }}>
-            {/* appointment card — TelemedPatientCard Hide/Show (Figma 25:3185) */}
-            <div style={{ ...prepareCardStyle, gap: 'var(--dim-space-200, 8px)' }}>
-              <span style={{ fontSize: 'var(--type-size-sm, 14px)', color: 'var(--text-content-secondary, #636B72)', lineHeight: 1.5 }}>คุณมีนัดหมายตรวจรักษาออนไลน์กับ</span>
-              <TelemedPatientCard
-                open={patientOpen}
-                onToggle={() => setPatientOpen((v) => !v)}
-              />
-            </div>
-
-            {/* video preview card */}
-            <div style={{ ...prepareCardStyle, flex: 1, minHeight: 0, gap: 'var(--dim-space-400, 16px)' }}>
-              <span style={{ fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)', fontSize: 'var(--type-size-base, 16px)', fontWeight: 'var(--type-weight-regular, 400)', color: 'var(--text-topic-tertiary-title, #363B3F)', lineHeight: 1.5 }}>เตรียมตัวก่อนให้เข้าห้องตรวจ</span>
-              <div style={{ flex: 1, minHeight: 0, position: 'relative', borderRadius: 'var(--dim-radius-500, 16px)', overflow: 'hidden' }}>
-                <TelemedPreparePreview
-                  backgroundSrc={virtualBackgroundSrc}
-                  blurMode={bg === 'blur'}
-                  stream={stream}
-                  camOn={camOn}
-                  camError={camError}
-                >
-                  {/* name badge */}
-                  <div style={{ position: 'absolute', left: 'var(--dim-space-400, 16px)', bottom: 'var(--dim-space-400, 16px)', height: 32, display: 'inline-flex', alignItems: 'center', gap: 'var(--dim-space-150, 6px)', paddingLeft: 'var(--dim-space-300, 12px)', paddingRight: 'var(--dim-space-300, 12px)', borderRadius: 'var(--dim-radius-full, 9999px)', background: 'var(--surface-card-100, #FFFFFF)', zIndex: 1 }}>
-                    <span style={{ fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)', color: 'var(--text-content-default, #363B3F)' }}>{PATIENT.fullName} (ผู้รับบริการ)</span>
-                  </div>
-                </TelemedPreparePreview>
-              </div>
-              {/* device controls */}
-              <div style={{ display: 'flex', gap: 'var(--dim-space-200, 8px)', alignItems: 'center', justifyContent: 'center' }}>
-                {micOn ? (
-                  <BrandCircleSubdueIconButton variant='outline' size='lg' icon='mic' aria-label='ปิดไมค์' onClick={() => setMicOn((v) => !v)} style={{ border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimaryButton-tertiary, #C5EDDA)' }} />
-                ) : (
-                  /* Muted — Figma "Danger Circle Subdue Icon Button" (58:14582): red mic_off + tertiary red border. */
-                  <DangerCircleSubdueIconButton variant='outline' size='lg' icon='mic_off' aria-label='เปิดไมค์' onClick={() => setMicOn((v) => !v)} style={{ border: 'var(--dim-stroke-100, 1px) solid var(--border-dangerButton-tertiary, #FECACA)' }} />
-                )}
-                {camOn && !camError ? (
-                  <BrandCircleSubdueIconButton variant='outline' size='lg' icon='videocam' aria-label='ปิดกล้อง' onClick={() => setCamOn((v) => !v)} style={{ border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimaryButton-tertiary, #C5EDDA)' }} />
-                ) : (
-                  <DangerCircleSubdueIconButton variant='outline' size='lg' icon='videocam_off' aria-label='เปิดกล้อง' onClick={() => { if (camError) { setCamError(false); setCamOn(true); } else setCamOn((v) => !v); }} style={{ border: 'var(--dim-stroke-100, 1px) solid var(--border-dangerButton-tertiary, #FECACA)' }} />
-                )}
-                <BrandCircleSubdueIconButton variant='outline' size='lg' icon='blur_on' aria-label='เบลอพื้นหลัง' active={bg === 'blur'} onClick={toggleBlurBackground} style={bg === 'blur' ? undefined : { border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimaryButton-tertiary, #C5EDDA)' }} />
-              </div>
-            </div>
-
-            {/* status tags — device selectors (Figma 78:16405 / 103:53180) */}
-            <div style={{ ...prepareCardStyle, flexDirection: 'row', gap: 'var(--dim-space-400, 16px)', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <DevicePickerPill icon='mic' ariaLabel='เลือกไมค์' options={TELEMED_MIC_DEVICES} value={micDevice} onChange={setMicDevice} />
-              <MicLevelMeter stream={micStream} />
-              <DevicePickerPill icon='volume_up' ariaLabel='เลือกลำโพง' options={TELEMED_SPEAKER_DEVICES} value={speakerDevice} onChange={setSpeakerDevice} />
-              <DevicePickerPill icon='videocam' ariaLabel='เลือกกล้อง' options={TELEMED_CAMERA_DEVICES} value={cameraDevice} onChange={setCameraDevice} />
-            </div>
-          </div>
-
-          {/* Right — Info Column (Figma 37:6435) */}
-          <aside
-            style={{
-              width: 448,
-              flexShrink: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              height: '100%',
-              paddingTop: 'var(--dim-space-400, 16px)',
-              paddingLeft: 'var(--dim-space-400, 16px)',
-              paddingRight: 'var(--dim-space-400, 16px)',
-              paddingBottom: 0,
-              background: 'var(--surface-card-100, #FFFFFF)',
-              borderRadius: 'var(--dim-radius-500, 16px)',
-              boxShadow: 'var(--shadow-brand-drop-bottom-200)',
-            }}
-          >
-            {/* Action Group */}
-            <div
-              className='flex flex-col items-center w-full'
-              style={{
-                gap: 'var(--dim-space-300, 12px)',
-                paddingTop: 'var(--dim-space-400, 16px)',
-                paddingBottom: 'var(--dim-space-400, 16px)',
-                background: 'var(--surface-card-100, #FFFFFF)',
-                flexShrink: 0,
-              }}
-            >
-              <div className='flex flex-col items-center justify-center w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-                <button
-                  type='button'
-                  onClick={enterCall}
-                  disabled={!!camError || !!mediaErrorType}
-                  style={{
-                    width: 'fit-content',
-                    height: 'var(--dim-size-1100, 52px)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 'var(--dim-space-200, 8px)',
-                    padding: 'var(--dim-space-200, 8px) var(--dim-space-600, 24px)',
-                    border: 'none',
-                    cursor: camError || mediaErrorType ? 'not-allowed' : 'pointer',
-                    borderRadius: 'var(--dim-radius-200, 8px)',
-                    background: camError || mediaErrorType
-                      ? 'var(--surface-neutral-tertiary, #F4F5F5)'
-                      : 'var(--surface-brandPrimaryButton-default, #007549)',
-                    color: camError || mediaErrorType
-                      ? 'var(--text-content-tertiary, #858C92)'
-                      : 'var(--text-brandPrimaryButton-on-brand, #FFFFFF)',
-                    fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)',
-                    fontSize: 'var(--type-size-lg, 18px)',
-                    fontWeight: 'var(--type-weight-regular, 400)',
-                    lineHeight: 1.5,
-                    whiteSpace: 'nowrap',
-                    boxShadow: camError || mediaErrorType ? 'none' : 'var(--shadow-brand-drop-bottom-200)',
-                    opacity: camError || mediaErrorType ? 0.72 : 1,
-                  }}
-                >
-                  <Sym name='stethoscope' size={24} color='var(--text-brandPrimaryButton-on-brand, #FFFFFF)' />
-                  เข้าห้องตรวจ
-                </button>
-
-                <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-                  <button
-                    type='button'
-                    className='flex items-center'
-                    onClick={() => openPeople('list')}
-                    aria-label='ดูผู้เข้าร่วม'
-                    style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}
+            <div style={{ width: '100%', display: 'flex', gap: 'var(--dim-space-400, 16px)', alignItems: 'stretch', justifyContent: 'center' }}>
+            {/* Left — video preview column */}
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-400, 16px)' }}>
+              {/* การ์ดนัดหมาย/ผู้รับบริการถูกถอดออกจากหน้าเตรียมตัว — ชื่อผู้รับบริการ
+                  อยู่บนกรอบภาพอยู่แล้ว และการ์ดเต็มยังอยู่ในห้องตรวจหลังเข้าสาย */}
+              {/* video preview card */}
+              <div style={{ ...prepareCardStyle, gap: 'var(--dim-space-400, 16px)' }}>
+                <span style={{ fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)', fontSize: 'var(--type-size-base, 16px)', fontWeight: 'var(--type-weight-regular, 400)', color: 'var(--text-topic-tertiary-title, #363B3F)', lineHeight: 1.5 }}>เตรียมตัวก่อนให้เข้าห้องตรวจ</span>
+                {/* เดิมกรอบนี้ยืดตามความสูงจอ (flex:1 ใต้คอลัมน์ height:100%) พอย้าย
+                    มาอยู่ในป๊อปอัปที่สูงตามเนื้อหา กรอบจึงยุบเหลือ 0 — ผูกสัดส่วนไว้แทน */}
+                <div style={{ width: '100%', aspectRatio: '16 / 9', minHeight: 0, position: 'relative', borderRadius: 'var(--dim-radius-500, 16px)', overflow: 'hidden' }}>
+                  <TelemedPreparePreview
+                    backgroundSrc={virtualBackgroundSrc}
+                    blurMode={bg === 'blur'}
+                    stream={stream}
+                    camOn={camOn}
+                    camError={camError}
                   >
-                    {PREPARE_PARTICIPANTS.map((p, i) => (
-                      <span
-                        key={p.id}
-                        style={{
-                          position: 'relative',
-                          zIndex: i + 1,
-                          width: 'var(--dim-size-600, 32px)',
-                          height: 'var(--dim-size-600, 32px)',
-                          borderRadius: 'var(--dim-radius-full, 9999px)',
-                          border: 'var(--dim-stroke-200, 2px) solid var(--border-image-default, #FFFFFF)',
-                          marginLeft: i === 0 ? 0 : 'calc(var(--dim-space-300, 12px) * -1)',
-                          background: 'var(--surface-neutral-secondary, #F3F4F6)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          overflow: 'hidden',
-                          flexShrink: 0,
-                        }}
-                      >
-                        <img
-                          src={p.avatar}
-                          alt={p.name}
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            pointerEvents: 'none',
-                          }}
-                        />
-                      </span>
-                    ))}
-                    <span
-                      style={{
-                        position: 'relative',
-                        zIndex: PREPARE_PARTICIPANTS.length + 1,
-                        width: 'var(--dim-size-600, 32px)',
-                        height: 'var(--dim-size-600, 32px)',
-                        borderRadius: 'var(--dim-radius-full, 9999px)',
-                        border: 'var(--dim-stroke-200, 2px) solid var(--border-image-default, #FFFFFF)',
-                        marginLeft: 'calc(var(--dim-space-300, 12px) * -1)',
-                        background: 'var(--surface-neutral-secondary, #F3F4F6)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontFamily: 'var(--type-family-body, "Sarabun", sans-serif)',
-                        fontSize: 'var(--type-size-xxs, 10px)',
-                        fontWeight: 'var(--type-weight-regular, 400)',
-                        color: 'var(--text-content-secondary, #636B72)',
-                        lineHeight: 1.5,
-                        flexShrink: 0,
-                      }}
-                    >
-                      +1
-                    </span>
-                  </button>
-                  <BrandCircleSubdueIconButton
-                    variant='outline'
-                    size='xs'
-                    icon='person_add'
-                    aria-label='เชิญผู้เข้าร่วม'
-                    onClick={() => openPeople('add')}
-                    style={{ border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimaryButton-tertiary, #C5EDDA)' }}
-                  />
+                    {/* name badge */}
+                    <div style={{ position: 'absolute', left: 'var(--dim-space-400, 16px)', bottom: 'var(--dim-space-400, 16px)', height: 32, display: 'inline-flex', alignItems: 'center', gap: 'var(--dim-space-150, 6px)', paddingLeft: 'var(--dim-space-300, 12px)', paddingRight: 'var(--dim-space-300, 12px)', borderRadius: 'var(--dim-radius-full, 9999px)', background: 'var(--surface-card-100, #FFFFFF)', zIndex: 1 }}>
+                      <span style={{ fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)', color: 'var(--text-content-default, #363B3F)' }}>{PATIENT.fullName} (ผู้รับบริการ)</span>
+                    </div>
+                  </TelemedPreparePreview>
+                </div>
+                {/* device controls */}
+                <div style={{ display: 'flex', gap: 'var(--dim-space-200, 8px)', alignItems: 'center', justifyContent: 'center' }}>
+                  {micOn ? (
+                    <BrandCircleSubdueIconButton variant='outline' size='lg' icon='mic' aria-label='ปิดไมค์' onClick={() => setMicOn((v) => !v)} style={{ border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimaryButton-tertiary, #C5EDDA)' }} />
+                  ) : (
+                    /* Muted — Figma "Danger Circle Subdue Icon Button" (58:14582): red mic_off + tertiary red border. */
+                    <DangerCircleSubdueIconButton variant='outline' size='lg' icon='mic_off' aria-label='เปิดไมค์' onClick={() => setMicOn((v) => !v)} style={{ border: 'var(--dim-stroke-100, 1px) solid var(--border-dangerButton-tertiary, #FECACA)' }} />
+                  )}
+                  {camOn && !camError ? (
+                    <BrandCircleSubdueIconButton variant='outline' size='lg' icon='videocam' aria-label='ปิดกล้อง' onClick={() => setCamOn((v) => !v)} style={{ border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimaryButton-tertiary, #C5EDDA)' }} />
+                  ) : (
+                    <DangerCircleSubdueIconButton variant='outline' size='lg' icon='videocam_off' aria-label='เปิดกล้อง' onClick={() => { if (camError) { setCamError(false); setCamOn(true); } else setCamOn((v) => !v); }} style={{ border: 'var(--dim-stroke-100, 1px) solid var(--border-dangerButton-tertiary, #FECACA)' }} />
+                  )}
+                  <BrandCircleSubdueIconButton variant='outline' size='lg' icon='blur_on' aria-label='เบลอพื้นหลัง' active={bg === 'blur'} onClick={toggleBlurBackground} style={bg === 'blur' ? undefined : { border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimaryButton-tertiary, #C5EDDA)' }} />
                 </div>
               </div>
+
+              {/* status tags — device selectors (Figma 78:16405 / 103:53180) */}
+              <div style={{ ...prepareCardStyle, flexDirection: 'row', gap: 'var(--dim-space-400, 16px)', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <DevicePickerPill icon='mic' ariaLabel='เลือกไมค์' options={TELEMED_MIC_DEVICES} value={micDevice} onChange={setMicDevice} />
+                <MicLevelMeter stream={micStream} />
+                <DevicePickerPill icon='volume_up' ariaLabel='เลือกลำโพง' options={TELEMED_SPEAKER_DEVICES} value={speakerDevice} onChange={setSpeakerDevice} />
+                <DevicePickerPill icon='videocam' ariaLabel='เลือกกล้อง' options={TELEMED_CAMERA_DEVICES} value={cameraDevice} onChange={setCameraDevice} />
+              </div>
             </div>
 
-            {/* พื้นหลังเสมือนเป็นของตกแต่ง ไม่ใช่สิ่งที่แพทย์ต้องตัดสินใจก่อนเข้าห้อง —
-                เดิมกินพื้นที่ทั้งคอลัมน์และอยู่เหนือปุ่มเข้าห้อง สิ่งที่สำคัญที่สุด
-                (ภาพตัวเอง · อุปกรณ์ · ปุ่มเข้าห้อง) จึงถูกดันลงไปใต้กริดรูป */}
-            <button
-              type='button'
-              className='flex items-center w-full'
-              onClick={() => setBgPanelOpen((v) => !v)}
-              aria-expanded={bgPanelOpen}
+            {/* Right — Info Column (Figma 37:6435) */}
+            <aside
               style={{
-                gap: 'var(--dim-space-300, 12px)',
-                padding: 'var(--dim-space-200, 8px) var(--dim-space-300, 12px)',
-                borderRadius: 'var(--dim-radius-400, 12px)',
-                background: 'var(--surface-topic-default, #FFFFFF)',
-                border: 'none',
-                cursor: 'pointer',
+                width: 448,
                 flexShrink: 0,
-                textAlign: 'left',
-                fontFamily: 'inherit',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                height: '100%',
+                paddingTop: 'var(--dim-space-400, 16px)',
+                paddingLeft: 'var(--dim-space-400, 16px)',
+                paddingRight: 'var(--dim-space-400, 16px)',
+                paddingBottom: 0,
+                background: 'var(--surface-card-100, #FFFFFF)',
+                borderRadius: 'var(--dim-radius-500, 16px)',
+                boxShadow: 'var(--shadow-brand-drop-bottom-200)',
               }}
             >
-              <div style={{ width: 'var(--dim-size-400, 20px)', paddingTop: 'var(--dim-space-050, 2px)', flexShrink: 0 }}>
-                <Sym name='layers' size={20} color='var(--icon-brandPrimary-default, #007549)' />
-              </div>
-              <span
+              {/* Action Group */}
+              <div
+                className='flex flex-col items-center w-full'
                 style={{
-                  flex: 1,
-                  minWidth: 0,
-                  fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)',
-                  fontSize: 'var(--type-size-base, 16px)',
-                  fontWeight: 'var(--type-weight-regular, 400)',
-                  color: 'var(--text-topic-primary-title, #007549)',
-                  lineHeight: 1.5,
-                }}
-              >
-                เปลี่ยนพื้นหลัง
-              </span>
-              <Sym name={bgPanelOpen ? 'expand_less' : 'expand_more'} size={20} color='var(--icon-brandPrimary-default, #007549)' />
-            </button>
-            {bgPanelOpen && (
-              <>
-            {/* Upload section */}
-            <div
-              className='flex flex-col items-start w-full'
-              style={{ gap: 'var(--dim-space-200, 8px)', padding: 'var(--dim-space-400, 16px) 0', flexShrink: 0 }}
-            >
-              <span
-                style={{
-                  fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)',
-                  fontSize: 'var(--type-size-base, 16px)',
-                  fontWeight: 'var(--type-weight-regular, 400)',
-                  color: 'var(--text-topic-tertiary-title, #363B3F)',
-                  lineHeight: 1.5,
-                }}
-              >
-                ภาพที่อัปโหลดด้วยตนเอง
-              </span>
-              <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-                <button
-                  type='button'
-                  onClick={() => uploadInputRef.current?.click()}
-                  onMouseEnter={() => setUploadHover(true)}
-                  onMouseLeave={() => setUploadHover(false)}
-                  aria-label='อัปโหลดภาพพื้นหลัง'
-                  style={{
-                    flex: uploadedBg ? '1 0 0' : undefined,
-                    width: uploadedBg ? undefined : 194,
-                    minWidth: 0,
-                    aspectRatio: uploadedBg ? '194 / 109' : undefined,
-                    height: uploadedBg ? undefined : 109,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 'var(--dim-space-600, 24px)',
-                    cursor: 'pointer',
-                    overflow: 'hidden',
-                    borderRadius: 'var(--dim-radius-200, 8px)',
-                    border: uploadHover
-                      ? 'var(--dim-stroke-150, 1.5px) dashed var(--border-formbuilder-hover, #08A768)'
-                      : 'var(--dim-stroke-150, 1.5px) dashed var(--border-formbuilder-default, #C5EDDA)',
-                    background: uploadHover
-                      ? 'var(--surface-formbuilder-hover, #F4FBF8)'
-                      : 'var(--surface-formbuilder-default, #F4FBF8)',
-                    transition: 'border-color 150ms ease-out, background-color 150ms ease-out',
-                  }}
-                >
-                  <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200, 8px)', flex: 1 }}>
-                    <Sym name='image' size={20} color='var(--text-formbuilder-text, #007549)' />
-                    <span
-                      style={{
-                        fontFamily: 'var(--type-family-body, "Sarabun", sans-serif)',
-                        fontSize: 'var(--type-size-xs, 12px)',
-                        fontWeight: 'var(--type-weight-medium, 500)',
-                        color: 'var(--text-formbuilder-text, #007549)',
-                        textAlign: 'center',
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      อัปโหลดภาพ
-                    </span>
-                  </div>
-                </button>
-                {uploadedBg && (
-                  <button
-                    type='button'
-                    onClick={() => selectBackground('uploaded')}
-                    aria-label='ภาพที่อัปโหลด'
-                    aria-pressed={bg === 'uploaded'}
-                    style={{
-                      position: 'relative',
-                      flex: '1 0 0',
-                      minWidth: 0,
-                      aspectRatio: '16 / 9',
-                      padding: 0,
-                      cursor: 'pointer',
-                      borderRadius: 'var(--dim-radius-200, 8px)',
-                      overflow: 'hidden',
-                      border: bg === 'uploaded'
-                        ? 'var(--dim-stroke-400, 4px) solid var(--brand-p300, #91DFBB)'
-                        : 'none',
-                      background: 'var(--surface-neutral-secondary, #F1F3F5)',
-                    }}
-                  >
-                    <img
-                      src={uploadedBg}
-                      alt='ภาพที่อัปโหลด'
-                      draggable='false'
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        pointerEvents: 'none',
-                      }}
-                    />
-                    {bg === 'uploaded' && (
-                      <span
-                        style={{
-                          position: 'absolute',
-                          top: 'var(--dim-space-100, 4px)',
-                          right: 'var(--dim-space-100, 4px)',
-                          width: 'var(--dim-size-500, 24px)',
-                          height: 'var(--dim-size-500, 24px)',
-                          borderRadius: 'var(--dim-radius-full, 9999px)',
-                          background: 'var(--surface-colorfulbadge-green-bold, #54CF97)',
-                          border: 'var(--dim-stroke-200, 2px) solid var(--border-image-default, #FFFFFF)',
-                          boxSizing: 'border-box',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Sym name='check' size={14} fill={1} color='var(--text-brandPrimaryButton-on-brand, #FFFFFF)' />
-                      </span>
-                    )}
-                  </button>
-                )}
-              </div>
-              <input ref={uploadInputRef} type='file' accept='image/*' onChange={onUploadBg} style={{ display: 'none' }} />
-            </div>
-
-            {/* Preset gallery — รูปภาพ */}
-            <div
-              className='flex flex-col items-start w-full'
-              style={{ flex: 1, minHeight: 0, gap: 'var(--dim-space-200, 8px)', overflow: 'hidden' }}
-            >
-              <span
-                style={{
-                  fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)',
-                  fontSize: 'var(--type-size-base, 16px)',
-                  fontWeight: 'var(--type-weight-regular, 400)',
-                  color: 'var(--text-topic-tertiary-title, #363B3F)',
-                  lineHeight: 1.5,
+                  gap: 'var(--dim-space-300, 12px)',
+                  paddingTop: 'var(--dim-space-400, 16px)',
+                  paddingBottom: 'var(--dim-space-400, 16px)',
+                  background: 'var(--surface-card-100, #FFFFFF)',
                   flexShrink: 0,
                 }}
               >
-                รูปภาพ
-              </span>
-              <div
-                className='flex flex-col w-full'
-                style={{ flex: 1, minHeight: 0, gap: 'var(--dim-space-300, 12px)', overflowY: 'auto' }}
-              >
-                {[0, 2, 4, 6].map((start) => (
-                  <div
-                    key={start}
-                    className='flex items-center w-full'
-                    style={{ gap: 'var(--dim-space-300, 12px)', flexShrink: 0 }}
+                <div className='flex flex-col items-center justify-center w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+                  <button
+                    type='button'
+                    onClick={enterCall}
+                    disabled={!!camError || !!mediaErrorType}
+                    style={{
+                      width: 'fit-content',
+                      height: 'var(--dim-size-1100, 52px)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 'var(--dim-space-200, 8px)',
+                      padding: 'var(--dim-space-200, 8px) var(--dim-space-600, 24px)',
+                      border: 'none',
+                      cursor: camError || mediaErrorType ? 'not-allowed' : 'pointer',
+                      borderRadius: 'var(--dim-radius-200, 8px)',
+                      background: camError || mediaErrorType
+                        ? 'var(--surface-neutral-tertiary, #F4F5F5)'
+                        : 'var(--surface-brandPrimaryButton-default, #007549)',
+                      color: camError || mediaErrorType
+                        ? 'var(--text-content-tertiary, #858C92)'
+                        : 'var(--text-brandPrimaryButton-on-brand, #FFFFFF)',
+                      fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)',
+                      fontSize: 'var(--type-size-lg, 18px)',
+                      fontWeight: 'var(--type-weight-regular, 400)',
+                      lineHeight: 1.5,
+                      whiteSpace: 'nowrap',
+                      boxShadow: camError || mediaErrorType ? 'none' : 'var(--shadow-brand-drop-bottom-200)',
+                      opacity: camError || mediaErrorType ? 0.72 : 1,
+                    }}
                   >
-                    {BG_PRESETS.slice(start, start + 2).map((p) => {
-                      const on = bg === p.id;
-                      return (
-                        <button
+                    <Sym name='stethoscope' size={24} color='var(--text-brandPrimaryButton-on-brand, #FFFFFF)' />
+                    เข้าห้องตรวจ
+                  </button>
+
+                  <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                    <button
+                      type='button'
+                      className='flex items-center'
+                      onClick={() => openPeople('list')}
+                      aria-label='ดูผู้เข้าร่วม'
+                      style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}
+                    >
+                      {PREPARE_PARTICIPANTS.map((p, i) => (
+                        <span
                           key={p.id}
-                          type='button'
-                          onClick={() => selectBackground(p.id)}
-                          aria-label={p.label}
-                          aria-pressed={on}
                           style={{
                             position: 'relative',
-                            flex: '1 0 0',
-                            minWidth: 0,
-                            aspectRatio: '16 / 9',
-                            padding: 0,
-                            cursor: 'pointer',
-                            borderRadius: 'var(--dim-radius-200, 8px)',
+                            zIndex: i + 1,
+                            width: 'var(--dim-size-600, 32px)',
+                            height: 'var(--dim-size-600, 32px)',
+                            borderRadius: 'var(--dim-radius-full, 9999px)',
+                            border: 'var(--dim-stroke-200, 2px) solid var(--border-image-default, #FFFFFF)',
+                            marginLeft: i === 0 ? 0 : 'calc(var(--dim-space-300, 12px) * -1)',
+                            background: 'var(--surface-neutral-secondary, #F3F4F6)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                             overflow: 'hidden',
-                            border: on
-                              ? 'var(--dim-stroke-400, 4px) solid var(--brand-p300, #91DFBB)'
-                              : 'none',
-                            background: 'var(--surface-neutral-secondary, #F1F3F5)',
+                            flexShrink: 0,
                           }}
                         >
                           <img
-                            src={p.src}
-                            alt={p.label}
-                            draggable='false'
+                            src={p.avatar}
+                            alt={p.name}
                             style={{
                               position: 'absolute',
                               inset: 0,
@@ -2434,53 +2159,303 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                               pointerEvents: 'none',
                             }}
                           />
-                          {on && (
-                            <span
+                        </span>
+                      ))}
+                      <span
+                        style={{
+                          position: 'relative',
+                          zIndex: PREPARE_PARTICIPANTS.length + 1,
+                          width: 'var(--dim-size-600, 32px)',
+                          height: 'var(--dim-size-600, 32px)',
+                          borderRadius: 'var(--dim-radius-full, 9999px)',
+                          border: 'var(--dim-stroke-200, 2px) solid var(--border-image-default, #FFFFFF)',
+                          marginLeft: 'calc(var(--dim-space-300, 12px) * -1)',
+                          background: 'var(--surface-neutral-secondary, #F3F4F6)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontFamily: 'var(--type-family-body, "Sarabun", sans-serif)',
+                          fontSize: 'var(--type-size-xxs, 10px)',
+                          fontWeight: 'var(--type-weight-regular, 400)',
+                          color: 'var(--text-content-secondary, #636B72)',
+                          lineHeight: 1.5,
+                          flexShrink: 0,
+                        }}
+                      >
+                        +1
+                      </span>
+                    </button>
+                    <BrandCircleSubdueIconButton
+                      variant='outline'
+                      size='xs'
+                      icon='person_add'
+                      aria-label='เชิญผู้เข้าร่วม'
+                      onClick={() => openPeople('add')}
+                      style={{ border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimaryButton-tertiary, #C5EDDA)' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* พื้นหลังเสมือนเป็นของตกแต่ง ไม่ใช่สิ่งที่แพทย์ต้องตัดสินใจก่อนเข้าห้อง —
+                  เดิมกินพื้นที่ทั้งคอลัมน์และอยู่เหนือปุ่มเข้าห้อง สิ่งที่สำคัญที่สุด
+                  (ภาพตัวเอง · อุปกรณ์ · ปุ่มเข้าห้อง) จึงถูกดันลงไปใต้กริดรูป */}
+              <button
+                type='button'
+                className='flex items-center w-full'
+                onClick={() => setBgPanelOpen((v) => !v)}
+                aria-expanded={bgPanelOpen}
+                style={{
+                  gap: 'var(--dim-space-300, 12px)',
+                  padding: 'var(--dim-space-200, 8px) var(--dim-space-300, 12px)',
+                  borderRadius: 'var(--dim-radius-400, 12px)',
+                  background: 'var(--surface-topic-default, #FFFFFF)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  textAlign: 'left',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <div style={{ width: 'var(--dim-size-400, 20px)', paddingTop: 'var(--dim-space-050, 2px)', flexShrink: 0 }}>
+                  <Sym name='layers' size={20} color='var(--icon-brandPrimary-default, #007549)' />
+                </div>
+                <span
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)',
+                    fontSize: 'var(--type-size-base, 16px)',
+                    fontWeight: 'var(--type-weight-regular, 400)',
+                    color: 'var(--text-topic-primary-title, #007549)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  เปลี่ยนพื้นหลัง
+                </span>
+                <Sym name={bgPanelOpen ? 'expand_less' : 'expand_more'} size={20} color='var(--icon-brandPrimary-default, #007549)' />
+              </button>
+              {bgPanelOpen && (
+                <>
+              {/* Upload section */}
+              <div
+                className='flex flex-col items-start w-full'
+                style={{ gap: 'var(--dim-space-200, 8px)', padding: 'var(--dim-space-400, 16px) 0', flexShrink: 0 }}
+              >
+                <span
+                  style={{
+                    fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)',
+                    fontSize: 'var(--type-size-base, 16px)',
+                    fontWeight: 'var(--type-weight-regular, 400)',
+                    color: 'var(--text-topic-tertiary-title, #363B3F)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  ภาพที่อัปโหลดด้วยตนเอง
+                </span>
+                <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                  <button
+                    type='button'
+                    onClick={() => uploadInputRef.current?.click()}
+                    onMouseEnter={() => setUploadHover(true)}
+                    onMouseLeave={() => setUploadHover(false)}
+                    aria-label='อัปโหลดภาพพื้นหลัง'
+                    style={{
+                      flex: uploadedBg ? '1 0 0' : undefined,
+                      width: uploadedBg ? undefined : 194,
+                      minWidth: 0,
+                      aspectRatio: uploadedBg ? '194 / 109' : undefined,
+                      height: uploadedBg ? undefined : 109,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 'var(--dim-space-600, 24px)',
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      borderRadius: 'var(--dim-radius-200, 8px)',
+                      border: uploadHover
+                        ? 'var(--dim-stroke-150, 1.5px) dashed var(--border-formbuilder-hover, #08A768)'
+                        : 'var(--dim-stroke-150, 1.5px) dashed var(--border-formbuilder-default, #C5EDDA)',
+                      background: uploadHover
+                        ? 'var(--surface-formbuilder-hover, #F4FBF8)'
+                        : 'var(--surface-formbuilder-default, #F4FBF8)',
+                      transition: 'border-color 150ms ease-out, background-color 150ms ease-out',
+                    }}
+                  >
+                    <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200, 8px)', flex: 1 }}>
+                      <Sym name='image' size={20} color='var(--text-formbuilder-text, #007549)' />
+                      <span
+                        style={{
+                          fontFamily: 'var(--type-family-body, "Sarabun", sans-serif)',
+                          fontSize: 'var(--type-size-xs, 12px)',
+                          fontWeight: 'var(--type-weight-medium, 500)',
+                          color: 'var(--text-formbuilder-text, #007549)',
+                          textAlign: 'center',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        อัปโหลดภาพ
+                      </span>
+                    </div>
+                  </button>
+                  {uploadedBg && (
+                    <button
+                      type='button'
+                      onClick={() => selectBackground('uploaded')}
+                      aria-label='ภาพที่อัปโหลด'
+                      aria-pressed={bg === 'uploaded'}
+                      style={{
+                        position: 'relative',
+                        flex: '1 0 0',
+                        minWidth: 0,
+                        aspectRatio: '16 / 9',
+                        padding: 0,
+                        cursor: 'pointer',
+                        borderRadius: 'var(--dim-radius-200, 8px)',
+                        overflow: 'hidden',
+                        border: bg === 'uploaded'
+                          ? 'var(--dim-stroke-400, 4px) solid var(--brand-p300, #91DFBB)'
+                          : 'none',
+                        background: 'var(--surface-neutral-secondary, #F1F3F5)',
+                      }}
+                    >
+                      <img
+                        src={uploadedBg}
+                        alt='ภาพที่อัปโหลด'
+                        draggable='false'
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          pointerEvents: 'none',
+                        }}
+                      />
+                      {bg === 'uploaded' && (
+                        <span
+                          style={{
+                            position: 'absolute',
+                            top: 'var(--dim-space-100, 4px)',
+                            right: 'var(--dim-space-100, 4px)',
+                            width: 'var(--dim-size-500, 24px)',
+                            height: 'var(--dim-size-500, 24px)',
+                            borderRadius: 'var(--dim-radius-full, 9999px)',
+                            background: 'var(--surface-colorfulbadge-green-bold, #54CF97)',
+                            border: 'var(--dim-stroke-200, 2px) solid var(--border-image-default, #FFFFFF)',
+                            boxSizing: 'border-box',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Sym name='check' size={14} fill={1} color='var(--text-brandPrimaryButton-on-brand, #FFFFFF)' />
+                        </span>
+                      )}
+                    </button>
+                  )}
+                </div>
+                <input ref={uploadInputRef} type='file' accept='image/*' onChange={onUploadBg} style={{ display: 'none' }} />
+              </div>
+
+              {/* Preset gallery — รูปภาพ */}
+              <div
+                className='flex flex-col items-start w-full'
+                style={{ flex: 1, minHeight: 0, gap: 'var(--dim-space-200, 8px)', overflow: 'hidden' }}
+              >
+                <span
+                  style={{
+                    fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)',
+                    fontSize: 'var(--type-size-base, 16px)',
+                    fontWeight: 'var(--type-weight-regular, 400)',
+                    color: 'var(--text-topic-tertiary-title, #363B3F)',
+                    lineHeight: 1.5,
+                    flexShrink: 0,
+                  }}
+                >
+                  รูปภาพ
+                </span>
+                <div
+                  className='flex flex-col w-full'
+                  style={{ flex: 1, minHeight: 0, gap: 'var(--dim-space-300, 12px)', overflowY: 'auto' }}
+                >
+                  {[0, 2, 4, 6].map((start) => (
+                    <div
+                      key={start}
+                      className='flex items-center w-full'
+                      style={{ gap: 'var(--dim-space-300, 12px)', flexShrink: 0 }}
+                    >
+                      {BG_PRESETS.slice(start, start + 2).map((p) => {
+                        const on = bg === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            type='button'
+                            onClick={() => selectBackground(p.id)}
+                            aria-label={p.label}
+                            aria-pressed={on}
+                            style={{
+                              position: 'relative',
+                              flex: '1 0 0',
+                              minWidth: 0,
+                              aspectRatio: '16 / 9',
+                              padding: 0,
+                              cursor: 'pointer',
+                              borderRadius: 'var(--dim-radius-200, 8px)',
+                              overflow: 'hidden',
+                              border: on
+                                ? 'var(--dim-stroke-400, 4px) solid var(--brand-p300, #91DFBB)'
+                                : 'none',
+                              background: 'var(--surface-neutral-secondary, #F1F3F5)',
+                            }}
+                          >
+                            <img
+                              src={p.src}
+                              alt={p.label}
+                              draggable='false'
                               style={{
                                 position: 'absolute',
-                                top: 'var(--dim-space-100, 4px)',
-                                right: 'var(--dim-space-100, 4px)',
-                                width: 'var(--dim-size-500, 24px)',
-                                height: 'var(--dim-size-500, 24px)',
-                                borderRadius: 'var(--dim-radius-full, 9999px)',
-                                background: 'var(--surface-colorfulbadge-green-bold, #54CF97)',
-                                border: 'var(--dim-stroke-200, 2px) solid var(--border-image-default, #FFFFFF)',
-                                boxSizing: 'border-box',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
+                                inset: 0,
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                pointerEvents: 'none',
                               }}
-                            >
-                              <Sym name='check' size={14} fill={1} color='var(--text-brandPrimaryButton-on-brand, #FFFFFF)' />
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
+                            />
+                            {on && (
+                              <span
+                                style={{
+                                  position: 'absolute',
+                                  top: 'var(--dim-space-100, 4px)',
+                                  right: 'var(--dim-space-100, 4px)',
+                                  width: 'var(--dim-size-500, 24px)',
+                                  height: 'var(--dim-size-500, 24px)',
+                                  borderRadius: 'var(--dim-radius-full, 9999px)',
+                                  background: 'var(--surface-colorfulbadge-green-bold, #54CF97)',
+                                  border: 'var(--dim-stroke-200, 2px) solid var(--border-image-default, #FFFFFF)',
+                                  boxSizing: 'border-box',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <Sym name='check' size={14} fill={1} color='var(--text-brandPrimaryButton-on-brand, #FFFFFF)' />
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-              </>
-            )}
-          </aside>
-        </div>
-
-        {/* Footer */}
-        <footer style={{
-          display: 'flex', alignItems: 'center', gap: 'var(--dim-space-600, 24px)', width: '100%', height: 56,
-          padding: '14px var(--dim-space-600, 24px)', flexShrink: 0,
-          background: 'var(--surface-navigation-default, #FFFFFF)',
-          borderTop: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
-          fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-secondary, #636B72)',
-        }}
-        >
-          <span style={{ flex: 1, minWidth: 0 }}>© 2026 ศูนย์บริการสาธารณสุข สำนักอนามัย กรุงเทพมหานคร</span>
-          <div style={{ display: 'flex', gap: 'var(--dim-space-600, 24px)', alignItems: 'center', whiteSpace: 'nowrap' }}>
-            <span>Privacy Policy</span>
-            <span>Terms of Service</span>
+                </>
+              )}
+            </aside>
           </div>
-        </footer>
+
+        </Popup>
+
 
         <TelemedParticipantsPopup
           open={peopleOpen}
@@ -2499,6 +2474,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
           onTogglePatientCam={() => setPatientCamOn((v) => !v)}
           onToggleParticipantMedia={toggleParticipantMedia}
           onInvite={inviteFromDirectory}
+          onUninvite={uninviteFromDirectory}
           meetingLink={meetingLink}
           linkCopied={linkCopied}
           onCopyLink={copyLink}
@@ -2558,7 +2534,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
           onConfirm={confirmAbortJoin}
           onClose={stayConnecting}
         />
-      </div>
+      </>
     );
   }
 
@@ -3758,6 +3734,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
         onTogglePatientCam={() => setPatientCamOn((v) => !v)}
         onToggleParticipantMedia={toggleParticipantMedia}
         onInvite={inviteFromDirectory}
+        onUninvite={uninviteFromDirectory}
         meetingLink={meetingLink}
         linkCopied={linkCopied}
         onCopyLink={copyLink}

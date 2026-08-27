@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Popup from '@/components/popup/Popup';
 import StatusBadge from '@/components/badge/StatusBadge';
 import BrandButton from '@/components/button/BrandButton';
@@ -42,21 +42,40 @@ const FILTERS = [
   { key: 'nurse', label: 'พยาบาล' },
 ];
 
-const AVATARS = {
-  doctor: '/avatars/telemed/doctor-a.png',
-  patient: '/avatars/telemed/patient.png',
-  nurse: '/avatars/telemed/nurse-a.png',
-  dentist: '/avatars/telemed/doctor-f.png',
+/* รูป mock ของบุคลากร
+   ══════════════════════════════════════════════════════════════════════
+   ของเดิมใช้ไฟล์เดียวกันซ้ำทุกคนในกลุ่ม และไฟล์เหล่านั้นไม่ใช่รูปคนเดียว:
+   `doctor-a.png` เป็นแผ่นรวม 5 รูปเรียงเป็นตาราง · `doctor-f.png` เป็นภาพครึ่งตัว
+   ที่คนอยู่ชิดขวา · `patient.png` มีพื้นที่ว่างอยู่กลางภาพ. พอเอามาครอปเป็นวงกลม
+   จึงได้ใบหน้าครึ่งซีก หลายหน้าในกรอบเดียว หรือวงกลมเปล่า และเพศไม่ตรงคำนำหน้า
+   (นพ. ได้รูปผู้หญิง). ที่นี่ใช้รูปที่ครอปเป็นรายคนแล้ว และเลือกตามคำนำหน้าชื่อ */
+const DOCTOR_FEMALE = [1, 2, 3, 4, 5, 6].map((n) => `/avatars/telemed/staff-doctor-female-${n}.png`);
+const DOCTOR_MALE = ['a', 'b', 'c'].map((k) => `/avatars/mock-male-asian-${k}.png`);
+const NURSE_FEMALE = ['/avatars/telemed/staff-nurse-female-1.png'];
+const PATIENT_MALE = ['/avatars/somchai-mock.png', '/avatars/patient-male-d.png', '/avatars/patient-male-e.png'];
+const PATIENT_FEMALE = ['/avatars/patient-female-a.png', '/avatars/patient-female-b.png', '/avatars/patient-female-c.png'];
+
+const pick = (pool, i) => pool[i % pool.length];
+
+/** เลือกรูปจากคำนำหน้าชื่อ + บทบาท เพื่อไม่ให้เพศ/วิชาชีพหลุดจากกัน */
+const avatarFor = (name, role, i = 0) => {
+  if (name.startsWith('พญ.')) return pick(DOCTOR_FEMALE, i);
+  if (name.startsWith('นพ.')) return pick(DOCTOR_MALE, i);
+  if (role === 'พยาบาล') return pick(NURSE_FEMALE, i);
+  if (name.startsWith('นาย')) return pick(PATIENT_MALE, i);
+  return pick(PATIENT_FEMALE, i);
 };
+
+
 
 /** Directory of inviteable staff/patients (Add Participant Panel). */
 export const TELEMED_INVITE_DIRECTORY = [
   {
     id: 'dir-doctor',
     name: 'พญ.สมหญิง รักษาดี',
-    sub: 'prasit@hospital.go.th',
+    sub: 'somying@hospital.go.th',
     filter: 'doctor',
-    avatar: AVATARS.doctor,
+    avatar: null,
     role: 'แพทย์',
     accent: '#10B981',
   },
@@ -65,7 +84,7 @@ export const TELEMED_INVITE_DIRECTORY = [
     name: 'นายสมชาย มั่นใจดี',
     sub: 'ผู้รับบริการ',
     filter: 'all',
-    avatar: AVATARS.patient,
+    avatar: null,
     role: 'ผู้รับบริการ',
     accent: '#0EA5E9',
   },
@@ -74,45 +93,45 @@ export const TELEMED_INVITE_DIRECTORY = [
     name: 'น.ส.ใจดี งามวงศ์',
     sub: 'พยาบาล',
     filter: 'nurse',
-    avatar: AVATARS.nurse,
+    avatar: null,
     role: 'พยาบาล',
     accent: '#10B981',
   },
   {
     id: 'dir-dentist',
-    name: 'นพ.ใจดมาก งามวงศ์',
+    name: 'นพ.ใจดีมาก งามวงศ์',
     sub: 'ทันตแพทย์',
     filter: 'doctor',
-    avatar: AVATARS.dentist,
+    avatar: null,
     role: 'ทันตแพทย์',
     accent: '#8B5CF6',
   },
   /* Mock roster padded to 20 to demonstrate the popup's internal scrollbar
      (Figma MIH-Design-System · Popup 362:25538 — scrolls past 4 rows). */
-  { id: 'dir-005', name: 'พญ.กมลชนก แสงทอง', sub: 'kamonchanok@hospital.go.th', filter: 'doctor', avatar: AVATARS.doctor, role: 'แพทย์', accent: '#10B981' },
-  { id: 'dir-006', name: 'นพ.ธนกร ใจดี', sub: 'thanakorn@hospital.go.th', filter: 'doctor', avatar: AVATARS.dentist, role: 'แพทย์', accent: '#8B5CF6' },
-  { id: 'dir-007', name: 'น.ส.พิมพ์ชนก รุ่งเรือง', sub: 'พยาบาล', filter: 'nurse', avatar: AVATARS.nurse, role: 'พยาบาล', accent: '#10B981' },
-  { id: 'dir-008', name: 'นายวีระชัย บุญมา', sub: 'ผู้รับบริการ', filter: 'all', avatar: AVATARS.patient, role: 'ผู้รับบริการ', accent: '#0EA5E9' },
-  { id: 'dir-009', name: 'พญ.อรวรรณ ศรีสุข', sub: 'orawan@hospital.go.th', filter: 'doctor', avatar: AVATARS.doctor, role: 'แพทย์', accent: '#10B981' },
-  { id: 'dir-010', name: 'นพ.ปิยะ วัฒนกุล', sub: 'piya@hospital.go.th', filter: 'doctor', avatar: AVATARS.dentist, role: 'แพทย์', accent: '#8B5CF6' },
-  { id: 'dir-011', name: 'น.ส.สุพัตรา ยิ้มแย้ม', sub: 'พยาบาล', filter: 'nurse', avatar: AVATARS.nurse, role: 'พยาบาล', accent: '#10B981' },
-  { id: 'dir-012', name: 'นางสาวจิราพร แก้วมณี', sub: 'ผู้รับบริการ', filter: 'all', avatar: AVATARS.patient, role: 'ผู้รับบริการ', accent: '#0EA5E9' },
-  { id: 'dir-013', name: 'พญ.นภัสสร ทองคำ', sub: 'napassorn@hospital.go.th', filter: 'doctor', avatar: AVATARS.doctor, role: 'แพทย์', accent: '#10B981' },
-  { id: 'dir-014', name: 'นพ.เอกชัย ไพศาล', sub: 'ekkachai@hospital.go.th', filter: 'doctor', avatar: AVATARS.dentist, role: 'ทันตแพทย์', accent: '#8B5CF6' },
-  { id: 'dir-015', name: 'น.ส.รัตนาภรณ์ หอมกลิ่น', sub: 'พยาบาล', filter: 'nurse', avatar: AVATARS.nurse, role: 'พยาบาล', accent: '#10B981' },
-  { id: 'dir-016', name: 'นายสมพงษ์ เจริญสุข', sub: 'ผู้รับบริการ', filter: 'all', avatar: AVATARS.patient, role: 'ผู้รับบริการ', accent: '#0EA5E9' },
-  { id: 'dir-017', name: 'พญ.ชนิดา รักเรียน', sub: 'chanida@hospital.go.th', filter: 'doctor', avatar: AVATARS.doctor, role: 'แพทย์', accent: '#10B981' },
-  { id: 'dir-018', name: 'นพ.กิตติพงศ์ มั่งมี', sub: 'kittipong@hospital.go.th', filter: 'doctor', avatar: AVATARS.dentist, role: 'แพทย์', accent: '#8B5CF6' },
-  { id: 'dir-019', name: 'น.ส.วิภาวี ใจงาม', sub: 'พยาบาล', filter: 'nurse', avatar: AVATARS.nurse, role: 'พยาบาล', accent: '#10B981' },
-  { id: 'dir-020', name: 'นางสาวปาริชาติ สวยงาม', sub: 'ผู้รับบริการ', filter: 'all', avatar: AVATARS.patient, role: 'ผู้รับบริการ', accent: '#0EA5E9' },
-];
+  { id: 'dir-005', name: 'พญ.กมลชนก แสงทอง', sub: 'kamonchanok@hospital.go.th', filter: 'doctor', avatar: null, role: 'แพทย์', accent: '#10B981' },
+  { id: 'dir-006', name: 'นพ.ธนกร ใจดี', sub: 'thanakorn@hospital.go.th', filter: 'doctor', avatar: null, role: 'แพทย์', accent: '#8B5CF6' },
+  { id: 'dir-007', name: 'น.ส.พิมพ์ชนก รุ่งเรือง', sub: 'พยาบาล', filter: 'nurse', avatar: null, role: 'พยาบาล', accent: '#10B981' },
+  { id: 'dir-008', name: 'นายวีระชัย บุญมา', sub: 'ผู้รับบริการ', filter: 'all', avatar: null, role: 'ผู้รับบริการ', accent: '#0EA5E9' },
+  { id: 'dir-009', name: 'พญ.อรวรรณ ศรีสุข', sub: 'orawan@hospital.go.th', filter: 'doctor', avatar: null, role: 'แพทย์', accent: '#10B981' },
+  { id: 'dir-010', name: 'นพ.ปิยะ วัฒนกุล', sub: 'piya@hospital.go.th', filter: 'doctor', avatar: null, role: 'แพทย์', accent: '#8B5CF6' },
+  { id: 'dir-011', name: 'น.ส.สุพัตรา ยิ้มแย้ม', sub: 'พยาบาล', filter: 'nurse', avatar: null, role: 'พยาบาล', accent: '#10B981' },
+  { id: 'dir-012', name: 'นางสาวจิราพร แก้วมณี', sub: 'ผู้รับบริการ', filter: 'all', avatar: null, role: 'ผู้รับบริการ', accent: '#0EA5E9' },
+  { id: 'dir-013', name: 'พญ.นภัสสร ทองคำ', sub: 'napassorn@hospital.go.th', filter: 'doctor', avatar: null, role: 'แพทย์', accent: '#10B981' },
+  { id: 'dir-014', name: 'นพ.เอกชัย ไพศาล', sub: 'ekkachai@hospital.go.th', filter: 'doctor', avatar: null, role: 'ทันตแพทย์', accent: '#8B5CF6' },
+  { id: 'dir-015', name: 'น.ส.รัตนาภรณ์ หอมกลิ่น', sub: 'พยาบาล', filter: 'nurse', avatar: null, role: 'พยาบาล', accent: '#10B981' },
+  { id: 'dir-016', name: 'นายสมพงษ์ เจริญสุข', sub: 'ผู้รับบริการ', filter: 'all', avatar: null, role: 'ผู้รับบริการ', accent: '#0EA5E9' },
+  { id: 'dir-017', name: 'พญ.ชนิดา รักเรียน', sub: 'chanida@hospital.go.th', filter: 'doctor', avatar: null, role: 'แพทย์', accent: '#10B981' },
+  { id: 'dir-018', name: 'นพ.กิตติพงศ์ มั่งมี', sub: 'kittipong@hospital.go.th', filter: 'doctor', avatar: null, role: 'แพทย์', accent: '#8B5CF6' },
+  { id: 'dir-019', name: 'น.ส.วิภาวี ใจงาม', sub: 'พยาบาล', filter: 'nurse', avatar: null, role: 'พยาบาล', accent: '#10B981' },
+  { id: 'dir-020', name: 'นางสาวปาริชาติ สวยงาม', sub: 'ผู้รับบริการ', filter: 'all', avatar: null, role: 'ผู้รับบริการ', accent: '#0EA5E9' },
+].map((row, i) => ({ ...row, avatar: row.avatar || avatarFor(row.name, row.role, i) }));
 
 export const DEFAULT_TELEMED_EXTRA_PARTICIPANTS = [
   {
     id: 'nurse-1',
     name: 'น.ส.ใจดี งามวงศ์',
     role: 'พยาบาล',
-    avatar: AVATARS.nurse,
+    avatar: NURSE_FEMALE[0],
     accent: '#10B981',
     micOn: true,
     camOn: false,
@@ -120,9 +139,9 @@ export const DEFAULT_TELEMED_EXTRA_PARTICIPANTS = [
   },
   {
     id: 'dent-1',
-    name: 'นพ.ใจดมาก งามวงศ์',
+    name: 'นพ.ใจดีมาก งามวงศ์',
     role: 'ทันตแพทย์',
-    avatar: AVATARS.dentist,
+    avatar: DOCTOR_MALE[1],
     accent: '#8B5CF6',
     micOn: true,
     camOn: true,
@@ -140,7 +159,6 @@ const injectSearchChrome = () => {
 .mih-telemed-participant-search,
 .mih-telemed-participant-search:focus,
 .mih-telemed-participant-search:focus-visible {
-  caret-color: transparent;
   border: 0 !important;
   outline: none !important;
   box-shadow: none !important;
@@ -180,10 +198,14 @@ const Avatar = ({ src, name, size = 40 }) => (
   </span>
 );
 
-const FilterChip = ({ label, selected, onClick }) => (
+const FilterChip = ({ label, selected, onClick }) => {
+  const [hovered, setHovered] = useState(false);
+  return (
   <button
     type='button'
     onClick={onClick}
+    onMouseEnter={() => setHovered(true)}
+    onMouseLeave={() => setHovered(false)}
     style={{
       display: 'inline-flex',
       alignItems: 'center',
@@ -197,14 +219,15 @@ const FilterChip = ({ label, selected, onClick }) => (
       border: `var(--dim-stroke-100, 1px) solid ${
         selected
           ? 'var(--border-brandtag-selected, #C5EDDA)'
-          : 'var(--border-brandtag-default, #E2E4E6)'
+          : (hovered ? 'var(--border-brandtag-hover, #C5EDDA)' : 'var(--border-brandtag-default, #E2E4E6)')
       }`,
       background: selected
-        ? 'var(--surface-brandtag-selected, #F4FBF8)'
-        : 'var(--surface-brandtag-default, #FFFFFF)',
+        ? (hovered ? 'var(--surface-brandtag-selected-hover, #E2F3EB)' : 'var(--surface-brandtag-selected, #F4FBF8)')
+        : (hovered ? 'var(--surface-brandtag-hover, #F4FBF8)' : 'var(--surface-brandtag-default, #FFFFFF)'),
       color: selected
         ? 'var(--text-brandtag-selected, #007549)'
-        : 'var(--text-brandtag-default, #4D5358)',
+        : (hovered ? 'var(--text-brandtag-hover, #007549)' : 'var(--text-brandtag-default, #4D5358)'),
+      transition: 'background 120ms ease, border-color 120ms ease, color 120ms ease',
       fontFamily: 'var(--type-family-body)',
       fontSize: 'var(--type-size-sm, 14px)',
       fontWeight: 'var(--type-weight-medium, 500)',
@@ -214,7 +237,8 @@ const FilterChip = ({ label, selected, onClick }) => (
   >
     {label}
   </button>
-);
+  );
+};
 
 /* Back chevron in the "Add Participant" header — same hover chrome as
    Popup's X close button (Figma 104:5369 Default/Hover): transparent by
@@ -289,9 +313,10 @@ const ParticipantRow = ({
         gap: 'var(--dim-space-200, 8px)',
         minHeight: 'var(--dim-size-1000, 48px)',
         padding: 'var(--dim-space-200, 8px) var(--dim-space-300, 12px)',
+        /* สีเส้นคั่นเดียวกับแถวตารางหน้า worklist (--border-table-line) */
         borderBottom: isLast
           ? 'none'
-          : 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
+          : 'var(--dim-stroke-100, 1px) solid var(--border-table-line, var(--brand-p50, #F4FBF8))',
         borderRadius: 'var(--dim-radius-150, 6px)',
         background: 'var(--surface-list-default, #FFFFFF)',
         boxSizing: 'border-box',
@@ -342,7 +367,7 @@ const ParticipantRow = ({
   );
 };
 
-const InviteRow = ({ person, invited, onInvite }) => (
+const InviteRow = ({ person, invited, isLast, onInvite, onUninvite }) => (
   <div
     style={{
       display: 'flex',
@@ -350,7 +375,10 @@ const InviteRow = ({ person, invited, onInvite }) => (
       gap: 'var(--dim-space-200, 8px)',
       minHeight: 'var(--dim-size-1000, 48px)',
       padding: 'var(--dim-space-200, 8px) var(--dim-space-300, 12px)',
-      borderRadius: 'var(--dim-radius-150, 6px)',
+      /* เส้นคั่นสีเดียวกับแถวตารางหน้า worklist */
+      borderBottom: isLast
+        ? 'none'
+        : 'var(--dim-stroke-100, 1px) solid var(--border-table-line, var(--brand-p50, #F4FBF8))',
       background: 'var(--surface-list-default, #FFFFFF)',
       width: '100%',
       boxSizing: 'border-box',
@@ -372,7 +400,10 @@ const InviteRow = ({ person, invited, onInvite }) => (
       size='sm'
       active={invited}
       leadingIcon={invited ? 'check' : 'add'}
-      onClick={() => { if (!invited) onInvite(person); }}
+      /* กดซ้ำที่ "เชิญแล้ว" = ถอนการเชิญ — เดิมกดแล้วไม่มีอะไรเกิดขึ้น
+         ผู้ใช้ที่กดผิดคนจึงไม่มีทางแก้จากหน้านี้ */
+      title={invited ? 'กดอีกครั้งเพื่อยกเลิกการเชิญ' : undefined}
+      onClick={() => (invited ? onUninvite(person) : onInvite(person))}
     >
       {invited ? 'เชิญแล้ว' : 'เชิญ'}
     </BrandButton>
@@ -399,6 +430,7 @@ const TelemedParticipantsPopup = ({
   onTogglePatientCam,
   onToggleParticipantMedia,
   onInvite,
+  onUninvite,
   meetingLink = '',
   linkCopied = false,
   onCopyLink,
@@ -406,6 +438,7 @@ const TelemedParticipantsPopup = ({
   const [view, setView] = useState(initialView);
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
+  const searchRef = useRef(null);
 
   useEffect(() => {
     if (open) {
@@ -422,7 +455,7 @@ const TelemedParticipantsPopup = ({
       id: 'self',
       name: doctor?.name || 'แพทย์',
       roleLabel: 'คุณ',
-      avatar: doctor?.avatar || AVATARS.doctor,
+      avatar: doctor?.avatar || avatarFor(doctor?.name || 'พญ.', 'แพทย์', 0),
       micOn: doctorMicOn,
       camOn: doctorCamOn,
       status: 'joined',
@@ -432,7 +465,7 @@ const TelemedParticipantsPopup = ({
       id: 'patient',
       name: patient?.fullName || patient?.name || 'ผู้รับบริการ',
       roleLabel: 'ผู้รับบริการ',
-      avatar: patient?.avatar || AVATARS.patient,
+      avatar: patient?.avatar || avatarFor(patient?.fullName || patient?.name || 'นาย', 'ผู้รับบริการ', 0),
       micOn: patientMicOn,
       camOn: patientCamOn,
       status: 'joined',
@@ -524,6 +557,9 @@ const TelemedParticipantsPopup = ({
       leading={leading}
       title={view === 'list' ? `ผู้เข้าร่วม (${roster.length})` : 'เพิ่มผู้เข้าร่วม'}
       bodyStyle={{ paddingTop: 0, gap: view === 'add' ? 'var(--dim-space-400, 16px)' : 0 }}
+      /* หัวป๊อปอัปเรียงแบบ items-start เป็นค่าเริ่มต้น (เผื่อกรณีมีคำบรรยายใต้ชื่อ)
+         ป๊อปอัปนี้มีแต่ชื่อเรื่อง ตัวอักษรจึงลอยสูงกว่าปุ่ม ‹ และ ✕ ที่สูง 32px */
+      headerStyle={{ alignItems: 'center' }}
       footer={view === 'list' ? (
         <BrandButton
           variant='fill'
@@ -549,6 +585,9 @@ const TelemedParticipantsPopup = ({
         </div>
       ) : (
         <>
+          {/* ลิงก์เข้าห้องอยู่บนสุด — เป็นทางลัดที่ใช้บ่อยกว่าการไล่หาชื่อทีละคน
+              และเดิมถูกดันไปอยู่ใต้รายชื่อ 20 แถว ต้องเลื่อนจอลงไปหา */}
+          {linkBar}
           <div
             style={{
               display: 'flex',
@@ -565,6 +604,7 @@ const TelemedParticipantsPopup = ({
           >
             <Sym name='search' size={16} color='var(--icon-content-tertiary, #858C92)' />
             <input
+              ref={searchRef}
               className='mih-telemed-participant-search'
               type='search'
               value={query}
@@ -580,6 +620,21 @@ const TelemedParticipantsPopup = ({
                 padding: 0,
               }}
             />
+            {query && (
+              <button
+                type='button'
+                aria-label='ล้างคำค้นหา'
+                onClick={() => { setQuery(''); searchRef.current?.focus(); }}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: 'var(--dim-size-400, 20px)', height: 'var(--dim-size-400, 20px)',
+                  border: 0, padding: 0, borderRadius: 'var(--dim-radius-full, 9999px)',
+                  background: 'transparent', cursor: 'pointer',
+                }}
+              >
+                <Sym name='close' size={16} color='var(--icon-content-tertiary, #858C92)' />
+              </button>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 'var(--dim-space-200, 8px)', flexWrap: 'wrap' }}>
@@ -593,15 +648,15 @@ const TelemedParticipantsPopup = ({
             ))}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-100, 4px)', width: '100%' }}>
-            {filteredDirectory.map((row) => (
+          <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+            {filteredDirectory.map((row, idx) => (
               <InviteRow
                 key={row.id}
                 person={row}
+                isLast={idx === filteredDirectory.length - 1}
                 invited={invitedIds.has(row.id) || participants.some((p) => p.name === row.name)}
-                onInvite={(p) => {
-                  onInvite?.(p);
-                }}
+                onInvite={(person) => onInvite?.(person)}
+                onUninvite={(person) => onUninvite?.(person)}
               />
             ))}
             {filteredDirectory.length === 0 && (
@@ -611,7 +666,6 @@ const TelemedParticipantsPopup = ({
             )}
           </div>
 
-          {linkBar}
         </>
       )}
     </Popup>
