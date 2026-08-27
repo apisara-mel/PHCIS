@@ -410,13 +410,9 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
         subtitle='อ่านรายงานผลได้เสมอ — การเปิดภาพต้องอาศัยการเชื่อมต่อ PACS'
         action={<CountLabel n={studies.length} unit='รายการ' />}
       >
-        {!pacsUp ? (
-          <PanelAlert tone='error' icon='cloud_off' title='PACS ขาดการเชื่อมต่อ'>
-            ไม่สามารถเปิดภาพได้ตั้งแต่ {interfaces?.downSince || 'ไม่ทราบเวลา'} — ระบบยังให้อ่านรายงานผลที่ดึงมาแล้วได้ตามปกติ
-            (ซิงก์ล่าสุด {interfaces?.lastSyncAt || '—'})
-          </PanelAlert>
-        ) : null}
-
+        {/* แถบแจ้ง "PACS ขาดการเชื่อมต่อ" ถูกเอาออกจากแผงนี้ (มติผู้ใช้ 28 ส.ค. 69)
+            — ปุ่มเปิดภาพยังบอกเหตุผลผ่าน tooltip ของตัวเองอยู่ ส่วนหน้าติดตาม
+            สถานะการเชื่อมต่อ (/treat/interfaces) ยังมีแถบนี้ตามเดิม */}
         {studies.length === 0 ? (
           <PanelEmptyState
             icon='radiology'
@@ -479,10 +475,6 @@ const LabRadiologyResultsPanel = ({ patient, onGoToOrders }) => {
           </div>
         )}
 
-        <PanelAlert tone='warning' icon='info' title='ขอบเขตการเชื่อมต่อในเวอร์ชันนี้'>
-          หน้าจอนี้เป็นตัวติดตามสถานะการเชื่อมต่อ (interface monitor) — ยังไม่มี HL7 v2.5.1 หรือ DICOMweb engine จริง
-          ผลและรายการภาพเป็นข้อมูลจำลองที่จัดรูปแบบตามข้อกำหนดไว้ล่วงหน้า
-        </PanelAlert>
       </PanelCard>
 
       {/* ใบรายงานผลที่ดึงมาแล้ว — ไม่ขึ้นกับสถานะการเชื่อมต่อ PACS */}
