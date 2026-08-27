@@ -44,7 +44,7 @@ import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
    1.10.7.6 — the registry's ยกเลิก requirement; แสดง/แก้ไข are covered
    by the table itself + the editable AncFormPage the row links to). */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'แผนกฝากครรภ์'];
+const breadcrumb = ['ระบบบันทึกการรักษา', 'คลินิกฝากครรภ์'];
 const SUMMARY_TITLE = 'คิวฝากครรภ์ (ANC)';
 
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:anc-queue';

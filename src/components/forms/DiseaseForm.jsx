@@ -180,6 +180,7 @@ const SCHEMA = {
   historyAsideWidthPx: 320,
   /* MR rail: severity pill only — treatment status lives on the right column. */
   showHistoryStatusBadge: false,
+  showTopic:       false,
   historyTitle:    'ข้อมูลจากฝ่ายเวชระเบียน',
   historySubtitle:
     'คลิกไอคอนคัดลอกเพื่อนำรายการจากเวชระเบียนไปยังบันทึกประวัติใหม่',

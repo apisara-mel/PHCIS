@@ -742,10 +742,14 @@ const HistoryListForm = ({ schema, onValidityChange, onRecordsChange }) => {
 
   return (
     <section className='bg-surface-card rounded-b-card p-6 flex flex-col gap-4'>
-      <div className='flex items-center gap-2 w-full'>
-        <span className='text-brand-500'><Icon name={schema.icon} size={20} /></span>
-        <h2 className='text-base font-bold text-brand-500'>{schema.topic}</h2>
-      </div>
+      {/* หัวข้อซ้ำกับชื่อแท็บที่เลือกอยู่ — หน้าที่มีแถบแท็บอยู่แล้วปิดด้วย
+          `showTopic: false` ส่วนหน้าที่เรียกฟอร์มเดี่ยว ๆ ยังโชว์เหมือนเดิม */}
+      {schema.showTopic !== false && (
+        <div className='flex items-center gap-2 w-full'>
+          <span className='text-brand-500'><Icon name={schema.icon} size={20} /></span>
+          <h2 className='text-base font-bold text-brand-500'>{schema.topic}</h2>
+        </div>
+      )}
 
       {/* Two-column body — Figma 162:17951: `flex` + `gap` (space/600) + two
             sibling cards (left fixed width, right `flex-1`), not one full-bleed

@@ -1030,11 +1030,16 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
                     (เลขประจำตัวคนต่างด้าว) และเลข Passport จึงเป็นช่องเดียวแล้วติ๊กบอกกลุ่ม
                     ติ๊กแล้ว HN ขึ้นต้นด้วย F และชื่อภาษาอังกฤษห้ามมีอักษรไทย */}
                 {!isNoDoc && (
-                  <Checkbox
+                  <CheckboxButton
                     checked={isForeignDoc}
                     onChange={handleNonThaiToggle}
                     disabled={fromChip}
                     label='ไม่ใช่คนไทย'
+                    border
+                    showCircleIcon={false}
+                    showIcon={false}
+                    className='shrink-0'
+                    style={{ width: 'fit-content', alignSelf: 'flex-start' }}
                   />
                 )}
               </div>

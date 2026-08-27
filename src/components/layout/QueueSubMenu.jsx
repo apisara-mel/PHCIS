@@ -95,8 +95,11 @@ const QueueRow = ({
        • `divider` — แถวเรียบคั่นด้วยเส้นบาง ทรงเดียวกับตาราง worklist
          (มติผู้ใช้ 27 ส.ค. 69: พาเนลคิวรอลงทะเบียนไม่ต้องเป็นการ์ด)
      โหมด divider จัดทุกอย่างในบรรทัดเดียว: เลขคิว → รูป → ชื่อ → ปุ่ม (ไม่มี chevron) */
+  /* การ์ดที่มีปุ่มท้ายแถวจัดเป็นแนวนอนเหมือนโหมด divider — เดิมการ์ดเป็น
+     `flex-col` ปุ่มจึงตกไปอยู่บรรทัดล่างของการ์ด กินความสูงเป็นเท่าตัว
+     (พาเนลคิวคัดกรอง 28 ส.ค. 69) */
   <div
-    className={divider ? 'flex items-center w-full' : 'flex flex-col w-full'}
+    className={divider || actions ? 'flex items-center w-full' : 'flex flex-col w-full'}
     style={divider ? {
       gap: 'var(--dim-space-300, 12px)',
       paddingTop: 'var(--dim-space-200, 8px)',
@@ -174,7 +177,8 @@ const QueueRow = ({
           </ColorfulBadge>
         )}
       </span>
-      {!divider && <Icon name='chevron_right' size={16} className='shrink-0' />}
+      {/* chevron บอกว่าแถวกดเข้าไปได้ — ซ้ำซ้อนเมื่อมีปุ่มจริงอยู่ท้ายแถวแล้ว */}
+      {!divider && !actions && <Icon name='chevron_right' size={16} className='shrink-0' />}
     </button>
     {actions && <span className='shrink-0'>{actions}</span>}
   </div>
@@ -255,6 +259,10 @@ const QueueSubMenu = ({
   expandedWidth = DEFAULT_EXPANDED_WIDTH,
   /** แสดงเลขคิวหน้าชื่อ (พาเนลคิวรอลงทะเบียนต้องเห็นเลขคิว) */
   showQueueNo = false,
+  /** จุดสีนำหน้าชื่อ — บอกหมวดของแถว จึงไม่มีประโยชน์เมื่อพาเนลเหลือหมวดเดียว
+      (พาเนลคิวคัดกรองปิดไว้ — มติผู้ใช้ 28 ส.ค. 69) แถวทรง `divider` ไม่มีจุด
+      อยู่แล้วไม่ว่าค่านี้จะเป็นอะไร */
+  showDots = true,
   /** ปุ่มจัดการคิวท้ายแถว — `(item, sectionKey) => ReactNode` */
   renderRowActions,
   className = '',
@@ -400,7 +408,7 @@ const QueueSubMenu = ({
                   badge={p.badge}
                   emphasis={key === 'inProgress'}
                   divider={rowVariant === 'divider'}
-                  showDot={rowVariant !== 'divider'}
+                  showDot={showDots && rowVariant !== 'divider'}
                   actions={renderRowActions ? renderRowActions(p, key) : undefined}
                   onClick={onPickPatient ? () => onPickPatient(p, key) : undefined}
                 />

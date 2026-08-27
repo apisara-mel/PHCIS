@@ -20,7 +20,6 @@ import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup'
 import { PATIENT_PROFILES, getPatientByHN } from '@/data/patientProfiles';
 import { applyOpdScreeningDrafts, isScreeningCompleted } from '@/data/opdScreeningDrafts';
 import OpdDischargePopup from '@/pages/opd/OpdDischargePopup';
-import { addWalkinRequest } from '@/data/opdWalkinRequests';
 /* READ-ONLY import from the appointment system (TOR 1.2.1.2) — never
    modified here; consumed defensively (see TODAY_MASTER_APPOINTMENTS). */
 import { INITIAL_APPOINTMENTS } from '@/pages/appointment/appointmentMockData';
@@ -324,10 +323,6 @@ const timeToMinutes = (t = '') => {
   const [h, m] = String(t).split(':').map(Number);
   return (Number.isNaN(h) ? 0 : h) * 60 + (Number.isNaN(m) ? 0 : m);
 };
-const nowHHMM = () => {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-};
 const arrivalStatusFor = (slotTime, arrivedAt) => {
   if (!arrivedAt) return 'notArrived';
   return timeToMinutes(arrivedAt) <= timeToMinutes(slotTime) + APPT_GRACE_MINUTES
@@ -340,9 +335,9 @@ const ARRIVAL_PILL = {
   notArrived:  { style: 'neutral', label: 'ยังไม่มา'     },
 };
 
-/* นัดหมาย cell — slot time from the master schedule + arrival badge +
-   "รับลงทะเบียน" on a not-yet-arrived appointment row (stamps arrival). */
-const makeRenderAppointment = ({ onRegister }) => function AppointmentCell(row) {
+/* นัดหมาย cell — เวลาสล็อตจากตารางแพทย์ + ป้ายสถานะการมาถึง อ่านอย่างเดียว
+   ปุ่ม "รับลงทะเบียน" ถูกเอาออกจากคอลัมน์นี้แล้ว (มติผู้ใช้ 28 ส.ค. 69) */
+const makeRenderAppointment = () => function AppointmentCell(row) {
   if (!row.apptTime) {
     return (
       <span style={{ color: 'var(--text-content-quaternary, #ADB2B7)', fontSize: 'var(--type-size-sm)' }}>—</span>
@@ -365,16 +360,6 @@ const makeRenderAppointment = ({ onRegister }) => function AppointmentCell(row) 
         {row.apptTime} น.
       </span>
       <Pill pill={ARRIVAL_PILL[status]} />
-      {status === 'notArrived' && (
-        <NeutralSubdueButton
-          variant='outline'
-          size='sm'
-          aria-label='รับลงทะเบียน (บันทึกเวลามาถึง)'
-          onClick={(e) => { e.stopPropagation(); onRegister?.(row); }}
-        >
-          รับลงทะเบียน
-        </NeutralSubdueButton>
-      )}
     </div>
   );
 };
@@ -510,8 +495,9 @@ const INITIAL_ROWS = Array.from({ length: 25 }).map((_, i) => {
    order would show one patient an appointment time, an arrival badge and a
    doctor belonging to somebody else (chart-crossing). Rows already past the
    screening stage are treated as arrived (arrival = their queue time) so the
-   badge derives มาตามนัด / มาไม่ตรงนัด from slot + grace; waiting rows start
-   ยังไม่มา until "รับลงทะเบียน" stamps the arrival. A row with no matching
+   badge derives มาตามนัด / มาไม่ตรงนัด from slot + grace; waiting rows stay
+   ยังไม่มา — nothing on this page stamps an arrival any more, the
+   "รับลงทะเบียน" button was removed 28 ส.ค. 69. A row with no matching
    appointment stays exactly as it was. */
 const INITIAL_ROWS_SYNCED = INITIAL_ROWS.map((row) => {
   if (row.typeKey === 'walkin') return row;
@@ -557,7 +543,9 @@ const QueuePage = () => {
     state: { hn: row.hn, queue: row.queue, name: row.name, statusKey: row.statusKey },
   });
 
-  const [activeTab, setActiveTab] = useState(navState?.activeTab || 'all');
+  /* เปิดหน้ามาที่ "คิววันนี้" — งานของวันนี้คือสิ่งที่ต้องทำ ส่วนรายชื่อทั้งหมด
+     เป็นมุมมองค้นย้อนหลังที่ย้ายไปท้ายแถบแท็บแล้ว */
+  const [activeTab, setActiveTab] = useState(navState?.activeTab || 'waiting');
   const [searchQ, setSearchQ] = useState('');
   const [page, setPage] = useState(1);
 
@@ -690,25 +678,6 @@ const QueuePage = () => {
     setDeleteCandidate(null);
   };
 
-  /* TOR 1.2.1.2 — "รับลงทะเบียน" on an arrived appointment row: stamps
-     the arrival time; the badge derives ตามนัด/ไม่ตรงนัด from slot+grace.
-     Arrivals past the grace window also enter the walk-in request path
-     (TOR spec: late arrivals route through /opd/requests, not the slot). */
-  const handleRegisterArrival = useCallback((row) => {
-    const arrivedAt = nowHHMM();
-    setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, arrivedAt } : r)));
-    if (arrivalStatusFor(row.apptTime, arrivedAt) === 'late') {
-      addWalkinRequest({
-        hn: row.hn,
-        name: row.name,
-        complaint: `มาไม่ตรงนัด (นัด ${row.apptTime} น. มาถึง ${arrivedAt} น.) — จัดคิวผ่านคำขอ Walk-in`,
-        esi: 4,
-        dept: row.dept,
-        requestedBy: 'จนท.สมพร ทองดี',
-      });
-    }
-  }, []);
-
   /* TOR 1.2.6.1 — จำหน่าย/ส่งต่อ on ตรวจเสร็จแล้ว rows (fallback mount). */
   const [dischargeRow, setDischargeRow] = useState(null);
   const handleDischargeConfirm = useCallback((result) => {
@@ -729,7 +698,7 @@ const QueuePage = () => {
         key: 'appt',
         label: 'นัดหมาย (ตารางแพทย์)',
         sortable: false,
-        render: makeRenderAppointment({ onRegister: handleRegisterArrival }),
+        render: makeRenderAppointment(),
       });
       return [
         ...base,
@@ -744,7 +713,7 @@ const QueuePage = () => {
         },
       ];
     },
-    [handleRegisterArrival],
+    [],
   );
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   /* ปุ่ม "แก้ไขลำดับคิว" ถูกเอาออกจากหน้านี้แล้ว — ไม่มีอะไรสลับโหมดนี้อีก

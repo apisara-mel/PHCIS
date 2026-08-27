@@ -10,7 +10,7 @@
    `subItems` (ถ้ามี) = เมนูย่อยที่กางเป็น <SideSubMenu> ข้างราง. */
 
 
-/* แผนกย่อยในระบบบันทึกการรักษา — เมนู "คัดกรอง" ไม่ใช้แล้ว (จุดคัดกรองเดียว) */
+/* คลินิกย่อยในระบบบันทึกการรักษา — เมนู "คัดกรอง" ไม่ใช้แล้ว (จุดคัดกรองเดียว) */
 const TREAT_MODULE_SUBITEMS = [
   { key: 'consult',    label: 'ทะเบียนการส่งปรึกษาแพทย์',             path: '/treat/consult' },
   { key: 'order-settings', label: 'ตั้งค่ารายการสั่งการรักษาและ CDSS', path: '/treat/order-sets' },
@@ -22,25 +22,32 @@ const TREAT_MODULE_SUBITEMS = [
 ];
 
 const TREAT_DEPARTMENT_SUBITEMS = [
-  { key: 'opd-treat',  label: 'แผนกอายุรกรรม',                     path: '/treat/queue' },
-  { key: 'family',     label: 'แผนกส่งเสริมสุขภาพ(วางแผนครอบครัว)',    path: '/clinic/family-planning' },
-  { key: 'std',        label: 'แผนกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์', path: '/clinic/hiv-sti' },
-  { key: 'drug',       label: 'แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด',   path: '/clinic/addiction' },
-  { key: 'anc',        label: 'แผนกฝากครรภ์',                          path: '/treat/anc/queue' },
-  { key: 'ncd',        label: 'แผนกโรคเรื้อรัง (NCD)',                  path: '/clinic/ncd' },
-  /* "ส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ" = ชื่อคู่มือของระบบงานตรวจสุขภาพ (§1.19) */
-  { key: 'wellness',   label: 'แผนกส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ',   path: '/checkup' },
-  { key: 'vaccine',    label: 'แผนกสร้างเสริมภูมิคุ้มกันโรค',           path: '/clinic/immunization' },
-  { key: 'dental',     label: 'แผนกทันตกรรม',                          path: '/clinic/dental' },
-  { key: 'tb',         label: 'แผนกวัณโรค',                            path: '/clinic/tb' },
-  { key: 'mental',     label: 'แผนกสุขภาพจิตและคลินิกสุขภาพจิต',        path: '/clinic/mental-health' },
-  { key: 'rehab',      label: 'แผนกเวชศาสตร์ฟื้นฟูและกายภาพบำบัด',      path: '/clinic/rehab' },
+  /* ชื่อคลินิกยึดตามคู่มือระบบงานของสำนักอนามัย กทม. (S003–S023) และนำหน้าด้วยคำว่า
+     "คลินิก" ให้เหมือนกันทั้งชุด (มติผู้ใช้ 28 ส.ค. 69) — เดิมขึ้นต้นด้วย "แผนก"
+     และบางรายการใช้ชื่อที่ไม่ตรงคู่มือ (เช่น "อายุรกรรม" ซึ่งเป็นชื่อแผนกแบบ
+     โรงพยาบาล ไม่ใช่ชื่อคลินิกของศูนย์บริการสาธารณสุข) */
+  { key: 'opd-treat',  label: 'คลินิกตรวจรักษา',                          path: '/treat/queue' },
+  { key: 'family',     label: 'คลินิกส่งเสริมสุขภาพ (วางแผนครอบครัว)',      path: '/clinic/family-planning' },
+  { key: 'std',        label: 'คลินิกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์',   path: '/clinic/hiv-sti' },
+  { key: 'drug',       label: 'คลินิกบำบัดและรักษาผู้ป่วยติดสารเสพติด',     path: '/clinic/addiction' },
+  { key: 'anc',        label: 'คลินิกฝากครรภ์',                            path: '/treat/anc/queue' },
+  /* "ส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ" = ชื่อคู่มือ S014 (117 น.) ซึ่งเนื้อในคือ
+     ทะเบียนเบาหวาน/ความดัน = NCD จึงเป็นชื่อของเมนูนี้ ไม่ใช่ของ /checkup
+     (เดิมสองรายการนี้ใช้ชื่อสลับกัน — แก้ตามมติผู้ใช้ 28 ส.ค. 69) */
+  { key: 'ncd',        label: 'คลินิกส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ (NCD)', path: '/clinic/ncd' },
+  /* ระบบงานตรวจสุขภาพ (TOR §1.19) — ตรงกับ breadcrumb ของหน้า /checkup */
+  { key: 'wellness',   label: 'คลินิกตรวจสุขภาพ',                          path: '/checkup' },
+  { key: 'vaccine',    label: 'คลินิกสร้างเสริมภูมิคุ้มกันโรค',             path: '/clinic/immunization' },
+  { key: 'dental',     label: 'คลินิกทันตกรรม',                            path: '/clinic/dental' },
+  { key: 'tb',         label: 'คลินิกวัณโรค',                              path: '/clinic/tb' },
+  { key: 'mental',     label: 'คลินิกสุขภาพจิต',                           path: '/clinic/mental-health' },
+  { key: 'rehab',      label: 'คลินิกเวชศาสตร์ฟื้นฟูและกายภาพบำบัด',        path: '/clinic/rehab' },
   /* งานสังคมสงเคราะห์ (TOR §1.10.11) — path ชี้หน้าแรกของโมดูล (ค้นหา + เมนู
      หลัก 5 ปุ่ม ตามมติ คทง.10 ครั้งที่ 3) ไม่ใช่คิว; คิวย้ายไป /clinic/social-work/queue
      หน้าอื่น (ส.ส.3 /referral · ส.ส.4 /activities · รายงาน /reports · โภชนาการ
      /nutrition · ทะเบียน · ผู้ขอวัสดุ) เข้าถึงจากเมนูบนหน้าแรก — pattern เดียวกับ
      pharmacy/lab ที่ rail มีรายการเดียวแล้วสลับหน้าในโมดูลเอง. */
-  { key: 'social',     label: 'แผนกสังคมสงเคราะห์',                    path: '/clinic/social-work' },
+  { key: 'social',     label: 'คลินิกสังคมสงเคราะห์',                       path: '/clinic/social-work' },
 ];
 
 // Icon names = Material Symbols Outlined glyphs (loaded in index.html).

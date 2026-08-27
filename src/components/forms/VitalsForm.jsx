@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Topic from '@/components/topic/Topic';
 import VitalCard, { PressureCard, BMICard } from '@/components/card/VitalCard';
+import GrowthStatusCard from '@/components/growth/GrowthStatusCard';
+import FilterTag from '@/components/forms/FilterTag';
 import HistoryTimeline from '@/components/timeline/HistoryTimeline';
 import VitalsSignGraphDialog from '@/components/vitals/VitalsSignGraphDialog';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
@@ -23,49 +25,6 @@ import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
      surface/neutral/quaternary         → right vitals panel bg (160:28034)
      border/neutral/quaternary          → right vitals panel stroke (1px)
      text/topic/tertiary-title          → #363B3F (right panel title)         */
-
-/* RadioPill = Figma "Radio Button" (PHCIS-ALL nodes 160:24870 / 160:24871).
-   States: selected · default · disabled. Per Figma both selected and
-   unselected use Sarabun Regular 14 — only border weight/colour and text
-   color change. min-h 56, px-4 py-2, radius 8, gap 8.
-
-   IMPORTANT — this project uses Tailwind v2.1.2 (JIT). Arbitrary
-   `border-[var(...)]` is fragile in v2 and can be inlined to its hex
-   fallback at build-time, which then would NOT retint when the user
-   switches `<html data-brand="...">`. We therefore set border colour
-   (and the brand-aware text colour) via inline `style` so the browser
-   resolves the CSS variable on every render — guaranteeing the pill
-   follows the active theme.                                                 */
-const RadioPill = ({ selected, disabled = false, onClick, children }) => (
-  <button
-    type='button'
-    onClick={disabled ? undefined : onClick}
-    disabled={disabled}
-    aria-pressed={selected || undefined}
-    aria-disabled={disabled || undefined}
-    className={[
-      'min-h-[56px] px-4 py-2 rounded-lg flex items-center gap-2 text-sm transition bg-surface-btnQuinary',
-      selected ? 'border-2' : 'border',
-      disabled ? 'cursor-not-allowed' : 'cursor-pointer',
-    ].join(' ')}
-    style={{
-      // Figma alias mapping (design.md row 4263):
-      //   selected → border/brandPrimaryButton/tertiary  →  --border-brandprimary-tertiary  (theme-aware)
-      //   default  → border/neutralButton/tertiary       →  --border-neutralbutton-tertiary
-      borderColor: selected
-        ? 'var(--border-brandprimary-tertiary)'
-        : 'var(--border-neutralbutton-tertiary)',
-      // Figma alias mapping for text:
-      //   selected → text/content/default      →  --text-content-default
-      //   default  → text/content/quaternary   →  --text-content-quaternary
-      color: selected
-        ? 'var(--text-content-default)'
-        : 'var(--text-content-quaternary)',
-    }}
-  >
-    {children}
-  </button>
-);
 
 /* Demo seed values — shown for any historical round that already has
    measurements logged. When wiring to the API, swap this for a per-round
@@ -158,7 +117,7 @@ const REQUIRED_VITAL_FIELDS = [
   'waist',
 ];
 
-const VitalsForm = ({ onValidityChange, onValuesChange }) => {
+const VitalsForm = ({ onValidityChange, onValuesChange, patientSex, patientAgeYears }) => {
   const [roundVitalOverrides, setRoundVitalOverrides] = useState({});
 
   /* Per-field validity map populated by each VitalCard / PressureCard
@@ -173,6 +132,16 @@ const VitalsForm = ({ onValidityChange, onValuesChange }) => {
   }, []);
 
   const historyTimelineRef = useRef(null);
+  /* ToR ผนวก ก ๑.๒.๒.๕ — อายุ < 18 ปี เทียบกราฟการเจริญเติบโต · ตั้งแต่ 18 ปี
+     ขึ้นไปดูจาก BMI ปุ่มคู่นี้จึงสลับ "การ์ดภาวะโภชนาการ" ในกริดจริง ๆ ไม่ใช่
+     ตัวกรองเปล่า (ชิป ≥2 ปี ชุดเดิมถูกตัดออกเพราะกดไม่ได้ — มติผู้ใช้ 28 ส.ค. 69)
+     ค่าเริ่มต้นเดาจากอายุผู้รับบริการถ้ารู้ ไม่รู้ก็ถือเป็นผู้ใหญ่ */
+  /* ช่องวัดรอบตัวช่องเดียวใช้ได้สองแบบ — ผู้ใหญ่วัดเส้นรอบเอว เด็กเล็กวัดเส้นรอบหัว
+     (มติผู้ใช้ 28 ส.ค. 69) เก็บค่าไว้ที่ `waist` ช่องเดิม เปลี่ยนแค่ชื่อกับคำอธิบาย */
+  const [girth, setGirth] = useState('waist');
+  const [ageBand, setAgeBand] = useState(
+    Number(patientAgeYears) > 0 && Number(patientAgeYears) < 18 ? 'child' : 'adult',
+  );
   const [activeRound, setActiveRound] = useState({
     id: 'seed-0',
     date: '6 พฤษภาคม 2569',
@@ -317,38 +286,16 @@ const VitalsForm = ({ onValidityChange, onValuesChange }) => {
          title used everywhere else in the design system. Trailing badge
          / success / chevron are off because this row only labels the
          form section and exposes no action affordance. */}
-      <Topic
-        hierarchy='primary'
-        title='สัญญาณชีพ'
-        leadingIcon='monitor_heart'
-        showSubText={false}
-        showBadge={false}
-        showSuccess={false}
-        showChevron={false}
-      />
-
-      {/* Filter row — Figma 160:24869 "button group".
-         Left pill (160:24870) = State=Selected · Right pill (160:24871) = State=Disabled-Unchecked.
-         Per Figma frame 2745:104612 the selection is fixed: only the
-         "อายุมากกว่าหรือเท่ากับ 2 ปี" cohort is supported in this OPD step,
-         so the left pill is permanently Selected and the right is Disabled.
-
-         Right-side button "ดูแบบกราฟ" = Figma "Neutral Subdue Button" (h-40, leading icon
-         bar_chart_4_bars). Clicking it opens VitalsSignGraphDialog (Popup Very Large
-         3185:144347 · footer ยกเลิก / ปิด) — NOT a toggle. */}
-      <div className='flex items-center gap-6 w-full'>
-        <div className='flex-1 flex items-center gap-4'>
-          <RadioPill selected>
-            อายุมากกว่าหรือเท่ากับ 2 ปี
-          </RadioPill>
-          <RadioPill selected={false} disabled>
-            อายุน้อยกว่า 2 ปี
-          </RadioPill>
-        </div>
-        <VitalsSignGraphDialog
-          subtitle={measurementTitle}
-          disabled={roundsCount === 0}
-          triggerSize='md'
+      <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
+        <FilterTag
+          value='ต่ำกว่า 18 ปี'
+          selected={ageBand === 'child'}
+          onClick={() => setAgeBand('child')}
+        />
+        <FilterTag
+          value='ตั้งแต่ 18 ปีขึ้นไป'
+          selected={ageBand === 'adult'}
+          onClick={() => setAgeBand('adult')}
         />
       </div>
 
@@ -360,28 +307,35 @@ const VitalsForm = ({ onValidityChange, onValuesChange }) => {
           Tailwind `[var(...)]` because Tailwind v2 JIT can inline the
           fallback hex at build-time. */}
       <div className='flex items-start gap-6 w-full'>
-        <HistoryTimeline
-          ref={historyTimelineRef}
-          hideOutlineAddButton
-          initialRows={[] /* Figma 293:65594 — empty on first visit; user adds rounds via the panel */}
-          onRoundsChange={handleRoundsChange}
-          onActiveRoundChange={handleActiveRoundChange}
-          roundDisplayOverrides={timelineOverrides}
-        />
+        {/* ไทม์ไลน์ซ้ายโผล่หลังกด "เพิ่มรอบการวัด" เท่านั้น — เข้ามาครั้งแรกยังไม่มี
+            รอบวัดสักรอบ คอลัมน์ซ้ายที่ว่างเปล่าจึงเป็นที่ว่างที่ไม่ได้บอกอะไร
+            **ซ่อนด้วย `display:none` ไม่ใช่ถอดออกจาก DOM** เพราะปุ่มเพิ่มรอบวัดใน
+            พาเนลขวาสั่งงานผ่าน `historyTimelineRef` ถ้า unmount ref จะเป็น null
+            แล้วปุ่มจะกดไม่ติด และรอบที่เคยเพิ่มไว้จะหายไปด้วย */}
+        <div style={firstVisit ? { display: 'none' } : undefined}>
+          <HistoryTimeline
+            ref={historyTimelineRef}
+            hideOutlineAddButton
+            initialRows={[] /* Figma 293:65594 — empty on first visit; user adds rounds via the panel */}
+            onRoundsChange={handleRoundsChange}
+            onActiveRoundChange={handleActiveRoundChange}
+            roundDisplayOverrides={timelineOverrides}
+          />
+        </div>
 
         <div
-          className='flex-1 min-w-0 self-stretch flex flex-col gap-4 p-6 rounded-xl'
-          style={{
-            boxSizing: 'border-box',
-            background: 'var(--surface-neutral-quaternary)',
-            borderWidth: 'var(--dim-stroke-100)',
-            borderStyle: 'solid',
-            borderColor: 'var(--border-neutral-quaternary)',
-          }}
+          /* ไม่มีพื้นเทารองแล้ว (มติผู้ใช้ 28 ส.ค. 69) — การ์ดค่าแต่ละตัวมีขอบของ
+             ตัวเองอยู่แล้ว พื้นเทาอีกชั้นเลยเป็นกล่องซ้อนกล่องที่ไม่ได้แบ่งอะไรเพิ่ม */
+          className='flex-1 min-w-0 self-stretch flex flex-col gap-4'
+          style={{ boxSizing: 'border-box' }}
         >
-          <h3 className='text-base font-bold text-token-topicTertiaryTitle'>
-            {measurementTitle}
-          </h3>
+          {/* หัวข้อ "การวัดวันที่ …" ขึ้นเมื่อมีรอบวัดแล้วเท่านั้น — ยังไม่กดเพิ่มรอบ
+              ก็ยังไม่มีการวัดให้ตั้งชื่อ (มติผู้ใช้ 28 ส.ค. 69) */}
+          {!firstVisit && (
+            <h3 className='text-base font-bold text-token-topicTertiaryTitle'>
+              {measurementTitle}
+            </h3>
+          )}
           {/* React key — `activeRound.id` reseeds the cards when the user
               switches rounds or adds a fresh one so VitalCard's internal
               `useState(initial)` re-reads the current displayed values. */}
@@ -452,23 +406,54 @@ const VitalsForm = ({ onValidityChange, onValuesChange }) => {
               step={0.1}
               hint='น้ำหนักล่าสุด'
             />
-            <BMICard
-              weight={activeVitals.weight.value}
-              height={activeVitals.height.value}
-              /* On a first visit BOTH weight & height are 0, so anthro
-                 maths returns undefined (div-by-zero guard). Pass an
-                 explicit `0` so the card mirrors the rest of the panel
-                 instead of falling back to "—". BMICard's badge/marker
-                 are suppressed at the source (bmi ≤ 0). */
-              value={firstVisit ? '0' : undefined}
-            />
+            {ageBand === 'child' ? (
+              <GrowthStatusCard
+                sex={patientSex}
+                ageYears={patientAgeYears}
+                weight={activeVitals.weight.value}
+                height={activeVitals.height.value}
+                measuredLabel={measurementTitle}
+              />
+            ) : (
+              <BMICard
+                weight={activeVitals.weight.value}
+                height={activeVitals.height.value}
+                /* On a first visit BOTH weight & height are 0, so anthro
+                   maths returns undefined (div-by-zero guard). Pass an
+                   explicit `0` so the card mirrors the rest of the panel
+                   instead of falling back to "—". BMICard's badge/marker
+                   are suppressed at the source (bmi ≤ 0). */
+                value={firstVisit ? '0' : undefined}
+              />
+            )}
             <VitalCard
-              label='เส้นรอบเอว'
+              label={girth === 'head' ? 'เส้นรอบหัว' : 'เส้นรอบเอว'}
               unit='ซม.'
               required
               value={vitals.waist.value}
               onValidityChange={(v) => setFieldValid('waist', v)}
-              hint='ปกติ ≤ 90 ซม. (ชาย)'
+              hint={girth === 'head'
+                ? 'วัดรอบศีรษะส่วนที่กว้างที่สุด (ใช้กับเด็กเล็ก)'
+                : 'ปกติ ≤ 90 ซม. (ชาย)'}
+              labelAction={(
+                <button
+                  type='button'
+                  onClick={() => setGirth((g) => (g === 'head' ? 'waist' : 'head'))}
+                  className='shrink-0 whitespace-nowrap'
+                  style={{
+                    padding: 'var(--dim-space-050) var(--dim-space-200)',
+                    borderRadius: 'var(--dim-radius-full)',
+                    border: 'var(--dim-stroke-100) solid var(--border-brandPrimaryButton-tertiary)',
+                    color: 'var(--text-brandPrimary-default)',
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-xxs, 10px)',
+                    lineHeight: 1.6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {girth === 'head' ? 'วัดเส้นรอบเอว' : 'วัดเส้นรอบหัว'}
+                </button>
+              )}
             />
           </div>
 

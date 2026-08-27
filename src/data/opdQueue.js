@@ -31,6 +31,8 @@ export const buildOpdQueueRoster = (total = 25) => {
       hn: profile.hn,
       vn: profile.vn,
       name: profile.shortName,
+      /* รูปจากทะเบียนผู้ป่วย — พาเนลคิวคัดกรองขึ้นรูปจริงเหมือนพาเนลของห้องตรวจ */
+      avatarUrl: profile.avatarUrl,
       doctor: profile.doctor,
       room: `ห้องตรวจที่ ${(i % 4) + 1}`,
       dept: i === 2 || i === 7
@@ -80,5 +82,8 @@ export const OPD_QUEUE_SUBMENU_LABELS = {
   done: (n) => `คัดกรองแล้ว (${n})`,
   draft: (n) => `ที่ร่างไว้ (${n})`,
   inProgress: (n) => `กำลังคัดกรอง (${n})`,
-  waiting: (n) => `รอคัดกรอง (${n})`,
+  /* พาเนลข้างฟอร์มคัดกรองเหลือหมวดเดียว จึงเรียกตามสิ่งที่มันเป็น
+     — "คิวที่รออยู่" (มติผู้ใช้ 28 ส.ค. 69) ส่วนแท็บในตาราง /opd/queue
+     ยังใช้คำว่า "รอคัดกรอง" ของมันเอง */
+  waiting: (n) => `คิวที่รออยู่ (${n})`,
 };

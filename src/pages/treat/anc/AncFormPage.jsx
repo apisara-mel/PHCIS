@@ -22,7 +22,7 @@ import { buildAncVisitForm, getAncCompletedSteps, getAncPatientByHn } from '@/da
    registry (`ancVisits.js`) when the patient already has one, or from
    an empty first-visit default otherwise. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'แผนกฝากครรภ์'];
+const breadcrumb = ['ระบบบันทึกการรักษา', 'คลินิกฝากครรภ์'];
 
 /* Same 7-step scaffold as OPD's TREATMENT_STEPS (TreatmentFormShell.jsx),
    with step 7 relabeled — ANC issues an "ใบฝากครรภ์" (ANC card), not a

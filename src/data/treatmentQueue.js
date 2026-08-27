@@ -73,6 +73,8 @@ export const buildTreatmentQueueRoster = (total = 15, baseTime = Date.now()) => 
       queue: `A${String(i + 1).padStart(3, '0')}`,
       hn: profile.hn,
       name: profile.shortName,
+      /* รูปจากทะเบียนผู้ป่วย — ตาราง/พาเนลคิวจึงขึ้นรูปจริง ไม่ใช่วงกลมอักษรย่อ */
+      avatarUrl: profile.avatarUrl,
       doctor: profile.doctor,
       typeKey,
       cc: TREATMENT_QUEUE_CC_SAMPLES[i % TREATMENT_QUEUE_CC_SAMPLES.length],
@@ -97,6 +99,16 @@ export const buildTreatmentQueueRoster = (total = 15, baseTime = Date.now()) => 
 /* Module-scope cached roster — both the queue table and the in-visit
    side panel reference this same array so counts stay in sync. */
 export const TREATMENT_QUEUE_ROWS = buildTreatmentQueueRoster();
+
+/* Section labels for QueueSubMenu on the in-visit treatment form. พาเนลเหลือ
+   หมวด waiting หมวดเดียว จึงเรียกตามสิ่งที่หมอต้องรู้ — "คิวที่เหลือวันนี้"
+   (มติผู้ใช้ 28 ส.ค. 69) หมวดอื่นคงไว้เผื่อหน้าอื่นเปิดใช้. */
+export const TREATMENT_QUEUE_SUBMENU_LABELS = {
+  done:       (n) => `ตรวจเสร็จแล้ว (${n})`,
+  draft:      (n) => `ที่ร่างไว้ (${n})`,
+  inProgress: (n) => `ผู้ป่วยตรวจอยู่ (${n})`,
+  waiting:    (n) => `คิวที่เหลือวันนี้ (${n})`,
+};
 
 /* Bucket helper for QueueSubMenu — returns `{ items, total }` per
    status so the side panel can show the FULL queue size in the section

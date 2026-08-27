@@ -5,6 +5,8 @@ import Header, { SubHeader } from '@/components/layout/Header';
 import PatientCard from '@/components/card/PatientCard';
 import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
 import QueueSubMenu from '@/components/layout/QueueSubMenu';
+import QueueCallActions from '@/components/queue/QueueCallActions';
+import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
 import { useStepDirection } from '@/components/step/stepTransition';
 import ScreeningStep1 from '@/pages/opd/ScreeningStep1';
 import ScreeningStep3 from '@/pages/opd/ScreeningStep3';
@@ -18,7 +20,7 @@ import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Icon from '@/components/icons/Icon';
 import { PAIN_LEVELS, TRIAGE_LEVELS } from '@/data/opdScreeningCatalog';
 import Footer from '@/components/layout/Footer';
-import BedSelectionPopup from '@/components/popup/BedSelectionPopup';
+import ObservationAdmitPopup from '@/components/observation/ObservationAdmitPopup';
 import InternalReferPopup from '@/components/popup/InternalReferPopup';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -323,7 +325,7 @@ const CARE_ORDERS = [
   { key: 'paracetamol', th: 'ยาแก้ปวด 500 mg',      en: 'Paracetamol'      },
   { key: 'dressing',    th: 'ชุดล้างแผล',            en: 'Wound dressing set' },
   { key: 'changewound', th: 'เปลี่ยนผ้าปิดแผล',     en: 'Change dressing'  },
-  { key: 'bed',         th: 'เตียงผู้ป่วย',           en: 'Patient bed'      },
+  { key: 'bed',         th: 'รับผู้ป่วยเข้าเตียงสังเกตการณ์', en: 'Admit to observation bed' },
   { key: 'others',      th: 'อื่นๆ',                  en: 'Others'           },
 ];
 
@@ -376,7 +378,7 @@ const SymptomStep = ({ onValidityChange, patient = {} }) => {
   const [triage, setTriage] = useState(null);
   const [orders, setOrders] = useState({});
   const [cert, setCert] = useState(null);
-  const [bedPopupOpen, setBedPopupOpen] = useState(false);
+  const [admitOpen, setAdmitOpen] = useState(false);
   const [selectedBedId, setSelectedBedId] = useState(null);
   /* "อื่นๆ" (Others) care order — Figma 329:51905 reveals a free-text
      textarea below the chip row once selected so the nurse can spell
@@ -430,10 +432,11 @@ const SymptomStep = ({ onValidityChange, patient = {} }) => {
 
   const onCareOrderClick = (k) => {
     if (k === 'bed') {
-      /* Always open the bed picker first — including when a bed is
-         already chosen — so the user can change bed without the chip
-         toggling off on a second tap (Figma PHCIS | OPD flow). */
-      setBedPopupOpen(true);
+      /* กดแล้วเปิดป๊อปอัป "ลงทะเบียนรับผู้ป่วยเข้าเตียงสังเกตอาการ" ตัวเดียวกับ
+         หน้าคิวสังเกตอาการ (มติผู้ใช้ 28 ส.ค. 69) — ส่ง HN ไปด้วย ป๊อปอัปจึงซ่อน
+         ช่องค้นหาผู้ป่วยเอง เพราะหน้านี้รู้อยู่แล้วว่ากำลังคัดกรองใคร
+         เปิดซ้ำได้แม้เลือกเตียงไปแล้ว เพื่อให้เปลี่ยนเตียงได้โดยชิปไม่ toggle ปิด */
+      setAdmitOpen(true);
       return;
     }
     toggleOrder(k);
@@ -441,8 +444,8 @@ const SymptomStep = ({ onValidityChange, patient = {} }) => {
 
   return (
     <section className='bg-surface-card rounded-b-card p-6 flex flex-col gap-6'>
-      <div className='flex flex-col gap-3'>
-        <TopicHeader icon='smile'>อาการป่วย</TopicHeader>
+      {/* ระยะระหว่างกล่องกรอกอาการ 24px เท่าแนวนอน (มติผู้ใช้ 28 ส.ค. 69) */}
+      <div className='flex flex-col gap-6'>
         <div className='flex items-start gap-6 w-full'>
           <SymptomField label='อาการ (Chief Complaint)' required>
             <SuggestibleTextarea
@@ -467,8 +470,10 @@ const SymptomStep = ({ onValidityChange, patient = {} }) => {
             />
           </SymptomField>
         </div>
-        {/* "ประวัติปัจจุบัน (Present Illness)" — full-width textarea per
-            Figma 294:47891, sits below the two half-width fields above. */}
+        {/* กว้างเท่า "อาการ (Chief Complaint)" ด้านบน (มติผู้ใช้ 28 ส.ค. 69) —
+            เดิมกินเต็มความกว้าง กล่องสามใบเลยไม่เข้าคอลัมน์เดียวกัน
+            ใช้แถวเดียวกับข้างบน แล้วเว้นคอลัมน์ขวาไว้ให้ความกว้างตรงกันพอดี */}
+        <div className='flex items-start gap-6 w-full'>
         <SymptomField label='ประวัติปัจจุบัน (Present Illness)' required>
           <SuggestibleTextarea
             voice
@@ -480,6 +485,8 @@ const SymptomStep = ({ onValidityChange, patient = {} }) => {
             popoverAriaLabel='คำแนะนำประวัติปัจจุบัน'
           />
         </SymptomField>
+          <div className='flex-1 min-w-0' aria-hidden />
+        </div>
       </div>
 
       {/* Pain level (ระดับความเจ็บปวด) — Figma 160:26321..26326.
@@ -680,24 +687,22 @@ const SymptomStep = ({ onValidityChange, patient = {} }) => {
         )}
       </div>
 
-      <BedSelectionPopup
-        open={bedPopupOpen}
-        onClose={() => setBedPopupOpen(false)}
-        initialSelectedId={selectedBedId || 'bed04'}
-        showClearOption={!!orders.bed}
-        onClearBed={() => {
-          setOrders((o) => ({ ...o, bed: false }));
-          setSelectedBedId(null);
-        }}
-        onConfirm={(id) => {
-          setSelectedBedId(id);
+      <ObservationAdmitPopup
+        open={admitOpen}
+        onClose={() => setAdmitOpen(false)}
+        patientHn={patient.hn}
+        chiefComplaint={complaint}
+        chiefComplaintSuggestions={CHIEF_COMPLAINT_SUGGESTIONS}
+        onSubmit={(f) => {
+          setAdmitOpen(false);
+          setSelectedBedId(f.bedId);
           setOrders((o) => ({ ...o, bed: true }));
           /* สั่งเตียง = ส่งผู้ป่วยเข้าระบบสังเกตอาการ — เปิดคิวสังเกตอาการใน
              แท็บใหม่ เพื่อให้พยาบาลรับเคสต่อได้ทันทีโดยไม่ทิ้งแบบคัดกรอง
              ที่ยังกรอกค้างอยู่ในแท็บเดิม (เรียกจากปุ่มยืนยันของ popup จึง
              ไม่โดน popup blocker) */
-          if (typeof window !== 'undefined') {
-            window.open(`/observation?bed=${encodeURIComponent(id)}`, '_blank', 'noopener,noreferrer');
+          if (typeof window !== 'undefined' && f.bedId) {
+            window.open(`/observation?bed=${encodeURIComponent(f.bedId)}`, '_blank', 'noopener,noreferrer');
           }
         }}
       />
@@ -989,12 +994,25 @@ const ScreeningPage = () => {
   /* QueueSubMenu — same Sub Menu B pattern as TreatmentFormPage /
      RegistrationFormPage. Buckets come from the shared OPD roster so
      counts match /opd/queue. */
+  /* ปุ่มจัดการคิวในพาเนล (มติผู้ใช้ 28 ส.ค. 69) — roster กลางยังเป็นค่าคงที่
+     ไม่มี store ที่เขียนได้ จึงเก็บผลของ พักคิว/ยกเลิกคิว เป็น state ของหน้านี้
+     แบบเดียวกับพาเนลคิวของหน้าลงทะเบียน: `paused` แค่สลับปุ่ม ส่วนยกเลิกเอาแถวออก */
+  const [queuePaused, setQueuePaused] = useState({});
+  const [queueCancelled, setQueueCancelled] = useState({});
+  const [queueCancelCandidate, setQueueCancelCandidate] = useState(null);
+
   const queueBuckets = useMemo(() => {
-    const raw = buildOpdQueueSubMenuBuckets(OPD_QUEUE_ROWS);
+    /* หมวด "คิวที่รออยู่" แสดงครบทุกคิว ไม่ตัดเหลือ 2 แถวแบบ preview —
+       พาเนลเหลือหมวดเดียวและมี overflow-y อยู่แล้ว ลิสต์ยาวจึงเลื่อนได้ */
+    const raw = buildOpdQueueSubMenuBuckets(
+      OPD_QUEUE_ROWS.filter((r) => !queueCancelled[r.id]),
+      { waiting: Infinity },
+    );
     const map = (rows) => rows.map((r) => ({
       id: r.id,
       hn: r.hn,
       name: r.name,
+      avatarUrl: r.avatarUrl,
       queue: r.queue,
       badge: r.vipBadge,
       statusKey: r.statusKey,
@@ -1005,7 +1023,7 @@ const ScreeningPage = () => {
       inProgress: { items: map(raw.inProgress.items), total: raw.inProgress.total },
       waiting: { items: map(raw.waiting.items), total: raw.waiting.total },
     };
-  }, []);
+  }, [queueCancelled]);
 
   const goToPatientScreening = useCallback((p) => {
     history.push({
@@ -1096,11 +1114,37 @@ const ScreeningPage = () => {
       {/* QueueSubMenu — Figma "Sub Menu B" (same as /treat/record). Sits
           between Sidebar and the screening form so nurses can jump to
           another queue patient without returning to /opd/queue first. */}
+      <DeleteQueueConfirmPopup
+        open={!!queueCancelCandidate}
+        onClose={() => setQueueCancelCandidate(null)}
+        onConfirm={() => {
+          setQueueCancelled((s2) => ({ ...s2, [queueCancelCandidate.id]: true }));
+          setQueueCancelCandidate(null);
+        }}
+        title='ยืนยันการยกเลิกคิว'
+        subtitle='คิวนี้จะถูกนำออกจากรายการ และไม่สามารถย้อนกลับได้'
+        queue={queueCancelCandidate?.queue}
+        hn={queueCancelCandidate?.hn || '—'}
+        patientName={queueCancelCandidate?.name || '—'}
+      />
       <QueueSubMenu
         queue={queueBuckets}
         sectionLabels={OPD_QUEUE_SUBMENU_LABELS}
-        onViewAll={() => history.push('/opd/queue')}
+        /* เห็นแค่ "คิวที่รออยู่" พร้อมเลขคิวและปุ่มจัดการคิว · ไม่มีจุดสีนำหน้า
+           และไม่มีปุ่ม "ดูทั้งหมด" แล้ว (มติผู้ใช้ 28 ส.ค. 69) — พาเนลเหลือ
+           หมวดเดียว จุดสีจึงไม่ได้แยกอะไร และทางออกไปคิวเต็มอยู่ที่ rail อยู่แล้ว */
+        sections={['waiting']}
+        showQueueNo
+        showDots={false}
         onPickPatient={goToPatientScreening}
+        renderRowActions={(p) => (
+          <QueueCallActions
+            paused={!!queuePaused[p.id]}
+            onPause={() => setQueuePaused((s2) => ({ ...s2, [p.id]: !s2[p.id] }))}
+            onCancel={() => setQueueCancelCandidate(p)}
+            onCall={() => goToPatientScreening(p)}
+          />
+        )}
       />
       <main className='flex-1 flex flex-col min-w-0'>
         {/* ส่ง breadcrumb เองแทนการพึ่ง default ของ <Header> (ซึ่งยังเป็น

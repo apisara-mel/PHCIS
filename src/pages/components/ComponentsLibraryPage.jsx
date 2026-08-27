@@ -3981,7 +3981,7 @@ const SideSubMenuStateTable = ({ cellMinWidth = 240 }) => (
           <td style={{ padding: 'var(--dim-space-300)', color: 'var(--text-content-tertiary)', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>Item</td>
           {SIDESUBMENU_STATE_COLS.map((col) => (
             <td key={col.key} style={{ padding: 'var(--dim-space-300)', verticalAlign: 'middle', minWidth: cellMinWidth, background: 'var(--surface-card-brand-100, #F4FBF8)' }}>
-              <SideSubMenuItem state={col.state}>ตรวจรักษาทั่วไป (OPD)</SideSubMenuItem>
+              <SideSubMenuItem state={col.state}>คลินิกตรวจรักษา</SideSubMenuItem>
             </td>
           ))}
         </tr>
@@ -4002,16 +4002,16 @@ const SideSubMenuStateTable = ({ cellMinWidth = 240 }) => (
 );
 
 const SIDESUBMENU_TREAT_ITEMS = [
-  { key: 'opd',         label: 'ตรวจรักษาทั่วไป (OPD)' },
-  { key: 'family',      label: 'แผนกส่งเสริมสุขภาพ(วางแผนครอบครัว)' },
-  { key: 'std',         label: 'แผนกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์' },
-  { key: 'drug',        label: 'แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด' },
-  { key: 'anc',         label: 'แผนกฝากครรภ์' },
-  { key: 'wellness',    label: 'แผนกส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ' },
-  { key: 'vaccine',     label: 'แผนกสร้างเสริมภูมิคุ้มกันโรค' },
-  { key: 'dental',      label: 'แผนกทันตกรรม' },
-  { key: 'tb',          label: 'แผนกวัณโรค' },
-  { key: 'mental',      label: 'แผนกสุขภาพจิตและคลินิกสุขภาพจิต' },
+  { key: 'opd',         label: 'คลินิกตรวจรักษา' },
+  { key: 'family',      label: 'คลินิกส่งเสริมสุขภาพ (วางแผนครอบครัว)' },
+  { key: 'std',         label: 'คลินิกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์' },
+  { key: 'drug',        label: 'คลินิกบำบัดและรักษาผู้ป่วยติดสารเสพติด' },
+  { key: 'anc',         label: 'คลินิกฝากครรภ์' },
+  { key: 'wellness',    label: 'คลินิกตรวจสุขภาพ' },
+  { key: 'vaccine',     label: 'คลินิกสร้างเสริมภูมิคุ้มกันโรค' },
+  { key: 'dental',      label: 'คลินิกทันตกรรม' },
+  { key: 'tb',          label: 'คลินิกวัณโรค' },
+  { key: 'mental',      label: 'คลินิกสุขภาพจิต' },
 ];
 
 const SideSubMenuDemo = () => {
@@ -4040,10 +4040,10 @@ const SideSubMenuDemo = () => {
       <Variant label='Composed manually · mixed states (disabled + selected)' stack>
         <div style={{ width: 384, borderRadius: 'var(--dim-radius-300)', overflow: 'hidden', border: 'var(--dim-stroke-100) solid var(--border-card-default)' }}>
           <SideSubMenu header='ระบบบันทึกการรักษา' showBottomSpacer={false}>
-            <SideSubMenuItem onClick={() => {}}>ตรวจรักษาทั่วไป (OPD)</SideSubMenuItem>
-            <SideSubMenuItem selected onClick={() => {}}>แผนกส่งเสริมสุขภาพ(วางแผนครอบครัว)</SideSubMenuItem>
-            <SideSubMenuItem disabled>แผนกบำบัดและรักษาผู้ป่วยติดสารเสพติด (ปิดบริการ)</SideSubMenuItem>
-            <SideSubMenuItem onClick={() => {}}>แผนกฝากครรภ์</SideSubMenuItem>
+            <SideSubMenuItem onClick={() => {}}>คลินิกตรวจรักษา</SideSubMenuItem>
+            <SideSubMenuItem selected onClick={() => {}}>คลินิกส่งเสริมสุขภาพ (วางแผนครอบครัว)</SideSubMenuItem>
+            <SideSubMenuItem disabled>คลินิกบำบัดและรักษาผู้ป่วยติดสารเสพติด (ปิดบริการ)</SideSubMenuItem>
+            <SideSubMenuItem onClick={() => {}}>คลินิกฝากครรภ์</SideSubMenuItem>
           </SideSubMenu>
         </div>
       </Variant>

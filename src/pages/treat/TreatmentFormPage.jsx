@@ -4,6 +4,8 @@ import React, {
 import { Redirect, useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import QueueSubMenu from '@/components/layout/QueueSubMenu';
+import QueueCallActions from '@/components/queue/QueueCallActions';
+import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import PatientCard from '@/components/card/PatientCard';
@@ -26,7 +28,11 @@ import { GuardedAction } from '@/pages/treat/panels/panelHooks';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import { mergePatientFlags } from '@/data/treatmentPatientFlags';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
-import { TREATMENT_QUEUE_ROWS, buildQueueSubMenuBuckets } from '@/data/treatmentQueue';
+import {
+  TREATMENT_QUEUE_ROWS,
+  TREATMENT_QUEUE_SUBMENU_LABELS,
+  buildQueueSubMenuBuckets,
+} from '@/data/treatmentQueue';
 import { sendPrescriptionToPharmacy } from '@/data/pharmacyQueue';
 import { gateCpoeOrder } from '@/data/consentWorkflowStore';
 import AlertDialog from '@/components/popup/AlertDialog';
@@ -303,12 +309,25 @@ const TreatmentFormPage = () => {
      carries `{ items, total }` so the section header can show the
      full queue size while the list only renders the Figma's short
      preview (5 / 1 / 5). */
+  /* ปุ่มจัดการคิวในพาเนล (มติผู้ใช้ 28 ส.ค. 69) — roster กลางเป็นค่าคงที่ ไม่มี
+     store ที่เขียนได้ ผลของ พักคิว/ยกเลิกคิว จึงเก็บเป็น state ของหน้านี้ แบบ
+     เดียวกับพาเนลของเวชระเบียนและคัดกรอง */
+  const [queuePaused, setQueuePaused] = useState({});
+  const [queueCancelled, setQueueCancelled] = useState({});
+  const [queueCancelCandidate, setQueueCancelCandidate] = useState(null);
+
   const queueBuckets = useMemo(() => {
-    const raw = buildQueueSubMenuBuckets(TREATMENT_QUEUE_ROWS);
+    /* หมวด "คิวที่เหลือวันนี้" แสดงครบทุกคิว ไม่ตัดเหลือ preview 2 แถว —
+       พาเนลเหลือหมวดเดียวและมี overflow-y อยู่แล้ว ลิสต์ยาวจึงเลื่อนได้ */
+    const raw = buildQueueSubMenuBuckets(
+      TREATMENT_QUEUE_ROWS.filter((r) => !queueCancelled[r.id]),
+      { waiting: Infinity },
+    );
     const map = (rows) => rows.map((r) => ({
       id: r.id,
       hn: r.hn,
       name: r.name,
+      avatarUrl: r.avatarUrl,
       queue: r.queue,
       badge: r.vipBadge,
     }));
@@ -318,7 +337,7 @@ const TreatmentFormPage = () => {
       inProgress: { items: map(raw.inProgress.items), total: raw.inProgress.total },
       waiting:    { items: map(raw.waiting.items),    total: raw.waiting.total    },
     };
-  }, []);
+  }, [queueCancelled]);
 
   const goToPatientRecord = (p) => history.push({
     pathname: '/treat/record',
@@ -550,13 +569,37 @@ const TreatmentFormPage = () => {
           collapsed / 2624:122781 expanded). Sits between the Sidebar
           and the form column so the doctor can glance at the rest of
           the queue without leaving the open visit. Starts collapsed so
-          the form gets full horizontal space until the doctor opts in.
-          "ดูทั้งหมด" jumps back to the full OPD queue page (Figma
-          PHCIS-ALL 2760:140031). */}
+          the form gets full horizontal space until the doctor opts in. */}
+      <DeleteQueueConfirmPopup
+        open={!!queueCancelCandidate}
+        onClose={() => setQueueCancelCandidate(null)}
+        onConfirm={() => {
+          setQueueCancelled((s2) => ({ ...s2, [queueCancelCandidate.id]: true }));
+          setQueueCancelCandidate(null);
+        }}
+        title='ยืนยันการยกเลิกคิว'
+        subtitle='คิวนี้จะถูกนำออกจากรายการ และไม่สามารถย้อนกลับได้'
+        queue={queueCancelCandidate?.queue}
+        hn={queueCancelCandidate?.hn || '—'}
+        patientName={queueCancelCandidate?.name || '—'}
+        avatarSrc={queueCancelCandidate?.avatarUrl}
+      />
       <QueueSubMenu
         queue={queueBuckets}
-        onViewAll={() => history.push('/treat/queue')}
+        sectionLabels={TREATMENT_QUEUE_SUBMENU_LABELS}
+        /* เห็นแค่ "คิวที่เหลือวันนี้" พร้อมรูปผู้ป่วยและปุ่มจัดการคิว · ไม่มีจุดสี
+           นำหน้าและไม่มีปุ่ม "ดูทั้งหมด" แล้ว (มติผู้ใช้ 28 ส.ค. 69) */
+        sections={['waiting']}
+        showDots={false}
         onPickPatient={goToPatientRecord}
+        renderRowActions={(p) => (
+          <QueueCallActions
+            paused={!!queuePaused[p.id]}
+            onPause={() => setQueuePaused((s2) => ({ ...s2, [p.id]: !s2[p.id] }))}
+            onCancel={() => setQueueCancelCandidate(p)}
+            onCall={() => goToPatientRecord(p)}
+          />
+        )}
       />
       <div className='flex-1 min-w-0 flex flex-col'>
         <Header breadcrumb={breadcrumb} />
