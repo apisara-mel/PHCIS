@@ -164,15 +164,21 @@ export const FieldShell = ({
   children,
 }) => {
   const helper = error || helperText;
+  /* Bare shell = ไม่มีทั้ง label และ helper — เกิดเมื่อคอนโทรลถูกวางใน <Field>
+     ที่ออก label ให้เองอยู่แล้ว. กรณีนี้ต้องกว้างเท่าช่องกริดเป๊ะ ๆ ไม่ใช่ตัน
+     ที่ 640 เพราะ <InputField> โหมดเดียวกันข้าม FieldShell ไปเลย (bare-mode
+     optimisation) แล้วเต็มช่อง ทำให้กล่อง Select/DatePicker/TimePicker แคบกว่า
+     InputField ที่อยู่ในกริดเดียวกันอย่างเห็นได้ชัด (มติผู้ใช้ 27 ส.ค. 69) */
+  const bare = !(showLabel && label != null) && !(showHelperText && helper);
   return (
     <div
       className={`flex flex-col items-start ${className}`}
       style={{
         gap: 'var(--dim-space-150)',
-        maxWidth: 640,
-        minWidth: 128,
+        maxWidth: bare ? 'none' : 640,
+        minWidth: bare ? 0 : 128,
         width: '100%',
-        boxSizing: 'content-box',
+        boxSizing: 'border-box',
         ...style,
       }}
     >

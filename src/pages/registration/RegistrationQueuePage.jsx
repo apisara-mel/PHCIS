@@ -17,16 +17,17 @@ import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrivacyRevealPopup from '@/components/popup/PrivacyRevealPopup';
 import Tooltip from '@/components/tooltip/Tooltip';
-import Icon from '@/components/icons/Icon';
 import { formatNationalId } from '@/data/registrationForm';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import StatusBadge from '@/components/badge/StatusBadge';
 import Popover from '@/components/popup/Popover';
 import SuccessToast from '@/components/toast/SuccessToast';
 import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
+import SuccessPopup from '@/components/popup/SuccessPopup';
+import AddQueuePopup from './AddQueuePopup';
+import AlertDialog from '@/components/popup/AlertDialog';
+import ActionList from '@/components/list/ActionList';
 import { MR_PATIENTS, findMrPatientByHn, lifeStatusLabel } from '@/data/mrPatients';
-import { MOBILE_PUSH_LOG, pushArrivalConfirmation } from '@/data/registrationVisits';
-import QueueTicketPrintPopup from './QueueTicketPrintPopup';
 import PatientCardPrintPopup, { buildOpdCardFromMr } from './PatientCardPrintPopup';
 import {
   getPatientByHN,
@@ -34,10 +35,13 @@ import {
 import { buildRegistrationSearchHistorySeed } from '@/data/primarySearchHistorySeeds';
 import { NEW_USER_AVATAR } from '@/data/avatarAssets';
 import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
+import QueueCallActions from '@/components/queue/QueueCallActions';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import {
   buildRegistrationQueueRoster,
   REGISTRATION_QUEUE_ROWS,
+  VISIT_TYPE_FILTER_OPTIONS,
+  VISIT_TYPE_TO_FILTER,
 } from '@/data/registrationQueue';
 
 /* MIH RegistrationQueuePage — Figma node 2756:148259 / queue col 199:9243.
@@ -80,12 +84,7 @@ const FILTER_OPTIONS = {
     { value: 'active',   label: 'ยังคง Active'  },
     { value: 'inactive', label: 'ไม่ Active แล้ว' },
   ],
-  type: [
-    { value: 'all',          label: 'ทุกประเภท'              },
-    { value: 'appointment',  label: 'นัดหมายล่วงหน้า'         },
-    { value: 'walkin',       label: 'ไม่ได้นัดหมาย'            },
-    { value: 'app',          label: 'ด้วยตนเองผ่าน Application' },
-  ],
+  type: VISIT_TYPE_FILTER_OPTIONS,
   /* Visit workflow — Figma annotation 331:149624–649 */
   visitStatus: [
     { value: 'all',      label: 'ทุกสถานะ'                         },
@@ -114,16 +113,6 @@ const QUEUE_CHANNEL_OPTIONS = [
   'รับกับเจ้าหน้าที่',
   'กับเจ้าหน้าที่ ณ อนามัย',
 ];
-const VISIT_TYPE_OPTIONS = [
-  'นัดหมายล่วงหน้า',
-  'ไม่ได้นัดหมาย',
-  'ด้วยตนเองผ่าน Application',
-];
-const VISIT_TYPE_TO_FILTER = {
-  'นัดหมายล่วงหน้า': 'appointment',
-  'ไม่ได้นัดหมาย': 'walkin',
-  'ด้วยตนเองผ่าน Application': 'app',
-};
 
 /* สถานะการเข้าใช้บริการ — Figma Registration Dashboard badges:
      ลงทะเบียนสำเร็จ และรอซักประวัติ (teal) · กำลังลงทะเบียน (blue) ·
@@ -310,54 +299,21 @@ const makeRenderActions = ({ onCall, onPause, onCancel, onMore }) => function Ac
   const mode = actionModeForStatus(row.status);
   /* TOR 1.1.1.2 — แถวผู้เสียชีวิต: ปิดเรียกคิว/พักคิว (และเปิด Visit ผ่านเมนู) */
   const deceased = row.lifeStatus === 'deceased';
-  const enabled = mode !== 'disabled' && !deceased;
   const isPaused = Boolean(row.paused);
-  const canCall = enabled && !isPaused;
   const callVariant = mode === 'default' ? 'fill' : mode === 'quaternary' ? 'quaternary' : 'ghost';
-  const pauseLabel = isPaused ? 'หยุดพักคิว' : 'พักคิว';
   return (
-    <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
-      <Tooltip
-        content={deceased ? 'ผู้รับบริการเสียชีวิต — เรียกคิวไม่ได้' : 'เรียกคิว'}
-        position='top'
-        disabled={!canCall && !deceased}
-      >
-        <BrandIconButton
-          icon='volume_up'
-          size='sm'
-          variant={callVariant}
-          disabled={!canCall}
-          aria-label='เรียกคิว'
-          onClick={canCall
-            ? (e) => { e.stopPropagation(); onCall?.(row); }
-            : undefined}
-        />
-      </Tooltip>
-      <Tooltip content={pauseLabel} position='top' disabled={!enabled}>
-        <BrandIconButton
-          icon={isPaused ? 'play_arrow' : 'pause'}
-          size='sm'
-          variant='quaternary'
-          disabled={!enabled}
-          aria-label={pauseLabel}
-          onClick={enabled
-            ? (e) => { e.stopPropagation(); onPause?.(row); }
-            : undefined}
-        />
-      </Tooltip>
-      <NeutralSubdueButton
-        variant='outline'
-        size='sm'
-        disabled={mode === 'disabled'}
-        aria-label='ยกเลิกคิว'
-        onClick={mode !== 'disabled'
-          ? (e) => { e.stopPropagation(); onCancel?.(row); }
-          : undefined}
-      >
-        ยกเลิกคิว
-      </NeutralSubdueButton>
-      {/* Row overflow — ส่งตรวจ · พิมพ์บัตรคิว (Kiosk ขัดข้อง) · ยืนยันการมา ·
-          พิมพ์บัตรผู้รับบริการ (TOR 1.1.1.9 / 1.1.1.10 / 1.1.2.2) */}
+    /* ปุ่มสามตัวใช้ <QueueCallActions> ตัวเดียวกับพาเนลคิวข้างฟอร์มลงทะเบียน
+       (มติผู้ใช้ 27 ส.ค. 69) เหลือเฉพาะ more_vert ที่เป็นของตารางล้วน ๆ */
+    <QueueCallActions
+      paused={isPaused}
+      disabled={mode === 'disabled'}
+      disabledReason={deceased ? 'ผู้รับบริการเสียชีวิต — เรียกคิวไม่ได้' : undefined}
+      callVariant={callVariant}
+      onCall={() => onCall?.(row)}
+      onPause={() => onPause?.(row)}
+      onCancel={() => onCancel?.(row)}
+    >
+      {/* Row overflow — ส่งตรวจ (เปิด Visit) · พิมพ์บัตรผู้รับบริการ (OPD Card) */}
       <Tooltip content='ตัวเลือกเพิ่มเติม' position='top'>
         <BrandIconButton
           icon='more_vert'
@@ -370,7 +326,7 @@ const makeRenderActions = ({ onCall, onPause, onCancel, onMore }) => function Ac
           }}
         />
       </Tooltip>
-    </div>
+    </QueueCallActions>
   );
 };
 
@@ -401,7 +357,7 @@ const buildColumns = ({ renderPrivacyCell, isDirectory = false, onCall, onPause,
 const buildMrActions = ({ onAddQueue }) => (
   <>
     <AppointmentMenuButton />
-    <BrandPrimaryButton onClick={onAddQueue}>เพิ่มคิว</BrandPrimaryButton>
+    <BrandPrimaryButton leadingIcon='add' onClick={onAddQueue}>เพิ่มคิว</BrandPrimaryButton>
     <BrandPrimaryButton leadingIcon='credit_card'>อ่านบัตรสมาร์ทการ์ด</BrandPrimaryButton>
   </>
 );
@@ -548,7 +504,7 @@ const RegistrationQueuePage = () => {
     )));
   }, []);
 
-  /* ── Row overflow menu — ส่งตรวจ / พิมพ์บัตรคิว / ยืนยันการมา / OPD Card ── */
+  /* ── Row overflow menu — ส่งตรวจ / OPD Card ── */
   const [rowMenu, setRowMenu] = useState(null); /* { row } — anchor kept in a ref */
   const rowMenuAnchorRef = React.useRef(null);
   const handleOpenRowMenu = useCallback((row, anchorEl) => {
@@ -557,26 +513,58 @@ const RegistrationQueuePage = () => {
   }, []);
   const closeRowMenu = useCallback(() => setRowMenu(null), []);
 
-  /* TOR 1.1.1.9 — พิมพ์บัตรคิวสำรอง (Kiosk ขัดข้อง) */
-  const [ticketRow, setTicketRow] = useState(null);
   /* TOR 1.1.1.10 — OPD Card จาก directory row */
   const [opdCard, setOpdCard] = useState(null);
   /* TOR 1.1.2.2 — mock mobile push + log popover */
-  const [pushLogVersion, setPushLogVersion] = useState(0);
-  const [pushLogOpen, setPushLogOpen] = useState(false);
-  const pushLogAnchorRef = React.useRef(null);
   const [successToast, setSuccessToast] = useState('');
+  /* "เพิ่มคิว" — เปิดป๊อปอัปกรอกชื่อ/หมายเหตุ (ไม่บังคับ) → กด "สร้างคิว" →
+     ขึ้น success ที่ปิดตัวเอง (มติผู้ใช้ 27 ส.ค. 69) */
+  const [addQueueOpen, setAddQueueOpen] = useState(false);
+  const [addedQueue, setAddedQueue] = useState('');
+  /* "ส่งตรวจ (เปิด Visit)" — ยืนยันในป๊อปอัปก่อนเปิด Visit */
+  const [visitCandidate, setVisitCandidate] = useState(null);
 
-  const handleConfirmArrival = useCallback((row) => {
-    pushArrivalConfirmation({
-      hn: row.hn,
-      patientName: row.name,
-      queue: row.queue,
-      message: 'ยืนยันการมาตามนัดหมายวันนี้',
-    });
-    setPushLogVersion((v) => v + 1);
-    setSuccessToast('ส่งการแจ้งเตือนยืนยันการมาตามนัดผ่าน Mobile Application แล้ว');
-  }, []);
+  /* เลขคิวถัดไป — ไล่จากเลขสูงสุดที่มีอยู่จริง ไม่ใช่นับจำนวนแถว เพราะแถวที่ถูก
+     ยกเลิกไปแล้วจะทำให้เลขชนกัน */
+  const nextQueueNo = useMemo(() => {
+    const maxNo = rows.reduce((max, r) => {
+      const n = Number(String(r.queue || '').replace(/\D/g, ''));
+      return Number.isFinite(n) && n > max ? n : max;
+    }, 0);
+    return `A${String(maxNo + 1).padStart(3, '0')}`;
+  }, [rows]);
+
+  const handleCreateQueue = useCallback(({ name, note }) => {
+    const queue = nextQueueNo;
+    setRows((prev) => [...prev, {
+      id: `MR-NEW-${queue}`,
+      queue,
+      hn: '',
+      name: name || '',
+      note: note || '',
+      age: '',
+      nationalId: '',
+      phone: '',
+      rights: '',
+      queueChannel: 'รับกับเจ้าหน้าที่',
+      visitType: '',
+      lifeStatus: 'alive',
+      patientStatus: 'inactive',
+      status: 'pending',
+      /* ยังไม่รู้ตัวตน → avatar "ผู้ใช้ใหม่" เหมือนคิวรอลงทะเบียนอื่น */
+      noProfilePhoto: true,
+      neverServed: true,
+    }]);
+    setAddQueueOpen(false);
+    setAddedQueue(queue);
+  }, [nextQueueNo]);
+
+  /* success ปิดตัวเอง ไม่ต้องให้ผู้ใช้กด (มติผู้ใช้ 27 ส.ค. 69) */
+  useEffect(() => {
+    if (!addedQueue) return undefined;
+    const id = setTimeout(() => setAddedQueue(''), 2200);
+    return () => clearTimeout(id);
+  }, [addedQueue]);
 
   const handleOpenVisit = useCallback((row) => {
     history.push({
@@ -808,7 +796,7 @@ const RegistrationQueuePage = () => {
       breadcrumb={breadcrumb}
       title='ระบบงานเวชระเบียน'
       actions={buildMrActions({
-        onAddQueue: () => history.push('/registration/register'),
+        onAddQueue: () => setAddQueueOpen(true),
       })}
       summaryCards={SUMMARY_CARDS}
       tabs={tabsWithCounts}
@@ -902,17 +890,9 @@ const RegistrationQueuePage = () => {
                   <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
                 </OverflowFlexRow>
                 <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
-                  {/* TOR 1.1.2.2 — mock mobile-app notification log */}
-                  <span ref={pushLogAnchorRef} className='inline-flex'>
-                    <NeutralSubdueButton
-                      leadingIcon='notifications'
-                      collapseLabelBelow='lg'
-                      accessibilityLabel='การแจ้งเตือน Mobile App'
-                      onClick={() => setPushLogOpen((o) => !o)}
-                    >
-                      {`แจ้งเตือน App (${MOBILE_PUSH_LOG.length})`}
-                    </NeutralSubdueButton>
-                  </span>
+                  {/* TOR 1.1.2.2 — log การแจ้งเตือน Mobile App ย้ายไปอยู่ในเมนู
+                     "แจ้งเตือน" บนแถบเมนูซ้าย (มติผู้ใช้ 27 ส.ค. 69) ไม่มีปุ่ม
+                     เฉพาะหน้านี้แล้ว — ดู MobilePushLogPanel */}
                   {/* ปุ่ม "แก้ไขลำดับคิว" ถูกเอาออกจากทุกหน้าคิว (คัดกรอง ·
                      เวชระเบียน · บันทึกการรักษา) — อย่าเผลอใส่กลับ */}
                   <BrandSubdueButton
@@ -1019,15 +999,19 @@ const RegistrationQueuePage = () => {
       >
         {rowMenu && (
           <div
+            role='menu'
+            aria-label='ตัวเลือกเพิ่มเติม'
             className='flex flex-col'
+            /* ทรงเดียวกับเมนู "คำขอเข้าถึงข้อมูล" (CreateConsentRequestHeaderAction)
+               — ความสูงแถวและระยะห่างมาจาก <ActionList> ตัวเดียวกัน ไม่ปั้นแถวเอง
+               (มติผู้ใช้ 27 ส.ค. 69) */
             style={{
-              minWidth: 260,
-              background: 'var(--surface-card-100, #FFFFFF)',
-              borderRadius: 'var(--dim-radius-300, 10px)',
-              border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
-              boxShadow: 'var(--shadow-drop-bottom-400)',
-              paddingTop: 'var(--dim-space-100, 4px)',
-              paddingBottom: 'var(--dim-space-100, 4px)',
+              minWidth: 280,
+              background: 'var(--surface-dropdown-default)',
+              border: 'var(--dim-stroke-100) solid var(--border-dropdown-default)',
+              borderRadius: 'var(--dim-radius-500)',
+              boxShadow: 'var(--shadow-dropdown)',
+              padding: 'var(--dim-space-100)',
             }}
           >
             {[
@@ -1039,24 +1023,10 @@ const RegistrationQueuePage = () => {
                 hint: rowMenu.row.lifeStatus === 'deceased'
                   ? 'ผู้รับบริการเสียชีวิต — เปิด Visit ไม่ได้'
                   : (!rowMenu.row.hn ? 'ต้องลงทะเบียนก่อน' : ''),
-                onClick: () => { closeRowMenu(); handleOpenVisit(rowMenu.row); },
+                onClick: () => { closeRowMenu(); setVisitCandidate(rowMenu.row); },
               },
-              {
-                key: 'ticket',
-                label: 'พิมพ์บัตรคิว (Kiosk ขัดข้อง)',
-                icon: 'print',
-                disabled: false,
-                hint: '',
-                onClick: () => { closeRowMenu(); setTicketRow(rowMenu.row); },
-              },
-              ...(rowMenu.row.visitType === 'นัดหมายล่วงหน้า' ? [{
-                key: 'arrival',
-                label: 'ยืนยันการมา (แจ้งเตือนผ่าน App)',
-                icon: 'notifications_active',
-                disabled: rowMenu.row.lifeStatus === 'deceased',
-                hint: 'Mock — ไม่มี push จริง',
-                onClick: () => { closeRowMenu(); handleConfirmArrival(rowMenu.row); },
-              }] : []),
+              /* "พิมพ์บัตรคิว (Kiosk ขัดข้อง)" และ "ยืนยันการมา (แจ้งเตือนผ่าน App)"
+                 ถูกถอดออกจากเมนูนี้ (มติผู้ใช้ 27 ส.ค. 69) เหลือ ส่งตรวจ + OPD Card */
               ...(rowMenu.row.hn ? [{
                 key: 'opd-card',
                 label: 'พิมพ์บัตรผู้รับบริการ (OPD Card)',
@@ -1069,134 +1039,62 @@ const RegistrationQueuePage = () => {
                 },
               }] : []),
             ].map((item) => (
-              <button
+              <ActionList
                 key={item.key}
-                type='button'
+                as='button'
+                role='menuitem'
+                label={item.label}
+                subtext={item.hint || undefined}
+                showSubtext={!!item.hint}
+                leadingIcon={item.icon}
+                showLeadingIcon
+                showSwitch={false}
+                showBadge={false}
+                showCheck={false}
+                showChevronRight={false}
                 disabled={item.disabled}
                 onClick={item.disabled ? undefined : item.onClick}
-                className='flex items-center w-full text-left'
-                style={{
-                  gap: 'var(--dim-space-200, 8px)',
-                  paddingTop: 'var(--dim-space-200, 8px)',
-                  paddingBottom: 'var(--dim-space-200, 8px)',
-                  paddingLeft: 'var(--dim-space-300, 12px)',
-                  paddingRight: 'var(--dim-space-300, 12px)',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: item.disabled ? 'not-allowed' : 'pointer',
-                  opacity: item.disabled ? 0.45 : 1,
-                  fontFamily: 'var(--type-family-body)',
-                  fontSize: 'var(--type-size-sm, 14px)',
-                  color: 'var(--text-content-default, #363B3F)',
-                }}
-              >
-                <Icon name={item.icon} size={18} />
-                <span className='flex-1 min-w-0'>
-                  {item.label}
-                  {item.hint && (
-                    <span style={{
-                      display: 'block',
-                      fontSize: 'var(--type-size-xs, 12px)',
-                      color: 'var(--text-content-tertiary, #858C92)',
-                    }}>
-                      {item.hint}
-                    </span>
-                  )}
-                </span>
-              </button>
+              />
             ))}
           </div>
         )}
       </Popover>
 
-      {/* TOR 1.1.2.2 — mock mobile-app push log */}
-      <Popover
-        open={pushLogOpen}
-        onClose={() => setPushLogOpen(false)}
-        anchorRef={pushLogAnchorRef}
-        style={{ zIndex: 1600 }}
-      >
-        <div
-          key={pushLogVersion}
-          className='flex flex-col'
-          style={{
-            width: 360,
-            maxHeight: 420,
-            overflowY: 'auto',
-            background: 'var(--surface-card-100, #FFFFFF)',
-            borderRadius: 'var(--dim-radius-300, 10px)',
-            border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
-            boxShadow: 'var(--shadow-drop-bottom-400)',
-            padding: 'var(--dim-space-300, 12px)',
-            gap: 'var(--dim-space-200, 8px)',
-          }}
-        >
-          <span style={{
-            fontFamily: 'var(--type-family-heading-content)',
-            fontSize: 'var(--type-size-sm, 14px)',
-            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-            color: 'var(--text-content-default, #363B3F)',
-          }}>
-            การแจ้งเตือนผ่าน Mobile Application (จำลอง)
-          </span>
-          {MOBILE_PUSH_LOG.length === 0 ? (
-            <span style={{
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-sm, 14px)',
-              color: 'var(--text-content-tertiary, #858C92)',
-            }}>
-              ยังไม่มีการแจ้งเตือน
-            </span>
-          ) : MOBILE_PUSH_LOG.map((entry) => (
-            <div
-              key={entry.id}
-              className='flex flex-col'
-              style={{
-                gap: 2,
-                paddingTop: 'var(--dim-space-200, 8px)',
-                paddingBottom: 'var(--dim-space-200, 8px)',
-                paddingLeft: 'var(--dim-space-300, 12px)',
-                paddingRight: 'var(--dim-space-300, 12px)',
-                borderRadius: 'var(--dim-radius-200, 8px)',
-                background: 'var(--surface-neutral-quaternary, #F9FBFB)',
-              }}
-            >
-              <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                <ColorfulBadge style='teal' size='small' hierarchy='secondary'>{entry.queue || '—'}</ColorfulBadge>
-                <span style={{
-                  fontFamily: 'var(--type-family-body)',
-                  fontSize: 'var(--type-size-sm, 14px)',
-                  fontWeight: 'var(--type-weight-medium, 500)',
-                  color: 'var(--text-content-default, #363B3F)',
-                }}>
-                  {entry.patientName || entry.hn}
-                </span>
-                <div className='flex-1' />
-                <span style={{
-                  fontFamily: 'var(--type-family-body)',
-                  fontSize: 'var(--type-size-xs, 12px)',
-                  color: 'var(--text-content-tertiary, #858C92)',
-                }}>
-                  {entry.sentAt}
-                </span>
-              </div>
-              <span style={{
-                fontFamily: 'var(--type-family-body)',
-                fontSize: 'var(--type-size-xs, 12px)',
-                color: 'var(--text-content-secondary, #636B72)',
-              }}>
-                {entry.message} · ช่องทาง: {entry.channel}
-              </span>
-            </div>
-          ))}
-        </div>
-      </Popover>
+      {/* "เพิ่มคิว" — กรอกชื่อ/หมายเหตุ (ไม่บังคับ) แล้วกด "สร้างคิว" */}
+      <AddQueuePopup
+        open={addQueueOpen}
+        onClose={() => setAddQueueOpen(false)}
+        queueNo={nextQueueNo}
+        onCreate={handleCreateQueue}
+      />
 
-      {/* TOR 1.1.1.9 — บัตรคิวสำรอง */}
-      <QueueTicketPrintPopup
-        open={!!ticketRow}
-        onClose={() => setTicketRow(null)}
-        row={ticketRow}
+      {/* สร้างเสร็จ → success ที่ปิดตัวเองใน ~2 วินาที ไม่ต้องกดปิด */}
+      <SuccessPopup
+        open={!!addedQueue}
+        title={`เพิ่มคิวสำเร็จ — หมายเลข ${addedQueue}`}
+        description='คิวถูกเพิ่มเข้ารายการรอลงทะเบียนแล้ว'
+        buttonLabel='ปิด'
+        onClose={() => setAddedQueue('')}
+      />
+
+      {/* "ส่งตรวจ (เปิด Visit)" — ยืนยันก่อน เพราะเปิด Visit แล้วคิวจะเข้าห้องตรวจ */}
+      <AlertDialog
+        open={!!visitCandidate}
+        type='info'
+        alignment='center'
+        title='ส่งตรวจ (เปิด Visit)?'
+        description={visitCandidate
+          ? `เปิด Visit ให้ ${visitCandidate.name || visitCandidate.queue} (คิว ${visitCandidate.queue}) และส่งเข้าห้องตรวจ`
+          : ''}
+        cancelLabel='ยกเลิก'
+        confirmLabel='ส่งตรวจ'
+        onCancel={() => setVisitCandidate(null)}
+        onClose={() => setVisitCandidate(null)}
+        onConfirm={() => {
+          const row = visitCandidate;
+          setVisitCandidate(null);
+          handleOpenVisit(row);
+        }}
       />
 
       {/* TOR 1.1.1.10 — OPD Card จาก directory */}

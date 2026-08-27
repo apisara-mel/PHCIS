@@ -34,6 +34,8 @@ const breadcrumb = ['จัดการระบบ', 'เทมเพลตแ�
 
 export default function SystemDashboardTemplatesPage() {
   const [templates, setTemplates] = useState(() => listDashboardTemplates());
+  /* เข้าจากเมนู "เทมเพลตแดชบอร์ด" ให้เห็นทะเบียนก่อนเสมอ — ไม่เด้ง wizard เอง
+     (มติผู้ใช้ 27 ส.ค. 69) ตัวสร้างเปิดจากปุ่ม "สร้างเทมเพลทใหม่" เท่านั้น */
   const [builderOpen, setBuilderOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [deleteFor, setDeleteFor] = useState(null);

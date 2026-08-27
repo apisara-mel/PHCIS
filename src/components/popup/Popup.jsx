@@ -160,6 +160,12 @@ const BackButton = ({ onClick }) => (
   />
 );
 
+/* "ปิด" ไม่ใช่การยืนยันอะไร มันคือทางออกจาก popup — ต้องเป็น BrandSubdue outline
+   เสมอไม่ว่าถูกส่งมาในสล็อตไหน (มติผู้ใช้ 27 ส.ค. 69). หน้าจำนวนมากส่ง
+   `primaryAction={{ label: 'ปิด' }}` เพราะเป็นปุ่มเดียวใน footer ซึ่งถ้าปล่อยไว้
+   จะได้ปุ่มเขียวทึบที่ดึงสายตาเท่ากับปุ่ม "บันทึก" ของฟอร์มจริง */
+const isCloseAction = (action) => String(action?.label || '').trim() === 'ปิด';
+
 /* Render a single footer action via the matching DS button.
    `kind` selects: tertiary → NeutralSubdueButton, secondary → BrandSubdueButton outline,
                   primary → BrandPrimaryButton.
@@ -184,7 +190,7 @@ const FooterButton = ({ kind, action, fullWidth }) => {
       </NeutralSubdueButton>
     );
   }
-  if (kind === 'secondary') {
+  if (kind === 'secondary' || isCloseAction(action)) {
     return (
       <BrandSubdueButton variant='outline' size='md' {...common} leadingIcon={action.leadingIcon}>
         {action.label}

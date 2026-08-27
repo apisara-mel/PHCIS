@@ -5,6 +5,7 @@ import { SubHeader } from '@/components/layout/Header';
 import WizardMorphHeader from '@/components/layout/WizardMorphHeader';
 import PageHeaderInfoPanel from '@/components/layout/PageHeaderInfoPanel';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import AppointmentMenuButton from '@/components/layout/AppointmentMenuButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import Popup from '@/components/popup/Popup';
@@ -19,7 +20,8 @@ import { MIH_CHROME_MORPH_FOOTER, MIH_CHROME_MORPH_STEP_BAND } from '@/component
      • Sub-header  : page title + actions (ประวัติการแก้ไข · บัตรคิว · …)
      • Morph band  : stepper only (title lives in SubHeader) + per-step body card
      • Footer      : auto-save + ยกเลิก / บันทึกร่าง / ถัดไป
-   สถานะผู้รับบริการ lives in Step ข้อมูลส่วนตัว (Step1Personal). */
+   สถานะผู้รับบริการ = การ์ดขาวแยกใบ ส่งเข้า slot `beforeCard` (ไม่ได้อยู่ใน
+   Step1Personal แล้ว — มติผู้ใช้ 27 ส.ค. 69 "ไม่รวม section เดียวกับข้อมูลส่วนตัว") */
 
 export const REGISTRATION_STEP_LABELS = [
   'แบบฟอร์มยินยอม',
@@ -33,13 +35,17 @@ export const REGISTRATION_STEP_LABELS = [
 const SUBHEADER_FALLBACK = 72;
 const FORM_SHELL_STICKY_Z = 1100;
 
-const FormActionBar = ({ onHistoryOpen, onReadSmartCard, smartCardRead = false }) => (
+const FormActionBar = ({ onHistoryOpen, onReadSmartCard, smartCardRead = false, patientHn }) => (
   <SubHeader title='ลงทะเบียนผู้รับบริการ' hideBottomBorder>
     <BrandSubdueButton variant='outline' size='md' leadingIcon='history' onClick={onHistoryOpen}>
       ประวัติการแก้ไขข้อมูล
     </BrandSubdueButton>
+    {/* เดิมเป็นปุ่มเดี่ยว "เพิ่มการนัดหมาย" — เปลี่ยนเป็นเมนู "การนัดหมาย"
+        (ดู/สร้าง/ประวัติ ของผู้รับบริการรายนี้) มติผู้ใช้ 27 ส.ค. 69 · ใช้
+        component ตัวเดียวกับหน้าคิวลงทะเบียนและห้องตรวจ */}
+    <AppointmentMenuButton patientHn={patientHn} />
+    {/* ปุ่มพิมพ์สองใบอยู่ติดกัน — บัตรคิวก่อนบัตรผู้รับบริการ (มติผู้ใช้ 27 ส.ค. 69) */}
     <BrandSubdueButton variant='outline' size='md' leadingIcon='print'>ปริ้นบัตรคิว</BrandSubdueButton>
-    <BrandSubdueButton variant='outline' size='md' leadingIcon='calendar_add_on'>เพิ่มการนัดหมาย</BrandSubdueButton>
     <BrandSubdueButton variant='fill' size='md' leadingIcon='print'>พิมพ์บัตรผู้รับบริการ</BrandSubdueButton>
     <BrandPrimaryButton
       size='md'
@@ -53,7 +59,7 @@ const FormActionBar = ({ onHistoryOpen, onReadSmartCard, smartCardRead = false }
   </SubHeader>
 );
 
-const Footer = ({ stepIndex, lastSavedMin = 2, onPrev, onNext, onSave, isLast }) => {
+const Footer = ({ stepIndex, lastSavedMin = 2, onPrev, onCancel, onNext, onSave, isLast }) => {
   const nextStepLabel = isLast
     ? 'บันทึกข้อมูลผู้รับบริการ'
     : `ถัดไป: ${REGISTRATION_STEP_LABELS[stepIndex + 1]}`;
@@ -79,6 +85,19 @@ const Footer = ({ stepIndex, lastSavedMin = 2, onPrev, onNext, onSave, isLast })
       >
         {isFirst ? 'ยกเลิก' : 'ย้อนกลับ'}
       </NeutralSubdueButton>
+      {/* ตั้งแต่ step 2 เป็นต้นไป ปุ่มซ้ายกลายเป็น "ย้อนกลับ" — ผู้ใช้จึงไม่เหลือ
+          ทางออกจากฟอร์ม ใส่ "ยกเลิก" ต่อท้ายไว้ (มติผู้ใช้ 27 ส.ค. 69)
+          ทำเหมือนกันทุกระบบที่ใช้ฟอร์มแบบ step */}
+      {!isFirst && (
+        <NeutralSubdueButton
+          size='lg'
+          variant='outline'
+          onClick={onCancel}
+          className='shrink-0'
+        >
+          ยกเลิก
+        </NeutralSubdueButton>
+      )}
       {!isFirst && (
         <span className='inline-flex items-center min-w-0' style={{
           gap: 'var(--dim-space-200)',
@@ -114,6 +133,11 @@ const FormShell = ({
   completedSteps,
   onSubmit,
   onSaveDraft,
+  /** การ์ดที่วางเหนือการ์ดเนื้อหาของ step — เป็นการ์ดของตัวเอง ไม่ถูกครอบ
+      ด้วยการ์ดขาวของ step (ใช้กับ <PatientStatusCard>) */
+  beforeCard,
+  /** HN ของผู้รับบริการที่กำลังลงทะเบียน — ผูกเมนู "การนัดหมาย" กับคนไข้รายนี้ */
+  patientHn,
   children,
 }) => {
   const history = useHistory();
@@ -138,8 +162,10 @@ const FormShell = ({
     return `${count} รายการ · เรียงจากใหม่ไปเก่า`;
   }, [historyOpen]);
 
+  /* ออกจากฟอร์ม — เส้นทางเดียวกับปุ่ม "ยกเลิก" ตอนอยู่ step แรก */
+  const handleCancel = () => history.push('/registration/queue');
   const handlePrev = () => {
-    if (stepIndex === 0) history.push('/registration/queue');
+    if (stepIndex === 0) handleCancel();
     else onStepChange(stepIndex - 1);
   };
   const handleNext = () => {
@@ -165,6 +191,7 @@ const FormShell = ({
           onHistoryOpen={() => setHistoryOpen(true)}
           onReadSmartCard={onReadSmartCard}
           smartCardRead={smartCardRead}
+          patientHn={patientHn}
         />
       </div>
 
@@ -194,6 +221,8 @@ const FormShell = ({
           gap: 'var(--dim-space-400)',
         }}
       >
+        {beforeCard}
+
         <div
           className='flex flex-col w-full'
           style={{
@@ -220,6 +249,7 @@ const FormShell = ({
       <Footer
         stepIndex={stepIndex}
         onPrev={handlePrev}
+        onCancel={handleCancel}
         onNext={handleNext}
         onSave={() => onSaveDraft?.()}
         isLast={isLast}

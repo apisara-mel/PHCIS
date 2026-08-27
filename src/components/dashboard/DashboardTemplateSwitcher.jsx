@@ -53,6 +53,10 @@ export default function DashboardTemplateSwitcher({
   onApply,
   /** ทะเบียนเทมเพลตล่าสุด — ส่งเข้ามาเพื่อให้ลิสต์อัปเดตทันทีหลังบันทึก */
   templates,
+  /** ลิสต์ทั้งหมดแบบกำหนดเอง — ระบบที่มีทะเบียนเทมเพลตของตัวเอง (จัดการระบบ /
+      ความยินยอม) ส่งเข้ามาแทนลิสต์มาตรฐาน 5 หน้าจอของ PHCIS · รายการ
+      "สร้างเทมเพลทใหม่" ยังถูกเติมเป็นตัวแรกให้เหมือนกันทุกระบบ */
+  options: optionsOverride,
   /** ขนาดชิป — ตั้งให้ตรงกับตัวกรองอื่นในแถวเดียวกันของแต่ละหน้า */
   size = 'lg',
 }) {
@@ -66,13 +70,15 @@ export default function DashboardTemplateSwitcher({
 
   const options = useMemo(() => ([
     { value: CREATE_VALUE, label: 'สร้างเทมเพลทใหม่', leadingIcon: 'dashboard_customize' },
-    ...DASHBOARD_NAV_LINKS.map((l) => ({
-      value: screenValue(l.key),
-      label: l.label,
-      leadingIcon: 'dashboard',
-    })),
-    ...custom.map((t) => ({ value: t.id, label: t.name, leadingIcon: 'dashboard_customize' })),
-  ]), [custom]);
+    ...(optionsOverride || [
+      ...DASHBOARD_NAV_LINKS.map((l) => ({
+        value: screenValue(l.key),
+        label: l.label,
+        leadingIcon: 'dashboard',
+      })),
+      ...custom.map((t) => ({ value: t.id, label: t.name, leadingIcon: 'dashboard_customize' })),
+    ]),
+  ]), [custom, optionsOverride]);
 
   const handleChange = (next) => {
     if (next === CREATE_VALUE) {

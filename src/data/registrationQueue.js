@@ -10,16 +10,59 @@ import { MR_PATIENTS } from '@/data/mrPatients';
 
 const MR_BY_HN = Object.fromEntries(MR_PATIENTS.map((p) => [p.hn, p]));
 
+/* ตู้ Kiosk บังคับเสียบบัตรประชาชนก่อนกดคิว ระบบจึงรู้ตัวตนตั้งแต่รับคิว —
+   แถวช่องทางนี้ต้องมีรูปและชื่อ ต่างจากคิวที่รับกับเจ้าหน้าที่ซึ่งอาจยังไม่รู้ว่า
+   เป็นใคร (มติผู้ใช้ 27 ส.ค. 69) */
+export const QUEUE_CHANNEL_KIOSK = 'ผ่านตู้ Kiosk';
+
 const QUEUE_CHANNEL_OPTIONS = [
-  'ผ่านตู้ Kiosk',
+  QUEUE_CHANNEL_KIOSK,
   'รับกับเจ้าหน้าที่',
   'กับเจ้าหน้าที่ ณ อนามัย',
 ];
 
-const VISIT_TYPE_OPTIONS = [
-  'นัดหมายล่วงหน้า',
-  'ไม่ได้นัดหมาย',
-  'ด้วยตนเองผ่าน Application',
+/* ประเภทการเข้ารับบริการ (คอลัมน์ "ประเภท") — แยกช่องทางนัดหมายออกจากกัน
+   (มติผู้ใช้ 27 ส.ค. 69). ของเดิมมีแค่ นัดหมายล่วงหน้า / ไม่ได้นัดหมาย /
+   ด้วยตนเองผ่าน Application ซึ่งปนกันสองแกน: "นัดหรือไม่นัด" กับ "ใครเป็นคนจอง"
+   ทำให้ตอบไม่ได้ว่านัดใบไหนเป็น Telemed */
+export const VISIT_TYPE_ONSITE = 'นัดหมาย-ที่ศูนย์บริการ';
+export const VISIT_TYPE_TELEMED_SELF = 'นัดหมาย-Telemed-ด้วยตนเอง';
+export const VISIT_TYPE_TELEMED_STAFF = 'นัดหมาย-Telemed โดยเจ้าหน้าที่';
+export const VISIT_TYPE_WALKIN = 'Walk-in';
+
+export const VISIT_TYPE_OPTIONS = [
+  VISIT_TYPE_ONSITE,
+  VISIT_TYPE_TELEMED_SELF,
+  VISIT_TYPE_TELEMED_STAFF,
+  VISIT_TYPE_WALKIN,
+];
+
+/** ค่า filter ของแต่ละประเภท — ใช้ร่วมกันระหว่างตารางกับดรอปดาวน์ "ประเภท" */
+export const VISIT_TYPE_TO_FILTER = {
+  [VISIT_TYPE_ONSITE]: 'appointment-onsite',
+  [VISIT_TYPE_TELEMED_SELF]: 'appointment-telemed-self',
+  [VISIT_TYPE_TELEMED_STAFF]: 'appointment-telemed-staff',
+  [VISIT_TYPE_WALKIN]: 'walkin',
+};
+
+export const VISIT_TYPE_FILTER_OPTIONS = [
+  { value: 'all', label: 'ทุกประเภท' },
+  ...VISIT_TYPE_OPTIONS.map((label) => ({ value: VISIT_TYPE_TO_FILTER[label], label })),
+];
+
+/** จริงหรือไม่ว่าแถวนี้มาตามนัด (ทั้งสามแบบ) — Walk-in และแถวที่ยังไม่เคยมา = false */
+export const isAppointmentVisitType = (visitType) => (
+  Boolean(visitType) && visitType !== VISIT_TYPE_WALKIN
+);
+
+/* Telemed ยังเป็นสัดส่วนน้อยของงานจริง (การ์ดสรุปบนหน้าเดียวกัน: Telemedicine
+   วันนี้ = 4) — ถ้าใช้ `i % 4` ทุกประเภทจะได้ 25% เท่ากันแล้วขัดกับการ์ด
+   จึงถ่วงน้ำหนักด้วยแพตเทิร์นแทน */
+const VISIT_TYPE_PATTERN = [
+  VISIT_TYPE_ONSITE, VISIT_TYPE_WALKIN, VISIT_TYPE_ONSITE, VISIT_TYPE_WALKIN,
+  VISIT_TYPE_ONSITE, VISIT_TYPE_WALKIN, VISIT_TYPE_ONSITE, VISIT_TYPE_TELEMED_SELF,
+  VISIT_TYPE_ONSITE, VISIT_TYPE_WALKIN, VISIT_TYPE_ONSITE, VISIT_TYPE_WALKIN,
+  VISIT_TYPE_ONSITE, VISIT_TYPE_WALKIN, VISIT_TYPE_TELEMED_STAFF, VISIT_TYPE_ONSITE,
 ];
 
 /* Default table / submenu ordering — ลงทะเบียนแล้ว → ที่ร่างไว้ →
@@ -59,7 +102,11 @@ export const buildRegistrationQueueRoster = (total = 130) => {
   let pendingNoPhotoIdx = 0;
   for (let i = 0; i < total; i += 1) {
     const status = seedRegistrationStatus(i);
+    const queueChannel = QUEUE_CHANNEL_OPTIONS[i % QUEUE_CHANNEL_OPTIONS.length];
+    /* คิวที่ยังไม่รู้ตัวตนมีได้เฉพาะช่องทางที่ไม่ได้เสียบบัตร — คิวจากตู้ Kiosk
+       อ่านบัตรมาแล้ว จึงมีโปรไฟล์เต็มเสมอ */
     const usePendingNoPhoto = status === 'pending'
+      && queueChannel !== QUEUE_CHANNEL_KIOSK
       && pendingNoPhotoIdx < PENDING_REGISTRATION_NO_PHOTO.length;
     const profile = usePendingNoPhoto
       ? PENDING_REGISTRATION_NO_PHOTO[pendingNoPhotoIdx++]
@@ -83,10 +130,13 @@ export const buildRegistrationQueueRoster = (total = 130) => {
       rights: neverServed
         ? (profile.rights || fallbackMr.rights)
         : (mr?.rights ?? fallbackMr.rights),
-      queueChannel: QUEUE_CHANNEL_OPTIONS[i % QUEUE_CHANNEL_OPTIONS.length],
-      visitType: neverServed ? '' : VISIT_TYPE_OPTIONS[i % VISIT_TYPE_OPTIONS.length],
+      queueChannel,
+      visitType: neverServed ? '' : VISIT_TYPE_PATTERN[i % VISIT_TYPE_PATTERN.length],
       patientStatus: neverServed ? 'inactive' : (i % 7 === 0 ? 'inactive' : 'active'),
       status,
+      /* รูป profile — ตัวเดียวกับที่ตารางคิวเวชระเบียนใช้ (PATIENT_PROFILES)
+         พกมากับแถวเลย พาเนลข้างฟอร์มจะได้ไม่ต้องไป lookup เองแล้วหลุดกัน */
+      avatarUrl: neverServed ? undefined : profile.avatarUrl,
       noProfilePhoto: neverServed,
       neverServed,
       vipBadge: isVip ? 'VIP / ผู้ป่วยพิเศษ' : undefined,

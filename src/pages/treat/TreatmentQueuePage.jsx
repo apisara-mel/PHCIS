@@ -28,6 +28,7 @@ import {
   acknowledgeResult, getResultsInbox, subscribeResultsInbox,
 } from '@/data/resultsInbox';
 import { CURRENT_CLINICIAN } from '@/data/treatmentAudit';
+import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 
 /* MIH TreatmentQueuePage — Figma PHCIS-ALL node 2760:140031.
    ระบบบันทึกการรักษา · คิวตรวจรักษาทั่วไป (OPD).
@@ -693,7 +694,7 @@ const TreatmentQueuePage = () => {
           >
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
               <FilterDropdown prefix='แผนก:' options={FILTER_OPTIONS.department} value={filters.department} onChange={setFilter('department')} />
-              <FilterDropdown prefix='แพทย์:' options={FILTER_OPTIONS.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
+              <FilterDropdown prefix='แพทย์:' options={withDoctorAvatars(FILTER_OPTIONS.doctor)} value={filters.doctor} onChange={setFilter('doctor')} />
               <FilterDropdown prefix='ประเภท:' options={FILTER_OPTIONS.type} value={filters.type} onChange={setFilter('type')} />
               <FilterDateTag
                 prefix='วัน:'

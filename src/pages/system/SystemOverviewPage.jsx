@@ -2,14 +2,13 @@ import React, { useMemo, useState } from 'react';
 import { ALL_CLINICS_VALUE, useClinicFilter } from '@/components/layout/HeaderClinicContext';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Table from '@/components/table/Table';
-import Select from '@/components/forms/Select';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Icon from '@/components/icons/Icon';
 import { Donut, DonutLegend, HBarList, VBars } from '@/components/graph/Charts';
 import { PHCIS_CHART_PALETTE } from '@/data/phcisChartPalette';
-import FilterDateTag from '@/components/forms/FilterDateTag';
-import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import { DashboardExportButton, DashboardHeaderFilters } from '@/components/dashboard/DashboardPageHeader';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import SYSTEM_NAV from '@/pages/system/systemNav';
@@ -42,7 +41,6 @@ import {
   buildUsageReport,
   formatMinutes,
 } from '@/data/userUsageReports';
-import { FilterDropdown } from '@/components/forms/FilterTag';
 import ConsentDashboardTemplatePopup from '@/pages/consent/ConsentDashboardTemplatePopup';
 import {
   DASHBOARD_LAYOUTS as SYS_LAYOUTS,
@@ -76,9 +74,6 @@ import SuccessToast from '@/components/toast/SuccessToast';
                  → ตาราง "ทะเบียนที่ต้องดูแล" นับของจริงจากแต่ละ store
 
    ตัวเลขทุกตัวอ่านจาก store เดียวกับหน้าที่ใช้แก้ไข จึงไม่มีทางเห็นไม่ตรงกัน */
-
-/* ค่าสั่งงานในลิสต์ Template — ไม่ใช่เทมเพลตจริง เลือกแล้วเปิดตัวสร้าง */
-const CREATE_TEMPLATE_VALUE = '__create__';
 
 const breadcrumb = ['จัดการระบบ', 'แดชบอร์ด'];
 
@@ -475,45 +470,30 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
       breadcrumb={breadcrumb}
       title='แดชบอร์ด'
       /* ขอบเขตศูนย์อยู่ติดชื่อหน้า — เปลี่ยนแล้วการ์ดการใช้งานเปลี่ยนตามทันที */
+      /* หัวหน้าจอใช้ต้นแบบเดียวกับแดชบอร์ดทุกหน้า — <DashboardHeaderFilters>
+         แก้สเปกที่ component เดียว ทุกระบบเปลี่ยนตาม (มติผู้ใช้ 27 ส.ค. 69)
+         ระบบนี้มีทะเบียนเทมเพลตของตัวเอง จึงส่ง `templateOptions` เข้าไป */
       afterTitle={(
-        <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-          <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thisyear' />
-          <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
-        </span>
+        <DashboardHeaderFilters
+          dateFilter={pageDate}
+          onDateFilterChange={setPageDate}
+          defaultQuick='thisyear'
+          templateValue={activeTemplate?.id}
+          templateOptions={templates.map((t) => ({ value: t.id, label: t.name, leadingIcon: 'dashboard' }))}
+          onSelectTemplate={applyTemplate}
+          onCreateTemplate={() => setTemplatePopup(true)}
+          onClearFilters={clearFilters}
+          clearActive={showClearChip}
+        />
       )}
       actions={(
         <>
-          <div style={{ width: 'var(--dim-size-2600, 384px)', minWidth: 0 }}>
-            <Select
-              label='เทมเพลตหน้าจอ'
-              prefix='Template:'
-              showFieldName={false}
-              showHelperText={false}
-              leadingIcon='dashboard'
-              /* รายการแรก = คำสั่งสร้างเทมเพลตใหม่ (ยุบปุ่มแยกเข้ามาไว้ในลิสต์
-                 เดียวกัน แบบเดียวกับแดชบอร์ดความยินยอม — มติผู้ใช้ 27 ส.ค. 69) */
-              options={[
-                { value: CREATE_TEMPLATE_VALUE, label: 'สร้างเทมเพลทใหม่', icon: 'dashboard_customize' },
-                ...templates.map((t) => ({ value: t.id, label: t.name })),
-              ]}
-              value={activeTemplate?.id}
-              onChange={(next) => {
-                if (next === CREATE_TEMPLATE_VALUE) { setTemplatePopup(true); return; }
-                applyTemplate(next);
-              }}
-              searchable={false}
-            />
-          </div>
-          <NeutralSubdueButton
-            leadingIcon='ios_share'
-            size='md'
-          onClick={() => setExportReport({
-            ...SYSTEM_EXPORT_REPORT,
-            table: { ...SYSTEM_EXPORT_REPORT.table, rows: registryRows },
-          })}
-        >
-            นำส่งออกรายงาน
-          </NeutralSubdueButton>
+          <DashboardExportButton
+            onClick={() => setExportReport({
+              ...SYSTEM_EXPORT_REPORT,
+              table: { ...SYSTEM_EXPORT_REPORT.table, rows: registryRows },
+            })}
+          />
         </>
       )}
     >

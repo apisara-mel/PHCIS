@@ -78,6 +78,7 @@ import {
   retryVisitSync,
   subscribePhcisJournal,
 } from '@/utils/telemedPhcisBridge';
+import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 
 /* TelemedWorklistPage — ระบบหน้าห้องตรวจทางไกล (TOR §1.13.3 / .7 / .8 /
    .10 / .11 + §4.3.5).
@@ -832,7 +833,7 @@ const TelemedWorklistPage = () => {
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
               <FilterDropdown prefix='หน่วยบริการต้นทาง:' options={filterOptions.origin} value={filters.origin} onChange={setFilter('origin')} />
-              <FilterDropdown prefix='แพทย์:' options={filterOptions.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
+              <FilterDropdown prefix='แพทย์:' options={withDoctorAvatars(filterOptions.doctor)} value={filters.doctor} onChange={setFilter('doctor')} />
               <FilterDropdown prefix='Authen:' options={filterOptions.authen} value={filters.authen} onChange={setFilter('authen')} />
               <FilterDateTag
                 prefix='วัน:'

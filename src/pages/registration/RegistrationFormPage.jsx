@@ -4,6 +4,8 @@ import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import QueueSubMenu from '@/components/layout/QueueSubMenu';
+import QueueCallActions from '@/components/queue/QueueCallActions';
+import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import FormShell from '@/templates/FormShell';
 import Alert from '@/components/alert/Alert';
@@ -13,6 +15,7 @@ import SuccessToast from '@/components/toast/SuccessToast';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
 import {
   StepConsent, Step1Personal, Step2Address, Step3Contact, Step4Rights, Step5Flags,
+  PatientStatusCard,
 } from '@/components/forms/RegistrationSteps';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT, MR_PATIENTS } from '@/data/mrPatients';
 import {
@@ -292,14 +295,33 @@ const RegistrationFormPage = () => {
 
   /* QueueSubMenu buckets — same roster as RegistrationQueuePage so the
      side panel counts stay in sync with the full เวชระเบียน queue. */
+  /* พักคิว / ยกเลิกคิว จากพาเนล — เก็บเป็น state ของหน้านี้ (roster กลางเป็น
+     ค่าคงที่ ยังไม่มี store ที่เขียนได้) `paused` แค่สลับปุ่ม ส่วนยกเลิกเอาแถวออก */
+  const [queuePaused, setQueuePaused] = useState({});
+  const [queueCancelled, setQueueCancelled] = useState({});
+  /* ยกเลิกคิวต้องยืนยันก่อนเสมอ — ป๊อปอัปตัวเดียวกับตารางคิวเวชระเบียน
+     (มติผู้ใช้ 27 ส.ค. 69) */
+  const [queueCancelCandidate, setQueueCancelCandidate] = useState(null);
+
   const queueBuckets = useMemo(() => {
-    const raw = buildRegistrationQueueSubMenuBuckets(REGISTRATION_QUEUE_ROWS);
+    /* หมวด "รอลงทะเบียน" แสดงครบทุกคิวของวันนั้น ไม่ตัดเหลือ 2 แถวแบบ preview
+       (มติผู้ใช้ 27 ส.ค. 69) — พาเนลมี overflow-y อยู่แล้ว ลิสต์ยาวจึงเลื่อนได้
+       หมวดอื่นยังเป็น preview ตามเดิมเผื่อหน้าอื่นเปิดใช้ */
+    const raw = buildRegistrationQueueSubMenuBuckets(
+      REGISTRATION_QUEUE_ROWS.filter((r) => !queueCancelled[r.id]),
+      { waiting: Infinity },
+    );
     const map = (rows) => rows.map((r) => ({
       id: r.id,
       hn: r.hn,
       name: r.name || r.queue || 'ผู้รับบริการใหม่',
       queue: r.queue,
       badge: r.vipBadge,
+      /* รูปจากทะเบียนแถวเดียวกับตารางคิว — คนที่ยังไม่เคยมารับบริการไม่มีรูป
+         ให้ตกไปเป็น silhouette "ผู้ใช้ใหม่" เหมือนในตาราง */
+      avatarUrl: r.avatarUrl,
+      newUser: r.neverServed || !r.name,
+      deceased: r.lifeStatus === 'deceased',
     }));
     return {
       done:       { items: map(raw.done.items),       total: raw.done.total       },
@@ -307,7 +329,7 @@ const RegistrationFormPage = () => {
       inProgress: { items: map(raw.inProgress.items), total: raw.inProgress.total },
       waiting:    { items: map(raw.waiting.items),    total: raw.waiting.total    },
     };
-  }, []);
+  }, [queueCancelled]);
 
   const goToPatientRegister = (p) => {
     history.push({
@@ -327,11 +349,39 @@ const RegistrationFormPage = () => {
       {/* QueueSubMenu — Figma "Sub Menu B" (same pattern as TreatmentFormPage).
           Lets staff glance at the rest of the MR queue without leaving the
           open registration form. "ดูทั้งหมด" jumps to /registration/queue. */}
+      <DeleteQueueConfirmPopup
+        open={!!queueCancelCandidate}
+        onClose={() => setQueueCancelCandidate(null)}
+        onConfirm={() => {
+          setQueueCancelled((s2) => ({ ...s2, [queueCancelCandidate.id]: true }));
+          setQueueCancelCandidate(null);
+        }}
+        title='ยืนยันการยกเลิกคิว'
+        subtitle='คิวนี้จะถูกนำออกจากรายการ และไม่สามารถย้อนกลับได้'
+        queue={queueCancelCandidate?.queue}
+        hn={queueCancelCandidate?.hn || '—'}
+        patientName={queueCancelCandidate?.name || '—'}
+        avatarSrc={queueCancelCandidate?.avatarUrl}
+      />
       <QueueSubMenu
         queue={queueBuckets}
         sectionLabels={REGISTRATION_QUEUE_SUBMENU_LABELS}
-        onViewAll={() => history.push('/registration/queue')}
+        /* เห็นแค่คิวที่รอลงทะเบียน พร้อมเลขคิวและปุ่มจัดการคิว · ไม่มี "ดูทั้งหมด"
+           แล้ว (มติผู้ใช้ 27 ส.ค. 69) */
+        sections={['waiting']}
+        showQueueNo
+        /* แถวเรียบคั่นเส้นบางเหมือนตาราง worklist — ไม่ใช่การ์ด ไม่มีจุดสี
+           ไม่มี chevron และทุกอย่างอยู่บรรทัดเดียว (มติผู้ใช้ 27 ส.ค. 69) */
+        rowVariant='divider'
         onPickPatient={goToPatientRegister}
+        renderRowActions={(p) => (
+          <QueueCallActions
+            paused={!!queuePaused[p.id]}
+            disabledReason={p.deceased ? 'ผู้รับบริการเสียชีวิต — เรียกคิวไม่ได้' : undefined}
+            onPause={() => setQueuePaused((s2) => ({ ...s2, [p.id]: !s2[p.id] }))}
+            onCancel={() => setQueueCancelCandidate(p)}
+          />
+        )}
       />
       <div className='flex-1 min-w-0 flex flex-col'>
         <Header breadcrumb={breadcrumb} standalone={false} />
@@ -343,6 +393,13 @@ const RegistrationFormPage = () => {
           completedSteps={completedSteps}
           onSubmit={handleSaveAttempt}
           onSaveDraft={() => showToast('success', 'บันทึกร่างแล้ว')}
+          /* เมนู "การนัดหมาย" บนแถบหัวผูกกับผู้รับบริการรายนี้ */
+          patientHn={form.hn || patient?.hn || ''}
+          /* สถานะผู้รับบริการ = การ์ดขาวแยกใบเหนือการ์ดเนื้อหา เฉพาะขั้นตอน
+             "ข้อมูลส่วนตัว" (มติผู้ใช้ 27 ส.ค. 69) */
+          beforeCard={stepIndex === 1
+            ? <PatientStatusCard form={form} setForm={setForm} patient={patient} />
+            : null}
         >
           {/* 1.1.1.13 — clickable missing-field panel (คลิก jump ไป step) */}
           {missingReport && missingReport.length > 0 && (

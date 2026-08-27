@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import BrandCircleIconButton from '@/components/button/BrandCircleIconButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
+import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
 
 /* MIH QueueSubMenu — Figma "Sub Menu B" (PHCIS-ALL 2624:122779 collapsed
    / 2624:122781 expanded).
@@ -24,7 +25,9 @@ import Icon from '@/components/icons/Icon';
    is anchored top-right and overflows the aside by ~half its width
    when collapsed, so the doctor sees just the green chevron knob. */
 const COLLAPSED_WIDTH = 24;
-const EXPANDED_WIDTH = 327;
+/* กว้างพอให้ เลขคิว · รูป · ชื่อ · ปุ่มสามตัว อยู่บรรทัดเดียวไม่ตัดคำ
+   (เดิม 327 — มติผู้ใช้ 27 ส.ค. 69 ให้ขยาย) */
+const DEFAULT_EXPANDED_WIDTH = 460;
 const TRANSITION = 'width 240ms cubic-bezier(0.32, 0.72, 0, 1)';
 
 /* Each bucket is `{ items, total }` so the header can show the full
@@ -76,13 +79,30 @@ const DOT_TONES = {
   waiting:    'var(--icon-warning-tertiary, #FB923C)',  /* orange */
 };
 
-/* Single queue row — coloured dot · name · optional VIP badge · chevron. */
-const QueueRow = ({ name, tone, badge, emphasis = false, onClick }) => (
-  <button
-    type='button'
-    onClick={onClick}
-    className='flex items-center w-full text-left'
-    style={{
+/* Row avatar — ขนาดเล็กกว่าตารางเวชระเบียน (36px) เพราะแถวในพาเนลเตี้ยกว่า */
+const ROW_AVATAR_SIZE = 28;
+
+/* Single queue row — dot · รูป profile · name · optional VIP badge · chevron.
+   รูปใช้ <QueuePatientAvatar> ตัวเดียวกับตารางคิวเวชระเบียน คนคนเดียวกันจึงขึ้น
+   รูปเดียวกันทั้งสองที่ และคนที่ยังไม่มีข้อมูลได้ silhouette "ผู้ใช้ใหม่"
+   อัตโนมัติ (มติผู้ใช้ 27 ส.ค. 69) */
+const QueueRow = ({
+  name, hn, avatarUrl, newUser, tone, badge, queueNo, actions,
+  emphasis = false, showDot = true, divider = false, onClick,
+}) => (
+  /* สองทรง:
+       • การ์ด (ค่าเริ่มต้น) — ใช้ในหน้าห้องตรวจ/คัดกรอง ตาม Figma "Sub Menu B"
+       • `divider` — แถวเรียบคั่นด้วยเส้นบาง ทรงเดียวกับตาราง worklist
+         (มติผู้ใช้ 27 ส.ค. 69: พาเนลคิวรอลงทะเบียนไม่ต้องเป็นการ์ด)
+     โหมด divider จัดทุกอย่างในบรรทัดเดียว: เลขคิว → รูป → ชื่อ → ปุ่ม (ไม่มี chevron) */
+  <div
+    className={divider ? 'flex items-center w-full' : 'flex flex-col w-full'}
+    style={divider ? {
+      gap: 'var(--dim-space-300, 12px)',
+      paddingTop: 'var(--dim-space-200, 8px)',
+      paddingBottom: 'var(--dim-space-200, 8px)',
+      borderBottom: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
+    } : {
       gap: 'var(--dim-space-200, 8px)',
       padding: 'var(--dim-space-300, 12px)',
       border: emphasis
@@ -93,35 +113,71 @@ const QueueRow = ({ name, tone, badge, emphasis = false, onClick }) => (
       cursor: 'pointer',
     }}
   >
-    <span
-      aria-hidden
-      className='shrink-0'
+    <button
+      type='button'
+      onClick={onClick}
+      className='flex items-center text-left min-w-0'
       style={{
-        width: 8, height: 8,
-        borderRadius: 'var(--dim-radius-100, 4px)',
-        background: tone,
+        gap: 'var(--dim-space-200, 8px)',
+        background: 'transparent',
+        cursor: onClick ? 'pointer' : 'default',
+        flex: '1 1 auto',
       }}
-    />
-    <span className='flex-1 min-w-0 flex flex-col items-start' style={{ gap: 'var(--dim-space-050, 2px)' }}>
-      <span
-        style={{
-          color: 'var(--text-content-default, #171A1F)',
-          fontFamily: 'var(--type-family-body)',
-          fontSize: 'var(--type-size-sm, 14px)',
-          fontWeight: 'var(--type-weight-regular, 400)',
-          lineHeight: 1.5,
-        }}
-      >
-        {name}
-      </span>
-      {badge && (
-        <ColorfulBadge style='red' size='small' width='hug' hierarchy='secondary'>
-          {badge}
-        </ColorfulBadge>
+    >
+      {showDot && (
+        <span
+          aria-hidden
+          className='shrink-0'
+          style={{
+            width: 8, height: 8,
+            borderRadius: 'var(--dim-radius-100, 4px)',
+            background: tone,
+          }}
+        />
       )}
-    </span>
-    <Icon name='chevron_right' size={16} className='shrink-0' />
-  </button>
+      {/* เลขคิว — ColorfulBadge teal ตัวเดียวกับคอลัมน์ "คิว" ในตาราง worklist */}
+      {queueNo && (
+        <span className='shrink-0'>
+          <ColorfulBadge style='teal' size='small' width='hug' hierarchy='secondary'>
+            {queueNo}
+          </ColorfulBadge>
+        </span>
+      )}
+      <QueuePatientAvatar
+        name={name}
+        hn={hn}
+        avatarUrl={avatarUrl}
+        newUser={newUser}
+        size={ROW_AVATAR_SIZE}
+      />
+      <span
+        className={divider ? 'min-w-0 flex items-center' : 'flex-1 min-w-0 flex flex-col items-start'}
+        style={{ gap: 'var(--dim-space-200, 8px)', flex: divider ? '1 1 auto' : undefined }}
+      >
+        {name && name !== queueNo && (
+          <span
+            className='truncate'
+            style={{
+              color: 'var(--text-content-default, #171A1F)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm, 14px)',
+              fontWeight: 'var(--type-weight-regular, 400)',
+              lineHeight: 1.5,
+            }}
+          >
+            {name}
+          </span>
+        )}
+        {badge && (
+          <ColorfulBadge style='red' size='small' width='hug' hierarchy='secondary'>
+            {badge}
+          </ColorfulBadge>
+        )}
+      </span>
+      {!divider && <Icon name='chevron_right' size={16} className='shrink-0' />}
+    </button>
+    {actions && <span className='shrink-0'>{actions}</span>}
+  </div>
 );
 
 const SectionLabel = ({ children, trailing }) => (
@@ -188,6 +244,19 @@ const QueueSubMenu = ({
   /** Click handlers — wire to navigation when ready. */
   onViewAll,
   onPickPatient,
+  /** เลือกว่าจะแสดงหมวดไหนบ้าง เรียงตามที่ส่งมา — ไม่ส่ง = ครบสี่หมวดเหมือนเดิม
+      (หน้าลงทะเบียนส่ง ['waiting'] มา เพราะต้องการเห็นแค่คิวที่รอ — มติผู้ใช้
+      27 ส.ค. 69) */
+  sections = ['done', 'draft', 'inProgress', 'waiting'],
+  /* แถวเรียบคั่นด้วยเส้นบางแทนการ์ด + ไม่มีจุดสีนำหน้า + ไม่มี chevron
+     (ทรงเดียวกับตาราง worklist) */
+  rowVariant = 'card',
+  /** ความกว้างตอนกาง — ตั้งได้ต่อหน้าเผื่อพาเนลที่มีปุ่มท้ายแถว */
+  expandedWidth = DEFAULT_EXPANDED_WIDTH,
+  /** แสดงเลขคิวหน้าชื่อ (พาเนลคิวรอลงทะเบียนต้องเห็นเลขคิว) */
+  showQueueNo = false,
+  /** ปุ่มจัดการคิวท้ายแถว — `(item, sectionKey) => ReactNode` */
+  renderRowActions,
   className = '',
   style = {},
 }) => {
@@ -204,13 +273,35 @@ const QueueSubMenu = ({
     onExpandedChange?.(next);
   };
 
-  const doneBucket       = normaliseBucket(queue.done);
-  const draftBucket      = normaliseBucket(queue.draft);
-  const inProgressBucket = normaliseBucket(queue.inProgress);
-  const waitingBucket    = normaliseBucket(queue.waiting);
+  /* คลิกนอกพาเนล → ปิดเอง (มติผู้ใช้ 27 ส.ค. 69) ผูกที่ `pointerdown` ไม่ใช่
+     `click` เพราะปุ่มในแถวเรียก stopPropagation บน click ไว้ · ปุ่ม toggle เอง
+     อยู่ใน rootRef อยู่แล้ว จึงไม่โดนนับเป็น "นอกกล่อง" แล้วสั่งปิดซ้อนกับ toggle
+     · ป๊อปอัปยืนยันเปิดผ่าน portal นอก DOM นี้ ระหว่างเปิดจึงไม่ผูก listener
+       ไม่งั้นกดปุ่มในป๊อปอัปแล้วพาเนลจะปิดไปด้วย */
+  const rootRef = useRef(null);
+  useEffect(() => {
+    if (!expanded) return undefined;
+    const onPointerDown = (e) => {
+      if (rootRef.current?.contains(e.target)) return;
+      /* คลิกใน overlay/ป๊อปอัปที่ render อยู่นอก aside — ไม่นับว่าคลิกนอกพาเนล */
+      if (e.target.closest?.('[role="dialog"], [data-mih-portal]')) return;
+      if (!isControlled) setInternalExpanded(false);
+      onExpandedChange?.(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [expanded, isControlled, onExpandedChange]);
+
+  const BUCKETS = {
+    done:       normaliseBucket(queue.done),
+    draft:      normaliseBucket(queue.draft),
+    inProgress: normaliseBucket(queue.inProgress),
+    waiting:    normaliseBucket(queue.waiting),
+  };
 
   return (
     <aside
+      ref={rootRef}
       aria-label='คิวผู้ป่วย'
       className={`relative shrink-0 self-stretch ${className}`}
       style={{
@@ -237,7 +328,7 @@ const QueueSubMenu = ({
         className='fixed top-0 bottom-0'
         style={{
           left: 'var(--sm-width-closed)',
-          width: expanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+          width: expanded ? expandedWidth : COLLAPSED_WIDTH,
           transition: TRANSITION,
           background: 'var(--surface-navigation-default, #FFFFFF)',
           borderRight: 'var(--dim-stroke-100, 1px) solid var(--border-brandsecondary-quaternary, #EFF5EF)',
@@ -253,7 +344,7 @@ const QueueSubMenu = ({
       >
       {/* Clipping wrapper — the panel itself runs `overflow: visible` so
           the toggle button can stick out, but the queue body keeps a
-          fixed inner width (EXPANDED_WIDTH) so its layout doesn't
+          fixed inner width (`expandedWidth`) so its layout doesn't
           reflow during the collapse animation. This wrapper hides the
           excess horizontally while the panel is narrower than the
           body. */}
@@ -272,7 +363,7 @@ const QueueSubMenu = ({
         aria-hidden={!expanded}
         className='flex flex-col h-full'
         style={{
-          width: EXPANDED_WIDTH,
+          width: expandedWidth,
           padding: 'var(--dim-space-600, 24px)',
           gap: 'var(--dim-space-600, 24px)',
           opacity: expanded ? 1 : 0,
@@ -283,57 +374,40 @@ const QueueSubMenu = ({
           overscrollBehavior: 'contain',
         }}
       >
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          <SectionLabel trailing={<ViewAllButton onClick={onViewAll} />}>
-            {sectionLabels.done(doneBucket.total)}
-          </SectionLabel>
-          {doneBucket.items.map((p) => (
-            <QueueRow
-              key={p.id}
-              name={p.name}
-              tone={DOT_TONES.done}
-              onClick={onPickPatient ? () => onPickPatient(p, 'done') : undefined}
-            />
-          ))}
-        </div>
-
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          <SectionLabel>{sectionLabels.draft(draftBucket.total)}</SectionLabel>
-          {draftBucket.items.map((p) => (
-            <QueueRow
-              key={p.id}
-              name={p.name}
-              tone={DOT_TONES.draft}
-              onClick={onPickPatient ? () => onPickPatient(p, 'draft') : undefined}
-            />
-          ))}
-        </div>
-
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          <SectionLabel>{sectionLabels.inProgress(inProgressBucket.total)}</SectionLabel>
-          {inProgressBucket.items.map((p) => (
-            <QueueRow
-              key={p.id}
-              name={p.name}
-              tone={DOT_TONES.inProgress}
-              badge={p.badge}
-              emphasis
-              onClick={onPickPatient ? () => onPickPatient(p, 'inProgress') : undefined}
-            />
-          ))}
-        </div>
-
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          <SectionLabel>{sectionLabels.waiting(waitingBucket.total)}</SectionLabel>
-          {waitingBucket.items.map((p) => (
-            <QueueRow
-              key={p.id}
-              name={p.name}
-              tone={DOT_TONES.waiting}
-              onClick={onPickPatient ? () => onPickPatient(p, 'waiting') : undefined}
-            />
-          ))}
-        </div>
+        {sections.map((key) => {
+          const bucket = BUCKETS[key];
+          if (!bucket) return null;
+          return (
+            <div key={key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              {/* ปุ่ม "ดูทั้งหมด" ขึ้นเฉพาะเมื่อผู้เรียกส่ง onViewAll มา — หน้า
+                  ลงทะเบียนไม่ส่งแล้ว (มติผู้ใช้ 27 ส.ค. 69) */}
+              <SectionLabel
+                trailing={onViewAll && key === sections[0]
+                  ? <ViewAllButton onClick={onViewAll} />
+                  : undefined}
+              >
+                {sectionLabels[key](bucket.total)}
+              </SectionLabel>
+              {bucket.items.map((p) => (
+                <QueueRow
+                  key={p.id}
+                  name={p.name}
+                  hn={p.hn}
+                  avatarUrl={p.avatarUrl}
+                  newUser={p.newUser}
+                  queueNo={showQueueNo ? p.queue : undefined}
+                  tone={DOT_TONES[key]}
+                  badge={p.badge}
+                  emphasis={key === 'inProgress'}
+                  divider={rowVariant === 'divider'}
+                  showDot={rowVariant !== 'divider'}
+                  actions={renderRowActions ? renderRowActions(p, key) : undefined}
+                  onClick={onPickPatient ? () => onPickPatient(p, key) : undefined}
+                />
+              ))}
+            </div>
+          );
+        })}
       </div>
       </div>
 

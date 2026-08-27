@@ -13,8 +13,13 @@ export default function useSmoothClearFilters(filtersActive, applyClear) {
   const applyClearRef = useRef(applyClear);
   applyClearRef.current = applyClear;
 
+  /* ชิป "ล้างตัวกรอง" ต้องขึ้นเฉพาะตอนมีตัวกรองถูกเลือกจริงเท่านั้น — เดิมตั้ง
+     เป็น true แล้วไม่เคยกลับ ทำให้ผู้ใช้ที่ปรับดรอปดาวน์กลับเป็นค่าเริ่มต้นเอง
+     (เช่น "ทุกแพทย์") ยังเห็นชิปค้างทั้งที่ไม่มีอะไรให้ล้าง
+     ระหว่างอนิเมชันล้าง (clearAnimRef) ปล่อยให้ตัว clearFilters คุมเอง */
   useEffect(() => {
     if (filtersActive) setShowClearChip(true);
+    else if (!clearAnimRef.current) setShowClearChip(false);
   }, [filtersActive]);
 
   useEffect(() => () => {

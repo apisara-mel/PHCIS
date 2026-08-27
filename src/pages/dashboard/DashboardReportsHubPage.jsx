@@ -15,7 +15,6 @@ import SearchResultCount from '@/components/search/SearchResultCount';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
-import { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
 import { DashboardHeaderActions, DashboardHeaderFilters } from '@/components/dashboard/DashboardPageHeader';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import { Reveal } from '@/components/graph/Charts';

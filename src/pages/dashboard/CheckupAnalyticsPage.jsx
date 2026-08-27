@@ -854,7 +854,6 @@ const CheckupAnalyticsPage = () => {
           templateValue={screenValue('checkup')}
         ></DashboardHeaderFilters>
       )}
-      actions={undefined}
     >
       <div
         className='flex flex-col flex-1 min-w-0'

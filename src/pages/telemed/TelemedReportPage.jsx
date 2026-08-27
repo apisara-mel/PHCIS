@@ -65,6 +65,7 @@ import {
   PagerBar,
   resolveDateRange,
 } from '@/pages/telemed/telemedShared';
+import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 
 /* TelemedReportPage — รายงานสถิติการโทร + บันทึกการเข้าใช้งาน
    (TOR §1.13.3 / .8 / .10 / .11).
@@ -558,7 +559,7 @@ const TelemedReportPage = () => {
 
           <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterDropdown prefix='แพทย์:' options={doctorOptions} value={doctorFilter} onChange={(v) => { setDoctorFilter(v); setPage(1); }} />
+              <FilterDropdown prefix='แพทย์:' options={withDoctorAvatars(doctorOptions)} value={doctorFilter} onChange={(v) => { setDoctorFilter(v); setPage(1); }} />
               <FilterDropdown prefix='หน่วยบริการ:' options={unitOptions} value={unitFilter} onChange={(v) => { setUnitFilter(v); setPage(1); }} />
               <FilterDropdown prefix='ผลลัพธ์:' options={outcomeOptions} value={outcomeFilter} onChange={(v) => { setOutcomeFilter(v); setPage(1); }} />
               <FilterDateTag prefix='ช่วง:' value={dateValue} onChange={applyQuickRange} defaultQuick='last30' quickLabels={{ last30: '30 วันล่าสุด', last7: '7 วันล่าสุด' }} />

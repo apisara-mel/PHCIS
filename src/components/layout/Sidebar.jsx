@@ -9,6 +9,8 @@ import { useClinicFilter } from '@/components/layout/HeaderClinicContext';
 import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
 import FontSizeControls from '@/components/layout/FontSizeControls';
 import DoctorProfileAvatar from '@/components/layout/DoctorProfileAvatar';
+import Popover from '@/components/popup/Popover';
+import MobilePushLogPanel from '@/components/layout/MobilePushLogPanel';
 import {
   subscribeLabNotifications, unreadLabNotificationCount,
 } from '@/data/treatmentInterfaces';
@@ -136,6 +138,10 @@ const Sidebar = ({
   // submenuVisible   = controls the enter/exit transition (transform/opacity)
   // submenuItem      = which sub-department is selected inside the panel
   const [submenuKey, setSubmenuKey] = useState(defaultSubmenuKey);
+  /* เมนู "แจ้งเตือน" — เนื้อในคือ log push ของ Mobile App (มติผู้ใช้ 27 ส.ค. 69
+     ย้ายมาจากปุ่มเฉพาะหน้าคิวเวชระเบียน) */
+  const [notifyOpen, setNotifyOpen] = useState(false);
+  const notifyAnchorRef = useRef(null);
   const [submenuItem, setSubmenuItem] = useState(null);
   const [submenuVisible, setSubmenuVisible] = useState(!!defaultSubmenuKey);
   const [submenuMounted, setSubmenuMounted] = useState(!!defaultSubmenuKey);
@@ -560,8 +566,18 @@ const Sidebar = ({
         className='flex flex-col shrink-0'
         style={{ gap: navListGap }}
       >
-        {/* Notification */}
+        {/* Notification — กดแล้วเปิด log การแจ้งเตือนผ่าน Mobile Application */}
         <div
+          ref={notifyAnchorRef}
+          role='button'
+          tabIndex={0}
+          aria-haspopup='menu'
+          aria-expanded={notifyOpen}
+          aria-label='แจ้งเตือน'
+          onClick={() => setNotifyOpen((o) => !o)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setNotifyOpen((o) => !o); }
+          }}
           className='cursor-pointer flex items-center w-full'
           style={{
             height: itemRowHeight,
@@ -621,6 +637,15 @@ const Sidebar = ({
             99+
           </span>
         </div>
+
+        <Popover
+          open={notifyOpen}
+          onClose={() => setNotifyOpen(false)}
+          anchorRef={notifyAnchorRef}
+          style={{ zIndex: 1600 }}
+        >
+          <MobilePushLogPanel />
+        </Popover>
 
         {/* User area · avatar true-centers when collapsed */}
         <div

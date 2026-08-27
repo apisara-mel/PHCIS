@@ -33,8 +33,6 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import CameraCapturePopup from '@/components/popup/CameraCapturePopup';
 import FaceScanVerifyPopup from '@/components/popup/FaceScanVerifyPopup';
 import Popup from '@/components/popup/Popup';
-import AlertDialog from '@/components/popup/AlertDialog';
-import PhotoUploadField from '@/components/forms/PhotoUploadField';
 import DragAndDrop from '@/components/form-builder/DragAndDrop';
 import {
   formatNationalId,
@@ -81,7 +79,10 @@ const ICON_CAMERA = '/icons/registration/camera.svg';
 const ICON_SECTION_PHONE = '/icons/registration/phone.svg';
 const ICON_SECTION_ALERT_TRIANGLE = '/icons/registration/alert-triangle.svg';
 
-/* สถานะผู้รับบริการ — moved into Step ข้อมูลส่วนตัว (was FormShell StatusBar). */
+/* สถานะผู้รับบริการ — การ์ดขาว "แยกใบ" อยู่เหนือการ์ดเนื้อหาของ step
+   (มติผู้ใช้ 27 ส.ค. 69: "เป็นการ์ดสีขาวแยกออกมา ไม่รวม section เดียวกับ
+   ข้อมูลส่วนตัว") ประกอบเข้าหน้าผ่าน slot `beforeCard` ของ <FormShell>
+   ไม่ได้อยู่ใน Step1Personal อีกแล้ว */
 const PATIENT_STATUS_TONES = {
   active: {
     tileBg:   'var(--surface-brandPrimary-quaternary)',
@@ -159,37 +160,21 @@ const PatientStatusSection = ({
   return (
     <div
       className='w-full flex flex-col'
-      /* พื้นหลังคนละสีกับเนื้อหา "ข้อมูลส่วนตัว" — FormShell ครอบทั้ง step ด้วย
-         การ์ดขาวอยู่แล้ว การ์ดขาวซ้อนขาวจึงอ่านเป็นพื้นเดียวกัน (มติผู้ใช้
-         27 ส.ค. 69) ใช้พื้นแบรนด์อ่อน + เส้นขอบแบรนด์ และไม่ต้องมีเงาซ้อนอีกชั้น */
+      /* การ์ดขาวใบของตัวเอง — ทรงเดียวกับการ์ดเนื้อหาของ step ใน FormShell
+         (radius-500 + surface-card-100 + เงา) ไม่ใช่กล่องซ้อนอยู่ข้างในอีกแล้ว */
       style={{
         gap: 'var(--dim-space-300)',
         padding: 'var(--dim-space-600)',
-        borderRadius: 'var(--dim-radius-400)',
-        background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
-        border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+        borderRadius: 'var(--dim-radius-500)',
+        background: 'var(--surface-card-100)',
+        boxShadow: 'var(--shadow-brand-drop-bottom-200)',
       }}
     >
       <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-600)' }}>
-        <div
-          className='flex flex-1 items-center min-w-0'
-          style={{
-            gap: 'var(--dim-space-200)',
-            padding: 'var(--dim-space-200) var(--dim-space-300)',
-            borderRadius: 'var(--dim-radius-400)',
-            background: 'var(--surface-topic-default, #FFFFFF)',
-          }}
-        >
-          <Sym name='how_to_reg' size={20} color='var(--text-topic-primary-title, #007549)' />
-          <span style={{
-            color: 'var(--text-topic-primary-title, #007549)',
-            fontFamily: 'var(--type-family-heading-content)',
-            fontSize: 'var(--type-size-base)',
-            fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-            lineHeight: 1.5,
-          }}>
-            สถานะผู้รับบริการ
-          </span>
+        {/* หัวการ์ดใช้ <SectionTitle> ตัวเดียวกับ "ข้อมูลส่วนตัว" — การ์ดเป็นสีขาว
+            แล้ว แถบชื่อสีขาวแบบเดิมจะจมหายไปกับพื้น (มติผู้ใช้ 27 ส.ค. 69) */}
+        <div className='flex flex-1 min-w-0'>
+          <SectionTitle icon='how_to_reg'>สถานะผู้รับบริการ</SectionTitle>
         </div>
         <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
           <ColorfulBadge badgeStyle='teal' hierarchy='primary' size='default' width='hug'>
@@ -232,7 +217,7 @@ const PatientStatusSection = ({
           className='flex flex-col w-full'
           style={{
             gap: 'var(--dim-space-300)',
-            borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+            borderTop: 'var(--dim-stroke-100) solid var(--border-content-quaternary, #E4E7EC)',
             paddingTop: 'var(--dim-space-300)',
           }}
         >
@@ -263,7 +248,12 @@ const PatientStatusSection = ({
             />
           </div>
           {lifeStatus === 'deceased' && (
-            <FieldGrid cols={3} rowGap='var(--dim-space-300)' columnGap='var(--dim-space-300)'>
+            /* การ์ดนี้กว้างเต็มแถว ส่วน "ข้อมูลส่วนตัว" อยู่ในคอลัมน์ซ้ายที่แคบกว่า
+               (มีการ์ดรูปกว้าง 384 + gap 48 อยู่ขวา) ถ้าใช้ 3 คอลัมน์ตรง ๆ ช่อง
+               วันที่จะกว้างกว่า "คำนำหน้า" — กันพื้นที่ขวาไว้เท่ากันก่อน แล้วค่อย
+               แบ่ง 3 คอลัมน์ ความกว้างจึงตรงกัน (มติผู้ใช้ 27 ส.ค. 69) */
+            <div style={{ paddingRight: `calc(${PHOTO_CLUSTER_WIDTH}px + var(--dim-space-1200))` }}>
+            <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
               <Field label='วันที่เสียชีวิต' required>
                 <DatePicker
                   size='lg'
@@ -276,6 +266,7 @@ const PatientStatusSection = ({
                 />
               </Field>
             </FieldGrid>
+            </div>
           )}
         </div>
       )}
@@ -399,6 +390,11 @@ export const StepConsent = ({ form, setForm, patient }) => {
    (แทนแถบ 96% / ความน่าเชื่อถือ). Tap empty → FaceScanVerifyPopup. */
 const FACE_VERIFIED_ID_FALLBACK = '/illustration/registration/face-verified-id.png';
 const ICON_COMPARE_PHOTOS = '/illustration/registration/compare-photos.svg';
+
+/* % ความตรงของใบหน้า (mock) — ของจริงมาจากบริการเปรียบเทียบใบหน้า
+   ค่าเดียวใช้ทั้งในป๊อปอัปที่แสดงผลและใน `faceMatchScore` ที่เขียนลงฟอร์ม
+   จะได้ไม่โชว์เลขหนึ่งแล้วบันทึกอีกเลข */
+export const MOCK_FACE_MATCH_SCORE = 96;
 
 const PhotoCluster = ({
   hospitalPhoto,
@@ -618,6 +614,7 @@ const PhotoCluster = ({
         onCapture={handleCapture}
         patientName={patientName}
         referencePhoto={referencePhoto || idCardPhoto || FACE_VERIFIED_ID_FALLBACK}
+        matchScore={MOCK_FACE_MATCH_SCORE}
       />
 
       <Popup
@@ -679,24 +676,10 @@ const PhotoCluster = ({
   );
 };
 
-export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
-  const set = (k) => (v) => setForm((s) => ({ ...s, [k]: v }));
-  const handleMaritalChange = (marital) => {
-    setForm((s) => ({
-      ...s,
-      marital,
-      ...(SHOWS_SPOUSE_FIELDS(marital)
-        ? {}
-        : { spouseFirstName: '', spouseLastName: '' }),
-    }));
-  };
-  /* Figma 101:12707 — chip-read locks card-sourced fields only. */
-  const fromChip = !!form.idCardFromChip;
-  const showSpouseFields = SHOWS_SPOUSE_FIELDS(form.marital);
-  const hn = form.hn || patient?.hn || '';
-  const patientTypeLabel = 'ผู้ป่วยใหม่';
-
-  /* ── TOR 1.1.1.2 — สถานะการมีชีวิต + audit ทุกการสลับ alive↔deceased ── */
+/** การ์ด "สถานะผู้รับบริการ" แบบพร้อมใช้ — ใบขาวแยกจากการ์ดข้อมูลส่วนตัว
+    ส่งเข้า slot `beforeCard` ของ <FormShell> ในขั้นตอน "ข้อมูลส่วนตัว"
+    (TOR 1.1.1.2 — audit ทุกการสลับ มีชีวิตอยู่ ↔ เสียชีวิต อยู่ในนี้) */
+export const PatientStatusCard = ({ form, setForm, patient }) => {
   const handleLifeStatusChange = (next) => {
     setForm((s) => {
       if ((s.lifeStatus || 'alive') === next) return s;
@@ -713,7 +696,34 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
       };
     });
   };
+  return (
+    <PatientStatusSection
+      patientStatus={form.patientStatus || 'active'}
+      onPatientStatusChange={(v) => setForm((s) => ({ ...s, patientStatus: v }))}
+      hn={form.hn || patient?.hn || ''}
+      patientTypeLabel='ผู้ป่วยใหม่'
+      lifeStatus={form.lifeStatus || 'alive'}
+      onLifeStatusChange={handleLifeStatusChange}
+      deceasedDate={form.deceasedDate}
+      onDeceasedDateChange={(v) => setForm((s) => ({ ...s, deceasedDate: v }))}
+    />
+  );
+};
 
+export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
+  const set = (k) => (v) => setForm((s) => ({ ...s, [k]: v }));
+  const handleMaritalChange = (marital) => {
+    setForm((s) => ({
+      ...s,
+      marital,
+      ...(SHOWS_SPOUSE_FIELDS(marital)
+        ? {}
+        : { spouseFirstName: '', spouseLastName: '' }),
+    }));
+  };
+  /* Figma 101:12707 — chip-read locks card-sourced fields only. */
+  const fromChip = !!form.idCardFromChip;
+  const showSpouseFields = SHOWS_SPOUSE_FIELDS(form.marital);
   /* กลุ่มการออกเลข HN ยังอยู่ในข้อมูล (`form.hnGroup`) และยังคุมช่อง Passport /
      เลขบัตรประชาชนอยู่ — แต่ตัวเลือกบนหน้าจอถูกถอดออกตามคำสั่ง 27 ส.ค. 69
      จึงไม่มีการสลับกลุ่มระหว่างกรอก และไม่ต้องมี dialog ยืนยันล้าง field */
@@ -739,56 +749,10 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
     }));
   };
 
-  /* ── TOR 1.1.1.9 — ถ่ายรูป (กล้อง) / อัปโหลดรูป wired to the photo cluster ── */
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const [retakeConfirmOpen, setRetakeConfirmOpen] = useState(false);
-  const [photoError, setPhotoError] = useState('');
-  const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
-  const applyPatientPhoto = (dataUrl) => {
-    setPhotoError('');
-    setForm((s) => ({
-      ...s,
-      hospitalPhoto: dataUrl,
-      idCardPhoto: s.idCardPhoto || ID_CARD_CHIP_PHOTO_MOCK,
-      faceMatchScore: s.faceMatchScore || 96,
-      faceVerifiedAt: formatThaiBuddhistDate(new Date()),
-    }));
-  };
-  const handleOpenCamera = () => {
-    /* ถ่ายใหม่ทับรูปเดิมต้อง confirm (edge case 1.1.1.9). */
-    if (form.hospitalPhoto) setRetakeConfirmOpen(true);
-    else setCameraOpen(true);
-  };
-  const handleUploadFiles = (files) => {
-    const file = files && files[0];
-    if (!file) return;
-    if (!/^image\//.test(file.type)) {
-      setPhotoError('ไฟล์ต้องเป็นรูปภาพ (JPG / PNG) เท่านั้น');
-      return;
-    }
-    if (file.size > MAX_PHOTO_BYTES) {
-      setPhotoError('ไฟล์ใหญ่เกิน 5 MB — เลือกรูปที่เล็กกว่านี้');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => applyPatientPhoto(String(reader.result));
-    reader.onerror = () => setPhotoError('อ่านไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง');
-    reader.readAsDataURL(file);
-  };
-
   return (
+    /* สถานะผู้รับบริการ ไม่ได้อยู่ใน step นี้แล้ว — เป็นการ์ดขาวแยกใบ ประกอบเข้า
+       ผ่าน slot `beforeCard` ของ <FormShell> ดู <PatientStatusCard> */
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600)' }}>
-      <PatientStatusSection
-        patientStatus={form.patientStatus || 'active'}
-        onPatientStatusChange={(v) => setForm((s) => ({ ...s, patientStatus: v }))}
-        hn={hn}
-        patientTypeLabel={patientTypeLabel}
-        lifeStatus={form.lifeStatus || 'alive'}
-        onLifeStatusChange={handleLifeStatusChange}
-        deceasedDate={form.deceasedDate}
-        onDeceasedDateChange={(v) => setForm((s) => ({ ...s, deceasedDate: v }))}
-      />
-
       <div className='flex w-full' style={{ gap: 'var(--dim-space-1200)' }}>
         <div className='flex-1 flex flex-col' style={{ gap: STEP1_FIELD_GAP }}>
           <SectionTitle icon='face'>ข้อมูลส่วนตัว</SectionTitle>
@@ -955,7 +919,10 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
                   helperText={birthYearError}
                 />
               </Field>
-              <Field label='กรอกอายุแทน (ปี)' hint='ระบบคำนวณปีเกิดย้อนกลับให้ (ตามระบบเดิม)'>
+              {/* ช่องอายุเดียว — เดิมแยกเป็น "กรอกอายุแทน (ปี)" (กรอกได้) กับ "อายุ"
+                  (อ่านอย่างเดียว) ซึ่งเป็นค่าเดียวกัน ยุบเหลือช่องเดียวที่ทั้ง
+                  แสดงและแก้ได้ (มติผู้ใช้ 27 ส.ค. 69) */}
+              <Field label='อายุ (ปี)' hint='กรอกอายุแทนได้ ระบบคำนวณปีเกิดย้อนกลับให้ (ตามระบบเดิม)'>
                 <InputField
                   value={ageFromYear ? String(currentBE - Number(form.birthYearBE)) : ''}
                   onChange={(v) => set('birthYearBE')(ageToBirthYearBE(v))}
@@ -964,8 +931,15 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
                   maxLength={3}
                 />
               </Field>
-              <Field label='อายุ'>
-                <InputField value={ageFromYear} onChange={() => {}} placeholder='NN ปี' disabled />
+              {/* ช่องที่สามของแถวว่างพอดี — ย้ายหมู่เลือดขึ้นมาแทนที่จะอยู่ใน
+                  FieldGrid ของตัวเองใต้ checkbox ให้ทรงเดียวกับกรณีทราบวันเกิด */}
+              <Field label='หมู่เลือด'>
+                <Select
+                  value={form.bloodType}
+                  onChange={set('bloodType')}
+                  options={BLOOD_TYPES}
+                  placeholder='เลือกหมู่เลือด'
+                />
               </Field>
             </FieldGrid>
           ) : (
@@ -1006,19 +980,6 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
             style={{ width: 'fit-content', alignSelf: 'flex-start' }}
           />
           </div>
-
-          {form.dobUnknown && (
-            <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
-              <Field label='หมู่เลือด'>
-                <Select
-                  value={form.bloodType}
-                  onChange={set('bloodType')}
-                  options={BLOOD_TYPES}
-                  placeholder='เลือกหมู่เลือด'
-                />
-              </Field>
-            </FieldGrid>
-          )}
 
           {/* TOR 1.1.1.14 — ข้อมูลการเกิด (ใบรับรองการเกิด) */}
           <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
@@ -1115,71 +1076,17 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
               ...s,
               hospitalPhoto: dataUrl,
               idCardPhoto: s.idCardPhoto || ID_CARD_CHIP_PHOTO_MOCK,
-              faceMatchScore: 96,
+              faceMatchScore: MOCK_FACE_MATCH_SCORE,
               faceVerifiedAt: formatThaiBuddhistDate(new Date()),
             }))}
           />
 
-          {/* TOR 1.1.1.9 — ปุ่มถ่ายรูป (CameraCapturePopup) + อัปโหลดรูป
-              (PhotoUploadField). อัปโหลดคือ fallback เมื่อ browser ปฏิเสธกล้อง */}
-          <div className='flex w-full items-stretch' style={{ gap: 'var(--dim-space-200)' }}>
-            <BrandSubdueButton
-              type='button'
-              variant='outline'
-              size='md'
-              leadingIcon='photo_camera'
-              onClick={handleOpenCamera}
-              style={{ flex: 1 }}
-            >
-              ถ่ายรูป (กล้อง)
-            </BrandSubdueButton>
-            <PhotoUploadField
-              label='อัปโหลดรูปภาพ'
-              icon='image'
-              accept='image/*'
-              onFiles={handleUploadFiles}
-              fullWidth
-              style={{ flex: 1 }}
-            />
-          </div>
-          {photoError && (
-            <span
-              role='alert'
-              style={{
-                color: 'var(--text-danger-secondary, #DC2626)',
-                fontFamily: 'var(--type-family-body)',
-                fontSize: 'var(--type-size-xs)',
-                lineHeight: 1.5,
-              }}
-            >
-              {photoError}
-            </span>
-          )}
+          {/* ปุ่ม "ถ่ายรูป (กล้อง)" กับช่อง "อัปโหลดรูปภาพ" ถูกถอดออกจากหน้า
+              ลงทะเบียน (มติผู้ใช้ 27 ส.ค. 69) — รูปยืนยันตัวตนมาจากการสแกน
+              ใบหน้าใน PhotoCluster ทางเดียว */}
         </div>
       </div>
 
-      <CameraCapturePopup
-        open={cameraOpen}
-        onClose={() => setCameraOpen(false)}
-        onCapture={(dataUrl) => applyPatientPhoto(dataUrl)}
-      />
-
-      {/* ถ่ายใหม่ทับรูปเดิม — ต้องยืนยันก่อน */}
-      <AlertDialog
-        open={retakeConfirmOpen}
-        onClose={() => setRetakeConfirmOpen(false)}
-        onCancel={() => setRetakeConfirmOpen(false)}
-        onConfirm={() => {
-          setRetakeConfirmOpen(false);
-          setCameraOpen(true);
-        }}
-        type='warning'
-        alignment='center'
-        title='ถ่ายรูปใหม่ทับรูปเดิม ?'
-        description='รูปยืนยันตัวตนปัจจุบันจะถูกแทนที่ด้วยรูปที่ถ่ายใหม่'
-        cancelLabel='ยกเลิก'
-        confirmLabel='ถ่ายรูปใหม่'
-      />
 
     </div>
   );

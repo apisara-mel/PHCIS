@@ -407,9 +407,16 @@ const AppointmentListView = ({
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
 
+  /* รูป portrait มากับ roster อยู่แล้ว — ติดให้ตัวเลือกเลย ไม่ต้องไป lookup
+     ด้วยชื่อเหมือนหน้าอื่นที่เก็บตัวกรองแพทย์เป็นสตริง (มติผู้ใช้ 27 ส.ค. 69) */
   const doctorOptions = useMemo(() => {
-    const opts = [{ value: '', label: 'ทุกแพทย์' }];
-    staff.forEach((s) => opts.push({ value: String(s.id), label: s.name }));
+    const opts = [{ value: '', label: 'ทุกแพทย์', leadingIcon: 'groups' }];
+    staff.forEach((s) => opts.push({
+      value: String(s.id),
+      label: s.name,
+      image: s.avatarSrc,
+      imageVariant: 'avatar',
+    }));
     return opts;
   }, [staff]);
 

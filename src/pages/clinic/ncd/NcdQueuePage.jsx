@@ -30,6 +30,7 @@ import {
   getNcdCancellation,
 } from '@/data/ncdVisits';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 
 /* NcdQueuePage — คิวการรักษากลุ่มโรคเฉพาะ NCD (เบาหวาน/ความดัน/หอบหืด/
    ถุงลมโป่งพอง), TOR 1.10.2.1 + 1.10.2.2. Mirrors AncQueuePage (the §1.10.x
@@ -460,7 +461,7 @@ const NcdQueuePage = () => {
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
               <FilterDropdown prefix='กลุ่มโรค:' options={FILTER_OPTIONS.group} value={filters.group} onChange={setFilter('group')} />
-              <FilterDropdown prefix='แพทย์:' options={FILTER_OPTIONS.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
+              <FilterDropdown prefix='แพทย์:' options={withDoctorAvatars(FILTER_OPTIONS.doctor)} value={filters.doctor} onChange={setFilter('doctor')} />
               <FilterDropdown prefix='ประเภท:' options={FILTER_OPTIONS.visitType} value={filters.visitType} onChange={setFilter('visitType')} />
               <FilterDateTag
                 prefix='วัน:'

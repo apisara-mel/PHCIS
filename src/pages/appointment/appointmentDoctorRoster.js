@@ -403,6 +403,31 @@ export function doctorSelectOptions(doctors = buildDoctorRoster()) {
   return doctors.map((d) => ({ value: d.name, label: d.name }));
 }
 
+/** ชื่อแพทย์ → รูป portrait ในทะเบียน */
+const DOCTOR_AVATAR_BY_NAME = Object.fromEntries(
+  DOCTOR_SEEDS.map((d) => [d.name, d.avatarSrc]),
+);
+
+export const doctorAvatarByName = (name) => DOCTOR_AVATAR_BY_NAME[String(name || '').trim()];
+
+/* ติดรูป profile ให้ตัวเลือกในดรอปดาวน์ตัวกรอง "แพทย์:" (มติผู้ใช้ 27 ส.ค. 69)
+   — รายชื่อแพทย์ล้วน ๆ ดูยากว่าใครเป็นใคร รูปช่วยให้จำหน้าได้เร็วกว่าอ่านชื่อ
+   FilterDropdown/ActionList รองรับ `image` อยู่แล้ว ขาดแค่ข้อมูล
+
+   จับคู่ด้วยชื่อ เพราะแต่ละหน้าเก็บตัวกรองแพทย์เป็นสตริงชื่อ ไม่ได้ถือ staffId
+   ชื่อที่ไม่มีในทะเบียน (เช่น "ไม่ระบุแพทย์") ปล่อยผ่านโดยไม่มีรูป ส่วนตัวเลือก
+   sentinel ("ทุกแพทย์" value '' หรือ 'all') ได้ไอคอนกลุ่มเพื่อให้ label ตรงแนว
+   กับแถวที่มีรูป */
+export function withDoctorAvatars(options = []) {
+  return options.map((opt) => {
+    if (!opt || opt.image || opt.leadingIcon) return opt;
+    const src = doctorAvatarByName(opt.label) || doctorAvatarByName(opt.value);
+    if (src) return { ...opt, image: src, imageVariant: 'avatar' };
+    if (opt.value === '' || opt.value === 'all') return { ...opt, leadingIcon: 'groups' };
+    return opt;
+  });
+}
+
 /** Lookup doctor display name by staff id. */
 export function doctorNameById(doctors, staffId) {
   return doctors.find((d) => d.id === staffId)?.name ?? '';

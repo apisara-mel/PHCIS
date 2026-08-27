@@ -67,6 +67,7 @@ import {
   TB_CONTACT_RELATIONS,
   TB_DIAGNOSIS_SUGGESTIONS,
 } from '@/data/tbVisits';
+import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 
 /* TbRegistryPage — ทะเบียนผู้รับบริการวัณโรค (TOR §1.10.4.6 + .1) ที่
    /clinic/tb/registry. รายการ + รายละเอียดครบวงจรแบบ NcdRegistryPage /
@@ -1640,7 +1641,7 @@ const TbRegistryPage = () => {
               <FilterDropdown prefix='ปีงบประมาณ:' options={fiscalYearOptions} value={filters.fiscalYear} onChange={setFilter('fiscalYear')} />
               <FilterDropdown prefix='ประเภทผู้ป่วย:' options={patientTypeOptions} value={filters.patientType} onChange={setFilter('patientType')} />
               <FilterDropdown prefix='สถานะทะเบียน:' options={STATUS_OPTIONS} value={filters.status} onChange={setFilter('status')} />
-              <FilterDropdown prefix='แพทย์:' options={doctorOptions} value={filters.doctor} onChange={setFilter('doctor')} />
+              <FilterDropdown prefix='แพทย์:' options={withDoctorAvatars(doctorOptions)} value={filters.doctor} onChange={setFilter('doctor')} />
             <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>

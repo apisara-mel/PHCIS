@@ -237,8 +237,12 @@ export const FilterDropdown = ({
      ปีปัจจุบัน = ตัวแรกพอดี) ทำให้ชิปเป็นสีขาวทั้งที่มีค่าอยู่.
      ชื่อ `active` ไม่ใช่ `selected` เพราะ `selected` ในสโคปนี้เป็นตัวเลือกที่ match อยู่ */
   active,
-  /* Stack above modals / MarkNoteEditor when nested in portalled overlays. */
-  menuZIndex = 'var(--sm-z-popover-nested, calc(1300 + 2))',
+  /* Stack above modals / MarkNoteEditor when nested in portalled overlays.
+     ต้องเป็นชั้นเดียวกับ Select / DatePicker / TimePicker (--sm-z-modal-popover
+     1450) ไม่ใช่ --sm-z-popover-nested (1302) ซึ่งต่ำกว่า Popup (--sm-z-modal
+     1400) — ของเดิมทำให้กดชิปตัวกรองใน popup แล้วดรอปดาวน์ไปอยู่หลัง modal
+     คือกดแล้วเหมือนไม่มีอะไรเกิดขึ้น */
+  menuZIndex = 'var(--sm-z-modal-popover, 1450)',
   /* Forwarded to the underlying FilterTag — lets callers override
      height, max-width, etc. (e.g. VoiceTextarea uses height:36 per
      Figma 3280:3807 vs FilterTag's default 40). */

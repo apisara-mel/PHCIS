@@ -35,6 +35,7 @@ import {
   formatImmDate,
   formatImmDateTime,
 } from '@/data/immunizationClinic';
+import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 
 /* ImmunizationQueuePage — คิวคลินิกสุขภาพเด็กดี (TOR 1.10.9.1 / 1.10.9.2).
    โครงเดียวกับ MentalHealthQueuePage / AncQueuePage (search + filter row +
@@ -586,7 +587,7 @@ const ImmunizationQueuePage = () => {
 
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-              <FilterDropdown prefix='แพทย์:' options={FILTER_OPTIONS.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
+              <FilterDropdown prefix='แพทย์:' options={withDoctorAvatars(FILTER_OPTIONS.doctor)} value={filters.doctor} onChange={setFilter('doctor')} />
               <FilterDropdown prefix='สถานะ:' options={FILTER_OPTIONS.status} value={filters.status} onChange={setFilter('status')} />
               <FilterDropdown prefix='วัคซีน:' options={FILTER_OPTIONS.epi} value={filters.epi} onChange={setFilter('epi')} />
               <FilterDropdown prefix='ช่วงอายุ:' options={FILTER_OPTIONS.ageGroup} value={filters.ageGroup} onChange={setFilter('ageGroup')} />

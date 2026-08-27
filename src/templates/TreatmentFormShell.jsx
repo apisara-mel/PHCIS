@@ -28,7 +28,7 @@ export const TREATMENT_STEP_LABELS = TREATMENT_STEPS.map((s) => s.title);
 const STEP_SCROLL_MS = 320;
 
 const Footer = ({
-  stepIndex, steps, onPrev, onNext, onSave, isLast,
+  stepIndex, steps, onPrev, onCancel, onNext, onSave, isLast,
   draftStatusText = 'ยังไม่มีร่างที่บันทึก', draftDirty = false, draftSaving = false,
 }) => {
   /* Primary CTA label — Figma PHCIS pattern: "ถัดไป: [next step]" so the
@@ -70,6 +70,19 @@ const Footer = ({
       >
         {isFirst ? 'ยกเลิก' : 'ย้อนกลับ'}
       </NeutralSubdueButton>
+      {/* ตั้งแต่ step 2 เป็นต้นไป ปุ่มซ้ายกลายเป็น "ย้อนกลับ" — ผู้ใช้จึงไม่เหลือ
+          ทางออกจากฟอร์ม ใส่ "ยกเลิก" ต่อท้ายไว้ (มติผู้ใช้ 27 ส.ค. 69)
+          ทำเหมือนกันทุกระบบที่ใช้ฟอร์มแบบ step */}
+      {!isFirst && (
+        <NeutralSubdueButton
+          size='lg'
+          variant='outline'
+          onClick={onCancel}
+          className='shrink-0'
+        >
+          ยกเลิก
+        </NeutralSubdueButton>
+      )}
       {!isFirst && (
         <span
           role='status'
@@ -221,11 +234,14 @@ const TreatmentFormShell = ({
     : steps[stepIndex]?.title;
   const headerTitle = morphTitle ?? stepTitle ?? 'บันทึกการรักษา';
   const referFromDepartment = fromDepartment || headerTitle || 'ระบบบันทึกการรักษา';
+  /* ออกจากฟอร์ม — เส้นทางเดียวกับปุ่ม "ยกเลิก" ตอนอยู่ step แรก */
+  const handleLeave = () => {
+    if (onLeave) onLeave();
+    else history.push(queuePath);
+  };
   const handlePrev = () => {
-    if (stepIndex === 0) {
-      if (onLeave) onLeave();
-      else history.push(queuePath);
-    } else onStepChange(stepIndex - 1);
+    if (stepIndex === 0) handleLeave();
+    else onStepChange(stepIndex - 1);
   };
   const handleNext = () => {
     if (isLast) {
@@ -310,6 +326,8 @@ const TreatmentFormShell = ({
         stepIndex={stepIndex}
         steps={steps}
         onPrev={handlePrev}
+        /* "ยกเลิก" = ออกจากฟอร์มเลย เท่ากับกด "ยกเลิก" ตอนอยู่ step แรก */
+        onCancel={handleLeave}
         onNext={handleNext}
         onSave={onSaveDraft}
         isLast={isLast}

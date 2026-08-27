@@ -7,7 +7,6 @@ import FilterDateTag from '@/components/forms/FilterDateTag';
 import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Dropdown from '@/components/forms/Dropdown';
-import { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
 import { DashboardHeaderActions, DashboardHeaderFilters } from '@/components/dashboard/DashboardPageHeader';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import { DonutWithLegend, HBarList, VBars } from '@/components/graph/Charts';
@@ -514,7 +513,8 @@ const ServiceReportsPage = () => {
           dateFilter={dateFilter}
           onDateFilterChange={setDateFilter}
           defaultQuick='thismonth'
-          templateValue={screenValue('reports')}
+          /* หน้านี้ไม่ได้อยู่ในลิสต์หน้าจอมาตรฐาน 5 หน้า — ชิปจึงขึ้น placeholder */
+          templateValue={undefined}
         ></DashboardHeaderFilters>
       )}
       actions={<DashboardHeaderActions />}

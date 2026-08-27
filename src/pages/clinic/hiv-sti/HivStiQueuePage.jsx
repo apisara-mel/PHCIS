@@ -31,6 +31,7 @@ import {
   checkInHivStiAppointment,
   canEditHivSti,
 } from '@/data/hivStiVisits';
+import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 
 /* HivStiQueuePage — คิวการรักษาคลินิก HIV/STI (TOR 1.10.6.2 + .1).
    Mirrors AncQueuePage's queue mechanics (tabs / search / filters /
@@ -459,7 +460,7 @@ const HivStiQueuePage = () => {
 
             <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
               <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
-                <FilterDropdown prefix='แพทย์:' options={FILTER_OPTIONS.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
+                <FilterDropdown prefix='แพทย์:' options={withDoctorAvatars(FILTER_OPTIONS.doctor)} value={filters.doctor} onChange={setFilter('doctor')} />
                 <FilterDropdown prefix='ประเภท:' options={FILTER_OPTIONS.clientType} value={filters.clientType} onChange={setFilter('clientType')} />
                 <FilterDateTag
                   prefix='วัน:'

@@ -4,6 +4,7 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandCircleIconButton from '@/components/button/BrandCircleIconButton';
 import { Icon } from '@/components/icons/Icon';
 import { highlightMatch } from '@/components/forms/textareaSuggestions';
+import { resolveSearchHistoryFallback } from '@/data/primarySearchHistorySeeds';
 
 /* PrimarySearch — Figma MIH DS Foundation 2056:4246
    56px pill search with five states: Default / Hover / Focus / Typing /
@@ -312,6 +313,10 @@ const PrimarySearch = ({
   /* Recent-search history shown when focused with an empty input.
      Same shape as `suggestions`. */
   history = [],
+  /* ชนิดของ mock "ค้นหาล่าสุด" ที่ใช้เมื่อยังไม่มีประวัติจริง —
+     'patient' | 'drug' | 'staff' | 'place' | 'catalog' | 'none'
+     ไม่ส่งมา = เดาจาก `placeholder` ('none' = ปิด mock ให้ขึ้นข้อความว่างแทน) */
+  historyKind,
   historyTitle = 'ค้นหาล่าสุด',
   /* Shown under the history header when the recent-search list is empty
      so the dropdown still appears and the user sees what the section is
@@ -547,8 +552,17 @@ const PrimarySearch = ({
         const trimmed = (v ?? '').toString();
         const showSuggestions = trimmed.length > 0;
 
+        /* ประวัติจริงมาก่อนเสมอ — ถอยไปใช้ mock เฉพาะตอนที่ยังไม่เคยค้นอะไร
+           `historyEmptyMessage={null}` = หน้าที่ตั้งใจให้ดรอปดาวน์เงียบตอนไม่มี
+           ประวัติ (PharmacyChangeDrugPopup / FormsLibrary / XrayOrder) จึงไม่ยัด
+           mock ให้ — ถือเป็นการปิด fallback ในตัว */
+        const historySource = history.length > 0
+          ? history
+          : (historyEmptyMessage === null
+            ? []
+            : resolveSearchHistoryFallback(historyKind, placeholder));
         const historyItems = !showSuggestions
-          ? history.map(normaliseItem).filter(Boolean)
+          ? historySource.map(normaliseItem).filter(Boolean)
           : [];
         const suggestionItems = showSuggestions
           ? suggestions.map(normaliseItem).filter(Boolean)

@@ -23,6 +23,7 @@ import {
   getTbQueueRows,
 } from '@/data/tbQueue';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 
 /* TbQueuePage — คิวการรักษาคลินิกวัณโรค (TOR §1.10.4.1–.2).
    Mirrors AncQueuePage mechanics verbatim (search + filter chips +
@@ -360,7 +361,7 @@ const TbQueuePage = () => {
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
               <FilterDropdown prefix='สถานะ:' options={FILTER_OPTIONS.status} value={filters.status} onChange={setFilter('status')} />
               <FilterDropdown prefix='ประเภทผู้ป่วย:' options={FILTER_OPTIONS.patientType} value={filters.patientType} onChange={setFilter('patientType')} />
-              <FilterDropdown prefix='แพทย์:' options={FILTER_OPTIONS.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
+              <FilterDropdown prefix='แพทย์:' options={withDoctorAvatars(FILTER_OPTIONS.doctor)} value={filters.doctor} onChange={setFilter('doctor')} />
               <FilterDateTag
                 prefix='วัน:'
                 value={filters.dateValue}

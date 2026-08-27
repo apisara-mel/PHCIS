@@ -33,6 +33,7 @@ import {
   getMhNextAppointment,
 } from '@/data/mentalHealthClinic';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 
 /* MentalHealthQueuePage — คิวคลินิกสุขภาพจิต (TOR 1.10.3.1 / 1.10.3.2).
    Mechanics mirror AncQueuePage verbatim (search + filter row + sort +
@@ -536,7 +537,7 @@ const MentalHealthQueuePage = () => {
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
               <FilterDropdown prefix='เฝ้าระวัง:' options={FILTER_OPTIONS.watch} value={filters.watch} onChange={setFilter('watch')} />
-              <FilterDropdown prefix='แพทย์:' options={FILTER_OPTIONS.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
+              <FilterDropdown prefix='แพทย์:' options={withDoctorAvatars(FILTER_OPTIONS.doctor)} value={filters.doctor} onChange={setFilter('doctor')} />
               <FilterDropdown prefix='ประเภท:' options={FILTER_OPTIONS.visitType} value={filters.visitType} onChange={setFilter('visitType')} />
               <FilterDateTag
                 prefix='วัน:'

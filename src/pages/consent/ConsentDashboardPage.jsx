@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
-import FilterDateTag from '@/components/forms/FilterDateTag';
-import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import { DashboardExportButton, DashboardHeaderFilters } from '@/components/dashboard/DashboardPageHeader';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import { QUICK_OPTIONS } from '@/components/popup/DateFilterPopup';
 import {
@@ -10,8 +10,6 @@ import {
   buildConsentSummaryFromRows,
 } from '@/data/consentRecords';
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
-import Select from '@/components/forms/Select';
-import { FilterDropdown } from '@/components/forms/FilterTag';
 import { ALL_CLINICS_VALUE, useClinicFilter } from '@/components/layout/HeaderClinicContext';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import {
@@ -36,7 +34,6 @@ import { ConsentReportSections, ReportCard, reportsForDateFilter } from '@/pages
      3) การ์ดรายงาน — ใช้ chart ที่เหมาะกับชนิดข้อมูล (ไม่บังคับ pie) */
 
 /** ค่าในลิสต์ Template ที่เป็น "คำสั่ง" ไม่ใช่เทมเพลตที่เลือกได้ */
-const CREATE_TEMPLATE_VALUE = '__create__';
 
 const CARD_STYLE = {
   background: 'var(--surface-card-100)',
@@ -140,42 +137,27 @@ export default function ConsentDashboardPage() {
       breadcrumb={['แดชบอร์ด']}
       title='แดชบอร์ด'
       /* ตัวกรองวันที่อยู่ติดกับชื่อหน้า — ไม่ปนกับปุ่มคำสั่งฝั่งขวา */
+      /* หัวหน้าจอใช้ต้นแบบเดียวกับแดชบอร์ดทุกหน้า — ดูสเปกที่
+         <DashboardPageHeader> · ทะเบียนเทมเพลตของระบบนี้ส่งผ่าน
+         `templateOptions` (มติผู้ใช้ 27 ส.ค. 69) */
       afterTitle={(
-        <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-          <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thismonth' />
-          <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
-        </span>
+        <DashboardHeaderFilters
+          dateFilter={pageDate}
+          onDateFilterChange={setPageDate}
+          defaultQuick='thismonth'
+          templateValue={activeTemplate?.id}
+          templateOptions={templates.map((t) => ({ value: t.id, label: t.name, leadingIcon: 'dashboard' }))}
+          onSelectTemplate={applyTemplate}
+          onCreateTemplate={() => setTemplatePopup(true)}
+          onClearFilters={clearFilters}
+          clearActive={showClearChip}
+        />
       )}
       actions={(
         <>
-          <div style={{ width: 'var(--dim-size-2600, 384px)', minWidth: 0 }}>
-            <Select
-              label='เทมเพลตหน้าจอ'
-              prefix='Template:'
-              showFieldName={false}
-              showHelperText={false}
-              leadingIcon='dashboard'
-              /* รายการแรก = คำสั่งสร้างเทมเพลตใหม่ (ยุบปุ่มแยกเข้ามาไว้ในลิสต์
-                 เดียวกัน แบบเดียวกับแดชบอร์ด PHCIS — มติผู้ใช้ 27 ส.ค. 69) */
-              options={[
-                { value: CREATE_TEMPLATE_VALUE, label: 'สร้างเทมเพลทใหม่', icon: 'dashboard_customize' },
-                ...templates.map((t) => ({ value: t.id, label: t.name })),
-              ]}
-              value={activeTemplate?.id}
-              onChange={(next) => {
-                if (next === CREATE_TEMPLATE_VALUE) { setTemplatePopup(true); return; }
-                applyTemplate(next);
-              }}
-              searchable={false}
-            />
-          </div>
-          <NeutralSubdueButton
-            leadingIcon='ios_share'
-            size='md'
+          <DashboardExportButton
             onClick={() => setExportReport({ key: 'all', title: 'รายงานทั้งหมด' })}
-          >
-            นำส่งออกรายงาน
-          </NeutralSubdueButton>
+          />
         </>
       )}
     >

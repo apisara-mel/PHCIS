@@ -31,6 +31,7 @@ import {
   checkInAncAppointment,
 } from '@/data/ancVisits';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 
 /* AncQueuePage — คิวฝากครรภ์ (ANC queue), TOR 1.10.7.1/1.10.7.2/1.10.7.6.
    Search box + filter row + column-header sort + pagination all mirror
@@ -486,7 +487,7 @@ const AncQueuePage = () => {
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
               <FilterDropdown prefix='ความเสี่ยง:' options={FILTER_OPTIONS.risk} value={filters.risk} onChange={setFilter('risk')} />
-              <FilterDropdown prefix='แพทย์:' options={FILTER_OPTIONS.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
+              <FilterDropdown prefix='แพทย์:' options={withDoctorAvatars(FILTER_OPTIONS.doctor)} value={filters.doctor} onChange={setFilter('doctor')} />
               <FilterDropdown prefix='ประเภท:' options={FILTER_OPTIONS.visitType} value={filters.visitType} onChange={setFilter('visitType')} />
               <FilterDateTag
                 prefix='วัน:'

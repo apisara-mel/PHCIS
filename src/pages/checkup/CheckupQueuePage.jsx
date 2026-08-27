@@ -29,6 +29,7 @@ import {
 import {
   PageBody, PageCard, PagerRow, EmptyState, NoticeBar, StepTrackerRow,
 } from '@/pages/checkup/CheckupUi';
+import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 
 /* CheckupQueuePage — คิวตรวจสุขภาพ + ติดตามขั้นตอน/สิ่งส่งตรวจ.
    TOR 1.19.10 (รับบริการมากกว่า 1 ครั้งใน 1 โปรแกรม — the "ครั้งที่" column)
@@ -469,7 +470,7 @@ const CheckupQueuePage = () => {
           <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
               <FilterDropdown prefix='ชุดตรวจ:' options={filterOptions.pkg} value={filters.pkg} onChange={setFilter('pkg')} />
-              <FilterDropdown prefix='แพทย์:' options={filterOptions.doctor} value={filters.doctor} onChange={setFilter('doctor')} />
+              <FilterDropdown prefix='แพทย์:' options={withDoctorAvatars(filterOptions.doctor)} value={filters.doctor} onChange={setFilter('doctor')} />
               <FilterDropdown prefix='ครั้งที่:' options={filterOptions.round} value={filters.round} onChange={setFilter('round')} />
               <FilterDropdown prefix='สิ่งส่งตรวจ:' options={filterOptions.specimen} value={filters.specimen} onChange={setFilter('specimen')} />
               <FilterDateTag

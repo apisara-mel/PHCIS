@@ -26,7 +26,8 @@ export default function OverflowFlexRow({
   itemGap = 'var(--dim-space-200)',
   moreAriaLabel = 'แสดงตัวกรองที่ซ่อน',
   menuId: menuIdProp,
-  /** When the row lives inside a modal (z≈--sm-z-modal), portaled menu must sit above it. */
+  /** ค่าเริ่มต้นอยู่เหนือ modal อยู่แล้ว (--sm-z-modal-popover) — ส่งมาเองเมื่อ
+      ต้องการกดให้ต่ำลง เช่นเมนูที่ต้องอยู่ใต้ tooltip */
   menuZIndex,
 }) {
   const menuIdRef = useRef(menuIdProp || null);
@@ -191,7 +192,7 @@ export default function OverflowFlexRow({
             borderRadius: 'var(--dim-radius-500)',
             boxShadow: 'var(--shadow-dropdown)',
             padding: 'var(--dim-space-100)',
-            zIndex: menuZIndex ?? 'var(--sm-z-popover, 1199)',
+            zIndex: menuZIndex ?? 'var(--sm-z-modal-popover, 1450)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-start',

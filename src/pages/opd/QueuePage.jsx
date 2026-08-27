@@ -27,6 +27,7 @@ import { INITIAL_APPOINTMENTS } from '@/pages/appointment/appointmentMockData';
 import { getOpdConsentSummary } from '@/data/consentWorkflowStore';
 import { buildOpdSearchHistorySeed } from '@/data/primarySearchHistorySeeds';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 
 /* Topbar breadcrumb — ต้องตรงกับชื่อเมนู "คัดกรอง" ที่พาเข้ามาหน้านี้
    ไม่งั้น breadcrumb กับหัวข้อหน้าจะเรียกชื่อระบบเดียวกันคนละอย่าง */
@@ -1016,7 +1017,7 @@ const QueuePage = () => {
                 />
                 <FilterDropdown
                   prefix='แพทย์:'
-                  options={FILTER_OPTIONS.doctor}
+                  options={withDoctorAvatars(FILTER_OPTIONS.doctor)}
                   value={filters.doctor}
                   onChange={setFilter('doctor')}
                 />

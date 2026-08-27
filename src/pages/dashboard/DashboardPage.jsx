@@ -10,7 +10,7 @@ import SearchResultCount from '@/components/search/SearchResultCount';
 import { DonutWithLegend, HBarList, Reveal } from '@/components/graph/Charts';
 import SummaryCardsBar from '@/components/layout/SummaryCardsBar';
 import { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
-import DashboardPageHeader from '@/components/dashboard/DashboardPageHeader';
+import DashboardPageHeader, { DashboardExportButton } from '@/components/dashboard/DashboardPageHeader';
 import {
   ALL_WIDGET_KEYS,
   DASHBOARD_LAYOUTS,
@@ -535,15 +535,11 @@ const DashboardPage = () => {
   /* เลือกหมวดรายงานจาก dropdown แล้วเปิด ExportFormatPopup ตัวเดียวกับหน้าอื่น */
   const reportsExportMenu = (
           <div className='relative shrink-0' ref={reportsMenuAnchor}>
-            <NeutralSubdueButton
-              variant='outline'
-              size='sm'
-              leadingIcon='ios_share'
-              trailingIcon={reportsMenuOpen ? 'expand_less' : 'expand_more'}
+            <DashboardExportButton
+              menu
+              open={reportsMenuOpen}
               onClick={() => setReportsMenuOpen((v) => !v)}
-            >
-              นำส่งออกรายงาน
-            </NeutralSubdueButton>
+            />
             <Popover
               open={reportsMenuOpen}
               onClose={() => setReportsMenuOpen(false)}
