@@ -557,7 +557,9 @@ const QueuePage = () => {
     state: { hn: row.hn, queue: row.queue, name: row.name, statusKey: row.statusKey },
   });
 
-  const [activeTab, setActiveTab] = useState(navState?.activeTab || 'all');
+  /* เปิดหน้ามาที่ "คิววันนี้" — งานของวันนี้คือสิ่งที่ต้องทำ ส่วนรายชื่อทั้งหมด
+     เป็นมุมมองค้นย้อนหลังที่ย้ายไปท้ายแถบแท็บแล้ว */
+  const [activeTab, setActiveTab] = useState(navState?.activeTab || 'waiting');
   const [searchQ, setSearchQ] = useState('');
   const [page, setPage] = useState(1);
 
