@@ -5,6 +5,8 @@ import BrandCircleIconButton from '@/components/button/BrandCircleIconButton';
 import { Icon } from '@/components/icons/Icon';
 import { highlightMatch } from '@/components/forms/textareaSuggestions';
 import { resolveSearchHistoryFallback } from '@/data/primarySearchHistorySeeds';
+import { NEW_USER_AVATAR } from '@/data/avatarAssets';
+import PatientListItem from '@/components/patient/PatientListItem';
 
 /* PrimarySearch — Figma MIH DS Foundation 2056:4246
    56px pill search with five states: Default / Hover / Focus / Typing /
@@ -178,15 +180,24 @@ const SectionHeader = ({ title, trailing }) => (
 /* Row — Figma I2692:5995;3345:2068 (canonical "List" item) + the rich
    recent/typing dropdown rows from 3345:2981 / 3346:8231.
      min-h 48 · px 12 · py 8 · gap 8 · radius 4.
-   Leading content priority:
-     1. `item.badges` (Figma 3345:2981 — queue + HN colorful pills)
-     2. else leading icon (`item.icon` or fall-back `leadingIcon`)
-     3. else text-only row (Figma 2692:5995 default)
+   Leading content:
+     • `item.patient` — แถวผู้รับบริการ → <PatientListItem> ของ design system
+       (เลขคิว → HN → รูป → ชื่อ) ทุกที่ที่ค้นหาคนต้องหน้าตาเหมือนกัน
+       มติผู้ใช้ 27 ส.ค. 69 · เลขคิวโชว์/ซ่อนตาม context ของหน้าที่ส่งมา
+     • แถวอื่นเรียง **badge → avatar → icon → text** (มติผู้ใช้ 27 ส.ค. 69)
+       ทั้งสามช่องหน้าอยู่ร่วมกันได้ ไม่ได้แทนที่กันเหมือนของเดิม:
+         1. `item.badges` (Figma 3345:2981 — colorful pills)
+         2. `item.avatarSrc` — รูป profile 32px
+         3. icon — `item.icon` หรือ `leadingIcon` เฉพาะแถวที่ไม่มีสองอย่างแรก
+         4. text — label + sublabel (Figma 2692:5995 default)
    Trailing chevron-right fades in on row hover via `.mih-search-row__chevron`
    so the resting state stays clean. */
 const SuggestionRow = ({ item, leadingIcon, onPick, query = '' }) => {
-  const iconName = item.icon || leadingIcon;
   const hasBadges = Array.isArray(item.badges) && item.badges.length > 0;
+  /* ไอคอนสำรองของช่องค้นหาใส่ให้เฉพาะแถวที่ไม่มีทั้ง badge และรูป — แถวคนที่มี
+     ชิปคิว/HN กับรูปอยู่แล้วไม่ต้องมีไอคอนซ้ำมาเกะกะ (แถวระบุ item.icon เองได้) */
+  const iconName = item.icon
+    || ((hasBadges || item.avatarSrc) ? null : leadingIcon);
   const q = String(query || '').trim();
   return (
     <button
@@ -208,6 +219,20 @@ const SuggestionRow = ({ item, leadingIcon, onPick, query = '' }) => {
         border: 'none',
       }}
     >
+      {item.patient ? (
+        <PatientListItem
+          queue={item.patient.queue}
+          hn={item.patient.hn}
+          name={item.patient.name ?? item.label}
+          sublabel={item.patient.sublabel ?? item.sublabel}
+          avatarUrl={item.patient.avatarUrl ?? item.avatarSrc}
+          newUser={item.patient.newUser}
+          renderText={(value, key) => (
+            q ? highlightMatch(value, q, `ps-${item.id}-${key}`) : value
+          )}
+        />
+      ) : (
+      <>
       {hasBadges ? (
         <span
           className='inline-flex items-center shrink-0'
@@ -225,7 +250,27 @@ const SuggestionRow = ({ item, leadingIcon, onPick, query = '' }) => {
             </ColorfulBadge>
           ))}
         </span>
-      ) : iconName ? (
+      ) : null}
+      {item.avatarSrc ? (
+        <span
+          className='inline-flex items-center justify-center shrink-0 overflow-hidden'
+          style={{
+            width: 'var(--dim-size-600, 32px)',
+            height: 'var(--dim-size-600, 32px)',
+            borderRadius: 'var(--dim-radius-full, 9999px)',
+            background: 'var(--surface-card-100)',
+          }}
+        >
+          <img
+            src={item.avatarSrc}
+            alt=''
+            aria-hidden
+            className='w-full h-full object-cover'
+            onError={(e) => { e.currentTarget.src = NEW_USER_AVATAR; }}
+          />
+        </span>
+      ) : null}
+      {iconName ? (
         <span
           aria-hidden
           className='mih-search-row__icon inline-flex items-center justify-center shrink-0'
@@ -263,6 +308,8 @@ const SuggestionRow = ({ item, leadingIcon, onPick, query = '' }) => {
           </span>
         )}
       </span>
+      </>
+      )}
       {/* Trailing chevron-right — hover-only (CSS `.mih-search-row__chevron`).
           Per Figma 3345:2981 / 3346:8231 it points to the row being focused
           by the cursor; resting rows hide it via opacity 0. */}
@@ -280,7 +327,12 @@ const SuggestionRow = ({ item, leadingIcon, onPick, query = '' }) => {
   );
 };
 
-const DropdownPanel = ({ children }) => (
+/* แถวผลค้นหา + กล่อง dropdown — export ให้ <SecondarySearch> ใช้ชุดเดียวกัน
+   ผลค้นหาผู้รับบริการจึงหน้าตาเหมือนกันทุกที่ ไม่ว่าจะเป็นช่องค้นหาหลักของหน้า
+   หรือช่องค้นหารองในป๊อปอัป (มติผู้ใช้ 27 ส.ค. 69) */
+export { SuggestionRow as SearchSuggestionRow };
+
+export const SearchDropdownPanel = ({ children }) => (
   <div
     className='w-full flex flex-col mih-search-popover'
     style={{
@@ -295,6 +347,8 @@ const DropdownPanel = ({ children }) => (
     {children}
   </div>
 );
+
+const DropdownPanel = SearchDropdownPanel;
 
 const PrimarySearch = ({
   value,
@@ -592,6 +646,42 @@ const PrimarySearch = ({
             }}
           >
             <DropdownPanel>
+              <SearchDropdownBody
+                showSuggestions={showSuggestions}
+                suggestionsTitle={suggestionsTitle}
+                suggestionItems={suggestionItems}
+                historyTitle={historyTitle}
+                historyItems={historyItems}
+                onHistoryClear={onHistoryClear}
+                onPick={pickItem}
+                query={trimmed}
+                emptyMessage={emptyMessage}
+                historyEmptyMessage={historyEmptyMessage}
+              />
+            </DropdownPanel>
+          </div>
+        );
+      })()}
+    </div>
+  );
+};
+
+/* เนื้อใน dropdown ของช่องค้นหา — หัวข้อ "ค้นหาล่าสุด" + ปุ่มล้างประวัติ +
+   แถวผลลัพธ์ ใช้ร่วมกันระหว่าง <PrimarySearch> กับ <SecondarySearch> เพื่อให้
+   ลิสต์ผู้รับบริการหน้าตาเหมือนกันทุกที่ (มติผู้ใช้ 27 ส.ค. 69) */
+export const SearchDropdownBody = ({
+  showSuggestions,
+  suggestionsTitle,
+  suggestionItems = [],
+  historyTitle = 'ค้นหาล่าสุด',
+  historyItems = [],
+  onHistoryClear,
+  onPick,
+  query = '',
+  emptyMessage = 'ไม่พบรายการที่ตรงกับคำค้นหา',
+  historyEmptyMessage = 'ยังไม่มีประวัติการค้นหา',
+}) => (
+  <>
               {showSuggestions ? (
                 <>
                   {suggestionsTitle && <SectionHeader title={suggestionsTitle} />}
@@ -600,8 +690,8 @@ const PrimarySearch = ({
                       <SuggestionRow
                         key={item.id}
                         item={item}
-                        query={trimmed}
-                        onPick={pickItem}
+                        query={query}
+                        onPick={onPick}
                       />
                     ))
                   ) : (
@@ -647,7 +737,7 @@ const PrimarySearch = ({
                             ? undefined
                             : 'schedule'
                         }
-                        onPick={pickItem}
+                        onPick={onPick}
                       />
                     ))
                   ) : (
@@ -668,13 +758,8 @@ const PrimarySearch = ({
                   )}
                 </>
               )}
-            </DropdownPanel>
-          </div>
-        );
-      })()}
-    </div>
-  );
-};
+  </>
+);
 
 export { SuggestionRow, DropdownPanel, SectionHeader };
 export default PrimarySearch;

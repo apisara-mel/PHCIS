@@ -3,6 +3,7 @@ import { MR_PATIENTS } from '@/data/mrPatients';
 import { MEDICATION_NAME_OPTIONS } from '@/data/medicationCatalog';
 import { USERS } from '@/data/usersAccess';
 import { BMA_SERVICE_CENTERS } from '@/data/dashboardCommon';
+import { NEW_USER_AVATAR } from '@/data/avatarAssets';
 
 /* Rich recent-search rows for <PrimarySearch> — Figma PHCIS-OPD 290:48930 /
    3345:2981 (teal queue pill + indigo HN pill + name + sublabel). */
@@ -19,11 +20,19 @@ export function buildPatientSearchHistoryItem({
     label: name,
     sublabel,
     value: name,
-    badges: [
-      { label: leadingBadge, tone: 'teal' },
-      { label: hn, tone: 'indigo' },
-    ],
-    avatarSrc: getPatientByHN(hn)?.avatarUrl,
+    /* แถวผู้รับบริการ → <PatientListItem> ของ design system (เลขคิว → HN →
+       รูป → ชื่อ) · `queue` ไม่ส่ง = หน้านั้นไม่มี context เรื่องคิว แถวจะ
+       ซ่อนช่องเลขคิวให้เอง (มติผู้ใช้ 27 ส.ค. 69) */
+    patient: {
+      queue: leadingBadge,
+      hn,
+      name,
+      sublabel,
+      /* คนไข้ที่ไม่มีรูปในทะเบียนใช้ avatar กลาง ไม่ปล่อยว่าง — แถวที่มีรูปบ้าง
+         ไม่มีบ้างจะเหลื่อมกันทั้งลิสต์ */
+      avatarUrl: getPatientByHN(hn)?.avatarUrl || NEW_USER_AVATAR,
+    },
+    avatarSrc: getPatientByHN(hn)?.avatarUrl || NEW_USER_AVATAR,
   };
 }
 
@@ -69,8 +78,14 @@ const PATIENT_FALLBACK = MR_PATIENTS.slice(0, 5).map((p) => ({
   label: mrFullName(p),
   value: mrFullName(p),
   sublabel: p.nationalId ? `เลขบัตร ${p.nationalId}` : (p.phone || ''),
-  badges: [{ label: p.hn, tone: 'indigo' }],
-  avatarSrc: p.avatarUrl,
+  /* ค้นข้ามระบบ ไม่มี context เรื่องคิว — ไม่ส่ง `queue` แถวจึงขึ้นแค่ HN */
+  patient: {
+    hn: p.hn,
+    name: mrFullName(p),
+    sublabel: p.nationalId ? `เลขบัตร ${p.nationalId}` : (p.phone || ''),
+    avatarUrl: p.avatarUrl || NEW_USER_AVATAR,
+  },
+  avatarSrc: p.avatarUrl || NEW_USER_AVATAR,
 }));
 
 const DRUG_FALLBACK = MEDICATION_NAME_OPTIONS.slice(0, 5).map((m) => ({
