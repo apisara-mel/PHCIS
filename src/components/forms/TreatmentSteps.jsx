@@ -388,6 +388,18 @@ const VisitFieldTimeline = ({ visits, tabLabel }) => {
 
 /* EMR §1.4 tab → panel component (ไฟล์แยกใน src/pages/treat/panels/) */
 const HISTORY_TAB_LABRAD  = 'ผลตรวจแล็บและรังสีวิทยา';
+/* แท็บนี้อ่านเป็นไทม์ไลน์ด้วยเหมือนหมวดอื่น (มติผู้ใช้ 28 ส.ค. 69) — แผงเดิม
+   ยังใช้อยู่ในโหมด "ดูตามวันที่รับบริการ" */
+DATE_SCOPED_HISTORY_TABS.add(HISTORY_TAB_LABRAD);
+TIMELINE_FIELDS_BY_TAB[HISTORY_TAB_LABRAD] = (v) => [
+  ['ผลตรวจทางห้องปฏิบัติการ', v.labs],
+  ['ผลตรวจทางรังสีวิทยา', v.imaging],
+  ['การวินิจฉัย', v.dx],
+  ['การรักษา/ยาที่สั่ง', v.rx],
+  ['แพทย์ผู้สั่งตรวจ', v.doctor],
+  ['แผนก/คลินิก', v.dept],
+  ['การนัดติดตาม', v.followUp],
+];
 const HISTORY_TAB_VACCINE = 'วัคซีน';
 const HISTORY_TAB_GROWTH  = 'กราฟการเจริญเติบโต';
 const HISTORY_TAB_REFER   = 'ประวัติการส่งต่อ';
