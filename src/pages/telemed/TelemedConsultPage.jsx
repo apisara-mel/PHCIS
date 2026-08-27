@@ -165,6 +165,13 @@ const classifyMediaError = (err) => {
 const NO_SHOW_FIRST_MS = 60000;
 const NO_SHOW_NEXT_MS = 60000;
 
+/* สายที่กำลังคุยอยู่ต้องลอยเหนือทุกอย่างของหน้าที่เปิดค้างไว้ ไม่ว่าจะเป็นหน้าไหน:
+   ในระบบนี้มี modal 1400 · popover 1450 · tooltip 1500 · เมนู/ไซด์บาร์ 1600 และ
+   Spotlight 9999 ซึ่งทั้งหมดสูงกว่า --sm-z-overlay (1300) ที่ PiP เคยใช้ ผลคือ
+   เปิดดรอปดาวน์หรือป๊อปอัปในหน้าที่ทำงานอยู่แล้วสายจะถูกบัง. ค่านี้เป็นค่าเดียวกับ
+   ที่ป๊อปอัปของโมดูล Telemedicine ใช้อยู่แล้ว (TelemedConnectingPopup ฯลฯ) */
+const TELEMED_Z_TOP = 2147483640;
+
 const ONBRAND = 'var(--text-brandPrimary-on-brand, #FFFFFF)';
 
 /* ── Mock clinical context (would come from the PHCIS visit in production) ── */
@@ -2784,8 +2791,8 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
         mode='fixed'
         width={320}
         defaultEdge={{ right: 'var(--dim-space-500, 20px)', bottom: 'var(--dim-space-500, 20px)' }}
-        zIndex='var(--sm-z-overlay, 1300)'
-        aria-label='หน้าต่าง Telemedicine PiP'
+        zIndex={TELEMED_Z_TOP}
+        aria-label='หน้าต่าง Telemedicine PiP — ลากย้ายได้ทั้งหน้าจอ'
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -2801,10 +2808,12 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
         <div style={{ position: 'relative', width: '100%', aspectRatio: '320 / 180', borderRadius: 'var(--dim-radius-400, 12px)', overflow: 'hidden' }}>
           <VideoTile
             name={sharing ? 'หน้าจอที่คุณแชร์' : PATIENT.fullName}
-            camOn={showPatientVideo}
+            camOn={sharing ? true : showPatientVideo}
             micOn={patientMicOn}
             accent='#0EA5E9'
-            stream={sharing && screenStream ? screenStream : undefined}
+            /* ย่อหน้าต่างแล้วต้องยังเห็นภาพผู้รับบริการจริง — เดิมส่งเฉพาะภาพหน้าจอ
+               ที่แชร์ กรอบ PiP จึงกลับไปเป็นรูปแทนทุกครั้งที่ไม่ได้แชร์หน้าจอ */
+            stream={sharing && screenStream ? screenStream : (showPatientVideo ? remoteStream : undefined)}
             mirror={false}
             fit={sharing ? 'contain' : 'cover'}
             avatar='/avatars/telemed/patient.png'
@@ -3855,6 +3864,6 @@ const bannerBtnStyle = {
   fontFamily: 'inherit', fontSize: 'var(--type-size-xs, 12px)', fontWeight: 'var(--type-weight-medium, 500)', flexShrink: 0,
 };
 const overlayStyle = {
-  position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--background-overlay-default, #64748B80)',
+  position: 'fixed', inset: 0, zIndex: TELEMED_Z_TOP, background: 'var(--background-overlay-default, #64748B80)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--dim-space-400, 16px)',
 };
