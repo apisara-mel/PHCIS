@@ -58,6 +58,9 @@ import ReferralHistoryPanel from '@/pages/treat/panels/ReferralHistoryPanel';
 import { VisitJourneyStagePanel } from '@/pages/treat/panels/VisitJourneyPanel';
 import { vaccinesForPatient } from '@/data/treatmentVaccines';
 import { referralHistoryForPatient } from '@/data/treatmentRefer';
+import {
+  imagingHistoryForPatient, FILM_ASSETS, RESULT_CLASS_META,
+} from '@/data/treatmentImagingHistory';
 import VisitAttachmentsPanel from '@/pages/treat/panels/VisitAttachmentsPanel';
 import ProblemListPanel from '@/pages/treat/panels/ProblemListPanel';
 import DiagnosisCodingPanel from '@/pages/treat/panels/DiagnosisCodingPanel';
@@ -326,6 +329,35 @@ const VisitTimelineEntry = ({ entry, isLast }) => (
         )}
       </div>
 
+      {entry.films?.length ? (
+        <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+          {entry.films.map((film, i) => (
+            <figure
+              key={`${film.label}-${i}`}
+              className='flex flex-col'
+              style={{ gap: 'var(--dim-space-150)', margin: 0 }}
+            >
+              <img
+                src={film.src}
+                alt={film.label}
+                loading='lazy'
+                style={{
+                  width: 132, height: 165, objectFit: 'cover',
+                  borderRadius: 'var(--dim-radius-300)',
+                  border: 'var(--dim-stroke-100) solid var(--border-neutral-tertiary)',
+                  background: 'var(--surface-neutral-secondary, #1B2227)',
+                }}
+              />
+              <figcaption style={{
+                color: 'var(--text-content-tertiary)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs)',
+              }}>{film.label}</figcaption>
+            </figure>
+          ))}
+        </div>
+      ) : null}
+
       {entry.fields.length === 0 ? (
         <span style={{
           color: 'var(--text-content-tertiary)',
@@ -423,6 +455,37 @@ const ReferralTimeline = ({ patient }) => {
     ].filter(([, value]) => value),
   })), [rows]);
   return <RecordTimeline entries={entries} emptyText='ผู้รับบริการรายนี้ยังไม่เคยถูกส่งต่อ' />;
+};
+
+/* ผลตรวจทางรังสีวิทยาอ่านเป็นไทม์ไลน์พร้อมภาพฟิล์ม — ภาพเป็นภาพแทนแบบ stylized
+   ใน public/images/films/ ไม่ใช่ภาพรังสีจริง (ต้นแบบยังไม่มี PACS/DICOMweb) */
+const ImagingTimeline = ({ patient }) => {
+  const studies = useMemo(
+    () => imagingHistoryForPatient(patient?.hn || ''),
+    [patient?.hn],
+  );
+  const entries = useMemo(() => studies.map((st, i) => ({
+    key: st.id || `img-${i}`,
+    date: st.reportedOn,
+    subtitle: [st.center, st.reportedAt ? `อ่านผล ${st.reportedAt}` : ''].filter(Boolean).join(' · '),
+    films: (st.films || []).map((f) => ({ label: f.label, src: FILM_ASSETS[f.key] })),
+    fields: [
+      ['รายการตรวจ', st.bodyPart],
+      ['วิธีตรวจ', st.modality],
+      ['เลข XN', st.xn],
+      ['ผลการอ่าน', RESULT_CLASS_META[st.resultClass]?.label],
+      ['แพทย์ผู้สั่งตรวจ', st.orderedBy],
+      ['รังสีแพทย์ผู้อ่านผล', st.radiologist],
+      ['สิ่งที่ตรวจพบ (Findings)', st.findings],
+      ['สรุปผล (Impression)', st.impression],
+    ].filter(([, value]) => value),
+  })), [studies]);
+  return (
+    <RecordTimeline
+      entries={entries}
+      emptyText='ยังไม่มีผลตรวจทางรังสีวิทยาของผู้รับบริการรายนี้'
+    />
+  );
 };
 
 const VisitFieldTimeline = ({ visits, tabLabel }) => {
@@ -998,7 +1061,9 @@ export const MedicalHistoryReadOnlyLayout = ({
 
 
 
-        {byOrder && activeTabLabel === HISTORY_TAB_VACCINE ? (
+        {byOrder && activeTabLabel === HISTORY_TAB_XRAY ? (
+          <ImagingTimeline patient={patient} />
+        ) : byOrder && activeTabLabel === HISTORY_TAB_VACCINE ? (
           <VaccineDoseTimeline patient={patient} />
         ) : byOrder && activeTabLabel === HISTORY_TAB_REFER ? (
           <ReferralTimeline patient={patient} />

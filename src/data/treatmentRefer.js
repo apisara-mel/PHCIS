@@ -250,6 +250,39 @@ export const blankReferral = (patient = {}) => ({
 });
 
 const REFERRALS = [
+  /* ใบส่งต่อของผู้รับบริการตัวอย่างหลัก (67-00007) — ป๊อปอัปประวัติการรักษา
+     ต้องมีข้อมูลให้อ่านทุกแท็บ (มติผู้ใช้ 28 ส.ค. 69) */
+  {
+    ...blankReferral(),
+    id: 'ref-seed-7a', direction: 'out', referNo: 'RF-2569-00033', cardNo: 'BKK-8-6900033',
+    hn: '67-00007', cid: '3-1005-01239-87-6', name: 'นางมาลี อ่อนน้อม',
+    lastVisitDate: '18 กุมภาพันธ์ 2569', billingCenter: 'center-8', fromCenter: 'center-8',
+    toFacility: 'bmr-klang',
+    patientPhone: '089-115-2244', rights: 'ประกันสังคม', rightsExpired: false,
+    history: 'ปวดเข่าสองข้างเรื้อรังมา 1 ปี รักษาด้วยยาแก้ปวดและกายภาพบำบัดที่ศูนย์บริการต่อเนื่อง',
+    symptom: 'ปวดเข่าทั้งสองข้างมากขึ้น เดินขึ้นลงบันไดลำบาก มีเสียงกรอบแกรบในข้อ',
+    labResult: 'ESR 28 mm/hr · Uric acid 5.2 mg/dL (ปกติ) · X-ray เข่า — ช่องข้อแคบเล็กน้อยทั้งสองข้าง',
+    treatmentGiven: 'Diclofenac 25 mg วันละ 2 ครั้งหลังอาหาร · แนะนำลดน้ำหนักและเลี่ยงนั่งยอง',
+    requirement: 'ขอส่งต่อพบแพทย์ออร์โธปิดิกส์เพื่อประเมินการรักษาเฉพาะทางและพิจารณาฉีดยาเข้าข้อ',
+    communicableNotify: 'none', note: '',
+    validUntil: '18 มีนาคม 2569', sender: 'นพ.สมชาย ใจดี', sentDate: '18 กุมภาพันธ์ 2569',
+    status: 'sent', printCount: 1, createdAt: '18 ก.พ. 2569 · 11:52',
+  },
+  {
+    ...blankReferral(),
+    id: 'ref-seed-7b', direction: 'internal', referNo: 'RF-2568-00276', cardNo: '',
+    hn: '67-00007', cid: '3-1005-01239-87-6', name: 'นางมาลี อ่อนน้อม',
+    lastVisitDate: '22 พฤศจิกายน 2568', billingCenter: 'center-4', fromCenter: 'center-4',
+    patientPhone: '089-115-2244', rights: 'ประกันสังคม', rightsExpired: false,
+    history: 'เจ็บคอ กลืนลำบาก ไข้สูง 3 วัน ตรวจพบ Rapid strep test ผลบวก',
+    symptom: 'ต่อมทอนซิลบวมแดงทั้งสองข้าง มีจุดหนอง ต่อมน้ำเหลืองที่คอโต',
+    labResult: 'Rapid strep test — บวก',
+    treatmentGiven: 'Amoxicillin 500 mg ทุก 8 ชม. 10 วัน · Paracetamol ตามอาการ',
+    requirement: 'ส่งต่อคลินิกทันตกรรมเพื่อตรวจสุขภาพช่องปากหลังการติดเชื้อหาย',
+    communicableNotify: 'none', note: 'ส่งต่อภายในหน่วยงาน — ไม่ต้องออกใบส่งตัวข้ามหน่วยบริการ',
+    validUntil: '22 ธันวาคม 2568', sender: 'พญ.วิภา สุขศรี', sentDate: '22 พฤศจิกายน 2568',
+    status: 'sent', printCount: 0, createdAt: '22 พ.ย. 2568 · 10:18',
+  },
   {
     ...blankReferral(),
     id: 'ref-seed-1', direction: 'out', referNo: 'RF-2569-00021', cardNo: 'BKK-4-6900021',
