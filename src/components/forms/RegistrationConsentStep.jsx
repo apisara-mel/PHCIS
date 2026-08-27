@@ -4,6 +4,7 @@ import { SectionTitle } from '@/components/forms/Fields';
 import { FormCard } from '@/components/forms/FormsLibrary';
 import ConsentFormFillPopup from '@/components/popup/ConsentFormFillPopup';
 import ConsentQrSendPopup from '@/components/popup/ConsentQrSendPopup';
+import SuccessPopup from '@/components/popup/SuccessPopup';
 import { REGISTRATION_CONSENT_FORMS, getConsentSummary } from '@/data/registrationForm';
 import { consentTypeFromMrForm, recordMrConsentSigning } from '@/data/consentWorkflowStore';
 import { DEFAULT_SERVICE_CENTER_CHANNEL, MOBILE_APP_CHANNEL } from '@/data/consentChannels';
@@ -37,6 +38,8 @@ const RegistrationConsentStep = ({ form, setForm, patient }) => {
   const [chooserSlug, setChooserSlug] = useState(null);
   const [fillSlug, setFillSlug] = useState(null);
   const [qrSlug, setQrSlug] = useState(null);
+  /* ป๊อปอัปสำเร็จหลังลงนาม — ไม่ใช้ toast (มติผู้ใช้ 27 ส.ค. 69) */
+  const [signedForm, setSignedForm] = useState(null);
 
   const records = form.consentRecords || [];
   const summary = getConsentSummary(records);
@@ -180,14 +183,33 @@ const RegistrationConsentStep = ({ form, setForm, patient }) => {
         form={findCatalogForm(fillSlug)}
         patient={patient}
         onClose={() => setFillSlug(null)}
-        onConfirm={(payload) => { markSigned({ ...payload, channel: DEFAULT_SERVICE_CENTER_CHANNEL }); setFillSlug(null); }}
+        onConfirm={(payload) => {
+          markSigned({ ...payload, channel: DEFAULT_SERVICE_CENTER_CHANNEL });
+          setSignedForm({ form: findCatalogForm(fillSlug), channel: 'counter' });
+          setFillSlug(null);
+        }}
       />
 
       <ConsentQrSendPopup
         open={Boolean(qrSlug)}
         form={findCatalogForm(qrSlug)}
         onClose={() => setQrSlug(null)}
-        onSubmitted={(payload) => { markSigned({ ...payload, channel: MOBILE_APP_CHANNEL }); setQrSlug(null); }}
+        onSubmitted={(payload) => {
+          markSigned({ ...payload, channel: MOBILE_APP_CHANNEL });
+          setSignedForm({ form: findCatalogForm(qrSlug), channel: 'mobile' });
+          setQrSlug(null);
+        }}
+      />
+
+      {/* ลงนามสำเร็จ — ป๊อปอัป ไม่ใช่ toast */}
+      <SuccessPopup
+        open={Boolean(signedForm)}
+        onClose={() => setSignedForm(null)}
+        buttonLabel='เรียบร้อย'
+        title={`ลงนาม “${signedForm?.form?.name || signedForm?.form?.title || 'แบบฟอร์มยินยอม'}” สำเร็จ`}
+        description={signedForm?.channel === 'mobile'
+          ? 'ผู้รับบริการลงนามผ่านมือถือแล้ว — บันทึกเข้าทะเบียนความยินยอมเรียบร้อย'
+          : 'บันทึกเข้าทะเบียนความยินยอมเรียบร้อยแล้ว'}
       />
     </div>
   );

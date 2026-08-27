@@ -17,6 +17,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import AlertDialog from '@/components/popup/AlertDialog';
 import PhcisTopToast from '@/components/alert/PhcisTopToast';
+import SuccessPopup from '@/components/popup/SuccessPopup';
 import SuccessToast from '@/components/toast/SuccessToast';
 import PersonalDataConsentEditPopup from '@/components/forms/PersonalDataConsentEditPopup';
 import ConsentIdentityVerifyPopup from '@/components/popup/ConsentIdentityVerifyPopup';
@@ -193,6 +194,9 @@ export default function ConsentManagementPage() {
   /* Identity gate — { next: 'revoke'|'paper'|'edit', record } */
   const [verifyFor, setVerifyFor] = useState(null);
   const [toast, setToast] = useState(null);
+  /* ผลการลงนามในป๊อปอัปกรอกแบบฟอร์ม — ขึ้นเป็นป๊อปอัปสำเร็จ ไม่ใช่ toast
+     (มติผู้ใช้ 27 ส.ค. 69) toast ยังใช้กับคำสั่งอื่นที่ไม่ใช่การลงนาม */
+  const [signedResult, setSignedResult] = useState(null);
   const [exportReport, setExportReport] = useState(null);
   const [exportDone, setExportDone] = useState(false);
   const { history: searchHistory, push: pushHistory, clear: clearHistory } =
@@ -655,9 +659,7 @@ export default function ConsentManagementPage() {
   const handleConsentFilled = ({ meta, outcome, name: signedName }) => {
     /* ไม่ปิด popup — ผู้รับบริการคนเดียวกันอาจมีใบอื่นให้ทำต่อ (popup เด้งกลับ
        ไปรายการใบเอง) ปิดเมื่อผู้ใช้กด ปิด/✕ เท่านั้น */
-    pushToast(outcome === 'declined'
-      ? `บันทึกการไม่ยินยอม ${meta?.title || ''} ของ ${signedName || ''} แล้ว`
-      : `บันทึกความยินยอม ${meta?.title || ''} ของ ${signedName || ''} แล้ว`);
+    setSignedResult({ title: meta?.title || 'แบบฟอร์มความยินยอม', name: signedName || '', outcome });
   };
 
   /* เพิกถอนระดับคน — เปิด popup แฟ้มรวมทุกฉบับให้เลือกใบที่จะเพิกถอนเสมอ
@@ -1380,6 +1382,19 @@ export default function ConsentManagementPage() {
           setEditFor(null);
           if (rec) pushToast(`บันทึกการแก้ไขความยินยอมรายข้อของ ${rec.name} แล้ว — เก็บ audit trail ครบ`);
         }}
+      />
+
+      {/* ลงนาม/ปฏิเสธในป๊อปอัปกรอกแบบฟอร์มสำเร็จ */}
+      <SuccessPopup
+        open={Boolean(signedResult)}
+        onClose={() => setSignedResult(null)}
+        buttonLabel='เรียบร้อย'
+        title={signedResult?.outcome === 'declined'
+          ? `บันทึกการไม่ยินยอม “${signedResult?.title}” สำเร็จ`
+          : `บันทึกความยินยอม “${signedResult?.title}” สำเร็จ`}
+        description={signedResult?.name
+          ? `ผู้รับบริการ ${signedResult.name} — เลือกแบบฟอร์มใบถัดไปได้จากรายการที่เปิดค้างอยู่`
+          : undefined}
       />
 
       <PhcisTopToast session={toast} onDismiss={() => setToast(null)} />

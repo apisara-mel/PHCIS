@@ -6,6 +6,7 @@ import {
 } from '@/components/forms/Fields';
 import InputField from '@/components/forms/InputField';
 import DatePicker from '@/components/forms/DatePicker';
+import TimePicker from '@/components/forms/TimePicker';
 import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Checkbox from '@/components/checkbox/Checkbox';
@@ -18,6 +19,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import PendingConsentFormCard from '@/components/consent/PendingConsentFormCard';
 import ConsentDisclosureFillPopup from '@/components/consent/ConsentDisclosureFillPopup';
 import ConsentFormPrintConfirmDialog from '@/components/consent/ConsentFormPrintConfirmDialog';
+import SuccessPopup from '@/components/popup/SuccessPopup';
 import Alert from '@/components/alert/Alert';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import { REGISTRATION_PENDING_CONSENT_CARDS } from '@/data/registrationConsentForms';
@@ -41,8 +43,6 @@ import {
   ID_CARD_CHIP_PHOTO_MOCK,
   MOBILITY_OTHER_SUGGESTIONS,
   buildMockRightsGroups,
-  HN_GROUPS,
-  buildHnPreview,
   hasThaiCharacters,
   getBirthYearError,
   ageToBirthYearBE,
@@ -152,25 +152,22 @@ const PatientStatusSection = ({
   onLifeStatusChange,
   deceasedDate,
   onDeceasedDateChange,
-  /* TOR 1.1.1.20 — กลุ่มการออกเลข HN (3 กลุ่ม) + HN preview. */
-  hnGroup,
-  onHnGroupChange,
-  hnPreview,
 }) => {
   const setStatus = onPatientStatusChange || (() => {});
   const hnLabel = hn || '—';
   const showLifeStatus = typeof onLifeStatusChange === 'function';
-  const showHnGroup = typeof onHnGroupChange === 'function';
   return (
     <div
       className='w-full flex flex-col'
+      /* พื้นหลังคนละสีกับเนื้อหา "ข้อมูลส่วนตัว" — FormShell ครอบทั้ง step ด้วย
+         การ์ดขาวอยู่แล้ว การ์ดขาวซ้อนขาวจึงอ่านเป็นพื้นเดียวกัน (มติผู้ใช้
+         27 ส.ค. 69) ใช้พื้นแบรนด์อ่อน + เส้นขอบแบรนด์ และไม่ต้องมีเงาซ้อนอีกชั้น */
       style={{
         gap: 'var(--dim-space-300)',
         padding: 'var(--dim-space-600)',
         borderRadius: 'var(--dim-radius-400)',
-        background: 'var(--surface-card-100)',
-        border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
-        boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+        background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+        border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
       }}
     >
       <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-600)' }}>
@@ -235,7 +232,7 @@ const PatientStatusSection = ({
           className='flex flex-col w-full'
           style={{
             gap: 'var(--dim-space-300)',
-            borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
+            borderTop: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
             paddingTop: 'var(--dim-space-300)',
           }}
         >
@@ -280,63 +277,9 @@ const PatientStatusSection = ({
               </Field>
             </FieldGrid>
           )}
-          {lifeStatus === 'deceased' && (
-            <Alert
-              type='warning'
-              title='ทะเบียนนี้ถูกระบุสถานะ "เสียชีวิต"'
-              subtext='แถวของผู้รับบริการรายนี้จะไม่สามารถเรียกคิว พักคิว หรือเปิด Visit (ส่งตรวจ) ได้ · การเปลี่ยนสถานะถูกบันทึกลงประวัติการแก้ไขข้อมูล'
-              showCloseButton={false}
-              showBadge={false}
-              showIndicator={false}
-              style={{ width: '100%' }}
-            />
-          )}
         </div>
       )}
 
-      {/* TOR 1.1.1.20 — กลุ่มการออกเลข HN (3 กลุ่ม) + HN preview */}
-      {showHnGroup && (
-        <div
-          className='flex flex-col w-full'
-          style={{
-            gap: 'var(--dim-space-300)',
-            borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
-            paddingTop: 'var(--dim-space-300)',
-          }}
-        >
-          <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-            <PatientStatusSubTitle>กลุ่มการออกเลข HN</PatientStatusSubTitle>
-            <div className='flex-1' />
-            {hnPreview && (
-              <ColorfulBadge style='indigo' size='small' hierarchy='secondary'>
-                HN ที่จะได้รับ: {hnPreview}
-              </ColorfulBadge>
-            )}
-          </div>
-          <div
-            role='radiogroup'
-            aria-label='กลุ่มการออกเลข HN'
-            className='flex items-stretch flex-wrap'
-            style={{ gap: 'var(--dim-space-300)' }}
-          >
-            {HN_GROUPS.map((g) => (
-              <RadioButton
-                key={g.key}
-                name='patient-hn-group'
-                value={g.key}
-                checked={(hnGroup || 'thai-cid') === g.key}
-                onChange={onHnGroupChange}
-                title={g.label}
-                description={g.hint}
-                showCircleIcon={false}
-                showIcon={false}
-                showBadge={false}
-                showBadgeTitle={false}
-              />
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -359,6 +302,9 @@ export const StepConsent = ({ form, setForm, patient }) => {
   const [fillFormId, setFillFormId] = useState(null);
   /* การ์ดใบที่กำลังจะพิมพ์ — ยืนยันก่อนสั่งพิมพ์ (ปุ่มไอคอนกดพลาดง่าย) */
   const [printForm, setPrintForm] = useState(null);
+  /* ป๊อปอัปสำเร็จหลังลงนาม — ทุกการบันทึกใน popup ต้องยืนยันด้วยป๊อปอัป
+     ไม่ใช่ toast (มติผู้ใช้ 27 ส.ค. 69) */
+  const [signedForm, setSignedForm] = useState(null);
 
   const draftFullName = [form?.prefixTh, form?.firstNameTh, form?.lastNameTh]
     .map((p) => String(p || '').trim()).filter(Boolean).join(' ');
@@ -374,6 +320,7 @@ export const StepConsent = ({ form, setForm, patient }) => {
       return prev.includes(formId) ? s : { ...s, consentCompletedIds: [...prev, formId] };
     });
     setFillFormId(null);
+    setSignedForm(REGISTRATION_PENDING_CONSENT_CARDS.find((f) => f.id === formId) || { id: formId });
   };
 
   return (
@@ -432,6 +379,17 @@ export const StepConsent = ({ form, setForm, patient }) => {
         }}
         onClose={() => setFillFormId(null)}
         onSaved={({ formId }) => markCompleted(formId)}
+      />
+
+      {/* ลงนามสำเร็จ — ป๊อปอัป ไม่ใช่ toast */}
+      <SuccessPopup
+        open={Boolean(signedForm)}
+        onClose={() => setSignedForm(null)}
+        buttonLabel='เรียบร้อย'
+        title={`ลงนาม “${signedForm?.title || 'แบบฟอร์มยินยอม'}” สำเร็จ`}
+        description={pendingCount === 0
+          ? 'ครบทุกแบบฟอร์มแล้ว — ไปขั้นตอนถัดไปเพื่อกรอกข้อมูลส่วนตัวได้'
+          : `เหลืออีก ${pendingCount} แบบฟอร์มที่ยังไม่ขอความยินยอม`}
       />
     </>
   );
@@ -756,25 +714,9 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
     });
   };
 
-  /* ── TOR 1.1.1.20 — สลับกลุ่ม HN หลังกรอกแล้วต้อง confirm ก่อนล้าง field ── */
-  const [hnGroupSwitchTarget, setHnGroupSwitchTarget] = useState(null);
-  const applyHnGroup = (nextGroup) => {
-    setForm((s) => ({
-      ...s,
-      hnGroup: nextGroup,
-      /* Clear only the fields that no longer apply to the new group. */
-      ...(nextGroup === 'thai-cid' ? { passportNo: '' } : {}),
-      ...(nextGroup === 'foreign-doc' ? { nationalId: '', idIssueDate: '', idExpiryDate: '' } : {}),
-      ...(nextGroup === 'no-doc' ? { nationalId: '', idIssueDate: '', idExpiryDate: '', passportNo: '' } : {}),
-    }));
-  };
-  const handleHnGroupChange = (nextGroup) => {
-    if ((form.hnGroup || 'thai-cid') === nextGroup) return;
-    const hasTyped = [form.nationalId, form.passportNo, form.idIssueDate, form.idExpiryDate]
-      .some((v) => String(v ?? '').trim() !== '');
-    if (hasTyped) setHnGroupSwitchTarget(nextGroup);
-    else applyHnGroup(nextGroup);
-  };
+  /* กลุ่มการออกเลข HN ยังอยู่ในข้อมูล (`form.hnGroup`) และยังคุมช่อง Passport /
+     เลขบัตรประชาชนอยู่ — แต่ตัวเลือกบนหน้าจอถูกถอดออกตามคำสั่ง 27 ส.ค. 69
+     จึงไม่มีการสลับกลุ่มระหว่างกรอก และไม่ต้องมี dialog ยืนยันล้าง field */
   const isForeignDoc = form.hnGroup === 'foreign-doc';
   const isNoDoc = form.hnGroup === 'no-doc';
   const enFirstNameError = isForeignDoc && hasThaiCharacters(form.firstNameEn)
@@ -845,9 +787,6 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
         onLifeStatusChange={handleLifeStatusChange}
         deceasedDate={form.deceasedDate}
         onDeceasedDateChange={(v) => setForm((s) => ({ ...s, deceasedDate: v }))}
-        hnGroup={form.hnGroup || 'thai-cid'}
-        onHnGroupChange={handleHnGroupChange}
-        hnPreview={hn ? '' : buildHnPreview(form)}
       />
 
       <div className='flex w-full' style={{ gap: 'var(--dim-space-1200)' }}>
@@ -998,7 +937,10 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
             </Field>
           </FieldGrid>
 
-          {/* TOR 1.1.1.11 — ไม่ทราบวันเกิด: DatePicker ↔ ปีเกิด (พ.ศ.) / กรอกอายุแทน */}
+          {/* TOR 1.1.1.11 — ไม่ทราบวันเกิด: DatePicker ↔ ปีเกิด (พ.ศ.) / กรอกอายุแทน
+              ช่องวันเกิดกับ checkbox เป็นคู่เดียวกัน จึงชิดกันกว่าระยะห่างระหว่าง
+              แถวฟิลด์ปกติ (มติผู้ใช้ 27 ส.ค. 69) */}
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
           {form.dobUnknown ? (
             <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
               <Field label='ปีเกิด (พ.ศ.)' required>
@@ -1063,6 +1005,7 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
             className='shrink-0'
             style={{ width: 'fit-content', alignSelf: 'flex-start' }}
           />
+          </div>
 
           {form.dobUnknown && (
             <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
@@ -1087,10 +1030,15 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
               />
             </Field>
             <Field label='เวลาเกิด'>
-              <InputField
+              {/* คลิกแล้วเลือกชั่วโมง/นาทีจากคอลัมน์ — ตัวเดียวกับหน้าจัดการระบบ
+                  (มติผู้ใช้ 27 ส.ค. 69) ค่าที่เก็บเป็นรูปแบบ HH:MM */}
+              <TimePicker
+                size='lg'
                 value={form.birthTime}
                 onChange={set('birthTime')}
-                placeholder='เช่น 07:45 น.'
+                placeholder='--:--'
+                showLabel={false}
+                showHelperText={false}
               />
             </Field>
             <Field label='สถานที่เกิด'>
@@ -1233,22 +1181,6 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
         confirmLabel='ถ่ายรูปใหม่'
       />
 
-      {/* TOR 1.1.1.20 — สลับกลุ่ม HN หลังกรอกข้อมูลแล้ว: ยืนยันก่อนล้าง field */}
-      <AlertDialog
-        open={!!hnGroupSwitchTarget}
-        onClose={() => setHnGroupSwitchTarget(null)}
-        onCancel={() => setHnGroupSwitchTarget(null)}
-        onConfirm={() => {
-          applyHnGroup(hnGroupSwitchTarget);
-          setHnGroupSwitchTarget(null);
-        }}
-        type='warning'
-        alignment='center'
-        title='เปลี่ยนกลุ่มการออกเลข HN ?'
-        description='ข้อมูลเอกสารที่ไม่เกี่ยวข้องกับกลุ่มใหม่ (เลขบัตรประชาชน / Passport / วันออก-หมดอายุบัตร) จะถูกล้างออกจากฟอร์ม'
-        cancelLabel='ยกเลิก'
-        confirmLabel='เปลี่ยนกลุ่ม'
-      />
     </div>
   );
 };

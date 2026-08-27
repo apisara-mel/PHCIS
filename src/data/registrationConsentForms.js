@@ -8,6 +8,11 @@ export const consentFormCoverUrl = (index = 0) => {
   return `/illustration/consent/form-cover-${n}.png`;
 };
 
+/* ใบยินยอมทั้ง 3 ใบของขั้นลงทะเบียนลงนามโดยผู้รับบริการฝ่ายเดียว — ไม่มีช่อง
+   "แพทย์ผู้รักษา" (มติผู้ใช้ 27 ส.ค. 69). ต้องระบุไว้ชัด เพราะค่าเริ่มต้นของ
+   ระบบคือ DEFAULT_SIGNATURE_KEYS = ['patient', 'doctor'] */
+const patientOnlySignatures = ['patient'];
+
 const sharedPatientFields = [
   { key: 'fullName', label: 'ชื่อตามบัตรประชาชน', required: true, placeholder: 'เช่น นายสมชาย ใจดี' },
   { key: 'nationalId', label: 'เลขบัตรประชาชน', required: true, placeholder: 'X-XXX-XXXXX-XX-X' },
@@ -26,6 +31,7 @@ export const REGISTRATION_CONSENT_FORMS = {
     cardCategoryStyle: 'blue',
     cardVersion: '1.0',
     patientFields: sharedPatientFields,
+    signatures: patientOnlySignatures,
     intro:
       'ข้าพเจ้าได้รับคำอธิบายจากเจ้าหน้าที่ของสถานพยาบาล ให้ทราบถึงวัตถุประสงค์ในการเก็บรวบรวม ใช้ และเปิดเผยข้อมูลส่วนบุคคล เพื่อการขึ้นทะเบียนผู้รับบริการ และการให้บริการทางการแพทย์และสาธารณสุข ทั้งในรูปแบบเอกสารและอิเล็กทรอนิกส์',
     signatureNote: 'หมายเหตุ เอกสารมีอายุ 365 วัน นับจากวันที่ลงนาม',
@@ -91,6 +97,7 @@ export const REGISTRATION_CONSENT_FORMS = {
     cardCategoryStyle: 'teal',
     cardVersion: '1.0',
     patientFields: sharedPatientFields,
+    signatures: patientOnlySignatures,
     intro:
       'ข้าพเจ้าได้รับคำอธิบายถึงความจำเป็นในการเปิดเผยและแลกเปลี่ยนข้อมูลการรักษา เพื่อความต่อเนื่องของการดูแลรักษา ความปลอดภัยของผู้รับบริการ และการประสานงานระหว่างทีมสหวิชาชีพและหน่วยบริการที่เกี่ยวข้อง',
     signatureNote: 'หมายเหตุ เอกสารมีอายุ 365 วัน นับจากวันที่ลงนาม',
@@ -156,6 +163,7 @@ export const REGISTRATION_CONSENT_FORMS = {
     cardCategoryStyle: 'magenta',
     cardVersion: '1.0',
     patientFields: sharedPatientFields,
+    signatures: patientOnlySignatures,
     intro:
       'ข้าพเจ้าได้รับคำอธิบายถึงความจำเป็นในการเปิดเผยข้อมูลส่วนบุคคลและข้อมูลการรักษาที่จำเป็น เพื่อใช้ในการตรวจสอบสิทธิ์ พิจารณาอนุมัติ และเบิกจ่ายค่ารักษาพยาบาลตามสิทธิ์ที่ข้าพเจ้าใช้',
     signatureNote: 'หมายเหตุ เอกสารมีอายุ 365 วัน นับจากวันที่ลงนาม',

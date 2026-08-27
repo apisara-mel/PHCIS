@@ -34,6 +34,7 @@ import { downloadConsentFormPdf } from '@/data/consentFormDownload';
 import { matchesDateFilter } from '@/data/financePaymentPrototype';
 import { VersionHistoryPopup, bumpVersion } from '@/pages/consent/consentVersionHistory';
 import { ConsentFormEditPopup } from '@/pages/consent/CreateConsentFormPage';
+import SuccessPopup from '@/components/popup/SuccessPopup';
 import { ConsentFormViewPopup } from '@/pages/consent/ConsentFormViewPopup';
 import FormAccessViewPopup from '@/components/consent/FormAccessViewPopup';
 import { CONSENT_POSITION_OPTIONS, consentPositionLabel, resolveRecordPositions } from '@/data/consentFormScopes';
@@ -206,6 +207,11 @@ export default function ConsentFormsPage() {
   const [versionFor, setVersionFor] = useState(null);   // record → VersionHistoryPopup
   const [bumpFor, setBumpFor] = useState(null);         // published record → บังคับ bump
   const [editFor, setEditFor] = useState(null);         // { record, newVersion } → ConsentFormEditPopup
+  /* "สร้างแบบฟอร์มใหม่" เปิด wizard เดียวกันเป็น popup — ไม่พาออกจากทะเบียน
+     (มติผู้ใช้ 27 ส.ค. 69) */
+  const [createOpen, setCreateOpen] = useState(false);
+  /* ผลบันทึก/เผยแพร่ → ป๊อปอัปสำเร็จ ไม่ใช่ toast */
+  const [publishedForm, setPublishedForm] = useState(null);
   const [viewFor, setViewFor] = useState(null);         // record → ConsentFormViewPopup
   const [accessViewFor, setAccessViewFor] = useState(null);
   const [statusOverrides, setStatusOverrides] = useState({});
@@ -556,7 +562,7 @@ export default function ConsentFormsPage() {
       breadcrumb={breadcrumb}
       title='แบบฟอร์มความยินยอม'
       actions={(
-        <BrandButton variant='fill' size='md' leadingIcon='add' onClick={() => navigate.push('/consent/forms/new')}>
+        <BrandButton variant='fill' size='md' leadingIcon='add' onClick={() => setCreateOpen(true)}>
           สร้างแบบฟอร์มใหม่
         </BrandButton>
       )}
@@ -711,15 +717,37 @@ export default function ConsentFormsPage() {
       record={editFor?.record || null}
       newVersion={!!editFor?.newVersion}
       onClose={() => setEditFor(null)}
-      onPublished={({ code, version: ver, newVersion }) => {
-        setToast({
-          id: Date.now(),
-          variant: 'success',
-          message: newVersion
-            ? `เผยแพร่ ${code} เวอร์ชัน ${ver} แล้ว`
-            : `บันทึกการแก้ไข ${code} แล้ว (เวอร์ชัน ${ver})`,
-        });
+      onPublished={({ name: formName, code, version: ver, newVersion }) => {
+        setPublishedForm({ mode: newVersion ? 'version' : 'edit', name: formName, code, version: ver });
       }}
+    />
+
+    {/* สร้างแบบฟอร์มใหม่ — wizard ชุดเดียวกันในโหมดฟอร์มเปล่า */}
+    <ConsentFormEditPopup
+      key={createOpen ? 'create-open' : 'create-closed'}
+      createNew
+      open={createOpen}
+      record={null}
+      onClose={() => setCreateOpen(false)}
+      onPublished={({ name: formName, code, version: ver }) => {
+        setPublishedForm({ mode: 'create', name: formName, code, version: ver });
+        setDraftRev((v) => v + 1);
+      }}
+    />
+
+    {/* เผยแพร่/บันทึกสำเร็จ */}
+    <SuccessPopup
+      open={Boolean(publishedForm)}
+      onClose={() => setPublishedForm(null)}
+      buttonLabel='เรียบร้อย'
+      title={publishedForm?.mode === 'create'
+        ? `สร้างแบบฟอร์ม “${publishedForm?.name}” สำเร็จ`
+        : publishedForm?.mode === 'version'
+          ? `เผยแพร่ ${publishedForm?.code} เวอร์ชัน ${publishedForm?.version} สำเร็จ`
+          : `บันทึกการแก้ไข ${publishedForm?.code} สำเร็จ`}
+      description={publishedForm
+        ? `${publishedForm.code} · เวอร์ชัน ${publishedForm.version} — ดูได้จากทะเบียนแบบฟอร์มความยินยอม`
+        : undefined}
     />
 
     {/* แก้ไขเทมเพลตที่เผยแพร่แล้ว → บังคับ bump เวอร์ชัน (ห้ามแก้ทับ) */}

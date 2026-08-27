@@ -16,6 +16,7 @@ import Icon from '@/components/icons/Icon';
 import Popup from '@/components/popup/Popup';
 import AlertDialog from '@/components/popup/AlertDialog';
 import ConsentFormFillPopup from '@/components/popup/ConsentFormFillPopup';
+import SuccessPopup from '@/components/popup/SuccessPopup';
 import ConsentSignedFormViewPopup from '@/pages/consent/ConsentSignedFormViewPopup';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Select from '@/components/forms/Select';
@@ -788,15 +789,14 @@ const TelemedConsentPage = () => {
         </div>
       </Popup>
 
-      <AlertDialog
+      {/* ผลสำเร็จของทุกคำสั่ง (ลงนาม / ปฏิเสธ / เพิกถอน / ส่งคำขอ) แสดงเป็น
+          ป๊อปอัปสำเร็จตัวเดียวกับทั้งระบบ ไม่ใช่ toast (มติผู้ใช้ 27 ส.ค. 69) */}
+      <SuccessPopup
         open={Boolean(toast)}
-        type='success'
+        onClose={() => setToast(null)}
+        buttonLabel='ตกลง'
         title='ดำเนินการแล้ว'
         description={toast || ''}
-        showCancel={false}
-        confirmLabel='ตกลง'
-        onConfirm={() => setToast(null)}
-        onClose={() => setToast(null)}
       />
     </QueuePageShell>
   );

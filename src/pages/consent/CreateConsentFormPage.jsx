@@ -2461,7 +2461,10 @@ export function StepReview({
 }
 
 /* ── Edit / new-version wizard as Popup (แบบฟอร์มความยินยอม → แก้ไข) ── */
-export function ConsentFormEditPopup({ open, record, newVersion = false, onClose, onPublished }) {
+/* `createNew` = เปิด wizard เดียวกันในโหมด "สร้างแบบฟอร์มใหม่" (ไม่มี record
+   ตั้งต้น) — ปุ่ม "สร้างแบบฟอร์มใหม่" ในทะเบียนแบบฟอร์มเปิดเป็น popup แทนการ
+   พาออกไปหน้า /consent/forms/new (มติผู้ใช้ 27 ส.ค. 69) */
+export function ConsentFormEditPopup({ open, record, newVersion = false, createNew = false, onClose, onPublished }) {
   const prefill = useMemo(
     () => (record ? buildWizardPrefillFromRecord(record, { newVersion }) : null),
     [record, newVersion],
@@ -2493,6 +2496,22 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
   const [requireGuardian, setRequireGuardian] = useState(false);
   const [allowESign] = useState(false);
   const [baselineSnapshot, setBaselineSnapshot] = useState(null);
+
+  /* โหมดสร้างใหม่: ไม่มี prefill — ล้างทุกช่องให้เป็นฟอร์มเปล่าทุกครั้งที่เปิด */
+  useEffect(() => {
+    if (!open || !createNew) return;
+    setStep(0);
+    setConfirmCancel(false); setConfirmPublish(false); setConfirmSave(false);
+    setPublishVersion('');
+    setTemplate('blank'); setCover('official');
+    setName(''); setCode(''); setType('data'); setVersion(''); setTtl('30');
+    setAccessScopes([]); setPosition([]);
+    setDocTitle(''); setPatientFields([...DEFAULT_PATIENT_FIELD_KEYS]);
+    setSections([makeSection(), makeSection()]);
+    setSignatures([...DEFAULT_SIGNATURE_KEYS]);
+    setNote(''); setIntro(''); setRequireGuardian(false);
+    setBaselineSnapshot(null);
+  }, [open, createNew]);
 
   /* Reset + prefill whenever popup opens for a record */
   useEffect(() => {
@@ -2628,6 +2647,7 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
 
   const goNext = () => {
     if (step < 3) setStep(step + 1);
+    else if (createNew) doPublish();
     else if (prefill?.fromVersion) {
       setPublishVersion(version.trim());
       setConfirmPublish(true);
@@ -2668,9 +2688,11 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
       ? 'ถัดไป: เนื้อหาเอกสาร'
       : step === 2
         ? 'ถัดไป: ตรวจสอบและเผยแพร่'
-        : (newVersion ? 'เผยแพร่' : 'บันทึกการเปลี่ยนแปลง');
-  const canSubmit = canAdvance && (newVersion || step < 3 || hasChanges);
-  const title = newVersion ? 'สร้างเวอร์ชันใหม่' : 'แก้ไขแบบฟอร์มความยินยอม';
+        : (createNew ? 'เผยแพร่แบบฟอร์ม' : newVersion ? 'เผยแพร่' : 'บันทึกการเปลี่ยนแปลง');
+  const canSubmit = canAdvance && (createNew || newVersion || step < 3 || hasChanges);
+  const title = createNew
+    ? 'สร้างแบบฟอร์มความยินยอมใหม่'
+    : newVersion ? 'สร้างเวอร์ชันใหม่' : 'แก้ไขแบบฟอร์มความยินยอม';
   const subtitle = record
     ? `${record.code} · ${record.name}${prefill?.fromVersion ? ` · จาก ${prefill.fromVersion}` : ''}`
     : undefined;
@@ -2729,17 +2751,18 @@ export function ConsentFormEditPopup({ open, record, newVersion = false, onClose
                 cover={cover} setCover={setCover}
                 name={name} setName={setName} code={code} setCode={setCode}
                 type={type} setType={setType} version={version} setVersion={setVersion} ttl={ttl} setTtl={setTtl}
-                showCodeSuggestions={!prefill?.code && newVersion}
-                showVersionSuggestions={!prefill?.code && !prefill?.fromVersion}
-                codeReadOnly={!newVersion}
-                versionReadOnly={!newVersion || Boolean(prefill?.fromVersion)}
+                showCodeSuggestions={createNew || (!prefill?.code && newVersion)}
+                showVersionSuggestions={createNew || (!prefill?.code && !prefill?.fromVersion)}
+                codeReadOnly={!createNew && !newVersion}
+                versionReadOnly={!createNew && (!newVersion || Boolean(prefill?.fromVersion))}
                 versionHelperText={
-                  !newVersion
+                  !createNew && !newVersion
                     ? 'จะมีการอัปเดตโดยอัตโนมัติหลังบันทึกการแก้ไข'
                     : undefined
                 }
                 fromVersion={prefill?.fromVersion}
-                showTemplatePicker={false}
+                /* สร้างใหม่ต้องเลือกแม่แบบได้เหมือนหน้าเต็ม — แก้ไข/เวอร์ชันใหม่ไม่ต้อง */
+                showTemplatePicker={createNew}
                 coverCardStyle={{ marginTop: 'var(--dim-space-600, 24px)' }}
                 basicsCardStyle={{ marginBottom: 'var(--dim-space-600, 24px)' }}
               />

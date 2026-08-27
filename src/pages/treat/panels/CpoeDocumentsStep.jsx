@@ -11,6 +11,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandButton from '@/components/button/BrandButton';
 import AlertDialog from '@/components/popup/AlertDialog';
 import ConsentFormFillPopup from '@/components/popup/ConsentFormFillPopup';
+import SuccessPopup from '@/components/popup/SuccessPopup';
 import PharmacyPrescriptionPrint from '@/components/pharmacy/PharmacyPrescriptionPrint';
 /* §1.5.10.2 — แผ่นพิมพ์ใบคำขอตรวจจริง (A4) + ตัวช่วยพิมพ์/บันทึกเป็น PDF */
 import LabRequestPrintSheet from '@/pages/treat/LabRequestPrintSheet';
@@ -123,6 +124,8 @@ const CpoeDocumentsStep = (props) => {
   const [templateDraft, setTemplateDraft] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [consentForm, setConsentForm] = useState(null);
+  /* ป๊อปอัปสำเร็จหลังลงนาม — ไม่ใช้ toast (มติผู้ใช้ 27 ส.ค. 69) */
+  const [signedConsent, setSignedConsent] = useState(null);
   const [signatureOpen, setSignatureOpen] = useState(false);
   /* §1.4.6.3 — กันพิมพ์เอกสารเปล่า · §1.5.11.4 — คำแนะนำบันทึกเป็น PDF */
   const [emptyPrintGuard, setEmptyPrintGuard] = useState(false);
@@ -953,8 +956,18 @@ const CpoeDocumentsStep = (props) => {
             hn, visitId, category: 'document', field: `กรอกแบบฟอร์มความยินยอม — ${consentForm.name}`,
             oldValue: '—', newValue: `ลงนามโดย ${CURRENT_CLINICIAN.name} เมื่อ ${stampNow()}`,
           });
+          setSignedConsent(consentForm);
           setConsentForm(null);
         }}
+      />
+
+      {/* ลงนามแบบฟอร์มความยินยอมสำเร็จ — ป๊อปอัป ไม่ใช่ toast */}
+      <SuccessPopup
+        open={Boolean(signedConsent)}
+        onClose={() => setSignedConsent(null)}
+        buttonLabel='เรียบร้อย'
+        title={`ลงนาม “${signedConsent?.name || 'แบบฟอร์มความยินยอม'}” สำเร็จ`}
+        description='แนบเข้าแฟ้มเอกสารของการรักษาครั้งนี้แล้ว'
       />
     </div>
   );
