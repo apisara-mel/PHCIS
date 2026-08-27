@@ -1,15 +1,28 @@
-import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useMemo, useRef, useState } from 'react';
+import { Link, useHistory } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import Icon from '@/components/icons/Icon';
-import Dropdown from '@/components/forms/Dropdown';
+import FilterDateTag from '@/components/forms/FilterDateTag';
+import { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterTag from '@/components/forms/FilterTag';
 import SecondarySearch from '@/components/search/SecondarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import { DonutWithLegend, HBarList, Reveal } from '@/components/graph/Charts';
 import SummaryCardsBar from '@/components/layout/SummaryCardsBar';
+import DashboardTemplateSwitcher, { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import {
+  ALL_WIDGET_KEYS,
+  listDashboardTemplates,
+  widgetMeta,
+} from '@/data/dashboardTemplates';
+import Popover from '@/components/popup/Popover';
+import ActionList from '@/components/list/ActionList';
+import { REPORT_CATEGORIES } from '@/pages/dashboard/DashboardReportsHubPage';
+import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
+import { DASHBOARD_EXPORT_FOOTER } from '@/pages/dashboard/dashboardReportKit';
+import SuccessPopup from '@/components/popup/SuccessPopup';
 import Pagination from '@/components/pagination/Pagination';
 import Popup from '@/components/popup/Popup';
 import Table from '@/components/table/Table';
@@ -181,7 +194,29 @@ const STATUS_TO_BADGE_STYLE = {
 };
 
 const DashboardPage = () => {
+  const history = useHistory();
   const [year, setYear] = useState('2569');
+  const [pageDate, setPageDate] = useState({ quick: 'thisyear' });
+  /* "ดูรายงานทั้งหมด" เปิดเป็น dropdown รายการรายงานทั้งหมดของ §1.20 แทนการ
+     พาไปหน้าศูนย์รวมรายงานทันที (มติผู้ใช้ 27 ส.ค. 69) */
+  /* เทมเพลตหน้าจอ — แทนแถบ Tab เดิม (มติผู้ใช้ 27 ส.ค. 69)
+     `templateId === null` = หน้าจอมาตรฐาน "ภาพรวมโรงพยาบาล" (การ์ดครบทุกใบ) */
+  const [templates, setTemplates] = useState(() => listDashboardTemplates());
+  const [templateId, setTemplateId] = useState(null);
+  const [reportsMenuOpen, setReportsMenuOpen] = useState(false);
+  const reportsMenuAnchor = useRef(null);
+  /* เลือกรายงานจากลิสต์ → เปิด popup นำส่งออก (ตัวเดียวกับหน้ารายงานอื่น) */
+  const [exportReport, setExportReport] = useState(null);
+  const [exported, setExported] = useState(false);
+  /* catalog/topics ของ popup — หมวดรายงานทั้งหมดของ §1.20 */
+  const exportCatalog = useMemo(
+    () => REPORT_CATEGORIES.map((c) => ({ key: c.key, title: c.title })),
+    [],
+  );
+  const exportTopics = useMemo(
+    () => REPORT_CATEGORIES.map((c) => ({ value: c.key, label: c.title })),
+    [],
+  );
   const yearLabel = YEAR_OPTIONS.find((o) => o.value === year)?.label || `ปีงบประมาณ ${year}`;
 
   /* ANC results summary (TOR 1.20.7.7 "Dashboard ผลการฝากครรภ์"). */
@@ -272,78 +307,27 @@ const DashboardPage = () => {
     setPage(0);
   };
 
-  return (
-  <ClinicFilterProvider>
-  <div className='min-h-screen w-full flex bg-brand-50'>
-    <Sidebar activeKey='dashboard' />
-    <main className='flex-1 flex flex-col min-w-0'>
-      <Header breadcrumb={['แดชบอร์ด']} />
+  const activeTemplate = templateId ? templates.find((t) => t.id === templateId) : null;
+  /* หน้าจอมาตรฐาน = การ์ดครบทุกใบตามลำดับเดิมของหน้า */
+  const activeWidgets = activeTemplate ? activeTemplate.widgets : ALL_WIDGET_KEYS;
+  const showKpi = activeWidgets.includes('kpi');
 
-      {/* — White section: page header + overview — */}
-      <div className='bg-surface-card px-6 pt-6 pb-5 border-b-0 shadow-header flex flex-col gap-4'>
-        <div
-          className='flex items-center w-full min-w-0'
-          style={{ gap: 'var(--dim-space-400)' }}
-        >
-          {/* Page topic — DS <Topic> tertiary (heading-content · title weight · content title color) */}
-          <div className='flex-1 min-w-0'>
-            <Topic
-              hierarchy='tertiary'
-              title='แดชบอร์ดภาพรวมโรงพยาบาล'
-              showSubText={false}
-              showBadge={false}
-              showChevron={false}
-              showLeadingIcon={false}
-              showSuccess={false}
-            />
-          </div>
-          <div className='relative shrink-0' style={{ width: 'var(--dim-size-2200, 200px)' }}>
-            <Dropdown
-              className='w-full'
-              size='md'
-              value={year}
-              onChange={setYear}
-              options={YEAR_OPTIONS}
-              placeholder='เลือกปีงบประมาณ'
-            />
-          </div>
-          {/* ทางเข้าแพลตฟอร์มรายงานทั้งหมดตาม TOR §1.20 */}
-          <Link to='/dashboard/reports'>
-            <NeutralSubdueButton variant='outline' size='sm' trailingIcon='chevron_right'>
-              ดูรายงานทั้งหมด
-            </NeutralSubdueButton>
-          </Link>
-          <BrandButton
-            variant='fill'
-            size='sm'
-            leadingIcon='save'
-            onClick={() => alert(`ส่งออกข้อมูล ${yearLabel}`)}
-          >
-            ส่งออกข้อมูล
-          </BrandButton>
-        </div>
+  const applyTemplate = (saved) => {
+    setTemplates(listDashboardTemplates());
+    if (saved?.deleted) { setTemplateId(null); return; }
+    if (saved?.id) setTemplateId(saved.id);
+  };
 
-        <SummaryCardsBar variant='banner' cards={DASHBOARD_OVERVIEW_CARDS} />
-      </div>
-
-      {/* Body grid */}
-      <div className='px-6 pt-6 pb-6 flex flex-col gap-4'>
-        {/* — Row 1 — */}
-        <Reveal className='grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4'>
-          <Top10DiseasesCard title={`Top 10 อันดับโรคที่พบบ่อย ${yearLabel}`} />
-          <VisitTotalCard />
-          <AgeServicePyramidCard />
-          <RightsDonutCard />
-        </Reveal>
-
-        {/* — Row 2 — */}
-        <Reveal className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
-          <Top10DiseasesShortCard title={`Top 10 อันดับโรค ${yearLabel}`} />
-          <MonthlyVisitsCard title={`จำนวนผู้รับบริการ ${yearLabel}`} />
-        </Reveal>
-
-        {/* — ANC results summary (TOR 1.20.7.7 "Dashboard ผลการฝากครรภ์") — */}
-        <Reveal>
+  /* ทะเบียนการ์ดของหน้านี้ — key ตรงกับ DASHBOARD_WIDGET_CATALOG
+     ('kpi' เป็น section แยกด้านบน จึงไม่มี node ตรงนี้) */
+  const widgetNodes = {
+    top10:             <Top10DiseasesCard title={`Top 10 อันดับโรคที่พบบ่อย ${yearLabel}`} />,
+    visitTotal:        <VisitTotalCard />,
+    agePyramid:        <AgeServicePyramidCard />,
+    rights:            <RightsDonutCard />,
+    top10Short:        <Top10DiseasesShortCard title={`Top 10 อันดับโรค ${yearLabel}`} />,
+    monthlyVisits:     <MonthlyVisitsCard title={`จำนวนผู้รับบริการ ${yearLabel}`} />,
+    anc: (
         <Card
           title='ผลการฝากครรภ์ (ANC)'
           icon='face'
@@ -367,10 +351,8 @@ const DashboardPage = () => {
             <ColorfulBadge style='red' size='small' hierarchy='secondary'>ความเสี่ยงสูง {ancStats.high}</ColorfulBadge>
           </div>
         </Card>
-        </Reveal>
-
-        {/* — การแพ้ยาของผู้รับบริการ (TOR 1.20.1.3 จำนวน · 1.20.1.8 กราฟภาพรวม) — */}
-        <Reveal>
+    ),
+    allergy: (
         <Card
           title='ผู้รับบริการที่มีการแพ้ยา'
           icon='warning'
@@ -416,35 +398,17 @@ const DashboardPage = () => {
             </div>
           )}
         </Card>
-        </Reveal>
-
-        {/* — Row 3 — */}
-        <Reveal className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
-          <Disease21GroupsCard title={`ผู้รับบริการตาม 21 กลุ่มโรค ${yearLabel}`} />
-          <DmHtNewPatientsCard />
-        </Reveal>
-
-        {/* — Row 4 — */}
-        <Reveal className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-          <DmControlGaugeCard />
-          <HtControlGaugeCard />
-          <WorkingAgeGroupsCard />
-        </Reveal>
-
-        {/* — Row 5 — */}
-        <Reveal className='grid grid-cols-1 lg:grid-cols-3 gap-4'>
-          <CocCard />
-          <ConsentCard />
-          <DmComplicationsCard />
-        </Reveal>
-
-        {/* — Row 5b: Telemedicine call stats (TOR 1.13.10) — */}
-        <Reveal className='grid grid-cols-1 gap-4'>
-          <TelemedCallStatsCard title={`สถิติการปรึกษาทางไกล (Telemedicine) ${yearLabel}`} />
-        </Reveal>
-
-        {/* — Row 6: recent patients table (search + sort + pagination) — */}
-        <Reveal>
+    ),
+    disease21:         <Disease21GroupsCard title={`ผู้รับบริการตาม 21 กลุ่มโรค ${yearLabel}`} />,
+    dmhtNew:           <DmHtNewPatientsCard />,
+    dmGauge:           <DmControlGaugeCard />,
+    htGauge:           <HtControlGaugeCard />,
+    workingAge:        <WorkingAgeGroupsCard />,
+    coc:               <CocCard />,
+    consent:           <ConsentCard />,
+    dmComplications:   <DmComplicationsCard />,
+    telemed:           <TelemedCallStatsCard title={`สถิติการปรึกษาทางไกล (Telemedicine) ${yearLabel}`} />,
+    recentPatients: (
         <Card title='รายชื่อผู้รับบริการล่าสุด' icon='users'
           action={
             <NeutralSubdueButton
@@ -553,13 +517,181 @@ const DashboardPage = () => {
             </div>
           )}
         </Card>
-        </Reveal>
+    ),
+    populationPyramid: <PopulationPyramidCard />,
+    opdTypeLine:       <OpdTypeLineCard />,
+    residencePie:      <ResidencePieCard />,
+    serviceCenterMap:  <ServiceCenterMapCard />,
+  };
 
-        {/* — Detailed analytical charts (Figma 4:8608-4:8611) — */}
-        <Reveal><PopulationPyramidCard /></Reveal>
-        <Reveal><OpdTypeLineCard /></Reveal>
-        <Reveal><ResidencePieCard /></Reveal>
-        <Reveal><ServiceCenterMapCard /></Reveal>
+  const bodyWidgets = activeWidgets.filter((key) => widgetNodes[key]);
+
+  return (
+  <ClinicFilterProvider>
+  <div className='min-h-screen w-full flex bg-brand-50'>
+    <Sidebar activeKey='dashboard' />
+    <main className='flex-1 flex flex-col min-w-0'>
+      <Header breadcrumb={['แดชบอร์ด']} />
+
+      {/* — White section: page header + overview — */}
+      <div className='bg-surface-card px-6 pt-6 pb-4 border-b-0 shadow-header flex flex-col gap-4'>
+        <div
+          className='flex items-center w-full min-w-0'
+          style={{ gap: 'var(--dim-space-400)' }}
+        >
+          {/* Page topic — DS <Topic> tertiary (heading-content · title weight · content title color) */}
+          <div className='min-w-0'>
+            <Topic
+              hierarchy='tertiary'
+              title='แดชบอร์ดภาพรวมโรงพยาบาล'
+              showSubText={false}
+              showBadge={false}
+              showChevron={false}
+              showLeadingIcon={false}
+              showSuccess={false}
+            />
+          </div>
+          {/* ตัวกรองอยู่ชิดชื่อหน้าฝั่งซ้าย ลำดับ วัน → ปีงบประมาณ และเป็น
+              FilterTag ทั้งคู่ (มติผู้ใช้ 27 ส.ค. 69) — ปุ่มคำสั่งอยู่ฝั่งขวา */}
+          <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thisyear' />
+          <FilterDropdown
+            prefix='ปีงบ:'
+            leadingIcon='event'
+            options={YEAR_OPTIONS}
+            value={year}
+            onChange={setYear}
+            /* มีค่าเสมอ (ปีงบปัจจุบันเป็นค่าเริ่มต้น) จึงเป็นชิปแบรนด์ตลอด
+               เหมือนชิป `วัน:` ที่อยู่ข้างกัน */
+            active
+          />
+          <div className='flex-1' />
+          {/* เทมเพลตหน้าจอ + สร้างเทมเพลต — แทนแถบ Tab ของกลุ่มแดชบอร์ด */}
+          <DashboardTemplateSwitcher
+            value={activeTemplate ? activeTemplate.id : screenValue('overview')}
+            templates={templates}
+            onSelectTemplate={setTemplateId}
+          />
+          {/* นำส่งออกรายงาน — เลือกหมวดรายงานจาก dropdown แล้วเปิด popup
+              นำส่งออก (ExportFormatPopup ตัวเดียวกับหน้ารายงานอื่นในกลุ่ม) */}
+          <div className='relative shrink-0' ref={reportsMenuAnchor}>
+            <NeutralSubdueButton
+              variant='outline'
+              size='sm'
+              leadingIcon='ios_share'
+              trailingIcon={reportsMenuOpen ? 'expand_less' : 'expand_more'}
+              onClick={() => setReportsMenuOpen((v) => !v)}
+            >
+              นำส่งออกรายงาน
+            </NeutralSubdueButton>
+            <Popover
+              open={reportsMenuOpen}
+              onClose={() => setReportsMenuOpen(false)}
+              anchorRef={reportsMenuAnchor}
+              style={{
+                minWidth: 'var(--dim-size-2900, 640px)',
+                maxWidth: '90vw',
+                zIndex: 'var(--sm-z-popover, 1200)',
+                background: 'var(--surface-dropdown-default)',
+                border: 'var(--dim-stroke-100) solid var(--border-dropdown-default)',
+                borderRadius: 'var(--dim-radius-500)',
+                boxShadow: 'var(--shadow-dropdown)',
+                padding: 'var(--dim-space-100)',
+                display: 'flex',
+                flexDirection: 'column',
+                maxHeight: 'min(70vh, 520px)',
+                overflowY: 'auto',
+              }}
+            >
+              <div role='menu'>
+                {REPORT_CATEGORIES.map((cat) => (
+                  <ActionList
+                    key={cat.key}
+                    as='button'
+                    role='menuitem'
+                    leadingIcon={cat.icon}
+                    label={cat.title}
+                    subtext={cat.desc}
+                    showSubtext
+                    /* เหลือแค่ชื่อ + คำอธิบาย: ไม่มีเลข TOR, ไม่มีป้ายฝั่งขวา
+                       และไม่มีเครื่องหมายถูก (แถวนี้เป็นทางเข้า ไม่ใช่ตัวเลือก
+                       ที่ถูกเลือกอยู่) — มติผู้ใช้ 27 ส.ค. 69 */
+                    showBadge={false}
+                    showCheck={false}
+                    showChevronRight={false}
+                    onClick={() => {
+                      setReportsMenuOpen(false);
+                      setExportReport({ key: cat.key, title: cat.title });
+                    }}
+                  />
+                ))}
+                {/* ปลายทางเดิมของปุ่มนี้ — ยังเข้าถึงได้จากรายการสุดท้าย */}
+                <ActionList
+                  as='button'
+                  role='menuitem'
+                  leadingIcon='lab_profile'
+                  label='ไปที่ศูนย์รวมรายงาน'
+                  subtext='ทะเบียนแม่แบบรายงานทั้งหมด + ขอรายงานใหม่'
+                  showSubtext
+                  showBadge={false}
+                  showCheck={false}
+                  showChevronRight={false}
+                  onClick={() => { setReportsMenuOpen(false); history.push('/dashboard/reports'); }}
+                />
+              </div>
+            </Popover>
+          </div>
+          <BrandButton
+            variant='fill'
+            size='sm'
+            leadingIcon='save'
+            onClick={() => alert(`ส่งออกข้อมูล ${yearLabel}`)}
+          >
+            ส่งออกข้อมูล
+          </BrandButton>
+        </div>
+
+      </div>
+
+      {/* Body grid — การ์ดและลำดับมาจากเทมเพลตที่เลือก */}
+      <div className='px-6 pt-6 pb-6 flex flex-col gap-4'>
+        {showKpi && (
+          <Reveal>
+            <section
+              className='bg-surface-card rounded-card shadow-card'
+              /* longhand — inline shorthand `padding` + var() ไม่ render ในโปรเจกต์นี้ */
+              style={{
+                paddingTop: 'var(--dim-space-600)',
+                paddingRight: 'var(--dim-space-600)',
+                paddingBottom: 'var(--dim-space-600)',
+                paddingLeft: 'var(--dim-space-600)',
+              }}
+            >
+              <SummaryCardsBar variant='banner' cards={DASHBOARD_OVERVIEW_CARDS} columns={4} />
+            </section>
+          </Reveal>
+        )}
+
+        {bodyWidgets.length === 0 ? (
+          <div
+            className='flex flex-col items-center justify-center bg-surface-card rounded-card shadow-card'
+            style={{ gap: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-1200, 48px)', paddingBottom: 'var(--dim-space-1200, 48px)' }}
+          >
+            <Icon name='dashboard_customize' size={32} />
+            <span className='text-sm text-ink-tertiary'>
+              เทมเพลต “{activeTemplate?.name}” ยังไม่มีการ์ด — กด “สร้างเทมเพลท” เพื่อเลือกการ์ดที่จะแสดง
+            </span>
+          </div>
+        ) : (
+          /* `grid` บน <Reveal> ทำให้การ์ดลูกยืดเต็มความสูงแถวเหมือนตอนที่การ์ด
+             เป็น grid item โดยตรง (align-items: stretch) */
+          <div className='grid grid-cols-12 gap-4'>
+            {bodyWidgets.map((key) => (
+              <Reveal key={key} className={`${widgetMeta(key)?.span || 'col-span-12'} grid`}>
+                {widgetNodes[key]}
+              </Reveal>
+            ))}
+          </div>
+        )}
 
         {/* — Footer credits — */}
         <div className={`py-3 flex items-center justify-between text-xs text-ink-tertiary ${MIH_FOOTER_LEGAL_AUTOHIDE}`}>
@@ -621,6 +753,27 @@ const DashboardPage = () => {
         </div>
       </div>
     </Popup>
+
+    {/* นำส่งออกรายงานตามหมวดที่เลือกจาก dropdown */}
+    <ExportFormatPopup
+      open={!!exportReport}
+      report={exportReport}
+      reportsCatalog={exportCatalog}
+      topics={exportTopics}
+      onClose={() => setExportReport(null)}
+      onExported={() => setExported(true)}
+      documentFooter={DASHBOARD_EXPORT_FOOTER}
+      logExportFn={null}
+      topicsFieldName='dashboard-overview-export-topics'
+    />
+
+    <SuccessPopup
+      open={exported}
+      onClose={() => setExported(false)}
+      buttonLabel='เรียบร้อย'
+      title='นำส่งออกรายงานแล้ว'
+      description='ไฟล์รายงานถูกสร้างตามรูปแบบและช่วงเวลาที่เลือก'
+    />
   </div>
   </ClinicFilterProvider>
   );

@@ -7,14 +7,15 @@ import Badge from '@/components/badge/Badge';
 import Icon from '@/components/icons/Icon';
 import InputField from '@/components/forms/InputField';
 import Dropdown from '@/components/forms/Dropdown';
+import FilterDateTag from '@/components/forms/FilterDateTag';
 import FilterTag from '@/components/forms/FilterTag';
 import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import SuccessToast from '@/components/toast/SuccessToast';
-import DashboardSubNav from '@/components/dashboard/DashboardSubNav';
-import DataSourceStrip from '@/components/dashboard/DataSourceStrip';
+import DashboardTemplateSwitcher, { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import { AreaLineChart, DonutWithLegend, HBarList } from '@/components/graph/Charts';
 import PHCIS_CHART, { PHCIS_CHART_PALETTE } from '@/data/phcisChartPalette';
 import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
@@ -559,6 +560,7 @@ const PrintPreview = ({ lang, formatKey, year, orgKey, rows }) => {
 const CheckupAnalyticsPage = () => {
   const [lang, setLang] = useState(DEFAULT_LANG);
   const [year, setYear] = useState(DEFAULT_YEAR);
+  const [pageDate, setPageDate] = useState({ quick: 'thisyear' });
   const [org, setOrg] = useState(DEFAULT_ORG);
   const [formatKey, setFormatKey] = useState(DEFAULT_FORMAT);
 
@@ -835,8 +837,7 @@ const CheckupAnalyticsPage = () => {
       activeKey='dashboard'
       breadcrumb={breadcrumb}
       title={t(lang, 'pageTitle')}
-      summaryCards={summaryCards}
-      belowSummary={<DashboardSubNav />}
+      actions={<DashboardTemplateSwitcher size='md' value={screenValue('checkup')} />}
     >
       <div
         className='flex flex-col flex-1 min-w-0'
@@ -848,7 +849,13 @@ const CheckupAnalyticsPage = () => {
           gap: 'var(--dim-space-600)',
         }}
       >
-        <DataSourceStrip scopeLabel={`${t(lang, 'pageTitle')} · ${t(lang, 'year')} ${year}`} />
+        {/* การ์ดสรุปอยู่ใต้แถบ Tab (มติผู้ใช้ 27 ส.ค. 69) — `summaryCards` ของ
+            QueuePageShell ถูกวางเหนือ tab เสมอ จึง render เองตรงนี้แทน */}
+        <section className='w-full flex items-stretch flex-wrap' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
+          {summaryCards.map((card) => (
+            <SummaryCard key={card.key} card={card} variant='panel' />
+          ))}
+        </section>
 
         <ReportToolbar
           trailing={(
@@ -859,6 +866,9 @@ const CheckupAnalyticsPage = () => {
         >
           {/* ตัวควบคุมช่วงเวลาของหน้านี้คือ “ปีงบประมาณ” (1 ต.ค. – 30 ก.ย.)
               ไม่ใช่ช่วงวันแบบหน้ารายงานอื่น เพราะผลตรวจสุขภาพหน่วยงานสรุปเป็นรอบปี */}
+          {/* ตัวกรองวัน — คู่กับปีงบประมาณ ให้ครบทุกหน้าแดชบอร์ด
+              (มติผู้ใช้ 27 ส.ค. 69) */}
+          <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thisyear' />
           <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
             <Dropdown size='md' value={year} onChange={setYear} options={YEAR_OPTIONS} placeholder={t(lang, 'year')} />
           </div>

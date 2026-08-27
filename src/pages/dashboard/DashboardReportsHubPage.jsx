@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import FilterDateTag from '@/components/forms/FilterDateTag';
 import Popup from '@/components/popup/Popup';
 import Table from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
@@ -14,15 +15,18 @@ import SearchResultCount from '@/components/search/SearchResultCount';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
-import DashboardSubNav from '@/components/dashboard/DashboardSubNav';
-import DataSourceStrip from '@/components/dashboard/DataSourceStrip';
+import DashboardTemplateSwitcher, { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import { Reveal } from '@/components/graph/Charts';
 import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
 import {
   CARD,
+  FISCAL_YEAR_OPTIONS,
   EmptyChartNote,
   ReportGroupCard,
   SectionTopic,
+  fiscalYearDateFilter,
+  fiscalYearOf,
 } from '@/pages/dashboard/dashboardReportKit';
 import { formatIsoDateThai } from '@/data/dashboardCommon';
 import {
@@ -47,7 +51,9 @@ import {
 
 const breadcrumb = ['แดชบอร์ด', 'ศูนย์รวมรายงาน'];
 
-const REPORT_CATEGORIES = [
+/** หมวดรายงานทั้งหมดของ §1.20 — ใช้ทั้งการ์ดในหน้านี้และ dropdown
+    "ดูรายงานทั้งหมด" บนหน้าภาพรวมโรงพยาบาล (แก้ที่เดียวพอ) */
+export const REPORT_CATEGORIES = [
   {
     key: 'overview',
     icon: 'dashboard',
@@ -182,6 +188,7 @@ const EMPTY_FORM = { name: '', requester: 'plan', frequency: 'monthly', detail: 
 const DashboardReportsHubPage = () => {
   const history = useHistory();
   const [search, setSearch] = useState('');
+  const [pageDate, setPageDate] = useState({ quick: 'thisyear' });
   const [requests, setRequests] = useState(() => listCustomReportRequests());
   const [requestOpen, setRequestOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
@@ -264,8 +271,8 @@ const DashboardReportsHubPage = () => {
         requester: form.requester,
         frequency: form.frequency,
         detail: form.detail.trim(),
-      }));
-      setToast('แก้ไขคำขอรายงานแล้ว');
+      }, PHCIS_CURRENT_USER.displayName));
+      setToast('แก้ไขคำขอรายงานแล้ว — บันทึกลงประวัติการใช้งานแล้ว');
     } else {
       addCustomReportRequest({
         name: form.name.trim(),
@@ -275,7 +282,7 @@ const DashboardReportsHubPage = () => {
         requestedBy: PHCIS_CURRENT_USER.displayName,
       });
       setRequests(listCustomReportRequests());
-      setToast('ส่งคำขอรายงานใหม่แล้ว — บันทึกผู้ขอและเวลาเรียบร้อย');
+      setToast('ส่งคำขอรายงานใหม่แล้ว — บันทึกผู้ขอและเวลาลงประวัติการใช้งานแล้ว');
     }
     setForm(EMPTY_FORM);
     setBaseline(EMPTY_FORM);
@@ -286,9 +293,9 @@ const DashboardReportsHubPage = () => {
 
   const confirmCancel = () => {
     if (!cancelTarget) return;
-    setRequests(cancelCustomReportRequest(cancelTarget.id));
+    setRequests(cancelCustomReportRequest(cancelTarget.id, PHCIS_CURRENT_USER.displayName));
     setCancelTarget(null);
-    setToast('ยกเลิกคำขอรายงานแล้ว');
+    setToast('ยกเลิกคำขอรายงานแล้ว — บันทึกลงประวัติการใช้งานแล้ว');
   };
 
   return (
@@ -296,12 +303,31 @@ const DashboardReportsHubPage = () => {
       activeKey='dashboard'
       breadcrumb={breadcrumb}
       title='ศูนย์รวมรายงานและแพลตฟอร์มวิเคราะห์ข้อมูล'
-      summaryCards={summaryCards}
-      belowSummary={<DashboardSubNav />}
+      afterTitle={(
+        <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+          {/* วัน + ปีงบประมาณ — ให้ครบทุกหน้าแดชบอร์ด (มติผู้ใช้ 27 ส.ค. 69)
+              NOTE: ข้อมูลของหน้านี้ยังไม่มีมิติวันที่ ตัวกรองจึงกำหนดแค่ขอบเขต
+              ที่แสดงบนหัวหน้าจอ ยังไม่กรองตัวเลขในการ์ด — ต้องเติม field วันที่
+              ลง mock ก่อนถึงจะผูกได้ */}
+          <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thisyear' />
+          <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
+            <Dropdown
+              size='md'
+              value={fiscalYearOf(pageDate)}
+              onChange={(be) => setPageDate(fiscalYearDateFilter(be))}
+              options={FISCAL_YEAR_OPTIONS}
+              placeholder='ปีงบประมาณ'
+            />
+          </div>
+        </span>
+      )}
       actions={(
-        <BrandButton size='md' leadingIcon='add' onClick={openNewRequest}>
-          ขอรายงานใหม่
-        </BrandButton>
+        <>
+          <DashboardTemplateSwitcher size='md' value={undefined} />
+          <BrandButton size='md' leadingIcon='add' onClick={openNewRequest}>
+            ขอรายงานใหม่
+          </BrandButton>
+        </>
       )}
     >
       <div
@@ -314,8 +340,13 @@ const DashboardReportsHubPage = () => {
           gap: 'var(--dim-space-600)',
         }}
       >
-        {/* §1.20.9 */}
-        <DataSourceStrip scopeLabel='ทุกหมวดรายงาน · ทุกศูนย์บริการสาธารณสุข' />
+        {/* การ์ดสรุปย้ายลงมาอยู่ใต้แถบ Tab (มติผู้ใช้ 27 ส.ค. 69) — `summaryCards`
+            ของ QueuePageShell จะถูกวางเหนือ tab เสมอ จึง render เองตรงนี้แทน */}
+        <section className='w-full flex items-stretch flex-wrap' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
+          {summaryCards.map((card) => (
+            <SummaryCard key={card.key} card={card} variant='panel' />
+          ))}
+        </section>
 
         {/* หมวดรายงาน */}
         <section className='w-full flex flex-col' style={{ ...CARD, gap: 'var(--dim-space-500)' }}>

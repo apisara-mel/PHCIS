@@ -13,8 +13,8 @@ import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandButton from '@/components/button/BrandButton';
 import SuccessToast from '@/components/toast/SuccessToast';
-import DashboardSubNav from '@/components/dashboard/DashboardSubNav';
-import DataSourceStrip from '@/components/dashboard/DataSourceStrip';
+import DashboardTemplateSwitcher, { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import AreaHealthMapPanel from '@/components/dashboard/AreaHealthMapPanel';
 import { AreaLineChart, DonutWithLegend, HBarList, PyramidPct, VBars } from '@/components/graph/Charts';
 import PHCIS_CHART, { PHCIS_CHART_PALETTE } from '@/data/phcisChartPalette';
@@ -27,6 +27,9 @@ import {
   DASHBOARD_EXPORT_FOOTER,
   EmptyChartNote,
   ReportGroupCard,
+  FISCAL_YEAR_OPTIONS,
+  fiscalYearDateFilter,
+  fiscalYearOf,
   ReportToolbar,
   ReportViewPopup,
   StatTile,
@@ -544,9 +547,8 @@ const ExecutiveDashboardPage = () => {
         activeKey='dashboard'
         breadcrumb={breadcrumb}
         title='Dashboard ผู้บริหาร'
-        actions={roleSwitch}
-        belowSummary={<DashboardSubNav />}
-      >
+        actions={(<><DashboardTemplateSwitcher size='md' value={screenValue('executive')} />{roleSwitch}</>)}
+        >
         <div
           className='flex flex-col flex-1 min-w-0'
           style={{
@@ -568,9 +570,7 @@ const ExecutiveDashboardPage = () => {
       activeKey='dashboard'
       breadcrumb={breadcrumb}
       title='Dashboard ผู้บริหาร (Area Health Analytics)'
-      actions={roleSwitch}
-      summaryCards={summaryCards}
-      belowSummary={<DashboardSubNav />}
+      actions={(<><DashboardTemplateSwitcher size='md' value={screenValue('executive')} />{roleSwitch}</>)}
     >
       <div
         className='flex flex-col flex-1 min-w-0'
@@ -582,7 +582,13 @@ const ExecutiveDashboardPage = () => {
           gap: 'var(--dim-space-600)',
         }}
       >
-        <DataSourceStrip scopeLabel={scopeLabel} />
+        {/* การ์ดสรุปอยู่ใต้แถบ Tab (มติผู้ใช้ 27 ส.ค. 69) — `summaryCards` ของ
+            QueuePageShell ถูกวางเหนือ tab เสมอ จึง render เองตรงนี้แทน */}
+        <section className='w-full flex items-stretch flex-wrap' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
+          {summaryCards.map((card) => (
+            <SummaryCard key={card.key} card={card} variant='panel' />
+          ))}
+        </section>
 
         {/* มติ คทง.11 — บอกผู้ใช้ตรง ๆ ว่าตัวเลือกถูกจำกัดเพราะขอบเขตข้อมูล
             ไม่ใช่ระบบเสียหรือข้อมูลหาย */}
@@ -615,12 +621,22 @@ const ExecutiveDashboardPage = () => {
           )}
         >
           <FilterDateTag
-            prefix='ช่วงเวลา:'
+            prefix='วัน:'
             value={dateFilter}
             onChange={setDateFilter}
             defaultQuick='thisyear'
             showResolvedDate
           />
+          {/* ปีงบประมาณ — เลือกแล้วเซ็ตช่วงวันให้ตรงรอบปีงบ (1 ต.ค. – 30 ก.ย.) */}
+          <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
+            <Dropdown
+              size='md'
+              value={fiscalYearOf(dateFilter)}
+              onChange={(be) => setDateFilter(fiscalYearDateFilter(be))}
+              options={FISCAL_YEAR_OPTIONS}
+              placeholder='ปีงบประมาณ'
+            />
+          </div>
           <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
             <Dropdown
               size='md'

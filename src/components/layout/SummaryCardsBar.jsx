@@ -244,6 +244,12 @@ const PANEL_TITLE_STYLE = {
   lineHeight: 1.5,
 };
 
+/* คลาสกริดของ banner variant — ต้องเป็นสตริงคงที่ให้ Tailwind JIT สแกนเจอ */
+const BANNER_GRID_CLASS = {
+  3: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-stretch',
+  4: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-stretch',
+};
+
 const SummaryCardsBar = ({
   cards = [],
   title,
@@ -254,12 +260,17 @@ const SummaryCardsBar = ({
      stack still casts design.md Brand Drop Shadow Bottom/100. */
   flushUnderSubHeader = true,
   bottomShadow = false,
+  /* banner variant only — จัดการ์ดเป็นกริดจำนวนคอลัมน์คงที่แทนแถวเดียวที่ยืด
+     เต็มความกว้าง การ์ด 7 ใบบนจอกว้างจะบีบจนป้ายกำกับถูกตัด (…) จึงให้ตกเป็น
+     สองแถวอ่านง่ายกว่า (มติผู้ใช้ 27 ส.ค. 69) รองรับ 3 หรือ 4 คอลัมน์ */
+  columns,
 }) => {
   if (variant === 'banner') {
+    const gridClass = BANNER_GRID_CLASS[columns];
     return (
       <section className='flex flex-col gap-3'>
         {title ? <h1 style={PANEL_TITLE_STYLE}>{title}</h1> : null}
-        <div className='flex items-stretch gap-3 flex-wrap'>
+        <div className={gridClass || 'flex items-stretch gap-3 flex-wrap'}>
           {cards.map((c) => <BannerSummaryCard key={c.key} card={c} />)}
         </div>
       </section>

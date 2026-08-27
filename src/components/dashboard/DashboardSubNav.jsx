@@ -9,8 +9,6 @@ import TabUnderline from '@/components/tab/TabUnderline';
 
 export const DASHBOARD_NAV_LINKS = [
   { key: 'overview',  label: 'ภาพรวมโรงพยาบาล',   path: '/dashboard'                    },
-  { key: 'reports',   label: 'ศูนย์รวมรายงาน',     path: '/dashboard/reports'            },
-  { key: 'service',   label: 'รายงานผู้รับบริการ', path: '/dashboard/reports/service'    },
   { key: 'pharmacy',  label: 'รายงานเภสัชกรรม',    path: '/dashboard/reports/pharmacy'   },
   { key: 'checkup',   label: 'รายงานตรวจสุขภาพ',   path: '/dashboard/reports/checkup'    },
   { key: 'clinics',   label: 'คลินิกพิเศษ',        path: '/dashboard/clinics'            },
@@ -23,6 +21,9 @@ export const resolveDashboardNavKey = (pathname = '') => {
   if (pathname.startsWith('/dashboard/reports/service')) return 'service';
   if (pathname.startsWith('/dashboard/reports/pharmacy')) return 'pharmacy';
   if (pathname.startsWith('/dashboard/reports/checkup')) return 'checkup';
+  /* ศูนย์รวมรายงานไม่มี tab แล้ว (มติผู้ใช้ 27 ส.ค. 69) — เข้าจาก dropdown
+     "ดูรายงานทั้งหมด" แทน · คืนค่า 'reports' ต่อไปเพื่อให้ไม่มี tab ไหนถูก
+     ไฮไลต์ผิดขณะอยู่หน้านั้น */
   if (pathname.startsWith('/dashboard/reports')) return 'reports';
   if (pathname.startsWith('/dashboard/clinics')) return 'clinics';
   if (pathname.startsWith('/dashboard/executive')) return 'executive';

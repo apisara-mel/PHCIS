@@ -5,6 +5,19 @@
    จึงรายงานเป็น partial เสมอ ไม่ใช่ done */
 
 import { isoOffsetDays } from '@/data/dashboardCommon';
+import { appendAuditEvent } from '@/pages/audit/auditData';
+import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
+
+/* ประวัติของคำขอรายงาน (สร้าง / แก้ไข / ยกเลิก) ไม่ได้เก็บไว้ในหน้านี้ แต่ส่งไป
+   ที่โมดูล "ประวัติการใช้งาน" (/audit/log) ซึ่งเป็นทะเบียนประวัติกลางของระบบ
+   (มติผู้ใช้ 27 ส.ค. 69) ตารางในหน้าศูนย์รวมรายงานคงไว้เป็น "สถานะปัจจุบัน"
+   ของคำขอ ไม่ใช่ร่องรอยย้อนหลัง */
+const AUDIT_MODULE = 'รายงาน / สถิติ';
+const logReportRequest = (action, user) => appendAuditEvent({
+  user: user || PHCIS_CURRENT_USER.displayName,
+  action,
+  mod: AUDIT_MODULE,
+});
 
 export const CUSTOM_REPORT_FREQUENCIES = [
   { value: 'daily',     label: 'รายวัน'      },
@@ -144,18 +157,23 @@ export const addCustomReportRequest = ({ name, requester, frequency, detail, req
     status: 'requested',
   };
   requestLog = [entry, ...requestLog];
+  logReportRequest(`ขอรายงานใหม่ — ${name}`, requestedBy);
   return entry;
 };
 
 /** ยกเลิกคำขอที่ยังไม่ถูกรับพิจารณา (ทุกข้อ "แสดง/บันทึก/ยกเลิก/แก้ไข") */
-export const cancelCustomReportRequest = (id) => {
+export const cancelCustomReportRequest = (id, by) => {
+  const target = requestLog.find((r) => r.id === id);
   requestLog = requestLog.filter((r) => r.id !== id);
+  if (target) logReportRequest(`ยกเลิกคำขอรายงาน — ${target.name}`, by);
   return listCustomReportRequests();
 };
 
 /** แก้ไขคำขอเดิม */
-export const updateCustomReportRequest = (id, patch) => {
+export const updateCustomReportRequest = (id, patch, by) => {
   requestLog = requestLog.map((r) => (r.id === id ? { ...r, ...patch } : r));
+  const updated = requestLog.find((r) => r.id === id);
+  if (updated) logReportRequest(`แก้ไขคำขอรายงาน — ${updated.name}`, by);
   return listCustomReportRequests();
 };
 

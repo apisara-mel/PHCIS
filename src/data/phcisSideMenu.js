@@ -53,25 +53,12 @@ const TREAT_DEPARTMENT_SUBITEMS = [
 // sub-departments: `opd` (หน้าจอย่อยของงานผู้รับบริการนอก), `queue-center`
 // (หน้าจอย่อยของระบบบริหารจัดการคิว) and `treat`.
 export const PHCIS_SIDE_MENU = [
-  /* แดชบอร์ด + ระบบรายงาน (TOR §1.20). เดิมเป็นเมนูเดี่ยวชี้ /dashboard; wave นี้
-     เพิ่มหน้าจอระดับโมดูลอีก 6 หน้า จึงเปลี่ยนเป็นเมนูที่มี subItems แบบเดียวกับ
-     `checkup`/`appoint` — รายการแรกยังเป็นภาพรวมโรงพยาบาลเหมือนเดิม.
-     รายการตรงกับ DASHBOARD_NAV_LINKS ใน components/dashboard/DashboardSubNav.jsx
-     (TabUnderline ระดับหน้า) — แก้ที่ไหนต้องแก้ให้ตรงกันทั้งสองที่.
-     "รายงานเภสัชกรรม (ภาพรวมทุกศูนย์)" คนละหน้ากับ /pharmacy/reports ในเมนู
-     ระบบงานเภสัชกรรม ซึ่งเป็นรายงานเชิงปฏิบัติการรายวันของศูนย์เดียว. */
-  {
-    key: 'dashboard', label: 'แดชบอร์ด', icon: 'bar_chart_4_bars', path: '/dashboard',
-    subItems: [
-      { key: 'db-overview',  label: 'ภาพรวมโรงพยาบาล',                path: '/dashboard'                  },
-      { key: 'db-reports',   label: 'ศูนย์รวมรายงาน',                  path: '/dashboard/reports'          },
-      { key: 'db-service',   label: 'รายงานผู้รับบริการ',              path: '/dashboard/reports/service'  },
-      { key: 'db-pharmacy',  label: 'รายงานเภสัชกรรม (ภาพรวมทุกศูนย์)', path: '/dashboard/reports/pharmacy' },
-      { key: 'db-checkup',   label: 'รายงานตรวจสุขภาพ',                path: '/dashboard/reports/checkup'  },
-      { key: 'db-clinics',   label: 'Dashboard คลินิกพิเศษ',            path: '/dashboard/clinics'          },
-      { key: 'db-executive', label: 'Dashboard ผู้บริหาร',              path: '/dashboard/executive'        },
-    ],
-  },
+  /* แดชบอร์ด + ระบบรายงาน (TOR §1.20) — เมนูเดี่ยว ไม่มี subItems.
+     หน้าจอระดับโมดูลอีก 6 หน้าเข้าถึงผ่านแถบ Tab ในหน้า (TabUnderline ของ
+     `components/dashboard/DashboardSubNav.jsx` = DASHBOARD_NAV_LINKS) แทนการ
+     ซ้อนเป็นเมนูย่อยใน rail (มติผู้ใช้ 27 ส.ค. 69) — รายการทั้งหมดจึงอยู่ที่
+     DASHBOARD_NAV_LINKS ที่เดียว ไม่ต้องแก้สองที่ให้ตรงกันอีก. */
+  { key: 'dashboard', label: 'แดชบอร์ด', icon: 'bar_chart_4_bars', path: '/dashboard' },
   /* คลังเอกสาร e-document เป็นระบบระดับ Hub (systemCatalog doc-template) —
      เมนูของตัวเองผ่าน EDOCUMENT_NAV ไม่ใช่รายการใน PHCIS rail นี้. */
   { key: 'registration', label: 'เวชระเบียน',              icon: 'assignment',       path: '/registration/queue' },

@@ -48,6 +48,9 @@ export const SYSTEM_NAV = [
   /* วันหยุดประจำปี — ทะเบียนกลางตามประกาศสำนักนายกฯ ใช้ร่วมกันทุกศูนย์
      ย้ายมาไว้ล่างสุดของเมนู 25 ส.ค. 69 (มติผู้ใช้) */
   { key: 'system-holidays',       label: 'วันหยุดประจำปี',   icon: 'event_busy',       path: '/admin/holidays' },
+  /* เทมเพลตแดชบอร์ด — ตัวสร้างย้ายมาจากหน้าแดชบอร์ดมาเป็นงานผู้ดูแลระบบ
+     (มติผู้ใช้ 27 ส.ค. 69) หน้าแดชบอร์ดเหลือแค่ "เลือกใช้" */
+  { key: 'system-dashboard-templates', label: 'เทมเพลตแดชบอร์ด', icon: 'dashboard_customize', path: '/admin/dashboard-templates' },
 ];
 
 export default SYSTEM_NAV;

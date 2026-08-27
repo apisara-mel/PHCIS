@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import Dropdown from '@/components/forms/Dropdown';
+import FilterDateTag from '@/components/forms/FilterDateTag';
 import Popup from '@/components/popup/Popup';
 import Table from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
@@ -10,14 +12,16 @@ import Icon from '@/components/icons/Icon';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import SuccessToast from '@/components/toast/SuccessToast';
-import DashboardSubNav from '@/components/dashboard/DashboardSubNav';
-import DataSourceStrip from '@/components/dashboard/DataSourceStrip';
+import DashboardTemplateSwitcher, { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import { DonutWithLegend, Gauge, HBarList, VBars } from '@/components/graph/Charts';
 import PHCIS_CHART, { PHCIS_CHART_PALETTE } from '@/data/phcisChartPalette';
 import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
 import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
 import {
   CARD,
+  FISCAL_YEAR_OPTIONS,
   ChartPanel,
   ChartsRow,
   DASHBOARD_EXPORT_FOOTER,
@@ -27,6 +31,8 @@ import {
   StatTile,
   StatTileRow,
   buildExportReport,
+  fiscalYearDateFilter,
+  fiscalYearOf,
   hbarRows,
 } from '@/pages/dashboard/dashboardReportKit';
 import { safePct } from '@/data/dashboardCommon';
@@ -615,6 +621,7 @@ const CustomizePopup = ({ open, clinicKey, config, onCancel, onSave, onReset }) 
 
 const SpecialClinicDashboardPage = () => {
   const [activeClinic, setActiveClinic] = useState('ncd');
+  const [pageDate, setPageDate] = useState({ quick: 'thisyear' });
   const [storedConfig, setStoredConfig] = useState(() => readStoredConfig());
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [viewBundle, setViewBundle] = useState(null);
@@ -656,8 +663,8 @@ const SpecialClinicDashboardPage = () => {
     [reportsCatalog],
   );
 
-  const tabs = useMemo(
-    () => CLINIC_TABS.map((c) => ({ key: c.key, label: c.label, icon: c.icon })),
+  const clinicOptions = useMemo(
+    () => CLINIC_TABS.map((c) => ({ value: c.key, label: c.label, leadingIcon: c.icon })),
     [],
   );
 
@@ -736,13 +743,34 @@ const SpecialClinicDashboardPage = () => {
       activeKey='dashboard'
       breadcrumb={breadcrumb}
       title='Dashboard คลินิกพิเศษ'
-      actions={roleSwitch}
-      summaryCards={summaryCards}
-      belowSummary={<DashboardSubNav />}
-      tabs={tabs}
-      tabVariant='pill'
-      activeTab={activeClinic}
-      onTabChange={setActiveClinic}
+      actions={(<><DashboardTemplateSwitcher size='md' value={screenValue('clinics')} />{roleSwitch}</>)}
+      /* เลือกคลินิกด้วย dropdown แทนแถบ pill (มติผู้ใช้ 27 ส.ค. 69) — คลินิกพิเศษ
+         มี 12 รายการ แถว pill จึงล้นจอและต้องเลื่อนแนวนอนหาอันที่ต้องการ */
+      afterTitle={(
+        <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+          <FilterDropdown
+            prefix='คลินิก:'
+            leadingIcon={clinicOptions.find((o) => o.value === activeClinic)?.leadingIcon}
+            options={clinicOptions}
+            value={activeClinic}
+            onChange={setActiveClinic}
+          />
+          {/* วัน + ปีงบประมาณ — ให้ครบทุกหน้าแดชบอร์ด (มติผู้ใช้ 27 ส.ค. 69)
+              NOTE: ข้อมูลของหน้านี้ยังไม่มีมิติวันที่ ตัวกรองจึงกำหนดแค่ขอบเขต
+              ที่แสดงบนหัวหน้าจอ ยังไม่กรองตัวเลขในการ์ด — ต้องเติม field วันที่
+              ลง mock ก่อนถึงจะผูกได้ */}
+          <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thisyear' />
+          <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
+            <Dropdown
+              size='md'
+              value={fiscalYearOf(pageDate)}
+              onChange={(be) => setPageDate(fiscalYearDateFilter(be))}
+              options={FISCAL_YEAR_OPTIONS}
+              placeholder='ปีงบประมาณ'
+            />
+          </div>
+        </span>
+      )}
     >
       <div
         className='flex flex-col flex-1 min-w-0'
@@ -754,7 +782,13 @@ const SpecialClinicDashboardPage = () => {
           gap: 'var(--dim-space-600)',
         }}
       >
-        <DataSourceStrip scopeLabel={`${tab.label} · ข้อมูลสรุปทุกศูนย์บริการสาธารณสุข`} />
+        {/* การ์ดสรุปอยู่ใต้แถบ Tab (มติผู้ใช้ 27 ส.ค. 69) — `summaryCards` ของ
+            QueuePageShell ถูกวางเหนือ tab เสมอ จึง render เองตรงนี้แทน */}
+        <section className='w-full flex items-stretch flex-wrap' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
+          {summaryCards.map((card) => (
+            <SummaryCard key={card.key} card={card} variant='panel' />
+          ))}
+        </section>
 
         {tab.confidential && !blocked ? (
           <section

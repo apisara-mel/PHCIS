@@ -40,6 +40,41 @@ const startOfDay = (d) => {
   return x;
 };
 
+/* ── ปีงบประมาณ (1 ต.ค. – 30 ก.ย.) ───────────────────────────────────────
+   ทุกหน้าแดชบอร์ดต้องมีทั้งตัวกรอง "วัน" และ "ปีงบประมาณ" (มติผู้ใช้ 27 ส.ค. 69)
+   ปีงบไม่ได้เป็น state แยก แต่ "เซ็ตช่วงวัน" ให้ — ตัวกรองจึงมีชุดเดียว
+   ไม่ขัดกันเอง และตัวเลขบนหน้าเปลี่ยนตามจริง ไม่ใช่แค่เปลี่ยนป้ายกำกับ */
+export const FISCAL_YEARS_BE = [2569, 2568, 2567, 2566];
+
+export const FISCAL_YEAR_OPTIONS = FISCAL_YEARS_BE.map((be) => ({
+  value: String(be),
+  label: `ปีงบประมาณ ${be}`,
+}));
+
+/** ปีงบ (พ.ศ.) → ช่วงวันแบบ custom ที่ FilterDateTag / matchesIsoDateFilter เข้าใจ */
+export const fiscalYearDateFilter = (be) => {
+  const ce = Number(be) - 543;
+  if (!Number.isFinite(ce)) return { quick: 'thisyear' };
+  return {
+    quick: 'custom',
+    tab: 'range',
+    range: { start: new Date(ce - 1, 9, 1), end: new Date(ce, 8, 30) },
+  };
+};
+
+/** ช่วงวันปัจจุบันตรงกับปีงบไหน — ไม่ตรงเลยคืน '' (Dropdown แสดง placeholder) */
+export const fiscalYearOf = (value) => {
+  const range = resolveDateFilterRange(value);
+  if (!range) return '';
+  const match = FISCAL_YEARS_BE.find((be) => {
+    const want = resolveDateFilterRange(fiscalYearDateFilter(be));
+    return want
+      && want.start.getTime() === range.start.getTime()
+      && want.end.getTime() === range.end.getTime();
+  });
+  return match ? String(match) : '';
+};
+
 export const resolveDateFilterRange = (value) => {
   if (!value?.quick || value.quick === 'all') return null;
   if (value.quick === 'custom') {

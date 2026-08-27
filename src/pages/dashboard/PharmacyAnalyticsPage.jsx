@@ -8,8 +8,8 @@ import FilterTag from '@/components/forms/FilterTag';
 import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Dropdown from '@/components/forms/Dropdown';
-import DashboardSubNav from '@/components/dashboard/DashboardSubNav';
-import DataSourceStrip from '@/components/dashboard/DataSourceStrip';
+import DashboardTemplateSwitcher, { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import { DonutWithLegend, HBarList, VBars } from '@/components/graph/Charts';
 import PHCIS_CHART, { PHCIS_CHART_PALETTE } from '@/data/phcisChartPalette';
 import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
@@ -20,6 +20,9 @@ import {
   DASHBOARD_EXPORT_FOOTER,
   EmptyChartNote,
   ReportGroupCard,
+  FISCAL_YEAR_OPTIONS,
+  fiscalYearDateFilter,
+  fiscalYearOf,
   ReportToolbar,
   ReportViewPopup,
   StatTile,
@@ -549,8 +552,7 @@ const PharmacyAnalyticsPage = () => {
       activeKey='dashboard'
       breadcrumb={breadcrumb}
       title='รายงานเภสัชกรรม (ภาพรวมทุกศูนย์บริการ)'
-      summaryCards={summaryCards}
-      belowSummary={<DashboardSubNav />}
+      actions={<DashboardTemplateSwitcher size='md' value={screenValue('pharmacy')} />}
     >
       <div
         className='flex flex-col flex-1 min-w-0'
@@ -562,7 +564,13 @@ const PharmacyAnalyticsPage = () => {
           gap: 'var(--dim-space-600)',
         }}
       >
-        <DataSourceStrip scopeLabel={scopeLabel} />
+        {/* การ์ดสรุปอยู่ใต้แถบ Tab (มติผู้ใช้ 27 ส.ค. 69) — `summaryCards` ของ
+            QueuePageShell ถูกวางเหนือ tab เสมอ จึง render เองตรงนี้แทน */}
+        <section className='w-full flex items-stretch flex-wrap' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
+          {summaryCards.map((card) => (
+            <SummaryCard key={card.key} card={card} variant='panel' />
+          ))}
+        </section>
 
         <ReportToolbar
           trailing={(
@@ -572,12 +580,22 @@ const PharmacyAnalyticsPage = () => {
           )}
         >
           <FilterDateTag
-            prefix='ช่วงเวลา:'
+            prefix='วัน:'
             value={dateFilter}
             onChange={setDateFilter}
             defaultQuick='thisyear'
             showResolvedDate
           />
+          {/* ปีงบประมาณ — เลือกแล้วเซ็ตช่วงวันให้ตรงรอบปีงบ (1 ต.ค. – 30 ก.ย.) */}
+          <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
+            <Dropdown
+              size='md'
+              value={fiscalYearOf(dateFilter)}
+              onChange={(be) => setDateFilter(fiscalYearDateFilter(be))}
+              options={FISCAL_YEAR_OPTIONS}
+              placeholder='ปีงบประมาณ'
+            />
+          </div>
           <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
             <Dropdown size='md' value={center} onChange={setCenter} options={CENTER_OPTIONS} placeholder='ศูนย์บริการ' />
           </div>
