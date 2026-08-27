@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
+    "dev:lan": "MIH_LAN=1 MIH_HTTPS=1 vite",
     "build": "vite build",
     "preview": "vite preview",
     "serve": "vite preview",

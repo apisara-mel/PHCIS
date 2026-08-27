@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="th">
+<head><meta charset="utf-8"><title>telemed rtc selftest</title></head>
+<body>
+<pre id="out">running…</pre>
+<script type="module">
+/* ตรวจชั้นสายวิดีโอจริงโดยไม่ต้องใช้กล้อง (ใช้ canvas เป็นภาพขาออก)
+
+   โหมดที่ 1 — ไม่ใส่ ?role : เปิดทั้งสองบทบาทในหน้าเดียว
+     ใช้ตรวจว่า RTC + การจับคู่ "ในเบราว์เซอร์เดียว" (BroadcastChannel) ทำงาน
+   โหมดที่ 2 — ?role=web / ?role=mobile : เปิดคนละบทบาทใน Chrome คนละ instance
+     ใช้ตรวจเส้นทาง "ข้ามเครื่อง" ที่วิ่งผ่าน relay ของ dev server เท่านั้น
+
+   ผลลัพธ์ถูกโพสต์เข้า relay ห้อง 'selftest' เพื่ออ่านจากนอกเบราว์เซอร์ได้:
+     curl -s 'http://127.0.0.1:3000/__telemed/signal?room=selftest&since=-1'
+*/
+const params = new URLSearchParams(location.search);
+const only = params.get('role');
+const room = params.get('room') || 'selftest-room';
+
+const log = [];
+const say = (m) => { log.push(m); document.getElementById('out').textContent = log.join('\n'); };
+const report = (verdict) => fetch('/__telemed/signal', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ room: 'selftest', msg: { role: only || 'both', verdict, log } }),
+});
+
+try {
+  const { createTelemedPeer, TELEMED_RTC_STATE } = await import('/src/utils/telemedRtc.js');
+  const { openTelemedSession, TELEMED_SESSION_EVENTS } = await import('/src/utils/telemedSessionBridge.js');
+
+  const fakeStream = (color) => {
+    const c = document.createElement('canvas');
+    c.width = 320; c.height = 240;
+    const ctx = c.getContext('2d');
+    setInterval(() => {
+      ctx.fillStyle = color; ctx.fillRect(0, 0, 320, 240);
+      ctx.fillStyle = '#fff'; ctx.fillRect(Math.random() * 300, Math.random() * 220, 20, 20);
+    }, 100);
+    return c.captureStream(15);
+  };
+
+  const state = {};
+  const remote = {};
+  const peers = {};
+
+  const mk = (role, polite) => {
+    const session = openTelemedSession({
+      role,
+      room,
+      onMessage: (msg) => {
+        if (msg.type === TELEMED_SESSION_EVENTS.signal) peers[role]?.handleSignal(msg.signal);
+        if (msg.type === TELEMED_SESSION_EVENTS.rtcReady && role === 'web') peers.web?.negotiate();
+      },
+    });
+    const peer = createTelemedPeer({
+      polite,
+      sendSignal: (payload) => session.post(TELEMED_SESSION_EVENTS.signal, { signal: payload }),
+      onRemoteStream: (s) => {
+        if (s.getVideoTracks().length && !remote[role]) { remote[role] = true; say(`${role}: ได้รับ track จากอีกฝั่งแล้ว`); }
+      },
+      onState: (s) => { state[role] = s; say(`${role}: ${s}`); },
+    });
+    peers[role] = peer;
+    peer.setLocalStream(fakeStream(role === 'web' ? '#007549' : '#0EA5E9'));
+    return session;
+  };
+
+  const roles = only ? [only] : ['web', 'mobile'];
+  const sessions = {};
+  roles.forEach((r) => { sessions[r] = mk(r, r === 'mobile'); });
+
+  await new Promise((r) => setTimeout(r, 500));
+  if (sessions.mobile) sessions.mobile.post(TELEMED_SESSION_EVENTS.rtcReady, {});
+  if (sessions.web) peers.web.negotiate();
+
+  const deadline = Date.now() + 40000;
+  const done = () => roles.every((r) => state[r] === TELEMED_RTC_STATE.connected && remote[r]);
+  /* เจรจาซ้ำได้ แต่ต้องห่างพอ: ยิง offer ใหม่ทุก 2 วินาทีจะรื้อสายที่กำลังจะติด
+     ทิ้งตลอด แล้วไม่มีวันได้ track ของอีกฝั่ง (เป็นสิ่งที่แอปจริงไม่ทำ — แอปยิง
+     ครั้งเดียวตอนเข้าสาย และตอนได้ rtc-ready ที่ยังไม่ต่อติด) */
+  let ticks = 0;
+  while (Date.now() < deadline && !done()) {
+    await new Promise((r) => setTimeout(r, 2000));
+    ticks += 1;
+    if (done() || ticks % 5 !== 0) continue;
+    if (sessions.web && sessions.web.hasPeer() && !peers.web.isConnected()) peers.web.negotiate();
+    if (sessions.mobile && !peers.mobile.isConnected()) sessions.mobile.post(TELEMED_SESSION_EVENTS.rtcReady, {});
+  }
+
+  say('transport: ' + roles.map((r) => `${r}=${sessions[r].transport}`).join(' · '));
+  const ok = done();
+  say(ok ? 'PASS' : 'FAIL');
+  await report(ok ? 'PASS' : 'FAIL');
+} catch (err) {
+  say('ERROR ' + (err && err.message));
+  await report('ERROR: ' + (err && err.message));
+}
+</script>
+</body>
+</html>

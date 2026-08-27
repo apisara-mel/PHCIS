@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import reactRefresh from '@vitejs/plugin-react-refresh';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { telemedSignalRelay } from './scripts/vite-telemed-relay.mjs';
+import { devHttpsOptions } from './scripts/dev-cert.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,11 +41,25 @@ export default defineConfig({
   resolve: {
     alias: [{ find: '@', replacement: path.resolve(__dirname, 'src') }],
   },
-  plugins: [reactRefresh(), utf8MarkdownPlugin()],
+  plugins: [reactRefresh(), utf8MarkdownPlugin(), telemedSignalRelay()],
   /* Avoid `uv_interface_addresses` crash on newer Node/macOS when Vite
      enumerates all network interfaces (default host). */
   server: {
-    host: '127.0.0.1',
+    /* ปกติผูกกับ loopback (ดูหมายเหตุ uv_interface_addresses ด้านล่าง) แต่ตอน
+       demo Telemedicine ต้องให้มือถือใน Wi-Fi เดียวกันเปิดหน้าผู้รับบริการได้
+       → `npm run dev:lan` ตั้ง MIH_LAN=1 แล้วผูกกับทุก interface.
+       ระบุ IP เองได้ด้วย MIH_LAN=<ip> ถ้าเครื่องมีหลายวง. */
+    host: process.env.MIH_LAN
+      ? (process.env.MIH_LAN === '1' ? '0.0.0.0' : process.env.MIH_LAN)
+      : '127.0.0.1',
+    /* กล้อง/ไมค์ (getUserMedia) ทำงานเฉพาะใน secure context — `localhost` ผ่าน
+       แต่ `http://192.168.x.x` ไม่ผ่าน. มือถือที่เปิดผ่าน IP ของ LAN จึงต้องเป็น
+       https ไม่งั้นสาย Telemedicine จะเปิดกล้องไม่ได้เลย. `dev:lan` เปิดให้อัตโนมัติ
+       ด้วยใบรับรอง self-signed ของ Vite — เครื่องที่เปิดครั้งแรกต้องกด "ดำเนินการต่อ"
+       ผ่านหน้าเตือนใบรับรองหนึ่งครั้ง. */
+    https: process.env.MIH_HTTPS === '1'
+      ? devHttpsOptions(process.env.MIH_LAN !== '1' ? process.env.MIH_LAN : null)
+      : false,
     port: 3000,
     /* Google Drive sync writes placeholder files like `.!NNNNN!Foo.jsx`
        while pulling remote changes. These are ghost paths that vanish
