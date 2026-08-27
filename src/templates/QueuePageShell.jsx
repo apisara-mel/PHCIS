@@ -38,6 +38,12 @@ import { MIH_CHROME_MORPH_STEP_BAND } from '@/components/layout/wizardChromeMorp
      summaryTitle     — optional h1 above the summary cards (Figma Topic tertiary)
      summaryFlushUnderSubHeader — when false, summary band uses Figma
                             PHCIS_Header_Summary chrome (auto false if no SubHeader)
+     summaryBelowTabs — renders the summary band UNDER the sticky tab strip
+                        instead of above it, detached from the white header
+                        chrome (transparent, page padding) so the counts read
+                        as their own card group belonging to the current tab
+                        and scroll away with the list
+                        (needs `tabs`; ระบบสังเกตอาการ uses this)
      headerInfo       — optional slot (Figma PHCIS_Header_Info) rendered in a white
                         panel flush under SubHeader — e.g. Appointment staff hero
      stickyHeaderInfo — when true, headerInfo sticks under Topbar (or SubHeader)
@@ -100,6 +106,7 @@ const QueuePageShell = ({
   summaryCards,
   summaryTitle,
   summaryFlushUnderSubHeader,
+  summaryBelowTabs = false,
   headerInfo,
   stickyHeaderInfo = false,
   headerInfoDense = false,
@@ -123,6 +130,9 @@ const QueuePageShell = ({
   const hasHeaderInfo = !!headerInfo;
   const hasBelowSummary = !!belowSummary;
   const hasTabs = !!tabs;
+  /* Summary under the tabs — only possible when there ARE tabs; otherwise
+     the flag is a no-op and the band stays in its normal slot. */
+  const summaryAfterTabs = !!summaryCards && hasTabs && summaryBelowTabs;
   const summaryFlush = summaryFlushUnderSubHeader ?? hasSubHeader;
   const subHeaderFlushBelow = !!(summaryCards) || hasHeaderInfo;
   /* design.md §6.19 · Brand Drop Shadow Bottom/100 → --shadow-header */
@@ -220,6 +230,20 @@ const QueuePageShell = ({
       : undefined);
   const resolvedSidebarWrapLabels = sidebarWrapLabels ?? false;
 
+  /* The summary band itself — rendered either in its normal slot (above the
+     sticky tab strip) or, with `summaryBelowTabs`, directly under the tabs
+     where it scrolls away beneath them. */
+  const summaryBand = summaryCards ? (
+    <SummaryCardsBar
+      cards={summaryCards}
+      title={summaryBarTitle}
+      flushUnderSubHeader={summaryAfterTabs ? true : summaryFlush}
+      bottomShadow={summaryAfterTabs ? false : summaryBottomShadow}
+      /* ใต้แท็บ = หลุดจาก chrome สีขาว ยืนเป็นกลุ่มการ์ดของตัวเองบนพื้นหลังหน้า */
+      detached={summaryAfterTabs}
+    />
+  ) : null;
+
   return (
   <div
     className='flex w-full min-h-screen'
@@ -286,14 +310,7 @@ const QueuePageShell = ({
           )
         ) : null}
 
-        {summaryCards ? (
-          <SummaryCardsBar
-            cards={summaryCards}
-            title={summaryBarTitle}
-            flushUnderSubHeader={summaryFlush}
-            bottomShadow={summaryBottomShadow}
-          />
-        ) : null}
+        {summaryCards && !summaryAfterTabs ? summaryBand : null}
 
         {belowSummary ? (
           <div
@@ -375,6 +392,8 @@ const QueuePageShell = ({
             )}
           </div>
         ) : null}
+
+        {summaryAfterTabs ? summaryBand : null}
 
         {children}
 

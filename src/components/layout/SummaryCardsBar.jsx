@@ -260,6 +260,11 @@ const SummaryCardsBar = ({
      stack still casts design.md Brand Drop Shadow Bottom/100. */
   flushUnderSubHeader = true,
   bottomShadow = false,
+  /* panel variant — หลุดออกจาก chrome สีขาวของส่วนหัว แล้วนั่งบนการ์ดสีขาว
+     ใบของตัวเอง (แบบเดียวกับการ์ดเนื้อหาหลักของหน้า) เว้นระยะเท่ากับ container
+     ของเนื้อหา การ์ดทั้งแถวจึงอ่านเป็นกลุ่มของตัวเอง ไม่ใช่ท้ายแถบหัวเรื่อง
+     (มติผู้ใช้ 27 ส.ค. 69) */
+  detached = false,
   /* banner variant only — จัดการ์ดเป็นกริดจำนวนคอลัมน์คงที่แทนแถวเดียวที่ยืด
      เต็มความกว้าง การ์ด 7 ใบบนจอกว้างจะบีบจนป้ายกำกับถูกตัด (…) จึงให้ตกเป็น
      สองแถวอ่านง่ายกว่า (มติผู้ใช้ 27 ส.ค. 69) รองรับ 3 หรือ 4 คอลัมน์ */
@@ -278,6 +283,60 @@ const SummaryCardsBar = ({
   }
 
   /* panel variant (default) — Figma PHCIS-ALL 2760:140031 PHCIS_Header_Summary OPD */
+  const panelTitle = title ? (
+    <div className='flex w-full items-center' style={{ gap: 'var(--dim-space-400)' }}>
+      <h1 style={PANEL_TITLE_STYLE}>{title}</h1>
+    </div>
+  ) : null;
+
+  const cardRow = (
+    <div
+      className='flex w-full flex-wrap'
+      style={{
+        gap: 'var(--dim-space-400)',
+        paddingBottom: detached ? 'var(--dim-space-0)' : 'var(--dim-space-600)',
+      }}
+    >
+      {cards.map((c) => <PanelSummaryCard key={c.key} card={c} />)}
+    </div>
+  );
+
+  /* detached — การ์ดทั้งแถวนั่งอยู่บน "การ์ดสีขาว" ใบเดียวกันแบบเดียวกับการ์ด
+     เนื้อหาหลักข้างล่าง (surface-card-100 · radius 500 · shadow-card · padding 600)
+     ส่วน <section> ชั้นนอกทำหน้าที่แค่เว้นระยะขอบหน้าให้ตรงคอลัมน์กัน */
+  if (detached) {
+    return (
+      <section
+        className='w-full flex flex-col'
+        style={{
+          background: 'transparent',
+          border: 'none',
+          outline: 'none',
+          boxShadow: 'none',
+          paddingTop: 'var(--dim-space-600)',
+          paddingLeft: 'var(--dim-space-600)',
+          paddingRight: 'var(--dim-space-600)',
+          paddingBottom: 'var(--dim-space-0)',
+        }}
+      >
+        <div
+          className='w-full flex flex-col'
+          style={{
+            background: 'var(--surface-card-100, #FFFFFF)',
+            borderRadius: 'var(--dim-radius-500, 24px)',
+            border: 'none',
+            boxShadow: 'var(--shadow-card)',
+            padding: 'var(--dim-space-600)',
+            gap: 'var(--dim-space-400)',
+          }}
+        >
+          {panelTitle}
+          {cardRow}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section
       className='w-full flex flex-col'
@@ -299,23 +358,8 @@ const SummaryCardsBar = ({
         gap: 'var(--dim-space-400)',
       }}
     >
-      {title ? (
-        <div
-          className='flex w-full items-center'
-          style={{ gap: 'var(--dim-space-400)' }}
-        >
-          <h1 style={PANEL_TITLE_STYLE}>{title}</h1>
-        </div>
-      ) : null}
-      <div
-        className='flex w-full flex-wrap'
-        style={{
-          gap: 'var(--dim-space-400)',
-          paddingBottom: 'var(--dim-space-600)',
-        }}
-      >
-        {cards.map((c) => <PanelSummaryCard key={c.key} card={c} />)}
-      </div>
+      {panelTitle}
+      {cardRow}
     </section>
   );
 };

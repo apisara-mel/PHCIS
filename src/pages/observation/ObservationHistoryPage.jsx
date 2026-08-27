@@ -121,7 +121,10 @@ export default function ObservationHistoryPage() {
         }
         tags={
           <>
-            <span className='px-2.5 py-1 bg-brand-700 text-white rounded-full text-xs font-bold'>
+            {/* bg-brand-500 = var(--brand-p700) ตามสเกลใน tailwind.config.js —
+                คลาส `bg-brand-700` ที่เคยเขียนไว้ไม่มีอยู่จริง (สเกลจบที่ 600)
+                ป้ายเลขเตียงจึงไม่มีพื้นหลังและเป็นตัวอักษรขาวบนพื้นอ่อนมาตลอด */}
+            <span className='px-2.5 py-1 bg-brand-500 text-white rounded-full text-xs font-bold'>
               {patient.bedNo}
             </span>
             <StatusBadge style='success' size='small' showDot>

@@ -479,6 +479,23 @@ const PatientCard = ({
             >
               HN: {patient.hn}
             </span>
+            {/* VN — เลขการมารับบริการของ visit ที่กำลังทำอยู่ แสดงต่อจาก HN
+                เมื่อ caller ส่งมาเท่านั้น หน้าไหนที่ไม่มี visit เปิดอยู่ (หรือปิด
+                เคสไปแล้ว) ก็แค่ไม่ส่ง `vn` มา (มติผู้ใช้ 28 ส.ค. 69) */}
+            {patient.vn ? (
+              <span
+                className='inline-flex items-center rounded-full bg-badge-blueBg text-badge-blueText font-medium'
+                style={{
+                  height: 'var(--dim-size-500, 24px)',
+                  paddingLeft: 'var(--dim-space-200, 8px)',
+                  paddingRight: 'var(--dim-space-200, 8px)',
+                  fontSize: 'var(--type-size-xs, 12px)',
+                  transition: `height ${T}, padding ${T}, font-size ${T}`,
+                }}
+              >
+                VN: {patient.vn}
+              </span>
+            ) : null}
             {patient.vip && (
               <span
                 className='inline-flex items-center rounded-full bg-badge-redBg text-badge-redText font-medium'

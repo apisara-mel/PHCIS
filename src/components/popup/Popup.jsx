@@ -484,7 +484,21 @@ const Popup = ({
             ...headerStyle,
           }}
         >
-          {onBack ? <BackButton onClick={onBack} /> : leading}
+          {/* ไอคอน `leading` ถูกจัดให้อยู่กึ่งกลางกล่องบรรทัดของหัวข้อ (16px × 1.5
+              = 24px) — ไอคอน Material ที่ caller ส่งมามักมาพร้อม line-height
+              ของ Tailwind (`text-2xl` = 32px) กล่องจึงสูงกว่าบรรทัดหัวข้อ และ
+              เมื่อแถวเป็น items-start ไอคอนจะเหลื่อมกับตัวอักษร โหนดที่สูงกว่า
+              24px (เช่นปุ่มย้อนกลับ) ไม่ถูกบีบเพราะใช้ min-height */}
+          {onBack ? (
+            <BackButton onClick={onBack} />
+          ) : leading ? (
+            <span
+              className='shrink-0 inline-flex items-center justify-center'
+              style={{ minHeight: 'calc(var(--type-size-title, var(--type-size-base, 16px)) * 1.5)' }}
+            >
+              {leading}
+            </span>
+          ) : null}
           <div
             className='flex-1 min-w-0 flex flex-col'
             style={{ gap: 'var(--dim-space-100)' }}
