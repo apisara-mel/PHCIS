@@ -24,49 +24,6 @@ import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
      border/neutral/quaternary          → right vitals panel stroke (1px)
      text/topic/tertiary-title          → #363B3F (right panel title)         */
 
-/* RadioPill = Figma "Radio Button" (PHCIS-ALL nodes 160:24870 / 160:24871).
-   States: selected · default · disabled. Per Figma both selected and
-   unselected use Sarabun Regular 14 — only border weight/colour and text
-   color change. min-h 56, px-4 py-2, radius 8, gap 8.
-
-   IMPORTANT — this project uses Tailwind v2.1.2 (JIT). Arbitrary
-   `border-[var(...)]` is fragile in v2 and can be inlined to its hex
-   fallback at build-time, which then would NOT retint when the user
-   switches `<html data-brand="...">`. We therefore set border colour
-   (and the brand-aware text colour) via inline `style` so the browser
-   resolves the CSS variable on every render — guaranteeing the pill
-   follows the active theme.                                                 */
-const RadioPill = ({ selected, disabled = false, onClick, children }) => (
-  <button
-    type='button'
-    onClick={disabled ? undefined : onClick}
-    disabled={disabled}
-    aria-pressed={selected || undefined}
-    aria-disabled={disabled || undefined}
-    className={[
-      'min-h-[56px] px-4 py-2 rounded-lg flex items-center gap-2 text-sm transition bg-surface-btnQuinary',
-      selected ? 'border-2' : 'border',
-      disabled ? 'cursor-not-allowed' : 'cursor-pointer',
-    ].join(' ')}
-    style={{
-      // Figma alias mapping (design.md row 4263):
-      //   selected → border/brandPrimaryButton/tertiary  →  --border-brandprimary-tertiary  (theme-aware)
-      //   default  → border/neutralButton/tertiary       →  --border-neutralbutton-tertiary
-      borderColor: selected
-        ? 'var(--border-brandprimary-tertiary)'
-        : 'var(--border-neutralbutton-tertiary)',
-      // Figma alias mapping for text:
-      //   selected → text/content/default      →  --text-content-default
-      //   default  → text/content/quaternary   →  --text-content-quaternary
-      color: selected
-        ? 'var(--text-content-default)'
-        : 'var(--text-content-quaternary)',
-    }}
-  >
-    {children}
-  </button>
-);
-
 /* Demo seed values — shown for any historical round that already has
    measurements logged. When wiring to the API, swap this for a per-round
    payload keyed by activeRound.id. */
@@ -327,24 +284,14 @@ const VitalsForm = ({ onValidityChange, onValuesChange }) => {
         showChevron={false}
       />
 
-      {/* Filter row — Figma 160:24869 "button group".
-         Left pill (160:24870) = State=Selected · Right pill (160:24871) = State=Disabled-Unchecked.
-         Per Figma frame 2745:104612 the selection is fixed: only the
-         "อายุมากกว่าหรือเท่ากับ 2 ปี" cohort is supported in this OPD step,
-         so the left pill is permanently Selected and the right is Disabled.
+      {/* ตัดชิปช่วงอายุ (≥2 ปี / <2 ปี) ออกแล้ว — ขั้นนี้รองรับเฉพาะกลุ่ม ≥2 ปี
+         ชิปคู่นั้นจึงถูกล็อกไว้ตายตัว (ซ้ายเลือกค้าง ขวา disabled) กดอะไรไม่ได้
+         อ่านเหมือนตัวกรองที่ใช้ไม่ได้มากกว่าจะบอกอะไร
 
-         Right-side button "ดูแบบกราฟ" = Figma "Neutral Subdue Button" (h-40, leading icon
-         bar_chart_4_bars). Clicking it opens VitalsSignGraphDialog (Popup Very Large
-         3185:144347 · footer ยกเลิก / ปิด) — NOT a toggle. */}
+         "ดูแบบกราฟ" = Neutral Subdue Button (h-40, leading icon bar_chart_4_bars)
+         เปิด VitalsSignGraphDialog (Popup Very Large 3185:144347) — ไม่ใช่ toggle */}
       <div className='flex items-center gap-6 w-full'>
-        <div className='flex-1 flex items-center gap-4'>
-          <RadioPill selected>
-            อายุมากกว่าหรือเท่ากับ 2 ปี
-          </RadioPill>
-          <RadioPill selected={false} disabled>
-            อายุน้อยกว่า 2 ปี
-          </RadioPill>
-        </div>
+        <div className='flex-1' />
         <VitalsSignGraphDialog
           subtitle={measurementTitle}
           disabled={roundsCount === 0}
@@ -360,14 +307,21 @@ const VitalsForm = ({ onValidityChange, onValuesChange }) => {
           Tailwind `[var(...)]` because Tailwind v2 JIT can inline the
           fallback hex at build-time. */}
       <div className='flex items-start gap-6 w-full'>
-        <HistoryTimeline
-          ref={historyTimelineRef}
-          hideOutlineAddButton
-          initialRows={[] /* Figma 293:65594 — empty on first visit; user adds rounds via the panel */}
-          onRoundsChange={handleRoundsChange}
-          onActiveRoundChange={handleActiveRoundChange}
-          roundDisplayOverrides={timelineOverrides}
-        />
+        {/* ไทม์ไลน์ซ้ายโผล่หลังกด "เพิ่มรอบการวัด" เท่านั้น — เข้ามาครั้งแรกยังไม่มี
+            รอบวัดสักรอบ คอลัมน์ซ้ายที่ว่างเปล่าจึงเป็นที่ว่างที่ไม่ได้บอกอะไร
+            **ซ่อนด้วย `display:none` ไม่ใช่ถอดออกจาก DOM** เพราะปุ่มเพิ่มรอบวัดใน
+            พาเนลขวาสั่งงานผ่าน `historyTimelineRef` ถ้า unmount ref จะเป็น null
+            แล้วปุ่มจะกดไม่ติด และรอบที่เคยเพิ่มไว้จะหายไปด้วย */}
+        <div style={firstVisit ? { display: 'none' } : undefined}>
+          <HistoryTimeline
+            ref={historyTimelineRef}
+            hideOutlineAddButton
+            initialRows={[] /* Figma 293:65594 — empty on first visit; user adds rounds via the panel */}
+            onRoundsChange={handleRoundsChange}
+            onActiveRoundChange={handleActiveRoundChange}
+            roundDisplayOverrides={timelineOverrides}
+          />
+        </div>
 
         <div
           className='flex-1 min-w-0 self-stretch flex flex-col gap-4 p-6 rounded-xl'
