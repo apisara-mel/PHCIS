@@ -18,7 +18,6 @@ import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Icon from '@/components/icons/Icon';
 import { PAIN_LEVELS, TRIAGE_LEVELS } from '@/data/opdScreeningCatalog';
 import Footer from '@/components/layout/Footer';
-import ScreeningConfirmPopup from '@/components/popup/ScreeningConfirmPopup';
 import BedSelectionPopup from '@/components/popup/BedSelectionPopup';
 import InternalReferPopup from '@/components/popup/InternalReferPopup';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
@@ -761,13 +760,8 @@ const ScreeningPage = () => {
     (navState && (getPatientByHN(navState.hn) || getPatientByShortName(navState.name))) ||
     DEFAULT_PATIENT;
 
-  /* Entry confirmation (Figma PHCIS-ALL 2400:55040) — open on first mount,
-     close on confirm, go back to the OPD queue on cancel/close/Esc. */
-  const [confirmOpen, setConfirmOpen] = useState(true);
-  const handleCancelEntry = () => {
-    setConfirmOpen(false);
-    history.push('/opd/queue');
-  };
+  /* ไม่มีป๊อปอัป "ยืนยันรับผู้ป่วย" คั่นหน้าแล้ว (มติผู้ใช้ 27 ส.ค. 69) — การกด
+     รับผู้ป่วยจากคิวคือการยืนยันอยู่ในตัว ถามซ้ำอีกหน้าเป็นคลิกเปล่า */
 
   /* ── TOR 1.2.2.2 — re-screen (คัดกรองซ้ำ) vs read-only ────────────────
      Opening a คัดกรองแล้ว row (QueuePage passes statusKey in Link state)
@@ -787,8 +781,9 @@ const ScreeningPage = () => {
   const [staleAlertOpen, setStaleAlertOpen] = useState(false);
   const roundCountAtOpenRef = useRef(0);
 
-  const handleConfirmEntry = () => {
-    setConfirmOpen(false);
+  /* เดิมงานนี้ทำตอนกดยืนยันในป๊อปอัป — ตอนนี้ทำตอนเปิดหน้าแทน เพื่อให้เคสที่
+     "คัดกรองแล้ว" ยังได้เลือกอ่านอย่างเดียว / คัดกรองซ้ำ เหมือนเดิม */
+  useEffect(() => {
     if (alreadyScreened && patient.hn) {
       ensureSeedRound(patient.hn);
       const list = getScreeningRounds(patient.hn);
@@ -796,7 +791,9 @@ const ScreeningPage = () => {
       roundCountAtOpenRef.current = list.length;
       setModeChoiceOpen(true);
     }
-  };
+    /* ครั้งเดียวตอนเปิดหน้า — ผู้ป่วยรายเดิมตลอดอายุหน้านี้ */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const chooseReadOnly = () => {
     setModeChoiceOpen(false);
@@ -853,7 +850,7 @@ const ScreeningPage = () => {
      table. Skipped in read-only mode (no service is being delivered). */
   const prevStepRef = useRef(null);
   useEffect(() => {
-    if (confirmOpen || readOnlyMode || !patient.hn) return;
+    if (readOnlyMode || !patient.hn) return;
     const provider = 'พว.กานดา ศรีวิไล';
     const stationOf = (idx) => `จุดคัดกรอง — ${STEPS[idx]}`;
     if (prevStepRef.current !== null && prevStepRef.current !== current) {
@@ -863,7 +860,7 @@ const ScreeningPage = () => {
       stampStationTime(patient.hn, stationOf(current), provider); // open
       prevStepRef.current = current;
     }
-  }, [current, confirmOpen, readOnlyMode, patient.hn]);
+  }, [current, readOnlyMode, patient.hn]);
 
   const goNext = () => setCurrent((c) => Math.min(STEPS.length - 1, c + 1));
   const goPrev = () => setCurrent((c) => Math.max(0, c - 1));
@@ -1019,12 +1016,6 @@ const ScreeningPage = () => {
 
   return (
     <ClinicFilterProvider>
-    <ScreeningConfirmPopup
-      open={confirmOpen}
-      patient={patient}
-      onConfirm={handleConfirmEntry}
-      onCancel={handleCancelEntry}
-    />
     {/* TOR 1.2.2.2 — อ่านอย่างเดียว vs คัดกรองซ้ำ on a screened record */}
     <AlertDialog
       open={modeChoiceOpen}

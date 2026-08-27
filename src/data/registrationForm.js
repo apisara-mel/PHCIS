@@ -274,6 +274,36 @@ export const formatNationalId = (value) => {
   return out;
 };
 
+/* ── TOR 1.1.1.20 กลุ่ม 2 — ผู้รับบริการที่ไม่ใช่คนไทย ────────────────────
+   เอกสารยืนยันตัวตนของกลุ่มนี้เป็นได้ทั้ง "เลข 13 หลัก" (เลขประจำตัวคนต่างด้าว /
+   บุคคลไม่มีสถานะทางทะเบียน ที่ออกโดยกรมการปกครอง) และ "เลข Passport" ช่องกรอก
+   จึงเป็นช่องเดียวแล้วแยกเก็บตามรูปแบบที่พิมพ์มา — ตัวเลขล้วนลง `nationalId`
+   ตัวอักษรปนลง `passportNo` เพื่อให้หน้าค้นหาคิวและบัตรผู้รับบริการที่อ่านสอง
+   ฟิลด์นี้อยู่แล้วยังทำงานเหมือนเดิม */
+
+/** ค่าที่พิมพ์มาเป็นเลข 13 หลักหรือไม่ (ตัดขีด/ช่องว่างออกก่อน) */
+export const isThaiIdShape = (value) => (
+  String(value ?? '').replace(/\D/g, '').length === 13
+);
+
+/** ค่าที่พิมพ์มาหน้าตาเป็นเลข Passport หรือไม่ — ตัวอักษร/ตัวเลข 6–12 ตัว */
+export const isPassportShape = (value) => (
+  /^[A-Z0-9]{6,12}$/.test(String(value ?? '').replace(/[\s-]/g, '').toUpperCase())
+);
+
+/** ค่าที่โชว์ในช่อง "เลขบัตรประชาชน / Passport" ของกลุ่มไม่ใช่คนไทย */
+export const foreignIdDisplayValue = (form) => (
+  String(form?.passportNo || '').trim() || String(form?.nationalId || '')
+);
+
+/** แยกค่าที่พิมพ์ลงฟิลด์ที่ถูกต้อง — คืน patch ให้ setForm */
+export const foreignIdPatch = (value) => {
+  const raw = String(value ?? '').trim();
+  const digitsOnly = /^[\d\s-]*$/.test(raw);
+  if (digitsOnly) return { nationalId: formatNationalId(raw), passportNo: '' };
+  return { nationalId: '', passportNo: raw.toUpperCase() };
+};
+
 const formatAgeDisplay = (age) => {
   if (typeof age === 'string' && age.includes('ปี')) return age;
   const years = Number(age);
@@ -540,7 +570,11 @@ export const getPersonalMissingFields = (form) => {
     missing.push(STEP2_FIELD_LABELS.dob);
   }
   if (form?.hnGroup === 'foreign-doc') {
-    if (!nonEmpty(form?.passportNo)) missing.push('เลขที่ Passport');
+    /* ช่องเดียวรับได้ทั้งสองแบบ — ผ่านเมื่ออย่างใดอย่างหนึ่งถูกรูปแบบ */
+    const foreignId = foreignIdDisplayValue(form);
+    if (!isThaiIdShape(foreignId) && !isPassportShape(foreignId)) {
+      missing.push('เลขบัตรประชาชน 13 หลัก หรือ Passport');
+    }
     if (hasThaiCharacters(form?.firstNameEn) || hasThaiCharacters(form?.lastNameEn)) {
       missing.push('ชื่อภาษาอังกฤษ (ห้ามอักษรไทย)');
     }
