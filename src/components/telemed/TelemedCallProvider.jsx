@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { TelemedConsultOverlay } from '@/pages/telemed/TelemedConsultPage';
 
 /*
@@ -14,23 +15,27 @@ import { TelemedConsultOverlay } from '@/pages/telemed/TelemedConsultPage';
 const Ctx = createContext(null);
 
 export const useTelemedCall = () => useContext(Ctx) || {
-  active: false, minimized: false, start: () => {}, close: () => {}, minimize: () => {}, maximize: () => {},
+  active: false, minimized: false, visitId: null, start: () => {}, close: () => {}, minimize: () => {}, maximize: () => {},
 };
 
 export function TelemedCallProvider({ children }) {
   const [active, setActive] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  /* สายผูกกับ "รายการที่กดเข้ามาจากหน้า worklist" — ถ้าไม่ส่งต่อ id ไว้
+     ห้องปรึกษาจะแสดงผู้รับบริการคนเดิมเสมอไม่ว่ากดแถวไหน */
+  const [visitId, setVisitId] = useState(null);
 
-  const start = useCallback(() => { setActive(true); setMinimized(false); }, []);
+  const start = useCallback((id = null) => { setVisitId(id); setActive(true); setMinimized(false); }, []);
   const close = useCallback(() => { setActive(false); setMinimized(false); }, []);
   const minimize = useCallback(() => setMinimized(true), []);
   const maximize = useCallback(() => setMinimized(false), []);
 
   return (
-    <Ctx.Provider value={{ active, minimized, start, close, minimize, maximize }}>
+    <Ctx.Provider value={{ active, minimized, visitId, start, close, minimize, maximize }}>
       {children}
       {active && (
         <TelemedConsultOverlay
+          visitId={visitId}
           minimized={minimized}
           onMinimize={minimize}
           onMaximize={maximize}
@@ -46,6 +51,7 @@ export function TelemedCallProvider({ children }) {
    call be opened via a direct URL as well as the floating button. */
 export function TelemedRouteTrigger() {
   const { start } = useTelemedCall();
-  useEffect(() => { start(); }, [start]);
+  const { visitId } = useParams();
+  useEffect(() => { start(visitId || null); }, [start, visitId]);
   return null;
 }
