@@ -44,6 +44,7 @@ import {
   transportLabel,
   TELEMED_SESSION_EVENTS,
 } from '@/utils/telemedSessionBridge';
+import { createTelemedPeer, rtcSupported, TELEMED_RTC_STATE } from '@/utils/telemedRtc';
 
 const MOBILE_PATIENT_HN = CURRENT_USER.centers?.[0]?.hn || '67-004321';
 
@@ -54,7 +55,6 @@ const MOBILE_LINKED_HN = '67-00007';
 /* BMA Health · Telemed — Figma Mobile Application 2042:26776
    Flow: รอพบแพทย์ → วิดีโอ/เสียง → ให้คะแนน → สำเร็จ → ชำระเงิน */
 
-const WAIT_JOIN_MS = 3500;
 
 const MOCK_CHAT = [
   { id: 'm1', from: 'doctor', text: 'สวัสดีครับ วันนี้รู้สึกอย่างไรบ้าง?', at: '10:31' },
@@ -465,6 +465,27 @@ const PdpaIllustration = () => {
   );
 };
 
+/* ก่อนถึงห้องรอมี 4 หน้าเต็มจอเรียงกัน (ยินยอม → กล้อง → ไมค์ → ตรวจความพร้อม)
+   แต่เดิมไม่มีอะไรบอกว่าเหลืออีกกี่ขั้น ผู้รับบริการจึงไม่รู้ว่ากำลังอยู่ตรงไหน */
+const PREP_STEPS = ['ความยินยอม', 'กล้อง', 'ไมโครโฟน', 'ตรวจความพร้อม'];
+
+const PrepStepHint = ({ step }) => (
+  <p
+    style={{
+      margin: 0,
+      width: '100%',
+      textAlign: 'center',
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-xs, 12px)',
+      fontWeight: 'var(--type-weight-medium, 500)',
+      lineHeight: 1.5,
+      color: 'var(--text-content-tertiary, #858C92)',
+    }}
+  >
+    {`ขั้นที่ ${step} จาก ${PREP_STEPS.length} · ${PREP_STEPS[step - 1]}`}
+  </p>
+);
+
 const MicrophoneIllustration = () => {
   const hostRef = useRef(null);
 
@@ -527,6 +548,7 @@ const MicrophonePermissionPopup = ({ onAllow, onDeny }) => (
         className='flex flex-col items-center w-full'
         style={{ gap: 'var(--dim-space-300, 12px)', textAlign: 'center' }}
       >
+        <PrepStepHint step={3} />
         <h2
           id='microphone-permission-title'
           style={{
@@ -724,6 +746,7 @@ const PdpaConsent = ({ onAccept, onDeclineRecording, onCancel, reconsent = false
             textAlign: 'center',
           }}
         >
+          {!reconsent && <PrepStepHint step={1} />}
           <h1
             style={{
               width: '100%',
@@ -807,12 +830,26 @@ const PdpaConsent = ({ onAccept, onDeclineRecording, onCancel, reconsent = false
 /* Live self-view — actually opens the device camera so the readiness check verifies
    the real camera works. Falls back to the mock self-view image when no camera is
    available (no device / OS-denied / headless). Mirrored like a front-facing selfie. */
-const SelfCameraView = ({ active = true, mirrored = true, fallbackSrc = '/illustration/mobile/telemed-camera-preview.png' }) => {
+const SelfCameraView = ({
+  active = true,
+  mirrored = true,
+  fallbackSrc = '/illustration/mobile/telemed-camera-preview.png',
+  stream: sharedStream = null,
+}) => {
   const videoRef = useRef(null);
   const [live, setLive] = useState(false);
 
   useEffect(() => {
     if (!active) { setLive(false); return undefined; }
+    /* ระหว่างสายจริง กล้องถูกเปิดไว้ที่ระดับหน้า แล้วส่ง stream เดียวกันลงมา —
+       ถ้าจอนี้ไปเปิดกล้องซ้ำเอง iOS จะคืนภาพให้ผู้ใช้เห็นแต่ตัดภาพที่ส่งออกสาย */
+    if (sharedStream) {
+      if (videoRef.current && videoRef.current.srcObject !== sharedStream) {
+        videoRef.current.srcObject = sharedStream;
+      }
+      setLive(Boolean(sharedStream.getVideoTracks?.().length));
+      return undefined;
+    }
     let stream = null;
     let cancelled = false;
     (async () => {
@@ -829,7 +866,7 @@ const SelfCameraView = ({ active = true, mirrored = true, fallbackSrc = '/illust
       cancelled = true;
       if (stream) stream.getTracks().forEach((track) => track.stop());
     };
-  }, [active]);
+  }, [active, sharedStream]);
 
   const fill = { width: '100%', height: '100%', objectFit: 'cover' };
   return (
@@ -854,14 +891,12 @@ const ReadinessCheck = ({
   onContinue,
   onRetest,
 }) => {
-  const deviceBadge = (on) => {
-    if (!recordingConsented) {
-      return { style: 'warning', label: 'ปิด — ไม่ยินยอมบันทึก' };
-    }
-    return on
-      ? { style: 'success', label: 'พร้อมใช้งาน' }
-      : { style: 'error', label: 'ไม่พร้อมใช้งาน' };
-  };
+  /* ความยินยอม "ให้บันทึกสาย" กับ "อุปกรณ์พร้อมใช้งานไหม" เป็นคนละเรื่องกัน —
+     ผู้รับบริการที่ไม่ยอมให้บันทึก ยังต้องเปิดกล้อง/ไมค์ปรึกษาแพทย์ได้ตามปกติ
+     ป้ายนี้จึงรายงานสถานะอุปกรณ์ล้วน ๆ ส่วนสถานะการบันทึกอยู่ที่ป้าย LIVE/ไม่บันทึก */
+  const deviceBadge = (on) => (on
+    ? { style: 'success', label: 'พร้อมใช้งาน' }
+    : { style: 'error', label: 'ไม่พร้อมใช้งาน' });
   const camBadge = deviceBadge(camOn);
   const micBadge = deviceBadge(micOn);
 
@@ -911,6 +946,7 @@ const ReadinessCheck = ({
           alignItems: 'center',
         }}
       >
+        <PrepStepHint step={4} />
         <div
           className='flex flex-col items-center w-full'
           style={{
@@ -1007,14 +1043,14 @@ const ReadinessCheck = ({
               {micBadge.label}
             </StatusBadge>
           </div>
-          <SoundBars active={micOn && recordingConsented} />
+          <SoundBars active={micOn} />
         </div>
 
         {!recordingConsented && (
           <div style={{ width: '100%', padding: '0 var(--dim-space-400, 16px) var(--dim-space-200, 8px)' }}>
             <Alert
               type='info'
-              title='คุณเลือกไม่ยินยอมการบันทึก — ไมโครโฟนและกล้องจะปิดอยู่จนกว่าจะให้ความยินยอม'
+              title='คุณเลือกไม่ยินยอมการบันทึก — การปรึกษาดำเนินต่อได้ตามปกติ ระบบจะไม่บันทึกภาพและเสียงของสายนี้'
               showSubtext={false}
               showDetail={false}
               showBadge={false}
@@ -1404,6 +1440,7 @@ const WaitingRoom = ({
 const VideoCall = ({
   doctorName, micOn, camOn, elapsed, chatBadge, recordingConsented,
   onMic, onCam, onShare, onChat, onEnd, onMinimize, chatOpen, chatProps,
+  remoteStream = null, localStream = null,
 }) => (
   <div
     className='flex flex-col'
@@ -1451,18 +1488,31 @@ const VideoCall = ({
     </div>
 
     <div className='flex-1 relative overflow-hidden' style={{ background: 'var(--surface-neutral-tertiary, #27272A)' }}>
-      {/* Doctor feed — a slow ken-burns loop + faint vignette make the still read as a
-         live webcam rather than a frozen photo (เหมือนคุย video call). */}
-      <img
-        src='/illustration/mobile/doctor-h.png'
-        alt={doctorName}
-        style={{
-          position: 'absolute', inset: 0, width: '100%', height: '100%',
-          objectFit: 'cover', filter: 'saturate(1.05)',
-          transformOrigin: '52% 42%',
-          animation: 'mih-telemed-live 16s ease-in-out infinite',
-        }}
-      />
+      {/* Doctor feed — ภาพจริงจากสายเมื่อต่อติดแล้ว. ถ้ายังไม่ติด (หรือเปิดหน้านี้
+         เดี่ยว ๆ โดยไม่มีห้องตรวจของแพทย์) ใช้ภาพนิ่ง + ken-burns loop เดิมเป็น
+         ตัวแทน เพื่อไม่ให้จอว่างเปล่าระหว่างสาธิต. */}
+      {remoteStream ? (
+        <video
+          autoPlay
+          playsInline
+          muted   /* เสียงเล่นผ่าน <audio> แยก — กันเสียงซ้อนสองทาง */
+          ref={(el) => { if (el && el.srcObject !== remoteStream) el.srcObject = remoteStream; }}
+          style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+          }}
+        />
+      ) : (
+        <img
+          src='/illustration/mobile/doctor-h.png'
+          alt={doctorName}
+          style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%',
+            objectFit: 'cover', filter: 'saturate(1.05)',
+            transformOrigin: '52% 42%',
+            animation: 'mih-telemed-live 16s ease-in-out infinite',
+          }}
+        />
+      )}
       <div
         aria-hidden
         style={{
@@ -1525,7 +1575,7 @@ const VideoCall = ({
         }}
       >
         {camOn ? (
-          <SelfCameraView active={camOn} />
+          <SelfCameraView active={camOn} stream={localStream} />
         ) : (
           <div className='flex items-center justify-center h-full' style={{ color: 'rgba(255,255,255,0.7)' }}>
             <Sym name='videocam_off' size={28} />
@@ -1588,10 +1638,10 @@ const AudioCall = ({
         </span>
       </span>
 
-      <StatusBadge style={recordingConsented ? 'info' : 'warning'} size='small' showDot={recordingConsented}>
+      <StatusBadge style='info' size='small' showDot>
         {recordingConsented
           ? 'โหมดเสียง (สัญญาณอินเทอร์เน็ตต่ำ)'
-          : 'ไม่ยินยอมบันทึก — ไมค์/กล้องปิด'}
+          : 'โหมดเสียง (สัญญาณอินเทอร์เน็ตต่ำ) · ไม่บันทึกสาย'}
       </StatusBadge>
 
       <div className='flex flex-col items-center' style={{ gap: 6 }}>
@@ -1613,7 +1663,7 @@ const AudioCall = ({
       <p style={{ margin: 0, fontSize: 'var(--type-size-xl, 20px)', color: 'var(--text-content-default)' }}>
         {formatElapsed(elapsed)}
       </p>
-      <SoundBars active={micOn && recordingConsented} />
+      <SoundBars active={micOn} />
     </div>
 
     <CallControls
@@ -1639,6 +1689,7 @@ const DraggableTelemedWindow = ({
   onMic,
   onExpand,
   onEnd,
+  remoteStream = null,
 }) => {
   const panelRef = useRef(null);
   const dragRef = useRef(null);
@@ -1750,12 +1801,23 @@ const DraggableTelemedWindow = ({
 
       <div className='flex-1 relative overflow-hidden'>
         {camOn ? (
-          <img
-            src='/illustration/mobile/doctor-h.png'
-            alt={doctorName}
-            draggable='false'
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
+          /* ย่อหน้าต่างแล้วภาพแพทย์ต้องยังเป็นภาพจริงเหมือนตอนเต็มจอ */
+          remoteStream ? (
+            <video
+              autoPlay
+              playsInline
+              muted
+              ref={(el) => { if (el && el.srcObject !== remoteStream) el.srcObject = remoteStream; }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <img
+              src='/illustration/mobile/doctor-h.png'
+              alt={doctorName}
+              draggable='false'
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          )
         ) : (
           <div
             className='flex h-full flex-col items-center justify-center'
@@ -2620,10 +2682,30 @@ const MobileTelemedInner = ({ onStepChange }) => {
           case TELEMED_SESSION_EVENTS.bye:
             setPairNotice({ tone: 'warn', text: 'การเชื่อมต่อกับห้องตรวจของแพทย์หลุด — กำลังรอเชื่อมต่อใหม่' });
             break;
+          /* แพทย์ขอความยินยอมบันทึกกลางสาย → ถามเจ้าของข้อมูลจริงบนเครื่องเขา
+             แทนที่จะให้แพทย์กดแทนในห้องตรวจ */
+          case TELEMED_SESSION_EVENTS.consentRequest:
+            setConsentMode('reconsent');
+            setResumeStep(stepRef.current);
+            setStep('consent');
+            break;
           case TELEMED_SESSION_EVENTS.consent:
             setPairNotice(msg.granted
               ? { tone: 'success', text: 'เริ่มบันทึกสายตามความยินยอมของคุณแล้ว' }
               : { tone: 'warn', text: 'หยุดบันทึกสายแล้ว (ไม่มีความยินยอม)' });
+            break;
+          /* ── สายวิดีโอจริง ── */
+          case TELEMED_SESSION_EVENTS.signal:
+            peerRef.current?.handleSignal(msg.signal);
+            break;
+          case TELEMED_SESSION_EVENTS.rtcReady:
+            /* แพทย์เข้าห้องแล้ว — เตรียมสายไว้รอ offer (ฝั่งนี้ไม่เปิดเจรจาเอง) */
+            ensurePeer();
+            break;
+          case TELEMED_SESSION_EVENTS.media:
+            /* แพทย์ปิดกล้อง = track ขาออกถูกถอด ภาพฝั่งนี้จะ "ค้างเฟรมสุดท้าย"
+               ถ้าไม่รู้สถานะ — รับมาเพื่อสลับกลับไปแสดงภาพแทนที่ */
+            if (typeof msg.camOn === 'boolean') setDoctorCamOn(msg.camOn);
             break;
           case 'duplicate':
             setPairNotice({ tone: 'warn', text: 'มีการเชื่อมต่ออยู่แล้ว — พบแอปผู้รับบริการเปิดอยู่อีกแท็บหนึ่ง' });
@@ -2646,6 +2728,109 @@ const MobileTelemedInner = ({ onStepChange }) => {
     });
     return () => { session.close(); sessionRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* ══ สายวิดีโอจริงกับห้องตรวจของแพทย์ (TOR §1.13.1) ═══════════════════
+     ฝั่งผู้รับบริการเป็น polite — ยอมถอยเมื่อ offer ชนกัน ปล่อยให้แพทย์เปิดสาย.
+     กล้อง/ไมค์เปิดที่ระดับหน้าเพียงชุดเดียว แล้วส่ง stream เดียวกันทั้งลงกรอบ
+     ตัวเอง (SelfCameraView) และเข้าสาย — เปิดซ้ำสองที่ iOS จะตัดอันแรกทิ้ง. */
+  const inCall = step === 'call';
+  const [localStream, setLocalStream] = useState(null);
+  const [doctorCamOn, setDoctorCamOn] = useState(true);
+  const [remoteStream, setRemoteStream] = useState(null);
+  const [rtcState, setRtcState] = useState(TELEMED_RTC_STATE.idle);
+  const peerRef = useRef(null);
+  const remoteAudioRef = useRef(null);
+
+  useEffect(() => {
+    if (!inCall) { setLocalStream(null); return undefined; }
+    const md = navigator.mediaDevices;
+    if (!md || !md.getUserMedia) return undefined;
+    let active = true;
+    let acquired = null;
+    md.getUserMedia({ video: { facingMode: 'user' }, audio: true })
+      .then((s) => {
+        if (!active) { s.getTracks().forEach((t) => t.stop()); return; }
+        acquired = s;
+        setLocalStream(s);
+      })
+      .catch(() => {
+        /* ไม่อนุญาต/ไม่มีอุปกรณ์ — สายยังเดินต่อได้ ผู้ใช้ยังเห็นและได้ยินแพทย์ */
+        if (active) setLocalStream(null);
+      });
+    return () => { active = false; if (acquired) acquired.getTracks().forEach((t) => t.stop()); };
+  }, [inCall]);
+
+  const closePeer = () => {
+    peerRef.current?.close();
+    peerRef.current = null;
+    setRemoteStream(null);
+    setRtcState(TELEMED_RTC_STATE.idle);
+  };
+
+  const ensurePeer = () => {
+    if (peerRef.current && !peerRef.current.isClosed()) return peerRef.current;
+    if (!rtcSupported()) return null;
+    const peer = createTelemedPeer({
+      polite: true,
+      sendSignal: (payload) => sessionRef.current?.post(TELEMED_SESSION_EVENTS.signal, { signal: payload }),
+      onRemoteStream: (s) => setRemoteStream(s),
+      onState: (s) => setRtcState(s),
+    });
+    peerRef.current = peer;
+    return peer;
+  };
+
+  useEffect(() => {
+    if (!inCall) { closePeer(); return undefined; }
+    const peer = ensurePeer();
+    if (!peer) return undefined;
+    /* บอกแพทย์ว่าพร้อมแล้ว — ฝั่งแพทย์เป็นคนยิง offer */
+    sessionRef.current?.post(TELEMED_SESSION_EVENTS.rtcReady, {});
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inCall]);
+
+  useEffect(() => () => closePeer(), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ภาพ/เสียงขาออก — ปิดกล้องหรือไมค์ = ปิด track ไม่ใช่หยุดสาย */
+  useEffect(() => {
+    const videoTrack = localStream?.getVideoTracks?.()[0] || null;
+    const audioTrack = localStream?.getAudioTracks?.()[0] || null;
+    if (videoTrack) videoTrack.enabled = camOn;
+    if (audioTrack) audioTrack.enabled = micOn;
+    const peer = peerRef.current;
+    if (!peer || peer.isClosed()) return;
+    peer.setVideoTrack(camOn ? videoTrack : null);
+    peer.setAudioTrack(audioTrack);
+  }, [localStream, camOn, micOn, rtcState]);
+
+  useEffect(() => {
+    if (!inCall) return;
+    sessionRef.current?.post(TELEMED_SESSION_EVENTS.media, { camOn, micOn });
+  }, [camOn, micOn, inCall]);
+
+  /* เสียงแพทย์เล่นผ่าน <audio> ที่แขวนกับ document — หน้านี้สลับระหว่างสายเต็มจอ
+     กับหน้าต่างย่อ (MinimizedCall) ถ้าฝากเสียงไว้กับกรอบภาพ เสียงจะหายตอนย่อ */
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    if (!remoteAudioRef.current) {
+      const el = document.createElement('audio');
+      el.autoplay = true;
+      el.setAttribute('playsinline', '');
+      el.style.display = 'none';
+      document.body.appendChild(el);
+      remoteAudioRef.current = el;
+    }
+    const el = remoteAudioRef.current;
+    if (el.srcObject !== remoteStream) el.srcObject = remoteStream || null;
+    if (remoteStream) el.play?.().catch(() => { /* รอ gesture ถัดไป */ });
+    return undefined;
+  }, [remoteStream]);
+
+  useEffect(() => () => {
+    const el = remoteAudioRef.current;
+    if (el) { el.srcObject = null; el.remove(); remoteAudioRef.current = null; }
   }, []);
 
   /* ผูกกับ HN ของเจ้าของเครื่องเท่านั้น — ห้าม fallback ไปหยิบรายการของคนอื่น
@@ -2795,16 +2980,15 @@ const MobileTelemedInner = ({ onStepChange }) => {
     if (step !== 'wait') return undefined;
     const tick = window.setInterval(() => setWaitSec((seconds) => seconds + 1), 1000);
     /* ส่งคำขอเข้าห้องไปยังแท็บแพทย์จริง (ถ้ามี) */
-    const hasDoctorTab = Boolean(sessionRef.current?.hasPeer());
     if (sessionRef.current) {
       sessionRef.current.post(TELEMED_SESSION_EVENTS.joinRequest, {
         hn: MOBILE_LINKED_HN,
         name: CURRENT_USER?.name || 'ผู้รับบริการ',
       });
     }
-    /* มีแท็บแพทย์อยู่ → รอให้แพทย์กด "รับเข้าห้อง" จริง ห้ามเข้าสายเอง
-       ไม่มีแท็บแพทย์ → คงโฟลว์สาธิตเดิม */
-    const join = hasDoctorTab ? null : window.setTimeout(() => setStep('call'), WAIT_JOIN_MS);
+    /* เข้าสายได้ทางเดียวคือแพทย์กด "รับเข้าห้อง" จริง — เดิมถ้าไม่พบห้องตรวจ
+       ระบบจะพาเข้าสายเองใน 3.5 วินาที ทำให้ผู้รับบริการไปนั่งอยู่ในสายที่ไม่มีใคร
+       แล้วเข้าใจว่าระบบเสีย. ห้องรอต้องรอจริงและบอกให้ชัดว่ากำลังรออะไรอยู่ */
     /* ส่งคำขอซ้ำทุก 15 วินาที เผื่อแพทย์เพิ่งเปิดแท็บทีหลัง */
     const reping = window.setInterval(() => {
       sessionRef.current?.post(TELEMED_SESSION_EVENTS.joinRequest, {
@@ -2815,7 +2999,6 @@ const MobileTelemedInner = ({ onStepChange }) => {
     return () => {
       clearInterval(tick);
       clearInterval(reping);
-      if (join != null) clearTimeout(join);
     };
   }, [step]);
 
@@ -2912,6 +3095,8 @@ const MobileTelemedInner = ({ onStepChange }) => {
   const acceptRecordingConsent = () => {
     setRecordingConsented(true);
     linkTelemedRecordingConsent(MOBILE_PATIENT_HN, { consented: true, channel: 'Mobile App' });
+    /* คำตอบต้องเดินกลับไปถึงห้องตรวจ ไม่ใช่ให้แพทย์เดาเอง (PDPA) */
+    sessionRef.current?.post(TELEMED_SESSION_EVENTS.consent, { granted: true });
     setConsentMode('initial');
     if (consentMode === 'reconsent' && resumeStep) {
       if (pendingDevice === 'mic') setMicOn(true);
@@ -2925,15 +3110,17 @@ const MobileTelemedInner = ({ onStepChange }) => {
     setStep('cameraPermission');
   };
 
+  /* ไม่ยินยอมให้บันทึก ≠ ไม่ยินยอมปรึกษา — ห้ามปิดกล้อง/ไมค์ให้ผู้ใช้
+     ระบบแค่ไม่บันทึกสายนี้ แล้วเดินหน้าต่อจากจุดที่ค้างไว้ */
   const declineRecordingConsent = () => {
     setRecordingConsented(false);
     linkTelemedRecordingConsent(MOBILE_PATIENT_HN, { consented: false, channel: 'Mobile App' });
-    setMicOn(false);
-    setCamOn(false);
+    sessionRef.current?.post(TELEMED_SESSION_EVENTS.consent, { granted: false });
+    const back = consentMode === 'reconsent' ? (resumeStep || 'call') : 'check';
     setConsentMode('initial');
     setPendingDevice(null);
     setResumeStep(null);
-    setStep('check');
+    setStep(back);
   };
 
   const cancelReconsent = () => {
@@ -2943,14 +3130,9 @@ const MobileTelemedInner = ({ onStepChange }) => {
     setResumeStep(null);
   };
 
+  /* เปิด/ปิดอุปกรณ์เป็นสิทธิ์ของผู้รับบริการเสมอ ไม่ผูกกับความยินยอมให้บันทึก —
+     การขอความยินยอมบันทึกมาจากฝั่งแพทย์ (เหตุการณ์ consent-request) เท่านั้น */
   const requestDeviceToggle = (device) => {
-    if (!recordingConsented) {
-      setConsentMode('reconsent');
-      setPendingDevice(device);
-      setResumeStep(step);
-      setStep('consent');
-      return;
-    }
     if (device === 'mic') setMicOn((value) => !value);
     if (device === 'cam') setCamOn((value) => !value);
   };
@@ -2972,7 +3154,7 @@ const MobileTelemedInner = ({ onStepChange }) => {
         <PdpaConsent onAccept={() => {}} onCancel={closeTelemed} />
         <CameraPermissionPopup
           positioning='absolute'
-          description='แอปพลิเคชันจำเป็นต้องเข้าถึงกล้องของคุณ เพื่อใช้สื่อสารด้วยเสียงกับแพทย์ระหว่างการตรวจแบบออนไลน์ (Telemedicine)'
+          description='ขั้นที่ 2 จาก 4 · กล้อง — แอปพลิเคชันจำเป็นต้องเข้าถึงกล้องของคุณ เพื่อใช้สื่อสารด้วยภาพและเสียงกับแพทย์ระหว่างการตรวจแบบออนไลน์ (Telemedicine)'
           onAllow={allowCamera}
           onDeny={() => {
             /* The readiness screen uses the approved mock self-view so the camera
@@ -3009,10 +3191,8 @@ const MobileTelemedInner = ({ onStepChange }) => {
         onCancel={closeTelemed}
         onContinue={() => setStep('wait')}
         onRetest={() => {
-          if (recordingConsented) {
-            setMicOn(true);
-            setCamOn(true);
-          }
+          setMicOn(true);
+          setCamOn(true);
         }}
       />
     );
@@ -3101,7 +3281,12 @@ const MobileTelemedInner = ({ onStepChange }) => {
     recordingConsented,
     onMic: () => requestDeviceToggle('mic'),
     onCam: () => requestDeviceToggle('cam'),
-    onShare: () => window.alert('แชร์หน้าจอ — สาธิต'),
+    /* มือถือแชร์หน้าจอเข้าสายไม่ได้ (เบราว์เซอร์บนมือถือไม่มี getDisplayMedia) —
+       บอกด้วยข้อความในระบบ ไม่ใช่ alert ของเบราว์เซอร์ที่บล็อกทั้งแอป */
+    onShare: () => setPairNotice({
+      tone: 'warn',
+      text: 'อุปกรณ์นี้แชร์หน้าจอเข้าสายไม่ได้ — ส่งรูปหรือไฟล์ผ่านห้องสนทนาแทนได้',
+    }),
     onChat: openChat,
     onEnd: endCall,
     onMinimize: () => {
@@ -3110,6 +3295,8 @@ const MobileTelemedInner = ({ onStepChange }) => {
     },
     chatOpen,
     chatProps,
+    remoteStream: doctorCamOn ? remoteStream : null,
+    localStream,
   };
 
   return (
@@ -3166,6 +3353,7 @@ const MobileTelemedInner = ({ onStepChange }) => {
             onMic={() => requestDeviceToggle('mic')}
             onExpand={() => setMinimized(false)}
             onEnd={endCall}
+            remoteStream={doctorCamOn ? remoteStream : null}
           />
         </>
       ) : (

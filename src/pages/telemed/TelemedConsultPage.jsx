@@ -30,6 +30,12 @@ import {
   transportLabel,
   TELEMED_SESSION_EVENTS,
 } from '@/utils/telemedSessionBridge';
+import {
+  createTelemedPeer,
+  gradeConnection,
+  rtcSupported,
+  TELEMED_RTC_STATE,
+} from '@/utils/telemedRtc';
 import { startTelemedAuditMirror } from '@/utils/telemedAuditPersist';
 import {
   markPending,
@@ -152,6 +158,12 @@ const classifyMediaError = (err) => {
   }
   return 'permission';
 };
+
+/* ระยะเวลารอผู้รับบริการก่อนไต่ระดับ no-show. Figma กำหนด 5 นาที → 10 นาที →
+   หมดช่วงนัด; ค่าที่ใช้อยู่นี้ย่อลงเพื่อให้สาธิตครบวงจรได้ในรอบเดียว —
+   เปลี่ยนเป็น 5 * 60_000 / 10 * 60_000 ได้ที่จุดนี้จุดเดียว */
+const NO_SHOW_FIRST_MS = 60000;
+const NO_SHOW_NEXT_MS = 60000;
 
 const ONBRAND = 'var(--text-brandPrimary-on-brand, #FFFFFF)';
 
@@ -687,6 +699,78 @@ const DevicePickerPill = ({ icon, value, options, onChange, ariaLabel }) => {
    the Brand Circle Subdue Icon Button (outline); End Call uses the Danger
    Circle Icon Button (fill). `highlight` maps to the button's Active chrome
    for engaged toggles (sharing / chat open / recording). */
+/* มาตรวัดเสียงไมค์ของแพทย์ — ฝั่งผู้รับบริการมีหน้า "ตรวจสอบความพร้อม" พร้อม
+   มาตรวัดเสียงมาตั้งแต่แรก แต่ฝั่งแพทย์เห็นแค่ภาพตัวเอง จึงไม่มีทางรู้ว่าไมค์ดัง
+   หรือเปล่าจนกว่าจะเข้าสายไปแล้ว. อ่านระดับจาก stream จริงที่จะใช้คุยจริง */
+const MicLevelMeter = ({ stream, bars = 10 }) => {
+  const [level, setLevel] = useState(0);
+
+  useEffect(() => {
+    const track = stream?.getAudioTracks?.()[0];
+    if (!track) { setLevel(0); return undefined; }
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return undefined;
+    let ctx = null;
+    let source = null;
+    let id = null;
+    try {
+      ctx = new Ctx();
+      source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      /* 10 ครั้ง/วินาทีพอให้ตาเห็นว่าขยับ และไม่กิน CPU เท่า requestAnimationFrame */
+      id = window.setInterval(() => {
+        analyser.getByteTimeDomainData(data);
+        let peak = 0;
+        for (let i = 0; i < data.length; i += 1) {
+          const v = Math.abs(data[i] - 128);
+          if (v > peak) peak = v;
+        }
+        setLevel(Math.min(1, peak / 48));
+      }, 100);
+    } catch {
+      return undefined;
+    }
+    return () => {
+      if (id != null) window.clearInterval(id);
+      try { source?.disconnect(); } catch { /* ignore */ }
+      try { ctx?.close(); } catch { /* ignore */ }
+    };
+  }, [stream]);
+
+  const lit = Math.round(level * bars);
+  const hint = stream ? 'ระดับเสียงไมโครโฟน — ลองพูดเพื่อทดสอบ' : 'ยังไม่พบไมโครโฟน';
+  /* แถบสั้น ๆ ต่อท้ายตัวเลือกไมค์: อธิบายตัวเองอยู่แล้วจากบริบท และไม่ดันแถว
+     ตัวเลือกอุปกรณ์ให้ตกบรรทัด — คำอธิบายเต็มอยู่ใน title/aria-label */
+  return (
+    <div
+      className='flex items-center'
+      title={hint}
+      aria-label={hint}
+      style={{ gap: 'var(--dim-space-200, 8px)' }}
+    >
+      {!stream && <Sym name='mic_off' size={16} color='var(--text-content-tertiary, #858C92)' />}
+      <div className='flex items-center' aria-hidden style={{ gap: 'var(--dim-space-050, 2px)' }}>
+        {Array.from({ length: bars }).map((_, i) => (
+          <span
+            key={`mic-bar-${i}`}
+            style={{
+              width: 'var(--dim-space-100, 4px)',
+              height: 'var(--dim-size-300, 16px)',
+              borderRadius: 'var(--dim-radius-100, 4px)',
+              background: i < lit
+                ? 'var(--surface-positive-primary, #08A768)'
+                : 'var(--surface-neutral-tertiary, #F4F5F5)',
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const ControlBtn = ({ icon, label, onClick, highlight = false, danger, mutedDanger, badge, disabled = false, title }) => (
   <div
     title={title}
@@ -1023,10 +1107,17 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
   const videoStageRef = useRef(null);
   const [uploadedBg, setUploadedBg] = useState(null);
   const [uploadHover, setUploadHover] = useState(false); // Photo Default/Hover (Figma 3420:2565)
+  const [bgPanelOpen, setBgPanelOpen] = useState(false); // พื้นหลังเสมือน — ยุบไว้ ไม่ใช่งานหลักก่อนเข้าห้อง
   const [patientCamOn, setPatientCamOn] = useState(true);
   const [patientMicOn, setPatientMicOn] = useState(true);
   const [stream, setStream] = useState(null);        // doctor camera (getUserMedia)
+  const [micStream, setMicStream] = useState(null);  // doctor microphone — แยกจากกล้อง เพราะปิดกล้องแล้วเสียงต้องไม่ดับ
   const [screenStream, setScreenStream] = useState(null); // shared screen (getDisplayMedia)
+  /* สายจริง (WebRTC) — ภาพ/เสียงของผู้รับบริการที่ส่งข้ามมาจริง */
+  const [remoteStream, setRemoteStream] = useState(null);
+  const [rtcState, setRtcState] = useState(TELEMED_RTC_STATE.idle);
+  const peerRef = useRef(null);
+  const remoteAudioRef = useRef(null);
   const [sharing, setSharing] = useState(false);
   const [rightTab, setRightTab] = useState('chat');
   const [patientOpen, setPatientOpen] = useState(false); // TelemedPatientCard State=Hide (Figma 25:3185)
@@ -1066,6 +1157,10 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
   const [timeslotCountdown, setTimeslotCountdown] = useState(30);
   const joinRequestTimerRef = useRef(null);
   const noShowTimerRef = useRef(null);
+  /* เวลาที่จะไต่ระดับ no-show ครั้งถัดไป — เดิมเป็น timer ที่มองไม่เห็นเลย
+     แพทย์จึงไม่รู้ว่าห้องจะปิดเองเมื่อไร (Nielsen #1) */
+  const [noShowAt, setNoShowAt] = useState(null);
+  const [noShowLeftMs, setNoShowLeftMs] = useState(0);
   const [closeReason, setCloseReason] = useState(null); // null | 'endMeeting' | 'no-show' | 'timeslot'
   const [audioOnly, setAudioOnly] = useState(false);
 
@@ -1289,7 +1384,13 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
       appendAuditEvent({ user: DOCTOR.name, action: 'เริ่มบันทึกวิดีโอ' });
       return;
     }
-    setConsentModal(true); // must ask patient first (PDPA)
+    /* ต้องถามเจ้าของข้อมูลก่อน (PDPA) — ถ้าเครื่องผู้รับบริการจับคู่อยู่ ให้คำขอ
+       ไปโผล่บนเครื่องเขาจริง ๆ ส่วนป๊อปอัปนี้เหลือไว้บันทึกคำตอบกรณีตอบทางวาจา */
+    if (sessionRef.current?.hasPeer()) {
+      sessionRef.current.post(TELEMED_SESSION_EVENTS.consentRequest, { by: DOCTOR.name });
+      appendAuditEvent({ user: DOCTOR.name, action: 'ส่งคำขอความยินยอมบันทึกสายไปยังเครื่องผู้รับบริการ' });
+    }
+    setConsentModal(true);
   };
   const grantConsent = () => {
     setConsent('granted');
@@ -1360,6 +1461,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
   };
 
   const clearNoShowTimer = () => {
+    setNoShowAt(null);
     if (noShowTimerRef.current != null) {
       window.clearTimeout(noShowTimerRef.current);
       noShowTimerRef.current = null;
@@ -1417,8 +1519,34 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
             }
             break;
           case TELEMED_SESSION_EVENTS.consent:
+            /* คำตอบมาจากเครื่องผู้รับบริการเอง — ปิดป๊อปอัปที่ค้างอยู่แล้วทำตามคำตอบ */
             setConsent(msg.granted ? 'granted' : 'denied');
+            setConsentModal(false);
+            setRecording(Boolean(msg.granted));
+            appendAuditEvent({
+              user: DOCTOR.name,
+              action: msg.granted
+                ? 'ผู้รับบริการยินยอมให้บันทึกสายจากแอปมือถือ — เริ่มบันทึก'
+                : 'ผู้รับบริการไม่ยินยอมให้บันทึกสายจากแอปมือถือ — ไม่บันทึก',
+              ok: Boolean(msg.granted),
+            });
             setVisitTick((t) => t + 1);
+            break;
+          /* ── สายวิดีโอจริง ── */
+          case TELEMED_SESSION_EVENTS.signal:
+            peerRef.current?.handleSignal(msg.signal);
+            break;
+          case TELEMED_SESSION_EVENTS.rtcReady: {
+            /* ฝั่งผู้รับบริการพร้อมแล้ว — แพทย์เป็นฝ่ายเปิดการเจรจา
+               ถ้าสายต่อติดอยู่แล้วห้ามเจรจาใหม่: ข้อความที่มาซ้ำ (เช่นผู้รับบริการ
+               รีเฟรชหน้า หรือ relay ส่งซ้ำ) จะทำให้สายรื้อแล้วต่อใหม่ไม่จบ */
+            const peer = ensurePeer();
+            if (peer && !peer.isConnected()) peer.negotiate();
+            break;
+          }
+          case TELEMED_SESSION_EVENTS.media:
+            if (typeof msg.camOn === 'boolean') setPatientCamOn(msg.camOn);
+            if (typeof msg.micOn === 'boolean') setPatientMicOn(msg.micOn);
             break;
           default:
             break;
@@ -1485,9 +1613,11 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     appendAuditEvent({ user: DOCTOR.name, action: 'ยังไม่รับผู้ป่วยเข้าสาย (ปฏิเสธคำขอชั่วคราว)', ok: false });
     /* Patient still absent — escalate to no-show ครั้งที่ 1 after a short wait (demo). */
     clearNoShowTimer();
+    setNoShowAt(Date.now() + NO_SHOW_FIRST_MS);
     noShowTimerRef.current = window.setTimeout(() => {
+      setNoShowAt(null);
       setNoShowStep(1);
-    }, 5000);
+    }, NO_SHOW_FIRST_MS);
   };
 
   const waitNoShowFurther = () => {
@@ -1495,7 +1625,11 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     setNoShowStep(null);
     if (!next) return;
     clearNoShowTimer();
-    noShowTimerRef.current = window.setTimeout(() => setNoShowStep(next), 2500);
+    setNoShowAt(Date.now() + NO_SHOW_NEXT_MS);
+    noShowTimerRef.current = window.setTimeout(() => {
+      setNoShowAt(null);
+      setNoShowStep(next);
+    }, NO_SHOW_NEXT_MS);
   };
 
   const markNoShow = () => {
@@ -1508,12 +1642,6 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     clearAdditionalCaseTimers();
     setNoShowStep(null);
     endCall('timeslot');
-  };
-
-  /* Demo helper — click call-duration pill to preview Additional Cases dialogs. */
-  const cycleNoShowDemo = () => {
-    setJoinRequestOpen(false);
-    setNoShowStep((s) => (s == null ? 1 : s === 1 ? 2 : s === 2 ? 'timeslot' : null));
   };
 
   /* ── ส่งสรุปการให้บริการ + คำสั่ง เข้า PHCIS ตอนจบสาย (TOR §1.13.3) ──
@@ -1660,8 +1788,159 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
     setConnectingOpen(false);
   };
 
+  /* เดินนาฬิกาให้แพทย์เห็นว่าเหลือเวลาอีกเท่าไรก่อนระบบจะไต่ระดับ no-show */
+  useEffect(() => {
+    if (noShowAt == null) { setNoShowLeftMs(0); return undefined; }
+    const tick = () => setNoShowLeftMs(Math.max(0, noShowAt - Date.now()));
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [noShowAt]);
+
   const showPatientVideo = patientPresent && patientCamOn && network !== 'lost' && !audioOnly;
   const showDoctorVideo = camOn && !camError && !audioOnly;
+
+  /* ══ สายวิดีโอจริง (TOR §1.13.1) ═══════════════════════════════════════
+     ก่อนหน้านี้ภาพผู้รับบริการเป็นรูปนิ่ง — ที่นี่ต่อ RTCPeerConnection จริง
+     โดยส่ง SDP/ICE ผ่านช่องเดียวกับที่ใช้จับคู่ session อยู่แล้ว.
+     ฝั่งแพทย์เป็น impolite = เป็นคนเปิดการเจรจา. */
+
+  /* ไมค์แยกจากกล้อง: ปิดกล้อง (setStream(null)) ต้องไม่ทำให้เสียงหลุดไปด้วย
+     และการปิดไมค์คือ track.enabled = false ไม่ใช่การหยุด track (หยุดแล้ว
+     ต้องขออนุญาตใหม่ทุกครั้งที่เปิด) */
+  const wantMedia = phase === 'prepare' || phase === 'in-call';
+  useEffect(() => {
+    if (!wantMedia) { setMicStream(null); return undefined; }
+    const md = navigator.mediaDevices;
+    if (!md || !md.getUserMedia) return undefined;
+    let active = true;
+    let acquired = null;
+    md.getUserMedia({ audio: true, video: false })
+      .then((s) => {
+        if (!active) { s.getTracks().forEach((t) => t.stop()); return; }
+        acquired = s;
+        setMicStream(s);
+      })
+      .catch(() => { /* ไม่มีไมค์/ไม่อนุญาต — สายยังเดินต่อได้แบบไม่มีเสียงขาออก */ });
+    return () => { active = false; if (acquired) acquired.getTracks().forEach((t) => t.stop()); };
+  }, [wantMedia]);
+
+  const closePeer = () => {
+    peerRef.current?.close();
+    peerRef.current = null;
+    setRemoteStream(null);
+    setRtcState(TELEMED_RTC_STATE.idle);
+  };
+
+  const ensurePeer = () => {
+    if (peerRef.current && !peerRef.current.isClosed()) return peerRef.current;
+    if (!rtcSupported()) return null;
+    const peer = createTelemedPeer({
+      polite: false,
+      sendSignal: (payload) => sessionRef.current?.post(TELEMED_SESSION_EVENTS.signal, { signal: payload }),
+      onRemoteStream: (s) => setRemoteStream(s),
+      onState: (s) => setRtcState(s),
+    });
+    peerRef.current = peer;
+    return peer;
+  };
+
+  /* เปิด/ปิดสายตามเฟส — และประกาศให้อีกฝั่งรู้ว่าพร้อมต่อแล้ว */
+  useEffect(() => {
+    if (phase !== 'in-call') { closePeer(); return undefined; }
+    const peer = ensurePeer();
+    if (!peer) return undefined;
+    sessionRef.current?.post(TELEMED_SESSION_EVENTS.rtcReady, {});
+    /* ถ้าฝั่งผู้รับบริการอยู่ในห้องก่อนแล้ว offer รอบแรกจะไม่มีใครรับ — เจรจาซ้ำ */
+    if (sessionRef.current?.hasPeer()) peer.negotiate();
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  /* เก็บกวาดตอนออกจากหน้า */
+  useEffect(() => () => closePeer(), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ภาพขาออก = หน้าจอที่แชร์ (ถ้ากำลังแชร์) ไม่งั้นเป็นกล้องแพทย์ · ปิดกล้อง = ไม่ส่งภาพ */
+  useEffect(() => {
+    const peer = peerRef.current;
+    if (!peer || peer.isClosed()) return;
+    const outgoing = sharing && screenStream
+      ? screenStream.getVideoTracks()[0]
+      : (showDoctorVideo && stream ? stream.getVideoTracks()[0] : null);
+    peer.setVideoTrack(outgoing || null);
+  }, [stream, screenStream, sharing, showDoctorVideo, rtcState, phase]);
+
+  /* เสียงขาออก — ปิดไมค์ด้วย enabled เพื่อไม่ต้องเจรจา SDP ใหม่ */
+  useEffect(() => {
+    const track = micStream?.getAudioTracks?.()[0] || null;
+    if (track) track.enabled = micOn;
+    const peer = peerRef.current;
+    if (!peer || peer.isClosed()) return;
+    peer.setAudioTrack(track);
+  }, [micStream, micOn, rtcState, phase]);
+
+  /* บอกอีกฝั่งว่ากล้อง/ไมค์เราเปิดอยู่ไหม เพื่อให้ป้ายบนจอทั้งสองฝั่งตรงกัน */
+  useEffect(() => {
+    if (phase !== 'in-call') return;
+    sessionRef.current?.post(TELEMED_SESSION_EVENTS.media, { camOn: showDoctorVideo, micOn });
+  }, [showDoctorVideo, micOn, phase]);
+
+  /* เสียงของอีกฝั่งเล่นผ่าน <audio> ที่แขวนไว้กับ document โดยตรง — ไม่ผูกกับ
+     ต้นไม้ React เพราะหน้านี้มีหลายเส้นทางเรนเดอร์ (เต็มจอ / PiP / จบสาย)
+     ถ้าฝากไว้กับ <video> ในกรอบภาพ พอผู้รับบริการปิดกล้องหรือแพทย์ย่อหน้าต่าง
+     กรอบนั้นจะถูกถอดออกแล้วเสียงจะเงียบไปด้วย */
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    if (!remoteAudioRef.current) {
+      const el = document.createElement('audio');
+      el.autoplay = true;
+      el.setAttribute('playsinline', '');
+      el.style.display = 'none';
+      document.body.appendChild(el);
+      remoteAudioRef.current = el;
+    }
+    const el = remoteAudioRef.current;
+    if (el.srcObject !== remoteStream) el.srcObject = remoteStream || null;
+    el.muted = !speakerOn;
+    if (remoteStream) el.play?.().catch(() => { /* รอ gesture ถัดไป */ });
+    return undefined;
+  }, [remoteStream, speakerOn]);
+
+  useEffect(() => () => {
+    const el = remoteAudioRef.current;
+    if (el) {
+      el.srcObject = null;
+      el.remove();
+      remoteAudioRef.current = null;
+    }
+  }, []);
+
+  /* คุณภาพสายจากสถิติจริง แทนการสุ่มสถานะ — มีผลเฉพาะตอนต่อสายจริงได้แล้ว */
+  useEffect(() => {
+    const live = rtcState === TELEMED_RTC_STATE.connected
+      || rtcState === TELEMED_RTC_STATE.reconnecting
+      || rtcState === TELEMED_RTC_STATE.failed;
+    if (phase !== 'in-call' || !live) return undefined;
+    let active = true;
+    const sample = async () => {
+      const stats = await peerRef.current?.readStats();
+      if (active) setNetwork(gradeConnection(rtcState, stats));
+    };
+    sample();
+    const id = window.setInterval(sample, 4000);
+    return () => { active = false; window.clearInterval(id); };
+  }, [rtcState, phase]);
+
+  /* ต่อสายจริงสำเร็จ = ผู้รับบริการอยู่ในห้องแน่นอน (กันเคสที่ join-request
+     ตกหล่นระหว่างทาง แล้วหน้าจอค้างอยู่ที่ "รอผู้รับบริการ" ทั้งที่ภาพมาแล้ว) */
+  useEffect(() => {
+    if (rtcState !== TELEMED_RTC_STATE.connected || phase !== 'in-call') return;
+    setPatientPresent(true);
+    patientEverPresentRef.current = true;
+    patientLeftRef.current = false;
+    setPatientLeft(false);
+    setJoinRequestOpen(false);
+  }, [rtcState, phase]);
 
   const onUploadBg = (e) => {
     const file = e.target.files && e.target.files[0];
@@ -1693,7 +1972,6 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
 
   const netTone = network === 'good' ? 'success' : network === 'weak' ? 'warn' : 'danger';
   const netLabel = network === 'good' ? 'สัญญาณดี' : network === 'weak' ? 'สัญญาณอ่อน' : 'สัญญาณหลุด';
-  const cycleNetwork = () => setNetwork((n) => (n === 'good' ? 'weak' : n === 'weak' ? 'lost' : 'good'));
 
   /* ══════════════ PREPARE (Figma 37:4486) ══════════════
      Device check + virtual-background picker before entering the waiting room. */
@@ -1777,6 +2055,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
             {/* status tags — device selectors (Figma 78:16405 / 103:53180) */}
             <div style={{ ...prepareCardStyle, flexDirection: 'row', gap: 'var(--dim-space-400, 16px)', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
               <DevicePickerPill icon='mic' ariaLabel='เลือกไมค์' options={TELEMED_MIC_DEVICES} value={micDevice} onChange={setMicDevice} />
+              <MicLevelMeter stream={micStream} />
               <DevicePickerPill icon='volume_up' ariaLabel='เลือกลำโพง' options={TELEMED_SPEAKER_DEVICES} value={speakerDevice} onChange={setSpeakerDevice} />
               <DevicePickerPill icon='videocam' ariaLabel='เลือกกล้อง' options={TELEMED_CAMERA_DEVICES} value={cameraDevice} onChange={setCameraDevice} />
             </div>
@@ -1800,15 +2079,147 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
               boxShadow: 'var(--shadow-brand-drop-bottom-200)',
             }}
           >
-            {/* Topic — Hierarchy=Primary */}
+            {/* Action Group */}
             <div
+              className='flex flex-col items-center w-full'
+              style={{
+                gap: 'var(--dim-space-300, 12px)',
+                paddingTop: 'var(--dim-space-400, 16px)',
+                paddingBottom: 'var(--dim-space-400, 16px)',
+                background: 'var(--surface-card-100, #FFFFFF)',
+                flexShrink: 0,
+              }}
+            >
+              <div className='flex flex-col items-center justify-center w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+                <button
+                  type='button'
+                  onClick={enterCall}
+                  disabled={!!camError || !!mediaErrorType}
+                  style={{
+                    width: 'fit-content',
+                    height: 'var(--dim-size-1100, 52px)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 'var(--dim-space-200, 8px)',
+                    padding: 'var(--dim-space-200, 8px) var(--dim-space-600, 24px)',
+                    border: 'none',
+                    cursor: camError || mediaErrorType ? 'not-allowed' : 'pointer',
+                    borderRadius: 'var(--dim-radius-200, 8px)',
+                    background: camError || mediaErrorType
+                      ? 'var(--surface-neutral-tertiary, #F4F5F5)'
+                      : 'var(--surface-brandPrimaryButton-default, #007549)',
+                    color: camError || mediaErrorType
+                      ? 'var(--text-content-tertiary, #858C92)'
+                      : 'var(--text-brandPrimaryButton-on-brand, #FFFFFF)',
+                    fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)',
+                    fontSize: 'var(--type-size-lg, 18px)',
+                    fontWeight: 'var(--type-weight-regular, 400)',
+                    lineHeight: 1.5,
+                    whiteSpace: 'nowrap',
+                    boxShadow: camError || mediaErrorType ? 'none' : 'var(--shadow-brand-drop-bottom-200)',
+                    opacity: camError || mediaErrorType ? 0.72 : 1,
+                  }}
+                >
+                  <Sym name='stethoscope' size={24} color='var(--text-brandPrimaryButton-on-brand, #FFFFFF)' />
+                  เข้าห้องตรวจ
+                </button>
+
+                <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                  <button
+                    type='button'
+                    className='flex items-center'
+                    onClick={() => openPeople('list')}
+                    aria-label='ดูผู้เข้าร่วม'
+                    style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}
+                  >
+                    {PREPARE_PARTICIPANTS.map((p, i) => (
+                      <span
+                        key={p.id}
+                        style={{
+                          position: 'relative',
+                          zIndex: i + 1,
+                          width: 'var(--dim-size-600, 32px)',
+                          height: 'var(--dim-size-600, 32px)',
+                          borderRadius: 'var(--dim-radius-full, 9999px)',
+                          border: 'var(--dim-stroke-200, 2px) solid var(--border-image-default, #FFFFFF)',
+                          marginLeft: i === 0 ? 0 : 'calc(var(--dim-space-300, 12px) * -1)',
+                          background: 'var(--surface-neutral-secondary, #F3F4F6)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'hidden',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <img
+                          src={p.avatar}
+                          alt={p.name}
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            pointerEvents: 'none',
+                          }}
+                        />
+                      </span>
+                    ))}
+                    <span
+                      style={{
+                        position: 'relative',
+                        zIndex: PREPARE_PARTICIPANTS.length + 1,
+                        width: 'var(--dim-size-600, 32px)',
+                        height: 'var(--dim-size-600, 32px)',
+                        borderRadius: 'var(--dim-radius-full, 9999px)',
+                        border: 'var(--dim-stroke-200, 2px) solid var(--border-image-default, #FFFFFF)',
+                        marginLeft: 'calc(var(--dim-space-300, 12px) * -1)',
+                        background: 'var(--surface-neutral-secondary, #F3F4F6)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontFamily: 'var(--type-family-body, "Sarabun", sans-serif)',
+                        fontSize: 'var(--type-size-xxs, 10px)',
+                        fontWeight: 'var(--type-weight-regular, 400)',
+                        color: 'var(--text-content-secondary, #636B72)',
+                        lineHeight: 1.5,
+                        flexShrink: 0,
+                      }}
+                    >
+                      +1
+                    </span>
+                  </button>
+                  <BrandCircleSubdueIconButton
+                    variant='outline'
+                    size='xs'
+                    icon='person_add'
+                    aria-label='เชิญผู้เข้าร่วม'
+                    onClick={() => openPeople('add')}
+                    style={{ border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimaryButton-tertiary, #C5EDDA)' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* พื้นหลังเสมือนเป็นของตกแต่ง ไม่ใช่สิ่งที่แพทย์ต้องตัดสินใจก่อนเข้าห้อง —
+                เดิมกินพื้นที่ทั้งคอลัมน์และอยู่เหนือปุ่มเข้าห้อง สิ่งที่สำคัญที่สุด
+                (ภาพตัวเอง · อุปกรณ์ · ปุ่มเข้าห้อง) จึงถูกดันลงไปใต้กริดรูป */}
+            <button
+              type='button'
               className='flex items-center w-full'
+              onClick={() => setBgPanelOpen((v) => !v)}
+              aria-expanded={bgPanelOpen}
               style={{
                 gap: 'var(--dim-space-300, 12px)',
                 padding: 'var(--dim-space-200, 8px) var(--dim-space-300, 12px)',
                 borderRadius: 'var(--dim-radius-400, 12px)',
                 background: 'var(--surface-topic-default, #FFFFFF)',
+                border: 'none',
+                cursor: 'pointer',
                 flexShrink: 0,
+                textAlign: 'left',
+                fontFamily: 'inherit',
               }}
             >
               <div style={{ width: 'var(--dim-size-400, 20px)', paddingTop: 'var(--dim-space-050, 2px)', flexShrink: 0 }}>
@@ -1825,10 +2236,12 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                   lineHeight: 1.5,
                 }}
               >
-                เลือกพื้นหลัง
+                เปลี่ยนพื้นหลัง
               </span>
-            </div>
-
+              <Sym name={bgPanelOpen ? 'expand_less' : 'expand_more'} size={20} color='var(--icon-brandPrimary-default, #007549)' />
+            </button>
+            {bgPanelOpen && (
+              <>
             {/* Upload section */}
             <div
               className='flex flex-col items-start w-full'
@@ -2041,129 +2454,8 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                 ))}
               </div>
             </div>
-
-            {/* Action Group */}
-            <div
-              className='flex flex-col items-center w-full'
-              style={{
-                gap: 'var(--dim-space-300, 12px)',
-                paddingTop: 'var(--dim-space-400, 16px)',
-                paddingBottom: 'var(--dim-space-400, 16px)',
-                background: 'var(--surface-card-100, #FFFFFF)',
-                flexShrink: 0,
-              }}
-            >
-              <div className='flex flex-col items-center justify-center w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-                <button
-                  type='button'
-                  onClick={enterCall}
-                  disabled={!!camError || !!mediaErrorType}
-                  style={{
-                    width: 'fit-content',
-                    height: 'var(--dim-size-1100, 52px)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 'var(--dim-space-200, 8px)',
-                    padding: 'var(--dim-space-200, 8px) var(--dim-space-600, 24px)',
-                    border: 'none',
-                    cursor: camError || mediaErrorType ? 'not-allowed' : 'pointer',
-                    borderRadius: 'var(--dim-radius-200, 8px)',
-                    background: camError || mediaErrorType
-                      ? 'var(--surface-neutral-tertiary, #F4F5F5)'
-                      : 'var(--surface-brandPrimaryButton-default, #007549)',
-                    color: camError || mediaErrorType
-                      ? 'var(--text-content-tertiary, #858C92)'
-                      : 'var(--text-brandPrimaryButton-on-brand, #FFFFFF)',
-                    fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)',
-                    fontSize: 'var(--type-size-lg, 18px)',
-                    fontWeight: 'var(--type-weight-regular, 400)',
-                    lineHeight: 1.5,
-                    whiteSpace: 'nowrap',
-                    boxShadow: camError || mediaErrorType ? 'none' : 'var(--shadow-brand-drop-bottom-200)',
-                    opacity: camError || mediaErrorType ? 0.72 : 1,
-                  }}
-                >
-                  <Sym name='stethoscope' size={24} color='var(--text-brandPrimaryButton-on-brand, #FFFFFF)' />
-                  เข้าสู่ห้องรอตรวจ
-                </button>
-
-                <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-                  <button
-                    type='button'
-                    className='flex items-center'
-                    onClick={() => openPeople('list')}
-                    aria-label='ดูผู้เข้าร่วม'
-                    style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}
-                  >
-                    {PREPARE_PARTICIPANTS.map((p, i) => (
-                      <span
-                        key={p.id}
-                        style={{
-                          position: 'relative',
-                          zIndex: i + 1,
-                          width: 'var(--dim-size-600, 32px)',
-                          height: 'var(--dim-size-600, 32px)',
-                          borderRadius: 'var(--dim-radius-full, 9999px)',
-                          border: 'var(--dim-stroke-200, 2px) solid var(--border-image-default, #FFFFFF)',
-                          marginLeft: i === 0 ? 0 : 'calc(var(--dim-space-300, 12px) * -1)',
-                          background: 'var(--surface-neutral-secondary, #F3F4F6)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          overflow: 'hidden',
-                          flexShrink: 0,
-                        }}
-                      >
-                        <img
-                          src={p.avatar}
-                          alt={p.name}
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            pointerEvents: 'none',
-                          }}
-                        />
-                      </span>
-                    ))}
-                    <span
-                      style={{
-                        position: 'relative',
-                        zIndex: PREPARE_PARTICIPANTS.length + 1,
-                        width: 'var(--dim-size-600, 32px)',
-                        height: 'var(--dim-size-600, 32px)',
-                        borderRadius: 'var(--dim-radius-full, 9999px)',
-                        border: 'var(--dim-stroke-200, 2px) solid var(--border-image-default, #FFFFFF)',
-                        marginLeft: 'calc(var(--dim-space-300, 12px) * -1)',
-                        background: 'var(--surface-neutral-secondary, #F3F4F6)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontFamily: 'var(--type-family-body, "Sarabun", sans-serif)',
-                        fontSize: 'var(--type-size-xxs, 10px)',
-                        fontWeight: 'var(--type-weight-regular, 400)',
-                        color: 'var(--text-content-secondary, #636B72)',
-                        lineHeight: 1.5,
-                        flexShrink: 0,
-                      }}
-                    >
-                      +1
-                    </span>
-                  </button>
-                  <BrandCircleSubdueIconButton
-                    variant='outline'
-                    size='xs'
-                    icon='person_add'
-                    aria-label='เชิญผู้เข้าร่วม'
-                    onClick={() => openPeople('add')}
-                    style={{ border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimaryButton-tertiary, #C5EDDA)' }}
-                  />
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </aside>
         </div>
 
@@ -2598,9 +2890,9 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
       >
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)', fontSize: 'var(--type-size-base, 16px)', fontWeight: 'var(--type-weight-regular, 400)', color: 'var(--text-topic-secondary-title, #007549)', lineHeight: 1.5 }}>ห้องปรึกษาแพทย์ออนไลน์</div>
-          <button type='button' onClick={cycleNetwork} title='จำลองสัญญาณ (demo)' style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
-            <div style={{ fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-topic-tertiary-subtext, #ADB2B7)', fontWeight: 'var(--type-weight-medium, 500)' }}>Session ID: TM-8842-2024 · {netLabel}</div>
-          </button>
+          {/* ตัวบอกสถานะต้องไม่เป็นปุ่มลับ — เดิมคลิกที่นี่จะสลับสถานะสัญญาณเอง
+              ทำให้แพทย์ที่เผลอคลิกดู Session ID พาสายเข้าโหมดเสียงโดยไม่ตั้งใจ */}
+          <div style={{ fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-topic-tertiary-subtext, #ADB2B7)', fontWeight: 'var(--type-weight-medium, 500)' }}>Session ID: TM-8842-2024 · {netLabel}</div>
         </div>
 
         {/* status badges — Figma "Status Badges" (70:4216): recording pill + call-duration clock pill */}
@@ -2609,31 +2901,24 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
             <Sym name='radio_button_checked' size={16} fill={1} color={recording ? 'var(--text-content-on-content, #FFFFFF)' : 'var(--text-negative-primary, #B91C1C)'} />
             <span style={{ fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)' }}>{recording ? 'กำลังบันทึกการสนทนา' : 'กำลังสนทนา'}</span>
           </div>
-          <button
-            type='button'
-            onClick={cycleNoShowDemo}
-            title='จำลอง No-show / Timeout (demo)'
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--dim-space-100, 4px)', height: 'var(--dim-size-600, 32px)', paddingLeft: 'var(--dim-space-300, 12px)', paddingRight: 'var(--dim-space-300, 12px)', borderRadius: 'var(--dim-radius-full, 9999px)', border: 'none', cursor: 'pointer', background: 'var(--surface-colorfulbadge-grey, #F5F7F9)', color: 'var(--text-colorfulbadge-grey, #4D5358)', fontFamily: 'inherit' }}
+          <div
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--dim-space-100, 4px)', height: 'var(--dim-size-600, 32px)', paddingLeft: 'var(--dim-space-300, 12px)', paddingRight: 'var(--dim-space-300, 12px)', borderRadius: 'var(--dim-radius-full, 9999px)', background: 'var(--surface-colorfulbadge-grey, #F5F7F9)', color: 'var(--text-colorfulbadge-grey, #4D5358)' }}
           >
             <Sym name='schedule' size={16} color='var(--text-colorfulbadge-grey, #4D5358)' />
             <span style={{ fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)' }}>{fmtElapsed(elapsed)}</span>
-          </button>
+          </div>
         </div>
 
         {network === 'weak' && (
-          <button type='button' onClick={cycleNetwork} title='จำลองสัญญาณ (demo)' style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>
-            <ColorfulBadge style='yellow' hierarchy='primary' size='default' icon='wifi_off' width='hug'>
-              สัญญาณอินเทอร์เน็ตไม่เสถียร · คุณภาพวิดีโออาจลดลง
-            </ColorfulBadge>
-          </button>
+          <ColorfulBadge style='yellow' hierarchy='primary' size='default' icon='wifi_off' width='hug'>
+            สัญญาณอินเทอร์เน็ตไม่เสถียร · คุณภาพวิดีโออาจลดลง
+          </ColorfulBadge>
         )}
 
         {network === 'lost' && (
-          <button type='button' onClick={cycleNetwork} title='จำลองสัญญาณ (demo)' style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>
-            <ColorfulBadge style='red' hierarchy='primary' size='default' icon='wifi_off' width='hug'>
-              การเชื่อมต่อหลุด · ระบบกำลังพยายามเชื่อมต่อใหม่
-            </ColorfulBadge>
-          </button>
+          <ColorfulBadge style='red' hierarchy='primary' size='default' icon='wifi_off' width='hug'>
+            การเชื่อมต่อหลุด · ระบบกำลังพยายามเชื่อมต่อใหม่
+          </ColorfulBadge>
         )}
 
         {audioOnly && (
@@ -2749,7 +3034,12 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
           )}
           {!patientPresent && !patientLeft && !joinRequestOpen && noShowStep == null && (
             <Banner tone='warn' icon='hourglass_top' title='รอผู้รับบริการเข้าห้อง'
-              text='เมื่อผู้รับบริการขอเข้า จะมีหน้าต่างยืนยันให้รับเข้าห้องตรวจ' />
+              text={noShowAt != null
+                ? `เมื่อผู้รับบริการขอเข้า จะมีหน้าต่างยืนยันให้รับเข้าห้องตรวจ · ถ้ายังไม่เข้าภายใน ${fmtElapsed(Math.ceil(noShowLeftMs / 1000))} ระบบจะถามว่าจะรอต่อหรือปิดห้อง`
+                : 'เมื่อผู้รับบริการขอเข้า จะมีหน้าต่างยืนยันให้รับเข้าห้องตรวจ'}
+              action={noShowAt != null
+                ? <button type='button' onClick={() => { clearNoShowTimer(); setNoShowStep(1); }} style={bannerBtnStyle}>จัดการตอนนี้</button>
+                : undefined} />
           )}
           {/* ── สถานะการจับคู่กับแอปผู้รับบริการ (TOR §1.13.7) ── */}
           {peerState.duplicate ? (
@@ -2757,11 +3047,13 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
               text='พบแท็บห้องตรวจของแพทย์เปิดอยู่มากกว่าหนึ่งแท็บ — ปิดแท็บที่ไม่ใช้เพื่อไม่ให้คำสั่งซ้ำซ้อน' />
           ) : peerState.hasPeer ? (
             <Banner tone='info' icon='smartphone' title='จับคู่กับแอปผู้รับบริการแล้ว'
-              text={`${transportLabel(peerState.transport)} — คำขอเข้าห้อง / การรับเข้า / การออกจากสาย เดินข้ามแท็บจริง (สาธิตภายในเบราว์เซอร์เดียวกัน)`} />
+              text={`${transportLabel(peerState.transport)} — คำขอเข้าห้อง · การรับเข้า · การออกจากสาย และภาพ/เสียงในสาย เดินจริงระหว่างสองเครื่อง`} />
           ) : (
-            <Banner tone='warn' icon='phonelink_off' title='โหมดสาธิต — ยังไม่พบแท็บผู้รับบริการ'
-              text={peerState.supported
-                ? 'เปิด /m/telemed ในแท็บเดียวกันของเบราว์เซอร์นี้เพื่อจับคู่ session จริง — ระหว่างนี้ระบบใช้เหตุการณ์จำลอง'
+            <Banner tone='warn' icon='phonelink_off' title='ยังไม่พบเครื่องของผู้รับบริการ'
+              text={peerState.supported || peerState.relay
+                ? (peerState.relay
+                  ? 'เปิด /m/telemed บนมือถือที่อยู่ Wi-Fi เดียวกัน (หรืออีกแท็บในเครื่องนี้) เพื่อต่อสายจริง — ระหว่างนี้ระบบใช้เหตุการณ์จำลอง'
+                  : 'เปิด /m/telemed อีกแท็บในเบราว์เซอร์นี้เพื่อต่อสายจริง — ระหว่างนี้ระบบใช้เหตุการณ์จำลอง')
                 : 'เบราว์เซอร์นี้จับคู่ข้ามแท็บไม่ได้ (BroadcastChannel/localStorage ถูกปิด) — ใช้เหตุการณ์จำลองในแท็บเดียว'} />
           )}
           {camError && (
@@ -2793,7 +3085,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
               const focusTile = pinned ? (
                 <VideoTile big name={pinned.name} sub='ปักหมุดไว้' camOn micOn accent={pinned.accent} />
               ) : (
-                <VideoTile big name={PATIENT.fullName} sub='ผู้รับบริการ' camOn={showPatientVideo} micOn={patientMicOn} accent='#0EA5E9' speaking={patientPresent} avatar='/avatars/telemed/patient.png' />
+                <VideoTile big name={PATIENT.fullName} sub='ผู้รับบริการ' camOn={showPatientVideo} micOn={patientMicOn} accent='#0EA5E9' speaking={patientPresent} avatar='/avatars/telemed/patient.png' stream={showPatientVideo ? remoteStream : undefined} mirror={false} />
               );
               const selfTile = (
                 <VideoTile
@@ -2809,7 +3101,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                 />
               );
               const patientTile = (
-                <VideoTile name={PATIENT.fullName} sub='ผู้รับบริการ' camOn={showPatientVideo} micOn={patientMicOn} accent='#0EA5E9' speaking={patientPresent} avatar='/avatars/telemed/patient.png' />
+                <VideoTile name={PATIENT.fullName} sub='ผู้รับบริการ' camOn={showPatientVideo} micOn={patientMicOn} accent='#0EA5E9' speaking={patientPresent} avatar='/avatars/telemed/patient.png' stream={showPatientVideo ? remoteStream : undefined} mirror={false} />
               );
               const stagePad = {
                 width: '100%',
@@ -2977,7 +3269,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                   boxShadow: 'var(--shadow-card, 0 8px 24px rgba(0,0,0,.28))',
                 }}
               >
-                <VideoTile name={PATIENT.fullName} sub='ผู้รับบริการ' camOn={showPatientVideo} micOn={patientMicOn} accent='#0EA5E9' avatar='/avatars/telemed/patient.png' />
+                <VideoTile name={PATIENT.fullName} sub='ผู้รับบริการ' camOn={showPatientVideo} micOn={patientMicOn} accent='#0EA5E9' avatar='/avatars/telemed/patient.png' stream={showPatientVideo ? remoteStream : undefined} mirror={false} />
               </DraggablePip>
             )}
 
@@ -3209,7 +3501,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                       {m.image ? (
                         <img
                           src={m.image}
-                          alt=''
+                          alt={m.me ? 'รูปภาพที่คุณส่งในห้องสนทนา' : 'รูปภาพที่ผู้รับบริการส่งในห้องสนทนา'}
                           style={{
                             maxWidth: 200,
                             borderRadius: m.me

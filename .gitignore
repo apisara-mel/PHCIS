@@ -18,3 +18,4 @@ dist-ds
 # ตัวจริงรันจาก ~/MIH-PHCIS-local/bma.mobile — ห้ามให้หลุดเข้ามาใน bma.health
 # ไม่ใส่บรรทัดนี้ `git add -A` ครั้งเดียวจะดูด ~6,500 ไฟล์เข้ามาเป็น gitlink
 bma.mobile/
+.dev-certs/
