@@ -58,16 +58,61 @@ export const ALL_WIDGET_KEYS = DASHBOARD_WIDGET_CATALOG.map((w) => w.key);
 export const sortWidgetKeys = (keys) =>
   ALL_WIDGET_KEYS.filter((k) => keys.includes(k));
 
+/* ── spec สำหรับป๊อปอัปตัวสร้างเทมเพลต (ใช้ wizard ตัวเดียวกับความยินยอม) ──
+   ป๊อปอัปนั้นรับ catalog เข้ามาเป็น prop อยู่แล้ว จึงส่งของฝั่ง PHCIS ให้ได้เลย
+   ไม่ต้องมีตัวสร้างสองชุด (มติผู้ใช้ 27 ส.ค. 69) */
+export const DASHBOARD_LAYOUTS = [
+  { key: 'two',   title: '2 โซน', subtitle: 'การ์ดใหญ่ 2 คอลัมน์ เหมาะกับกราฟ', columns: 2 },
+  { key: 'three', title: '3 โซน', subtitle: 'สมดุลการ์ดสถิติ + กราฟ',           columns: 3 },
+  { key: 'four',  title: '4 โซน', subtitle: 'การ์ดสถิติจำนวนมาก (stat-heavy)',  columns: 4 },
+];
+
+/* กี่โซนที่การ์ดใบนั้นควรกินโดยปริยาย — แปลจากคลาส grid ในแคตตาล็อก
+   (เต็มแถว → 4, ครึ่งแถว → 2, ที่เหลือ → 1) */
+const defaultZonesOf = (span = '') => {
+  if (span.includes('lg:col-span-6')) return 2;
+  if (span.includes('col-span-3') || span.includes('col-span-4')) return 1;
+  return 4;
+};
+
+export const WIDGET_TYPES = DASHBOARD_WIDGET_CATALOG.map((w) => ({
+  key: w.key,
+  label: w.label,
+  icon: w.icon,
+  description: DASHBOARD_WIDGET_GROUPS.find((g) => g.key === w.group)?.label || '',
+}));
+
+/* การ์ดของหน้านี้ผูกกับชุดข้อมูลของแดชบอร์ดโรงพยาบาลอยู่แล้ว ไม่มีให้เลือกหลายชุด
+   เหมือนฝั่งความยินยอม — ใส่ไว้ชุดเดียวเพื่อให้ wizard ตัวเดียวกันใช้ได้ */
+export const WIDGET_DATASETS = [
+  { key: 'phcis', label: 'ข้อมูลแดชบอร์ดโรงพยาบาล' },
+];
+export const WIDGET_TYPE_DATASETS = Object.fromEntries(
+  DASHBOARD_WIDGET_CATALOG.map((w) => [w.key, ['phcis']]),
+);
+export const WIDGET_DEFAULT_SPAN = Object.fromEntries(
+  DASHBOARD_WIDGET_CATALOG.map((w) => [w.key, defaultZonesOf(w.span)]),
+);
+
 let TEMPLATE_SEQ = 2;
 
 /* ── เทมเพลตมาตรฐาน (ลบไม่ได้ — เป็น fallback ของค่าเริ่มต้น) ─────────── */
+const asWidgets = (keys) => keys.map((key, i) => ({
+  id: `w-${key}-${i}`,
+  type: key,
+  title: DASHBOARD_WIDGET_CATALOG.find((w) => w.key === key)?.label || key,
+  dataset: 'phcis',
+  span: WIDGET_DEFAULT_SPAN[key] || 1,
+}));
+
 const STANDARD_TEMPLATE = {
   id: 'std',
-  name: 'แดชบอร์ดมาตรฐาน (สำนักอนามัย)',
+  name: 'แดชบอร์ดมาตรฐาน (ภาพรวมโรงพยาบาล)',
+  layout: 'four',
   locked: true,
   updatedAt: '1 สิงหาคม 2569',
   updatedBy: 'ระบบ',
-  widgets: [...ALL_WIDGET_KEYS],
+  widgets: asWidgets(ALL_WIDGET_KEYS),
 };
 
 let templates = [
@@ -75,10 +120,11 @@ let templates = [
   {
     id: 'tpl-2',
     name: 'จอเฝ้าระวังโรคเรื้อรัง (NCD)',
+    layout: 'three',
     locked: false,
     updatedAt: '2 สิงหาคม 2569',
     updatedBy: 'ลดา ดีงาม',
-    widgets: ['kpi', 'disease21', 'dmhtNew', 'dmGauge', 'htGauge', 'workingAge', 'dmComplications', 'recentPatients'],
+    widgets: asWidgets(['kpi', 'disease21', 'dmhtNew', 'dmGauge', 'htGauge', 'workingAge', 'dmComplications', 'recentPatients']),
   },
 ];
 
@@ -86,7 +132,7 @@ let defaultTemplateId = 'std';
 
 /* ── Store API (mock — mutate ในหน่วยความจำ) ──────────────────────────── */
 export const listDashboardTemplates = () =>
-  templates.map((t) => ({ ...t, widgets: [...t.widgets] }));
+  templates.map((t) => ({ ...t, widgets: t.widgets.map((w) => (typeof w === 'string' ? w : { ...w })) }));
 
 export const getDashboardTemplate = (id) =>
   listDashboardTemplates().find((t) => t.id === id) || null;

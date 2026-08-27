@@ -403,7 +403,8 @@ export default function ConsentDashboardTemplatePopup({
                     label='หัวข้อที่แสดงบนการ์ด'
                     value={w.title}
                     onChange={(v) => updateWidget(w.id, { title: v })}
-                    size='md'
+                    /* ไม่กำหนด size — ใช้ค่าเริ่มต้น lg (40px) เท่ากับ <Select>
+                       สามช่องข้างกัน เดิมตั้ง md (36px) กล่องเลยเตี้ยกว่าเพื่อน */
                     showHelperText={false}
                     placeholder={widgetMeta(w.type).label}
                   />

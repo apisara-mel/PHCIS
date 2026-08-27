@@ -35,6 +35,9 @@ import { ConsentReportSections, ReportCard, reportsForDateFilter } from '@/pages
      2) Donut สัดส่วนสถานะ (ส่วนของทั้งหมด) + HBar ตามประเภท
      3) การ์ดรายงาน — ใช้ chart ที่เหมาะกับชนิดข้อมูล (ไม่บังคับ pie) */
 
+/** ค่าในลิสต์ Template ที่เป็น "คำสั่ง" ไม่ใช่เทมเพลตที่เลือกได้ */
+const CREATE_TEMPLATE_VALUE = '__create__';
+
 const CARD_STYLE = {
   background: 'var(--surface-card-100)',
   borderRadius: 'var(--dim-radius-500)',
@@ -152,19 +155,20 @@ export default function ConsentDashboardPage() {
               showFieldName={false}
               showHelperText={false}
               leadingIcon='dashboard'
-              options={templates.map((t) => ({ value: t.id, label: t.name }))}
+              /* รายการแรก = คำสั่งสร้างเทมเพลตใหม่ (ยุบปุ่มแยกเข้ามาไว้ในลิสต์
+                 เดียวกัน แบบเดียวกับแดชบอร์ด PHCIS — มติผู้ใช้ 27 ส.ค. 69) */
+              options={[
+                { value: CREATE_TEMPLATE_VALUE, label: 'สร้างเทมเพลทใหม่', icon: 'dashboard_customize' },
+                ...templates.map((t) => ({ value: t.id, label: t.name })),
+              ]}
               value={activeTemplate?.id}
-              onChange={applyTemplate}
+              onChange={(next) => {
+                if (next === CREATE_TEMPLATE_VALUE) { setTemplatePopup(true); return; }
+                applyTemplate(next);
+              }}
               searchable={false}
             />
           </div>
-          <NeutralSubdueButton
-            leadingIcon='dashboard_customize'
-            size='md'
-            onClick={() => setTemplatePopup(true)}
-          >
-            สร้างเทมเพลท
-          </NeutralSubdueButton>
           <NeutralSubdueButton
             leadingIcon='ios_share'
             size='md'

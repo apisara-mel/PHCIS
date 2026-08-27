@@ -7,9 +7,15 @@ import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import AlertDialog from '@/components/popup/AlertDialog';
 import SuccessPopup from '@/components/popup/SuccessPopup';
-import DashboardTemplatePopup from '@/components/dashboard/DashboardTemplatePopup';
+import ConsentDashboardTemplatePopup from '@/pages/consent/ConsentDashboardTemplatePopup';
 import SYSTEM_NAV from '@/pages/system/systemNav';
 import {
+  DASHBOARD_LAYOUTS,
+  WIDGET_TYPES,
+  WIDGET_DATASETS,
+  WIDGET_TYPE_DATASETS,
+  WIDGET_DEFAULT_SPAN,
+  saveDashboardTemplate,
   listDashboardTemplates,
   getDefaultDashboardTemplateId,
   setDefaultDashboardTemplate,
@@ -22,7 +28,7 @@ import {
    ตัวสร้างเทมเพลตย้ายมาจากหน้าแดชบอร์ดมาเป็นงานของผู้ดูแลระบบ (มติผู้ใช้
    27 ส.ค. 69) — หน้าแดชบอร์ดเหลือหน้าที่ "เลือกใช้" อย่างเดียว ส่วนการสร้าง
    แก้ไข ลบ และตั้งค่าเริ่มต้นทำที่นี่ที่เดียว ใช้ป๊อปอัปตัวเดิม
-   (`DashboardTemplatePopup`) จึงไม่มีตัวสร้างสองชุดให้ drift */
+   (wizard 3 ขั้นตัวเดียวกับแดชบอร์ดความยินยอม) จึงไม่มีตัวสร้างสองชุดให้ drift */
 
 const breadcrumb = ['จัดการระบบ', 'เทมเพลตแดชบอร์ด'];
 
@@ -37,6 +43,7 @@ export default function SystemDashboardTemplatesPage() {
   const refresh = () => setTemplates(listDashboardTemplates());
 
   const openBuilder = (id) => { setEditingId(id || null); setBuilderOpen(true); };
+  /* NOTE: wizard เริ่มจากฟอร์มเปล่าเสมอ — `editingId` เก็บไว้เพื่อไฮไลต์แถวที่กด */
 
   const runDelete = () => {
     const target = deleteFor;
@@ -66,9 +73,9 @@ export default function SystemDashboardTemplatesPage() {
       label: 'การ์ดที่แสดง',
       flex: true,
       minWidth: 320,
-      render: (t) => t.widgets.slice(0, 3).map(widgetLabel).join(' · ')
+      render: (t) => t.widgets.slice(0, 3).map((w) => widgetLabel(w.type)).join(' · ')
         + (t.widgets.length > 3 ? ` · +${t.widgets.length - 3}` : ''),
-      csv: (t) => t.widgets.map(widgetLabel).join(' | '),
+      csv: (t) => t.widgets.map((w) => widgetLabel(w.type)).join(' | '),
     },
     { key: 'count', label: 'จำนวน', align: 'center', render: (t) => `${t.widgets.length} การ์ด`, csv: (t) => t.widgets.length },
     { key: 'updatedAt', label: 'ปรับปรุงล่าสุด', render: (t) => `${t.updatedAt} · ${t.updatedBy}`, csv: (t) => t.updatedAt },
@@ -137,11 +144,17 @@ export default function SystemDashboardTemplatesPage() {
         />
       </div>
 
-      <DashboardTemplatePopup
+      <ConsentDashboardTemplatePopup
         open={builderOpen}
         onClose={() => setBuilderOpen(false)}
-        currentTemplateId={editingId || 'std'}
-        onApply={(result) => {
+        layouts={DASHBOARD_LAYOUTS}
+        widgetTypes={WIDGET_TYPES}
+        datasets={WIDGET_DATASETS}
+        typeDatasets={WIDGET_TYPE_DATASETS}
+        defaultSpan={WIDGET_DEFAULT_SPAN}
+        fallbackDataset='phcis'
+        onSaveTemplate={saveDashboardTemplate}
+        onSaved={(result) => {
           refresh();
           if (result?.name) setSaved(result);
         }}

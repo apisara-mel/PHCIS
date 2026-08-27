@@ -77,6 +77,9 @@ import SuccessToast from '@/components/toast/SuccessToast';
 
    ตัวเลขทุกตัวอ่านจาก store เดียวกับหน้าที่ใช้แก้ไข จึงไม่มีทางเห็นไม่ตรงกัน */
 
+/* ค่าสั่งงานในลิสต์ Template — ไม่ใช่เทมเพลตจริง เลือกแล้วเปิดตัวสร้าง */
+const CREATE_TEMPLATE_VALUE = '__create__';
+
 const breadcrumb = ['จัดการระบบ', 'แดชบอร์ด'];
 
 /* รายงานที่ป้อนให้ ExportFormatPopup — ตัวเดียวกับหน้าจัดการความยินยอมและ
@@ -487,19 +490,20 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
               showFieldName={false}
               showHelperText={false}
               leadingIcon='dashboard'
-              options={templates.map((t) => ({ value: t.id, label: t.name }))}
+              /* รายการแรก = คำสั่งสร้างเทมเพลตใหม่ (ยุบปุ่มแยกเข้ามาไว้ในลิสต์
+                 เดียวกัน แบบเดียวกับแดชบอร์ดความยินยอม — มติผู้ใช้ 27 ส.ค. 69) */
+              options={[
+                { value: CREATE_TEMPLATE_VALUE, label: 'สร้างเทมเพลทใหม่', icon: 'dashboard_customize' },
+                ...templates.map((t) => ({ value: t.id, label: t.name })),
+              ]}
               value={activeTemplate?.id}
-              onChange={applyTemplate}
+              onChange={(next) => {
+                if (next === CREATE_TEMPLATE_VALUE) { setTemplatePopup(true); return; }
+                applyTemplate(next);
+              }}
               searchable={false}
             />
           </div>
-          <NeutralSubdueButton
-            leadingIcon='dashboard_customize'
-            size='md'
-            onClick={() => setTemplatePopup(true)}
-          >
-            สร้างเทมเพลท
-          </NeutralSubdueButton>
           <NeutralSubdueButton
             leadingIcon='ios_share'
             size='md'
