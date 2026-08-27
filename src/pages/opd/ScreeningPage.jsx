@@ -20,7 +20,7 @@ import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Icon from '@/components/icons/Icon';
 import { PAIN_LEVELS, TRIAGE_LEVELS } from '@/data/opdScreeningCatalog';
 import Footer from '@/components/layout/Footer';
-import BedSelectionPopup from '@/components/popup/BedSelectionPopup';
+import ObservationAdmitPopup from '@/components/observation/ObservationAdmitPopup';
 import InternalReferPopup from '@/components/popup/InternalReferPopup';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -325,7 +325,7 @@ const CARE_ORDERS = [
   { key: 'paracetamol', th: 'ยาแก้ปวด 500 mg',      en: 'Paracetamol'      },
   { key: 'dressing',    th: 'ชุดล้างแผล',            en: 'Wound dressing set' },
   { key: 'changewound', th: 'เปลี่ยนผ้าปิดแผล',     en: 'Change dressing'  },
-  { key: 'bed',         th: 'เตียงผู้ป่วย',           en: 'Patient bed'      },
+  { key: 'bed',         th: 'รับผู้ป่วยเข้าเตียงสังเกตการณ์', en: 'Admit to observation bed' },
   { key: 'others',      th: 'อื่นๆ',                  en: 'Others'           },
 ];
 
@@ -378,7 +378,7 @@ const SymptomStep = ({ onValidityChange, patient = {} }) => {
   const [triage, setTriage] = useState(null);
   const [orders, setOrders] = useState({});
   const [cert, setCert] = useState(null);
-  const [bedPopupOpen, setBedPopupOpen] = useState(false);
+  const [admitOpen, setAdmitOpen] = useState(false);
   const [selectedBedId, setSelectedBedId] = useState(null);
   /* "อื่นๆ" (Others) care order — Figma 329:51905 reveals a free-text
      textarea below the chip row once selected so the nurse can spell
@@ -432,10 +432,11 @@ const SymptomStep = ({ onValidityChange, patient = {} }) => {
 
   const onCareOrderClick = (k) => {
     if (k === 'bed') {
-      /* Always open the bed picker first — including when a bed is
-         already chosen — so the user can change bed without the chip
-         toggling off on a second tap (Figma PHCIS | OPD flow). */
-      setBedPopupOpen(true);
+      /* กดแล้วเปิดป๊อปอัป "ลงทะเบียนรับผู้ป่วยเข้าเตียงสังเกตอาการ" ตัวเดียวกับ
+         หน้าคิวสังเกตอาการ (มติผู้ใช้ 28 ส.ค. 69) — ส่ง HN ไปด้วย ป๊อปอัปจึงซ่อน
+         ช่องค้นหาผู้ป่วยเอง เพราะหน้านี้รู้อยู่แล้วว่ากำลังคัดกรองใคร
+         เปิดซ้ำได้แม้เลือกเตียงไปแล้ว เพื่อให้เปลี่ยนเตียงได้โดยชิปไม่ toggle ปิด */
+      setAdmitOpen(true);
       return;
     }
     toggleOrder(k);
@@ -443,8 +444,8 @@ const SymptomStep = ({ onValidityChange, patient = {} }) => {
 
   return (
     <section className='bg-surface-card rounded-b-card p-6 flex flex-col gap-6'>
-      <div className='flex flex-col gap-3'>
-        <TopicHeader icon='smile'>อาการป่วย</TopicHeader>
+      {/* ระยะระหว่างกล่องกรอกอาการ 24px เท่าแนวนอน (มติผู้ใช้ 28 ส.ค. 69) */}
+      <div className='flex flex-col gap-6'>
         <div className='flex items-start gap-6 w-full'>
           <SymptomField label='อาการ (Chief Complaint)' required>
             <SuggestibleTextarea
@@ -469,8 +470,10 @@ const SymptomStep = ({ onValidityChange, patient = {} }) => {
             />
           </SymptomField>
         </div>
-        {/* "ประวัติปัจจุบัน (Present Illness)" — full-width textarea per
-            Figma 294:47891, sits below the two half-width fields above. */}
+        {/* กว้างเท่า "อาการ (Chief Complaint)" ด้านบน (มติผู้ใช้ 28 ส.ค. 69) —
+            เดิมกินเต็มความกว้าง กล่องสามใบเลยไม่เข้าคอลัมน์เดียวกัน
+            ใช้แถวเดียวกับข้างบน แล้วเว้นคอลัมน์ขวาไว้ให้ความกว้างตรงกันพอดี */}
+        <div className='flex items-start gap-6 w-full'>
         <SymptomField label='ประวัติปัจจุบัน (Present Illness)' required>
           <SuggestibleTextarea
             voice
@@ -482,6 +485,8 @@ const SymptomStep = ({ onValidityChange, patient = {} }) => {
             popoverAriaLabel='คำแนะนำประวัติปัจจุบัน'
           />
         </SymptomField>
+          <div className='flex-1 min-w-0' aria-hidden />
+        </div>
       </div>
 
       {/* Pain level (ระดับความเจ็บปวด) — Figma 160:26321..26326.
@@ -682,24 +687,22 @@ const SymptomStep = ({ onValidityChange, patient = {} }) => {
         )}
       </div>
 
-      <BedSelectionPopup
-        open={bedPopupOpen}
-        onClose={() => setBedPopupOpen(false)}
-        initialSelectedId={selectedBedId || 'bed04'}
-        showClearOption={!!orders.bed}
-        onClearBed={() => {
-          setOrders((o) => ({ ...o, bed: false }));
-          setSelectedBedId(null);
-        }}
-        onConfirm={(id) => {
-          setSelectedBedId(id);
+      <ObservationAdmitPopup
+        open={admitOpen}
+        onClose={() => setAdmitOpen(false)}
+        patientHn={patient.hn}
+        chiefComplaint={complaint}
+        chiefComplaintSuggestions={CHIEF_COMPLAINT_SUGGESTIONS}
+        onSubmit={(f) => {
+          setAdmitOpen(false);
+          setSelectedBedId(f.bedId);
           setOrders((o) => ({ ...o, bed: true }));
           /* สั่งเตียง = ส่งผู้ป่วยเข้าระบบสังเกตอาการ — เปิดคิวสังเกตอาการใน
              แท็บใหม่ เพื่อให้พยาบาลรับเคสต่อได้ทันทีโดยไม่ทิ้งแบบคัดกรอง
              ที่ยังกรอกค้างอยู่ในแท็บเดิม (เรียกจากปุ่มยืนยันของ popup จึง
              ไม่โดน popup blocker) */
-          if (typeof window !== 'undefined') {
-            window.open(`/observation?bed=${encodeURIComponent(id)}`, '_blank', 'noopener,noreferrer');
+          if (typeof window !== 'undefined' && f.bedId) {
+            window.open(`/observation?bed=${encodeURIComponent(f.bedId)}`, '_blank', 'noopener,noreferrer');
           }
         }}
       />

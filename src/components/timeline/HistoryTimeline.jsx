@@ -296,7 +296,10 @@ const HistoryTimeline = forwardRef(function HistoryTimeline(
 
   return (
     <aside
-      className='w-[320px] shrink-0 self-stretch h-[calc(100vh-220px)] rounded-xl p-6 flex flex-col gap-4'
+      /* สูงเท่าคอลัมน์ขวา ไม่ใช่ความสูงจอตายตัว (มติผู้ใช้ 28 ส.ค. 69) — ค่าเดิม
+         `h-[calc(100vh-220px)]` ทำให้กล่องเขียวยาวเลยกริดค่าสัญญาณชีพเสมอ
+         เหลือ max-height ไว้กันลิสต์ยาวดันหน้าจน scroll ทั้งหน้า */
+      className='w-[320px] shrink-0 self-stretch max-h-[calc(100vh-220px)] rounded-xl p-6 flex flex-col gap-4'
       style={{
         background: 'var(--surface-brandPrimary-quaternary)',
         borderWidth: 'var(--dim-stroke-100)',

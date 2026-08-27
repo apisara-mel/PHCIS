@@ -259,7 +259,7 @@ const OpdDischargePopup = ({
 
           {/* Branch radio cards */}
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
-            <span style={fieldLabelStyle}>ปลายทางการจำหน่าย *</span>
+            <span style={fieldLabelStyle}>ปลายทางการจำหน่าย <span style={{ color: 'var(--text-input-require)' }} aria-hidden>*</span></span>
             <div className='flex items-stretch flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
               {BRANCHES.map((b) => (
                 <SelectableCardButton
@@ -341,7 +341,7 @@ const OpdDischargePopup = ({
           {/* Branch 2 — internal department (ScreeningConfirmPopup dept catalog) */}
           {branch === 'dept' && (
             <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
-              <span style={fieldLabelStyle}>แผนกปลายทาง *</span>
+              <span style={fieldLabelStyle}>แผนกปลายทาง <span style={{ color: 'var(--text-input-require)' }} aria-hidden>*</span></span>
               <Dropdown
                 value={dept}
                 onChange={setDept}
@@ -364,7 +364,7 @@ const OpdDischargePopup = ({
           {branch === 'refer' && (
             <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
               <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
-                <span style={fieldLabelStyle}>สถานพยาบาลปลายทาง *</span>
+                <span style={fieldLabelStyle}>สถานพยาบาลปลายทาง <span style={{ color: 'var(--text-input-require)' }} aria-hidden>*</span></span>
                 {hospital ? (
                   <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
                     <Badge style='success' size='small'>{hospital}</Badge>

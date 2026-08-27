@@ -425,7 +425,7 @@ const OpdWalkinRequestPage = () => {
       >
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-            <span style={{ color: 'var(--text-content-default, #363B3F)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)', fontFamily: 'var(--type-family-body)' }}>แผนกปลายทาง *</span>
+            <span style={{ color: 'var(--text-content-default, #363B3F)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)', fontFamily: 'var(--type-family-body)' }}>แผนกปลายทาง <span style={{ color: 'var(--text-input-require)' }} aria-hidden>*</span></span>
             <Dropdown
               value={editDept}
               onChange={setEditDept}

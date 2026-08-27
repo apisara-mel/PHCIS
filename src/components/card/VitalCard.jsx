@@ -40,9 +40,17 @@ const Badge = ({ tone = 'orange', children }) => (
   </SharedBadge>
 );
 
-const Header = ({ label, unit, required, badge, labelAction }) => (
+/* ค่าที่อยู่ในเกณฑ์ไม่ต้องติดป้าย (มติผู้ใช้ 28 ส.ค. 69) — ป้าย "ปกติ" เต็มกริด
+   ทำให้ตาต้องกวาดหาป้ายที่ไม่ใช่สีเขียวเอง ปล่อยว่างไว้แล้วป้ายที่โผล่มาคือสิ่งผิดปกติ
+   จริง ๆ ตัวเดียว ตัวกรองอยู่ที่ <Header> จุดเดียวจึงคุมทั้ง VitalCard ·
+   PressureCard · BMICard ที่เรียกใช้หัวการ์ดร่วมกัน */
+const NORMAL_BADGE_LABEL = 'ปกติ';
+
+const Header = ({ label, unit, required, badge: rawBadge, labelAction }) => {
+  const badge = rawBadge && rawBadge.label !== NORMAL_BADGE_LABEL ? rawBadge : undefined;
+  return (
   <div className='flex items-center gap-3 w-full'>
-    <div className='flex-1 flex items-center gap-0.5 leading-snug min-w-0'>
+    <div className='flex-1 flex items-center gap-2 leading-snug min-w-0'>
       <p
         className='text-xs font-medium whitespace-nowrap'
         style={{ color: 'var(--text-content-default)' }}
@@ -61,13 +69,14 @@ const Header = ({ label, unit, required, badge, labelAction }) => (
           *
         </span>
       )}
+      {/* ตัวสลับ (เส้นรอบเอว ↔ เส้นรอบหัว) วางติดชื่อช่อง ไม่ใช่ชิดขอบขวา —
+          อ่านเป็นส่วนขยายของชื่อว่ากำลังวัดอะไรอยู่ (มติผู้ใช้ 28 ส.ค. 69) */}
+      {labelAction}
     </div>
-    {/* ตัวสลับเล็ก ๆ ข้างชื่อช่อง เช่น เส้นรอบเอว ↔ เส้นรอบหัว — วางในหัวการ์ด
-        แทนที่จะเป็นปุ่มลอยข้างนอก ผู้ใช้จะได้เห็นว่ามันคุมช่องนี้ช่องเดียว */}
-    {labelAction}
     {badge && <Badge tone={badge.tone}>{badge.label}</Badge>}
   </div>
-);
+  );
+};
 
 const VitalCard = ({
   label,

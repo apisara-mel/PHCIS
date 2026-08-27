@@ -478,7 +478,7 @@ const OpdRg506Page = () => {
 
                 <div className='grid' style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--dim-space-400)' }}>
                   <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                    <span style={labelStyle}>โรคเฝ้าระวัง *</span>
+                    <span style={labelStyle}>โรคเฝ้าระวัง <span style={{ color: 'var(--text-input-require)' }} aria-hidden>*</span></span>
                     <Dropdown
                       value={form.diseaseCode}
                       onChange={(code) => {
