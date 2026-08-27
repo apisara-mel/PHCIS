@@ -23,6 +23,7 @@ const DraggablePip = ({
   width = DEFAULT_SIZE.width,
   height = DEFAULT_SIZE.height,
   zIndex = 'var(--sm-z-overlay, 1300)',
+  className = '',
   style,
   children,
   'aria-label': ariaLabel = 'หน้าต่างวิดีโอ PiP',
@@ -110,6 +111,7 @@ const DraggablePip = ({
   return (
     <div
       ref={panelRef}
+      className={className}
       role='dialog'
       aria-label={ariaLabel}
       onPointerDown={beginDrag}

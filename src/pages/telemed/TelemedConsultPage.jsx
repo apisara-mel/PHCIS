@@ -3,6 +3,7 @@ import { useHistory } from 'react-router-dom';
 import { DEFAULT_PATIENT } from '@/data/patientProfiles';
 import { TREATMENT_DEFAULT_VITALS } from '@/data/treatmentVisits';
 import BrandCircleSubdueIconButton from '@/components/button/BrandCircleSubdueIconButton';
+import BrandCircleIconButton from '@/components/button/BrandCircleIconButton';
 import DangerCircleIconButton from '@/components/button/DangerCircleIconButton';
 import DangerCircleSubdueIconButton from '@/components/button/DangerCircleSubdueIconButton';
 import DangerButton from '@/components/button/DangerButton';
@@ -20,7 +21,6 @@ import TelemedLeaveCallPopup from '@/components/telemed/TelemedLeaveCallPopup';
 import TelemedLayoutPopup from '@/components/telemed/TelemedLayoutPopup';
 import TelemedConnectingPopup from '@/components/telemed/TelemedConnectingPopup';
 import TelemedRecordingConfirmPopup from '@/components/telemed/TelemedRecordingConfirmPopup';
-import TelemedJoinRequestPopup from '@/components/telemed/TelemedJoinRequestPopup';
 import DraggablePip from '@/components/telemed/DraggablePip';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
 import { appendAuditEvent } from '@/pages/audit/auditData';
@@ -119,8 +119,19 @@ if (typeof document !== 'undefined' && !document.getElementById(TELEMED_SPEAKING
   0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--surface-positive-primary, #08A768) 28%, transparent); }
   50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--surface-positive-primary, #08A768) 45%, transparent); }
 }
+/* ย่อ/ขยายหน้าต่างสายต้องมีจังหวะให้ตาตาม ไม่ใช่สลับภาพทันที — สองโหมดนี้เป็น
+   คนละ subtree กัน การสลับจึงเป็นการ mount ใหม่ ใส่อนิเมชันขาเข้าให้ทั้งคู่ */
+@keyframes mih-telemed-pip-in {
+  from { opacity: 0; transform: scale(0.92) translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes mih-telemed-room-in {
+  from { opacity: 0; transform: scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   .mih-telemed-video-tile--speaking { animation: none !important; }
+  .mih-telemed-pip, .mih-telemed-room { animation: none !important; }
 }
 `;
   document.head.appendChild(style);
@@ -616,7 +627,7 @@ const DevicePickerPill = ({ icon, value, options, onChange, ariaLabel }) => {
 
   return (
     <>
-      <span ref={anchorRef} className='inline-flex' style={{ position: 'relative' }}>
+      <span ref={anchorRef} className='inline-flex' style={{ position: 'relative', minWidth: 0, flexShrink: 1 }}>
         <button
           type='button'
           onClick={() => setOpen((v) => !v)}
@@ -625,6 +636,7 @@ const DevicePickerPill = ({ icon, value, options, onChange, ariaLabel }) => {
           aria-label={ariaLabel}
           style={{
             height: 40, display: 'inline-flex', alignItems: 'center', gap: 'var(--dim-space-150, 6px)',
+            minWidth: 0, maxWidth: '100%',
             paddingLeft: 'var(--dim-space-300, 12px)', paddingRight: 'var(--dim-space-300, 12px)',
             borderRadius: 'var(--dim-radius-full, 9999px)', cursor: 'pointer',
             border: `var(--dim-stroke-100, 1px) solid ${open ? 'var(--border-brandtag-selected, #C5EDDA)' : 'var(--border-brandtag-default, #E2E4E6)'}`,
@@ -632,7 +644,7 @@ const DevicePickerPill = ({ icon, value, options, onChange, ariaLabel }) => {
           }}
         >
           <Sym name={icon} size={16} color={tagColor} />
-          <span style={{ fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)', color: tagColor, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)', color: tagColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
             {selected?.label}
           </span>
           <Sym
@@ -757,7 +769,7 @@ const MicLevelMeter = ({ stream, bars = 10 }) => {
       className='flex items-center'
       title={hint}
       aria-label={hint}
-      style={{ gap: 'var(--dim-space-200, 8px)' }}
+      style={{ gap: 'var(--dim-space-200, 8px)', flexShrink: 0 }}
     >
       {!stream && <Sym name='mic_off' size={16} color='var(--text-content-tertiary, #858C92)' />}
       <div className='flex items-center' aria-hidden style={{ gap: 'var(--dim-space-050, 2px)' }}>
@@ -1087,15 +1099,6 @@ const DocumentPage = ({ doc }) => (
 );
 
 /* ── Right-panel tabs ──────────────────────────────────────────────────── */
-const RIGHT_TABS = [
-  { key: 'docs', label: 'เอกสาร', icon: 'description' },
-  { key: 'health', label: 'ข้อมูลสุขภาพ', icon: 'ecg_heart' },
-  /* TOR §1.13.1/.2/.6 — EMR จาก PHCIS + แผงประเมินในสาย (ตามสิทธิ์) */
-  { key: 'emr', label: 'EMR / ประเมิน', icon: 'clinical_notes' },
-  /* TOR §4.3.3 — สั่งยา / LAB / X-ray / ปรึกษา / ส่งต่อ ระหว่างสาย */
-  { key: 'orders', label: 'คำสั่ง', icon: 'prescriptions' },
-  { key: 'chat', label: 'แชท', icon: 'chat' },
-];
 
 export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximize, onClose }) {
   const history = useHistory();
@@ -1127,7 +1130,10 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
   const peerRef = useRef(null);
   const remoteAudioRef = useRef(null);
   const [sharing, setSharing] = useState(false);
-  const [rightTab, setRightTab] = useState('chat');
+  /* เข้าห้องปรึกษามาแล้วแผงด้านขวาต้องปิดอยู่ — เดิมเปิดค้างที่แชททันที
+     ทำให้พื้นที่วิดีโอถูกบีบทั้งที่ยังไม่มีใครขอใช้แชท */
+  const [rightTab, setRightTab] = useState(null);
+  const toggleRightTab = (key) => setRightTab((cur) => (cur === key ? null : key));
   const [patientOpen, setPatientOpen] = useState(false); // TelemedPatientCard State=Hide (Figma 25:3185)
   const [peopleOpen, setPeopleOpen] = useState(false);  // Figma 58:8962 → 114:56061
   const [peopleView, setPeopleView] = useState('list'); // 'list' | 'add'
@@ -1508,11 +1514,13 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
       onMessage: (msg) => {
         switch (msg.type) {
           case TELEMED_SESSION_EVENTS.joinRequest:
+            /* ไม่มีป๊อปอัปถามรับเข้าห้องอีกแล้ว — ผู้รับบริการที่ยิงคำขอมาคือเจ้าของ
+               นัดหมายที่ล็อกอินแล้ว ระบบจึงรับเข้าห้องให้ทันทีและบันทึกไว้ใน audit */
             clearJoinRequestTimer();
             clearNoShowTimer();
             setNoShowStep(null);
-            setJoinRequestOpen(true);
             appendAuditEvent({ user: DOCTOR.name, action: 'ผู้รับบริการขอเข้าห้องปรึกษา (จากแอปมือถือ)' });
+            admitJoinRequest();
             break;
           /* วางสายเอง ≠ สัญญาณหลุด — ต้องแยกกันทั้งบนหน้าจอและใน audit trail
              เพราะเวลาให้บริการ/การเบิกจ่าย (คู่มือ 5.3.5) อ่านจากบันทึกนี้ */
@@ -1604,7 +1612,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
        ถ้ามีแท็บคู่หู คำขอเข้าห้องจะมาจากฝั่งมือถือจริง ไม่ต้องแกล้ง */
     if (!sessionRef.current?.hasPeer()) {
       joinRequestTimerRef.current = window.setTimeout(() => {
-        setJoinRequestOpen(true);
+        admitJoinRequest();
       }, 1400);
     }
   };
@@ -1999,24 +2007,71 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
         <Popup
           open
           onClose={onClose}
-          width={1180}
+          /* extraLarge = ตัวแปรของ design system ที่ยืดเต็มจอ (เว้นขอบ 24px)
+             พร้อมกำหนดความสูงให้เต็มด้วย ไม่งั้นกล่องจะสูงตามเนื้อหาแล้วลอยกลางจอ */
+          size='extraLarge'
+          height='calc(100vh - 2 * var(--dim-space-600, 24px))'
           title='ห้องตรวจรักษาออนไลน์'
           subtitle='Session ID: TM-8842-2024'
           headerStyle={{ alignItems: 'center' }}
-          bodyStyle={{ paddingTop: 0 }}
+          bodyStyle={{ paddingTop: 0, minHeight: 0 }}
+          /* การ์ดนัดหมายถูกถอดออกจากตัวหน้าแล้ว — ตัวตนผู้รับบริการ (รูป · ชื่อ · HN)
+             จึงต้องอยู่บนหัวป๊อปอัปแทน ให้เห็นตลอดว่ากำลังจะเข้าห้องของใคร */
+          headerTrailing={(
+            <div className='inline-flex items-center' style={{ gap: 'var(--dim-space-200, 8px)', minWidth: 0 }}>
+              <span
+                style={{
+                  width: 'var(--dim-size-700, 36px)', height: 'var(--dim-size-700, 36px)',
+                  borderRadius: 'var(--dim-radius-full, 9999px)', overflow: 'hidden', flexShrink: 0,
+                  background: 'var(--surface-neutral-tertiary, #F4F5F5)',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                {PATIENT.avatarUrl ? (
+                  <img src={PATIENT.avatarUrl} alt={PATIENT.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                ) : (
+                  <Sym name='person' size={20} fill={1} color='var(--icon-content-tertiary, #858C92)' />
+                )}
+              </span>
+              <span className='flex flex-col' style={{ minWidth: 0 }}>
+                <span
+                  style={{
+                    fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)',
+                    fontSize: 'var(--type-size-sm, 14px)',
+                    fontWeight: 'var(--type-weight-regular, 400)',
+                    color: 'var(--text-content-default, #363B3F)',
+                    lineHeight: 1.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  }}
+                >
+                  {PATIENT.fullName}
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--type-family-body, "Sarabun", sans-serif)',
+                    fontSize: 'var(--type-size-xs, 12px)',
+                    fontWeight: 'var(--type-weight-medium, 500)',
+                    color: 'var(--text-content-tertiary, #858C92)',
+                    lineHeight: 1.5, whiteSpace: 'nowrap',
+                  }}
+                >
+                  HN: {PATIENT.hn}
+                </span>
+              </span>
+            </div>
+          )}
         >
         {/* Content — two columns */}
-            <div style={{ width: '100%', display: 'flex', gap: 'var(--dim-space-400, 16px)', alignItems: 'stretch', justifyContent: 'center' }}>
+            <div style={{ width: '100%', flex: 1, minHeight: 0, display: 'flex', gap: 'var(--dim-space-400, 16px)', alignItems: 'stretch', justifyContent: 'center' }}>
             {/* Left — video preview column */}
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-400, 16px)' }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'var(--dim-space-400, 16px)', height: '100%' }}>
               {/* การ์ดนัดหมาย/ผู้รับบริการถูกถอดออกจากหน้าเตรียมตัว — ชื่อผู้รับบริการ
                   อยู่บนกรอบภาพอยู่แล้ว และการ์ดเต็มยังอยู่ในห้องตรวจหลังเข้าสาย */}
               {/* video preview card */}
-              <div style={{ ...prepareCardStyle, gap: 'var(--dim-space-400, 16px)' }}>
+              <div style={{ ...prepareCardStyle, flex: 1, minHeight: 0, gap: 'var(--dim-space-400, 16px)' }}>
                 <span style={{ fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)', fontSize: 'var(--type-size-base, 16px)', fontWeight: 'var(--type-weight-regular, 400)', color: 'var(--text-topic-tertiary-title, #363B3F)', lineHeight: 1.5 }}>เตรียมตัวก่อนให้เข้าห้องตรวจ</span>
-                {/* เดิมกรอบนี้ยืดตามความสูงจอ (flex:1 ใต้คอลัมน์ height:100%) พอย้าย
-                    มาอยู่ในป๊อปอัปที่สูงตามเนื้อหา กรอบจึงยุบเหลือ 0 — ผูกสัดส่วนไว้แทน */}
-                <div style={{ width: '100%', aspectRatio: '16 / 9', minHeight: 0, position: 'relative', borderRadius: 'var(--dim-radius-500, 16px)', overflow: 'hidden' }}>
+                {/* ป๊อปอัปสูงเต็มจอแล้ว กรอบภาพจึงยืดตามได้ — แต่ยังกัน minHeight ไว้
+                    เผื่อจอเตี้ย ไม่ให้ยุบจนหายเหมือนตอนที่กล่องสูงตามเนื้อหา */}
+                <div style={{ width: '100%', flex: 1, minHeight: 240, position: 'relative', borderRadius: 'var(--dim-radius-500, 16px)', overflow: 'hidden' }}>
                   <TelemedPreparePreview
                     backgroundSrc={virtualBackgroundSrc}
                     blurMode={bg === 'blur'}
@@ -2025,6 +2080,38 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                     camError={camError}
                   >
                     {/* name badge */}
+                    {/* ปุ่มเปลี่ยนพื้นหลังอยู่ในกรอบภาพที่มันมีผล ไม่ใช่ในคอลัมน์ขวา
+                        กดแล้วตัวเลือกจะไปกางอยู่ทางขวา */}
+                    <button
+                      type='button'
+                      onClick={() => setBgPanelOpen((v) => !v)}
+                      aria-pressed={bgPanelOpen}
+                      style={{
+                        position: 'absolute',
+                        right: 'var(--dim-space-400, 16px)',
+                        bottom: 'var(--dim-space-400, 16px)',
+                        height: 32,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 'var(--dim-space-150, 6px)',
+                        paddingLeft: 'var(--dim-space-300, 12px)',
+                        paddingRight: 'var(--dim-space-300, 12px)',
+                        borderRadius: 'var(--dim-radius-full, 9999px)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        zIndex: 1,
+                        background: 'var(--surface-card-100, #FFFFFF)',
+                        color: 'var(--text-brandPrimary-default, #007549)',
+                        fontFamily: 'var(--type-family-body, "Sarabun", sans-serif)',
+                        fontSize: 'var(--type-size-sm, 14px)',
+                        fontWeight: 'var(--type-weight-medium, 500)',
+                        whiteSpace: 'nowrap',
+                        boxShadow: 'var(--shadow-card-strong)',
+                      }}
+                    >
+                      <Sym name='layers' size={16} color='var(--icon-brandPrimary-default, #007549)' />
+                      เปลี่ยนพื้นหลัง
+                    </button>
                     <div style={{ position: 'absolute', left: 'var(--dim-space-400, 16px)', bottom: 'var(--dim-space-400, 16px)', height: 32, display: 'inline-flex', alignItems: 'center', gap: 'var(--dim-space-150, 6px)', paddingLeft: 'var(--dim-space-300, 12px)', paddingRight: 'var(--dim-space-300, 12px)', borderRadius: 'var(--dim-radius-full, 9999px)', background: 'var(--surface-card-100, #FFFFFF)', zIndex: 1 }}>
                       <span style={{ fontSize: 'var(--type-size-sm, 14px)', fontWeight: 'var(--type-weight-medium, 500)', color: 'var(--text-content-default, #363B3F)' }}>{PATIENT.fullName} (ผู้รับบริการ)</span>
                     </div>
@@ -2048,7 +2135,9 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
               </div>
 
               {/* status tags — device selectors (Figma 78:16405 / 103:53180) */}
-              <div style={{ ...prepareCardStyle, flexDirection: 'row', gap: 'var(--dim-space-400, 16px)', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+              {/* ตัวเลือกอุปกรณ์สามชิ้นต้องอยู่บรรทัดเดียวกันเสมอ — ปล่อยให้ป้ายชื่อ
+                  ยาวเกินแล้วตัดด้วย ellipsis ดีกว่าให้ปุ่มตกไปอีกบรรทัด */}
+              <div style={{ ...prepareCardStyle, flexDirection: 'row', gap: 'var(--dim-space-200, 8px)', alignItems: 'center', justifyContent: 'center', flexWrap: 'nowrap' }}>
                 <DevicePickerPill icon='mic' ariaLabel='เลือกไมค์' options={TELEMED_MIC_DEVICES} value={micDevice} onChange={setMicDevice} />
                 <MicLevelMeter stream={micStream} />
                 <DevicePickerPill icon='volume_up' ariaLabel='เลือกลำโพง' options={TELEMED_SPEAKER_DEVICES} value={speakerDevice} onChange={setSpeakerDevice} />
@@ -2197,44 +2286,6 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                 </div>
               </div>
 
-              {/* พื้นหลังเสมือนเป็นของตกแต่ง ไม่ใช่สิ่งที่แพทย์ต้องตัดสินใจก่อนเข้าห้อง —
-                  เดิมกินพื้นที่ทั้งคอลัมน์และอยู่เหนือปุ่มเข้าห้อง สิ่งที่สำคัญที่สุด
-                  (ภาพตัวเอง · อุปกรณ์ · ปุ่มเข้าห้อง) จึงถูกดันลงไปใต้กริดรูป */}
-              <button
-                type='button'
-                className='flex items-center w-full'
-                onClick={() => setBgPanelOpen((v) => !v)}
-                aria-expanded={bgPanelOpen}
-                style={{
-                  gap: 'var(--dim-space-300, 12px)',
-                  padding: 'var(--dim-space-200, 8px) var(--dim-space-300, 12px)',
-                  borderRadius: 'var(--dim-radius-400, 12px)',
-                  background: 'var(--surface-topic-default, #FFFFFF)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                  textAlign: 'left',
-                  fontFamily: 'inherit',
-                }}
-              >
-                <div style={{ width: 'var(--dim-size-400, 20px)', paddingTop: 'var(--dim-space-050, 2px)', flexShrink: 0 }}>
-                  <Sym name='layers' size={20} color='var(--icon-brandPrimary-default, #007549)' />
-                </div>
-                <span
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)',
-                    fontSize: 'var(--type-size-base, 16px)',
-                    fontWeight: 'var(--type-weight-regular, 400)',
-                    color: 'var(--text-topic-primary-title, #007549)',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  เปลี่ยนพื้นหลัง
-                </span>
-                <Sym name={bgPanelOpen ? 'expand_less' : 'expand_more'} size={20} color='var(--icon-brandPrimary-default, #007549)' />
-              </button>
               {bgPanelOpen && (
                 <>
               {/* Upload section */}
@@ -2262,14 +2313,16 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                     aria-label='อัปโหลดภาพพื้นหลัง'
                     style={{
                       flex: uploadedBg ? '1 0 0' : undefined,
-                      width: uploadedBg ? undefined : 194,
+                      /* ย่อกล่องอัปโหลดลง — เดิม 194×109 กินพื้นที่พอ ๆ กับรูปพื้นหลัง
+                         สองรูปรวมกัน ทั้งที่เป็นทางเลือกรอง */
+                      width: uploadedBg ? undefined : 128,
                       minWidth: 0,
-                      aspectRatio: uploadedBg ? '194 / 109' : undefined,
-                      height: uploadedBg ? undefined : 109,
+                      aspectRatio: uploadedBg ? '128 / 72' : undefined,
+                      height: uploadedBg ? undefined : 72,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      padding: 'var(--dim-space-600, 24px)',
+                      padding: 'var(--dim-space-200, 8px)',
                       cursor: 'pointer',
                       overflow: 'hidden',
                       borderRadius: 'var(--dim-radius-200, 8px)',
@@ -2283,7 +2336,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                     }}
                   >
                     <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200, 8px)', flex: 1 }}>
-                      <Sym name='image' size={20} color='var(--text-formbuilder-text, #007549)' />
+                      <Sym name='image' size={16} color='var(--text-formbuilder-text, #007549)' />
                       <span
                         style={{
                           fontFamily: 'var(--type-family-body, "Sarabun", sans-serif)',
@@ -2376,18 +2429,22 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                   รูปภาพ
                 </span>
                 <div
-                  className='flex flex-col w-full'
-                  style={{ flex: 1, minHeight: 0, gap: 'var(--dim-space-300, 12px)', overflowY: 'auto' }}
+                  className='w-full'
+                  style={{
+                    flex: 1,
+                    minHeight: 0,
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                    gap: 'var(--dim-space-200, 8px)',
+                    alignContent: 'start',
+                    overflowY: 'auto',
+                  }}
                 >
-                  {[0, 2, 4, 6].map((start) => (
-                    <div
-                      key={start}
-                      className='flex items-center w-full'
-                      style={{ gap: 'var(--dim-space-300, 12px)', flexShrink: 0 }}
-                    >
-                      {BG_PRESETS.slice(start, start + 2).map((p) => {
-                        const on = bg === p.id;
-                        return (
+                  {/* 3 รูปต่อแถว: ใช้ grid แทนการหั่นเป็นแถวละ 2 ด้วยมือ — แถวสุดท้าย
+                      ที่มีไม่ครบจะได้ไม่ยืดจนใหญ่กว่าแถวอื่น */}
+                  {BG_PRESETS.map((p) => {
+                    const on = bg === p.id;
+                    return (
                           <button
                             key={p.id}
                             type='button'
@@ -2396,7 +2453,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                             aria-pressed={on}
                             style={{
                               position: 'relative',
-                              flex: '1 0 0',
+                              width: '100%',
                               minWidth: 0,
                               aspectRatio: '16 / 9',
                               padding: 0,
@@ -2443,10 +2500,8 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                               </span>
                             )}
                           </button>
-                        );
-                      })}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
                 </>
@@ -2544,25 +2599,13 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
 
     if (roomClosed) {
       return (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 'var(--sm-z-overlay, 1300)',
-          display: 'flex', flexDirection: 'column',
-          background: 'var(--background-screen-brand-100, #F4FBF8)',
-          fontFamily: 'var(--type-family-body, "Sarabun", sans-serif)',
-        }}
+        <Popup
+          open
+          onClose={onClose}
+          width={520}
+          headerStyle={{ alignItems: 'center' }}
+          bodyStyle={{ paddingTop: 0 }}
         >
-          <header style={{
-            display: 'flex', alignItems: 'center',
-            padding: 'var(--dim-space-300, 12px) var(--dim-space-600, 24px)',
-            background: 'var(--surface-card-100, #FFFFFF)',
-            borderBottom: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
-          }}
-          >
-            <div style={{ fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)', fontSize: 'var(--type-size-base, 16px)', fontWeight: 'var(--type-weight-regular, 400)', color: 'var(--text-topic-secondary-title, #007549)', lineHeight: 1.5 }}>
-              ห้องปรึกษาแพทย์ออนไลน์
-            </div>
-          </header>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--dim-space-600, 24px)' }}>
             <div style={{
               width: 448, maxWidth: '94vw',
               padding: 'var(--dim-space-800, 32px)',
@@ -2614,8 +2657,27 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                 borderRadius: 'var(--dim-radius-400, 12px)',
                 background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
                 textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--dim-space-300, 12px)',
               }}
               >
+                {/* การ์ดสรุปต้องมีรูปผู้รับบริการด้วย ไม่ใช่ชื่อกับ HN ลอย ๆ */}
+                <span
+                  style={{
+                    width: 'var(--dim-size-1000, 48px)', height: 'var(--dim-size-1000, 48px)',
+                    borderRadius: 'var(--dim-radius-full, 9999px)', overflow: 'hidden', flexShrink: 0,
+                    background: 'var(--surface-neutral-tertiary, #F4F5F5)',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  {PATIENT.avatarUrl ? (
+                    <img src={PATIENT.avatarUrl} alt={PATIENT.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  ) : (
+                    <Sym name='person' size={24} fill={1} color='var(--icon-content-tertiary, #858C92)' />
+                  )}
+                </span>
+                <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)', fontSize: 'var(--type-size-base, 16px)', color: 'var(--text-content-default, #363B3F)' }}>
                   {PATIENT.fullName}
                 </div>
@@ -2624,6 +2686,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                 </div>
                 <div style={{ fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-quaternary, #ADB2B7)', marginTop: 'var(--dim-space-200, 8px)' }}>
                   Session ID: TM-8842-2024 · ระยะเวลา {fmtElapsed(elapsed)}
+                </div>
                 </div>
               </div>
               <BrandButton
@@ -2634,13 +2697,12 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                 กลับสู่หน้าหลัก
               </BrandButton>
             </div>
-          </div>
-        </div>
+        </Popup>
       );
     }
 
     return (
-      <div style={{ ...overlayStyle, alignItems: 'center' }}>
+      <div className='mih-telemed-room' style={{ ...overlayStyle, alignItems: 'center', animation: 'mih-telemed-room-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1)' }}>
         <div style={{
           ...cardStyle, width: 448, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto',
           padding: 'var(--dim-space-800, 32px)', fontFamily: 'var(--type-family-body, "Sarabun", sans-serif)',
@@ -2769,7 +2831,10 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
         defaultEdge={{ right: 'var(--dim-space-500, 20px)', bottom: 'var(--dim-space-500, 20px)' }}
         zIndex={TELEMED_Z_TOP}
         aria-label='หน้าต่าง Telemedicine PiP — ลากย้ายได้ทั้งหน้าจอ'
+        className='mih-telemed-pip'
         style={{
+          animation: 'mih-telemed-pip-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+          transition: 'box-shadow 160ms ease',
           display: 'flex',
           flexDirection: 'column',
           gap: 'var(--dim-space-400, 16px)',
@@ -2777,7 +2842,9 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
           borderRadius: 'var(--dim-radius-500, 16px)',
           overflow: 'hidden',
           background: 'var(--surface-card-100, #FFFFFF)',
-          boxShadow: 'var(--shadow-brand-drop-bottom-400, var(--shadow-card-strong))',
+          /* PiP ลอยอยู่เหนือหน้าจออื่นที่พื้นหลังต่างกันไป เงาแบบ brand ที่จางมาก
+             จึงกลืนไปกับพื้น — ใช้เงากลางที่เข้มกว่าเพื่อให้กรอบลอยออกมาชัด */
+          boxShadow: 'var(--shadow-drop-bottom-400)',
           fontFamily: 'var(--type-family-body, "Sarabun", sans-serif)',
         }}
       >
@@ -2987,10 +3054,8 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
 
       {/* ── Patient info banner — TelemedPatientCard Hide/Show (Figma 25:3185) ── */}
       <div style={{ paddingLeft: 'var(--dim-space-600, 24px)', paddingRight: 'var(--dim-space-600, 24px)', paddingTop: 'var(--dim-space-400, 16px)', flexShrink: 0 }}>
-        <TelemedPatientCard
-          open={patientOpen}
-          onToggle={() => setPatientOpen((v) => !v)}
-        />
+        {/* การ์ดผู้รับบริการถูกถอดออกจากห้องปรึกษา — ตัวตนอยู่บนกรอบวิดีโอและ
+            บนหัวห้องแล้ว การ์ดเต็มความกว้างกินพื้นที่ที่ควรเป็นของภาพสนทนา */}
       </div>
 
       {/* ── Body: video stage + right panel ── */}
@@ -3033,14 +3098,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
           ) : peerState.hasPeer ? (
             <Banner tone='info' icon='smartphone' title='จับคู่กับแอปผู้รับบริการแล้ว'
               text={`${transportLabel(peerState.transport)} — คำขอเข้าห้อง · การรับเข้า · การออกจากสาย และภาพ/เสียงในสาย เดินจริงระหว่างสองเครื่อง`} />
-          ) : (
-            <Banner tone='warn' icon='phonelink_off' title='ยังไม่พบเครื่องของผู้รับบริการ'
-              text={peerState.supported || peerState.relay
-                ? (peerState.relay
-                  ? 'เปิด /m/telemed บนมือถือที่อยู่ Wi-Fi เดียวกัน (หรืออีกแท็บในเครื่องนี้) เพื่อต่อสายจริง — ระหว่างนี้ระบบใช้เหตุการณ์จำลอง'
-                  : 'เปิด /m/telemed อีกแท็บในเบราว์เซอร์นี้เพื่อต่อสายจริง — ระหว่างนี้ระบบใช้เหตุการณ์จำลอง')
-                : 'เบราว์เซอร์นี้จับคู่ข้ามแท็บไม่ได้ (BroadcastChannel/localStorage ถูกปิด) — ใช้เหตุการณ์จำลองในแท็บเดียว'} />
-          )}
+          ) : null}
           {camError && (
             <Banner tone='danger' icon='videocam_off' title='ไม่พบกล้อง/ถูกปฏิเสธสิทธิ์'
               text='ตรวจสอบการอนุญาตใช้กล้องในเบราว์เซอร์ แล้วลองเปิดใหม่'
@@ -3277,40 +3335,16 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
           </div>
         </div>
 
-        {/* right panel */}
+        {/* right panel — โผล่เมื่อผู้ใช้เลือกแท็บเท่านั้น */}
+        {rightTab && (
         <aside style={{
           width: 360, flexShrink: 0, background: 'var(--surface-card-100, #FFFFFF)',
           borderLeft: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
           display: 'flex', flexDirection: 'column', minHeight: 0,
         }}
         >
-          {/* tabs — pill bar (Figma 22:2725) */}
-          <div style={{ padding: 'var(--dim-space-300, 12px) var(--dim-space-400, 16px)', flexShrink: 0, display: 'flex', justifyContent: 'center', background: 'var(--surface-card-100, #FFFFFF)' }}>
-            <div style={{ display: 'inline-flex', gap: 2, padding: 4, borderRadius: 'var(--dim-radius-full, 9999px)', background: 'var(--surface-tabpill-background, #E2F3EB)' }}>
-              {RIGHT_TABS.map((t) => {
-                const on = rightTab === t.key;
-                return (
-                  <button key={t.key} type='button' onClick={() => setRightTab(t.key)}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 'var(--dim-space-150, 6px)',
-                      paddingTop: 8, paddingBottom: 8, paddingLeft: 14, paddingRight: 14, borderRadius: 'var(--dim-radius-full, 9999px)',
-                      border: 'none', cursor: 'pointer', position: 'relative',
-                      background: on ? 'var(--surface-tabpill-default, #FFFFFF)' : 'transparent',
-                      boxShadow: on ? 'var(--shadow-card)' : 'none',
-                    }}
-                  >
-                    <Sym name={t.icon} size={16} fill={on ? 1 : 0} color='var(--icon-brandPrimary-default, #007549)' />
-                    <span style={{ fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)', fontSize: 'var(--type-size-sm, 14px)', color: 'var(--text-brandPrimary-default, #007549)', whiteSpace: 'nowrap' }}>{t.label}</span>
-                    {t.key === 'chat' && chatBadge > 0 && (
-                      <span style={{ position: 'absolute', top: 2, right: 2, width: 8, height: 8, borderRadius: 999, background: 'var(--surface-negative-primary, #D04949)' }} />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* tab content */}
+          {/* แถบแท็บถูกถอดออก — เข้าถึงแต่ละแผงจากปุ่มบนแถบควบคุมสายด้านล่าง
+              ปุ่มเดียวกันกดซ้ำเพื่อปิดแผง ไม่ต้องมีตัวนำทางสองชุดซ้อนกัน */}
           <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             {rightTab === 'health' && (
               <div style={{ padding: 'var(--dim-space-400, 16px)' }}>
@@ -3542,13 +3576,9 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                   ))}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--dim-space-200, 8px)', padding: 'var(--dim-space-300, 12px)', background: 'var(--surface-card-100, #FFFFFF)', borderTop: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)' }}>
-                  <button type='button' onClick={() => chatImageInputRef.current?.click()} aria-label='แนบรูปภาพ' style={iconBtnStyle}>
-                    <Sym name='image' size={20} color='var(--icon-brandPrimary-default, #007549)' />
-                  </button>
+                  <BrandCircleSubdueIconButton variant='fill' size='md' icon='image' aria-label='แนบรูปภาพ' onClick={() => chatImageInputRef.current?.click()} />
                   <input ref={chatImageInputRef} type='file' accept='image/*' onChange={onAttachChatImage} style={{ display: 'none' }} />
-                  <button type='button' onClick={() => chatFileInputRef.current?.click()} aria-label='แนบไฟล์' style={iconBtnStyle}>
-                    <Sym name='attach_file' size={20} color='var(--icon-brandPrimary-default, #007549)' />
-                  </button>
+                  <BrandCircleSubdueIconButton variant='fill' size='md' icon='attach_file' aria-label='แนบไฟล์' onClick={() => chatFileInputRef.current?.click()} />
                   <input ref={chatFileInputRef} type='file' onChange={onAttachChatFile} style={{ display: 'none' }} />
                   <input
                     value={input}
@@ -3562,9 +3592,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
                       fontSize: 'var(--type-size-sm, 14px)', outline: 'none',
                     }}
                   />
-                  <button type='button' onClick={sendChat} aria-label='ส่ง' style={{ ...iconBtnStyle, background: 'var(--surface-brandPrimaryButton-default, #007549)' }}>
-                    <Sym name='send' size={20} fill={1} color={ONBRAND} />
-                  </button>
+                  <BrandCircleIconButton variant='fill' size='md' icon='send' aria-label='ส่ง' onClick={sendChat} />
                 </div>
               </div>
             )}
@@ -3595,6 +3623,7 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
             )}
           </div>
         </aside>
+        )}
       </div>
 
       {/* ── Bottom control bar ── */}
@@ -3609,15 +3638,10 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
         <ControlBtn icon={micOn ? 'mic' : 'mic_off'} label={micOn ? 'ปิดไมค์' : 'เปิดไมค์'} mutedDanger={!micOn} onClick={() => setMicOn((v) => !v)} />
         <ControlBtn icon={camOn && !camError ? 'videocam' : 'videocam_off'} label={camOn && !camError ? 'ปิดกล้อง' : 'เปิดกล้อง'} mutedDanger={!(camOn && !camError)} onClick={() => { if (camError) { setCamError(false); setCamOn(true); } else setCamOn((v) => !v); }} />
         <ControlBtn icon='screen_share' label={sharing ? 'หยุดแชร์' : 'แชร์หน้าจอ'} highlight={sharing} onClick={toggleShare} />
-        {patientPresent && (
-          <ControlBtn
-            icon={patientCamOn ? 'videocam' : 'videocam_off'}
-            label={patientCamOn ? 'กล้องผู้ป่วยปิด' : 'กล้องผู้ป่วยเปิด'}
-            highlight={!patientCamOn}
-            onClick={() => setPatientCamOn((v) => !v)}
-          />
-        )}
-        <ControlBtn icon='chat' label='แชท' highlight={rightTab === 'chat'} badge={chatBadge} onClick={() => setRightTab('chat')} />
+        {/* แถบนี้เป็นเครื่องมือของแพทย์ที่ล็อกอินอยู่ — การสั่งเปิด/ปิดกล้องของ
+            ผู้รับบริการจึงไม่ควรอยู่ปนกับปุ่มของตัวเอง (กดพลาดคือไปปิดกล้องคนไข้)
+            ยังทำได้จากรายชื่อผู้เข้าร่วม ซึ่งเป็นบริบทของคนอื่นในสายชัดเจนกว่า */}
+        <ControlBtn icon='chat' label='แชท' highlight={rightTab === 'chat'} badge={chatBadge} onClick={() => toggleRightTab('chat')} />
         <ControlBtn icon='dashboard' label='เลย์เอาต์' highlight={layoutOpen || videoLayout !== 'auto'} onClick={() => setLayoutOpen(true)} />
         <ControlBtn icon={speakerOn ? 'volume_up' : 'volume_off'} label={speakerOn ? 'ปิดลำโพง' : 'เปิดลำโพง'} mutedDanger={!speakerOn} onClick={() => setSpeakerOn((v) => !v)} />
         {/* TOR §1.13.8/.9 — ไม่มีความยินยอมในทะเบียน = ปุ่มถูกปิดตั้งแต่ต้น */}
@@ -3629,24 +3653,13 @@ export function TelemedConsultOverlay({ minimized = false, onMinimize, onMaximiz
           title={recordability.allowed ? undefined : recordability.reason}
           onClick={toggleRecord}
         />
-        <ControlBtn icon='clinical_notes' label='EMR / ประเมิน' highlight={rightTab === 'emr'} onClick={() => setRightTab('emr')} />
-        <ControlBtn icon='prescriptions' label='คำสั่ง' highlight={rightTab === 'orders'} onClick={() => setRightTab('orders')} />
+        {/* EMR / ประเมิน และ คำสั่ง ถูกถอดออกจากแถบควบคุมสาย — เข้าถึงได้จากระบบ
+            บันทึกการรักษาที่เปิดค้างอยู่ข้างหลัง ไม่ต้องซ้อนเครื่องมือสองชุด */}
         <ControlBtn icon='call_end' label='วางสาย' danger onClick={requestLeave} />
       </footer>
 
-      {/* ── Join request (Figma 95:48873 · Additional Cases) ── */}
-      <TelemedJoinRequestPopup
-        open={joinRequestOpen}
-        onClose={dismissJoinRequest}
-        onConfirm={admitJoinRequest}
-        requester={{
-          fullName: PATIENT.fullName,
-          avatar: '/avatars/telemed/patient.png',
-          role: 'ผู้รับบริการ',
-          specialty: 'OPD',
-          department: DOCTOR.specialty || 'อายุรกรรม',
-        }}
-      />
+      {/* ป๊อปอัป "ขอเข้าห้องตรวจรักษา" ถูกถอดออก — คำขอจากผู้รับบริการที่ล็อกอินแล้ว
+         ถูกรับเข้าห้องอัตโนมัติ (ดู admitJoinRequest ใน onMessage) */}
 
       {/* ── No-show ครั้งที่ 1 (Figma 87:13486) ── */}
       <AlertDialog
