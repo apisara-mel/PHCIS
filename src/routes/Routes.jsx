@@ -346,6 +346,11 @@ export default function Routes() {
         {/* ชุดคำสั่งการรักษากลาง — ผู้ดูแลระบบกำหนดรายการและกลุ่มผู้มีสิทธิ์ใช้งาน */}
         <Route exact path='/admin/order-sets'             component={SystemOrderSetsPage} />
         {/* Pharmacy master data is maintained from central settings. */}
+        {/* ทะเบียนรายการตรวจ (Lab) — master data ของห้องปฏิบัติการ ย้ายมาอยู่ใต้
+            จัดการระบบ 28 ส.ค. 69 แบบเดียวกับทะเบียนยา. หน้าเดิมคือ LabSetupPage
+            ตัวเดิม เปลี่ยนแค่ breadcrumb/เมนูข้าง — ลิงก์เก่า /lab/setup redirect
+            มาที่นี่ (ดูกลุ่ม <Redirect> ท้ายไฟล์). */}
+        <Route exact path='/admin/lab/registry'          component={LabSetupPage} />
         <Route exact path='/admin/pharmacy/registry'     component={PharmacyRegistryPage} />
         <Route exact path='/admin/pharmacy/registry/new' component={PharmacyRegistryEditPage} />
         <Route exact path='/admin/pharmacy/registry/:id' component={PharmacyRegistryEditPage} />
@@ -621,6 +626,7 @@ export default function Routes() {
         <Route exact path='/pharmacy/queue'    component={PharmacyQueuePage} />
         <Route exact path='/pharmacy/dispense' component={PharmacyDispensePage} />
         {/* Backward-compatible links from the former pharmacy-local registry. */}
+        <Redirect exact from='/lab/setup' to='/admin/lab/registry' />
         <Redirect exact from='/pharmacy/registry' to='/admin/pharmacy/registry' />
         <Redirect exact from='/pharmacy/registry/new' to='/admin/pharmacy/registry/new' />
         <Redirect exact from='/pharmacy/registry/:id' to='/admin/pharmacy/registry/:id' />
@@ -639,7 +645,8 @@ export default function Routes() {
               /lab/result/:id  — บันทึกผล + ค่าวิกฤต (1.15.6)
               /lab/report/:orderId — ใบผลตรวจรายครั้ง (1.15.6.3)
               /lab/history/:hn — ใบสรุปผลย้อนหลังข้ามครั้ง (1.15.4.3 / 1.15.6.3)
-              /lab/setup       — ทะเบียนรายการตรวจ + รหัส TMLT (1.15.3)
+              (/admin/lab/registry — ทะเบียนรายการตรวจ + รหัส TMLT (1.15.3),
+               ย้ายไปอยู่ใต้จัดการระบบแล้ว)
             ลำดับสำคัญ: route แบบ static ทั้งหมดต้องอยู่**เหนือ** route ที่มี
             param (`/lab/result/:id`, `/lab/report/:orderId`, `/lab/history/:hn`)
             เพราะ <Switch> จับตัวแรกที่ match — ถ้าสลับที่ /lab/receive จะถูก
@@ -647,7 +654,6 @@ export default function Routes() {
         <Route exact path='/lab'              component={LabQueuePage} />
         <Route exact path='/lab/queue'        component={LabQueuePage} />
         <Route exact path='/lab/order'        component={LabOrderPage} />
-        <Route exact path='/lab/setup'        component={LabSetupPage} />
         <Route exact path='/lab/receive'      component={LabReceivePage} />
         <Route exact path='/lab/send-out'     component={LabSendOutPage} />
         <Route exact path='/lab/interface'    component={LabInterfacePage} />

@@ -1667,11 +1667,6 @@ export const Step2Screening = ({ patient, title = 'คัดกรองแล�
         ))}
       </div>
 
-      <div style={{
-        height: 1,
-        background: 'var(--border-neutral-tertiary, var(--border-card-default))',
-      }} />
-
       {activeTab === 0 && (
         summary.captured
           ? <ScreeningSummaryBody summary={summary} />

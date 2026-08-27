@@ -137,10 +137,20 @@ const SelectField = ({ label, value, onChange, options, required }) => (
    issued by the lab when the order lands. */
 const nextAccession = (i) => `L69-${String(800 + i).padStart(4, '0')}`;
 
-const LabOrderPage = () => {
-  const history = useHistory();
+/* Body only — no app shell. `/lab/order` still renders it inside one; the
+   treatment screen opens the same body in a popup, because ordering a test is
+   something the clinician does mid-consultation, not a trip to the lab
+   module (TOR CPOE §"การสั่งตรวจทางห้องปฏิบัติการ"). */
+export const LabOrderBody = ({ onDone, defaultPatientHn }) => {
 
-  const [patientIdx, setPatientIdx] = useState(0);
+  /* Seeded from the caller when there is one — opening this from a patient's
+     treatment screen and then having to pick that same patient out of a
+     dropdown is how the wrong HN gets an order. */
+  const [patientIdx, setPatientIdx] = useState(() => {
+    if (!defaultPatientHn) return 0;
+    const i = PATIENT_PROFILES.findIndex((p) => p.hn === defaultPatientHn);
+    return i >= 0 ? i : 0;
+  });
   const [location, setLocation] = useState(LAB_LOCATIONS[3]); /* ตรวจรักษาทั่วไป (OPD) */
   const [urgency, setUrgency] = useState('routine');
   const [note, setNote] = useState('');
@@ -194,26 +204,8 @@ const LabOrderPage = () => {
   };
 
   return (
-    <div className='min-h-screen flex' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
-      <Sidebar activeKey='lab' />
-      <main className='flex-1 flex flex-col min-w-0'>
-        <Header breadcrumb={breadcrumb} />
-        <div
-          className='w-full sticky'
-          style={{
-            top: MIH_TOPBAR_OFFSET,
-            zIndex: 1100,
-            background: 'var(--surface-card-100)',
-            paddingTop: 'var(--dim-space-200)',
-            paddingBottom: 'var(--dim-space-0)',
-            paddingLeft: 'var(--dim-space-400)',
-            paddingRight: 'var(--dim-space-400)',
-            boxShadow: 'var(--shadow-header)',
-          }}
-        >
-          <LabSubNav />
-        </div>
-        <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
+    <>
+      <div className='flex-1 flex flex-col min-w-0' style={{ gap: 'var(--dim-space-500)' }}>
           {/* ผู้ป่วย + จุดสั่ง. "จุดสั่งคือคลินิกที่สั่ง" and it drives the
               worklist's จุดสั่ง/ward column, so it is a required header
               field rather than something inferred later. */}
@@ -530,16 +522,47 @@ const LabOrderPage = () => {
             )}
             {urgency === 'stat' && <Badge style='error' size='small'>STAT</Badge>}
             <div className='flex-1' />
-            <NeutralSubdueButton variant='outline' size='md' onClick={() => history.push('/lab/queue')}>
+            <NeutralSubdueButton variant='outline' size='md' onClick={() => onDone?.()}>
               ยกเลิก
             </NeutralSubdueButton>
             <BrandButton size='md' leadingIcon={isAdvance ? 'event_upcoming' : 'send'} disabled={!canSubmit} onClick={handleSubmit}>
               {isAdvance ? 'บันทึกคำสั่งล่วงหน้า' : 'ส่งคำขอตรวจ'}
             </BrandButton>
-          </section>
+        </section>
+      </div>
+      <SuccessToast open={saved} message={savedMsg} onClose={() => setSaved(false)} />
+    </>
+  );
+};
+
+/* Route shell — /lab/order. */
+const LabOrderPage = () => {
+  const history = useHistory();
+
+  return (
+    <div className='min-h-screen flex' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
+      <Sidebar activeKey='lab' />
+      <main className='flex-1 flex flex-col min-w-0'>
+        <Header breadcrumb={breadcrumb} />
+        <div
+          className='w-full sticky'
+          style={{
+            top: MIH_TOPBAR_OFFSET,
+            zIndex: 1100,
+            background: 'var(--surface-card-100)',
+            paddingTop: 'var(--dim-space-200)',
+            paddingBottom: 'var(--dim-space-0)',
+            paddingLeft: 'var(--dim-space-400)',
+            paddingRight: 'var(--dim-space-400)',
+            boxShadow: 'var(--shadow-header)',
+          }}
+        >
+          <LabSubNav />
+        </div>
+        <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
+          <LabOrderBody onDone={() => history.push('/lab/queue')} />
         </div>
       </main>
-      <SuccessToast open={saved} message={savedMsg} onClose={() => setSaved(false)} />
     </div>
   );
 };

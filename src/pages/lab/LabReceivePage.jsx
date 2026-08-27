@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import Table from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
+import useSearchHistory from '@/components/search/useSearchHistory';
 import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
@@ -73,6 +75,37 @@ const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 
 
 const ALL = '__all__';
+
+/* Recent-search list — same contract as the worklist (LabQueuePage) so the
+   two lab screens behave alike; the key is page-scoped so the counter's
+   history never leaks into the worklist's dropdown. */
+const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:lab-receive';
+
+/* Confidential rows stay searchable by accession only — masking §1.15.6.4
+   would be pointless if the name still matched. Shared by the table filter
+   and the suggestion list so both agree on what "found" means. */
+const matchesQuery = (row, q) => {
+  const needle = String(q ?? '').trim().toLowerCase();
+  if (!needle) return true;
+  const haystack = row.confidential
+    ? `${row.accessionNo}`.toLowerCase()
+    : `${row.accessionNo} ${row.patient.hn} ${row.patient.shortName} ${row.patient.fullName ?? ''} ${row.testLabel}`.toLowerCase();
+  return haystack.includes(needle);
+};
+
+/* PrimarySearch item shape (Figma 3345:2981) — accession leads the pills
+   because that is what the counter reads off the tube in hand. */
+const rowToSearchItem = (row) => ({
+  id: row.id,
+  label: row.confidential ? 'ปกปิด (VCT)' : row.patient.shortName,
+  sublabel: `${row.testLabel} · ${row.location}`,
+  value: row.accessionNo,
+  badges: [
+    { label: row.accessionNo, tone: 'indigo' },
+    { label: row.confidential ? 'HN •••••' : row.patient.hn, tone: 'purple' },
+  ],
+  avatarSrc: row.confidential ? undefined : row.patient.avatarUrl,
+});
 const URGENCY_OPTIONS = [{ value: ALL, label: 'ทั้งหมด' }, ...LAB_URGENCIES.map((u) => ({ value: u.key, label: u.label }))];
 const GROUP_OPTIONS = [{ value: ALL, label: 'ทั้งหมด' }, ...LAB_GROUPS.map((g) => ({ value: g.key, label: g.thai }))];
 const LOCATION_OPTIONS = [{ value: ALL, label: 'ทั้งหมด' }, ...LAB_LOCATIONS.map((l) => ({ value: l, label: l }))];
@@ -189,17 +222,51 @@ const LabReceivePage = () => {
       if (group !== ALL && r.group !== group) return false;
       if (location !== ALL && r.location !== location) return false;
       if (tube !== ALL && r.tube?.key !== tube) return false;
-      if (!q) return true;
-      /* Confidential rows are excluded from free-text search exactly as
-         LabQueuePage does — leaving them searchable by name defeats the
-         masking that §1.15.6.4 asks for. Their accession still matches,
-         because that is how the bench finds a tube it is holding. */
-      const haystack = r.confidential
-        ? `${r.accessionNo}`.toLowerCase()
-        : `${r.accessionNo} ${r.patient.hn} ${r.patient.shortName} ${r.patient.fullName ?? ''} ${r.testLabel}`.toLowerCase();
-      return haystack.includes(q);
+      return matchesQuery(r, q);
     });
   }, [stageRows, query, urgency, group, location, tube]);
+
+  const {
+    history: searchHistory,
+    push: pushHistory,
+    clear: clearHistory,
+  } = useSearchHistory(SEARCH_HISTORY_KEY);
+
+  /* Suggestions come from the rows waiting at THIS stage, not the whole
+     order list — offering a tube that is not at this counter would send the
+     staff looking for something that is not in front of them. */
+  const searchSuggestions = useMemo(() => {
+    if (!query.trim()) return [];
+    const matches = [];
+    for (const row of stageRows) {
+      if (matches.length >= 8) break;
+      if (matchesQuery(row, query)) matches.push(rowToSearchItem(row));
+    }
+    return matches;
+  }, [stageRows, query]);
+
+  const resolveSearchRow = (q, item) => {
+    if (item?.id) {
+      const byId = liveRows.find((row) => row.id === item.id);
+      if (byId) return byId;
+    }
+    const needle = (q ?? item?.value ?? item?.label ?? '').toString().trim();
+    if (!needle) return null;
+    return liveRows.find((row) => matchesQuery(row, needle)) ?? null;
+  };
+
+  const searchAvatars = useMemo(() => {
+    const result = [];
+    for (const entry of searchHistory) {
+      if (result.length >= 3) break;
+      const direct = entry && typeof entry === 'object' ? entry.avatarSrc : null;
+      if (direct) { result.push(direct); continue; }
+      const q = typeof entry === 'string' ? entry : (entry?.value ?? entry?.label ?? '');
+      const row = q ? resolveSearchRow(q, null) : null;
+      if (row?.patient.avatarUrl && !row.confidential) result.push(row.patient.avatarUrl);
+    }
+    return result;
+  }, [searchHistory]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -549,7 +616,6 @@ const LabReceivePage = () => {
         activeKey='lab'
         breadcrumb={breadcrumb}
         title='สถานีรับสิ่งส่งตรวจ'
-        summaryCards={summaryCards}
         summaryFlushUnderSubHeader={false}
         belowSummary={<LabSubNav />}
       >
@@ -596,6 +662,15 @@ const LabReceivePage = () => {
               aria-label='ขั้นตอนรับสิ่งส่งตรวจ'
             />
 
+            {/* Summary counts moved below the tab strip (มติผู้ใช้ 28 ส.ค. 69):
+                they describe the list the current tab is showing, so they now
+                sit with it and scroll away with it instead of riding in the
+                page header. Rendered as bare SummaryCard rows — the
+                SummaryCardsBar chrome would be a second card inside this one. */}
+            <div className='flex w-full flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+              {summaryCards.map((c) => <SummaryCard key={c.key} card={c} />)}
+            </div>
+
             {/* Stage explainer + ผู้รับ. ผู้รับ must be chosen before any
                 disposition can be applied — validateReceiptDraft rejects an
                 empty receivedBy, so it is picked once at the counter rather
@@ -626,13 +701,23 @@ const LabReceivePage = () => {
 
             {/* Scan + search. The counter works barcode-first, same as the
                 worklist. */}
-            <div className='w-full flex flex-wrap items-start' style={{ gap: 'var(--dim-space-300)' }} ref={searchWrapRef}>
+            <div className='w-full flex flex-wrap items-center' style={{ gap: 'var(--dim-space-300)' }} ref={searchWrapRef}>
               <PrimarySearch
                 value={query}
                 onChange={(v) => { setQuery(v); if (!v) setScanHint(null); }}
-                onSubmit={(v) => handleScan(v)}
+                onSubmit={(v, item) => {
+                  const row = resolveSearchRow(v, item);
+                  pushHistory(row ? rowToSearchItem(row) : v);
+                  const code = row?.accessionNo ?? v;
+                  setQuery(code);
+                  handleScan(code);
+                }}
                 placeholder='สแกนบาร์โค้ดหลอด หรือค้นหา Accession / HN / ชื่อ'
                 width={520}
+                history={searchHistory}
+                onHistoryClear={searchHistory.length > 0 ? clearHistory : undefined}
+                suggestions={searchSuggestions}
+                avatars={searchAvatars}
               />
               <BrandPrimaryButton
                 size='md'

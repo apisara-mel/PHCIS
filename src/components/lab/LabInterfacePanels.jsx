@@ -184,7 +184,7 @@ export const LabCodeMappingPanel = ({
          The code-lookup guidance moved into the subtitle rather than staying
          attached to a fabricated URL; a real สำนักอนามัย TMLT browser link
          can be restored here once one is confirmed from the reference docs. */
-      subtitle='รหัสที่ยังไม่จับคู่ไม่ได้ถูกทิ้ง แต่จะถูกกักไว้ในคิวข้อความ — ผลจะไม่เข้าถึงผู้ป่วยจนกว่าจะจับคู่ · รหัส TMLT / LOINC ของแต่ละรายการตรวจดูได้จากทะเบียนรายการตรวจในหน้าตั้งค่า (/lab/setup)'
+      subtitle='รหัสที่ยังไม่จับคู่ไม่ได้ถูกทิ้ง แต่จะถูกกักไว้ในคิวข้อความ — ผลจะไม่เข้าถึงผู้ป่วยจนกว่าจะจับคู่ · รหัส TMLT / LOINC ของแต่ละรายการตรวจดูได้จากทะเบียนรายการตรวจ ในจัดการระบบ (/admin/lab/registry)'
     >
       {/* An unmapped code is not cosmetic: the message arrives, no catalog row
           claims it, and the result goes nowhere. Persistent strip, not a

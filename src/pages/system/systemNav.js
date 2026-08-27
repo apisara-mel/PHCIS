@@ -45,6 +45,11 @@ export const SYSTEM_NAV = [
   { key: 'system-order-sets', label: 'ชุดคำสั่งการรักษา', icon: 'playlist_add', path: '/admin/order-sets' },
   { key: 'system-pharmacy-registry', label: 'ทะเบียนยา', icon: 'medication', path: '/admin/pharmacy/registry' },
   */
+  /* ทะเบียนรายการตรวจ (Lab) — master data ของห้องปฏิบัติการ: รายการตรวจ รหัส
+     TMLT/LOINC หลอด/สิ่งส่งตรวจ และข้อมูลบนสติกเกอร์. ย้ายมาจากแท็บในงานชันสูตร
+     โรค 28 ส.ค. 69 (มติผู้ใช้) — เป็นของที่ผู้ดูแลระบบตั้ง ไม่ใช่ของที่เจ้าหน้าที่
+     หน้าเบนช์แก้ระหว่างทำงาน. route เดิม /lab/setup redirect มาที่นี่ */
+  { key: 'system-lab-registry',   label: 'ทะเบียนรายการตรวจ', icon: 'biotech',    path: '/admin/lab/registry' },
   /* วันหยุดประจำปี — ทะเบียนกลางตามประกาศสำนักนายกฯ ใช้ร่วมกันทุกศูนย์
      ย้ายมาไว้ล่างสุดของเมนู 25 ส.ค. 69 (มติผู้ใช้) */
   { key: 'system-holidays',       label: 'วันหยุดประจำปี',   icon: 'event_busy',       path: '/admin/holidays' },

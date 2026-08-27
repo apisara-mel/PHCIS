@@ -18,9 +18,10 @@ import { printLab } from '@/data/labPrintSettings';
    prints the real thing from the same markup — what you see is what comes
    out of the printer, rather than two layouts that drift apart. */
 
-const LabReportPage = () => {
-  const history = useHistory();
-  const { orderId } = useParams();
+/* Body only — no app shell. `/lab/report/:orderId` wraps it in one; the
+   worklist's ใบผลตรวจ row action opens the same body in a popup so the sheet
+   can be checked without leaving the queue. */
+export const LabReportBody = ({ orderId, onDone }) => {
 
   const [version, setVersion] = useState(0);
   useEffect(() => subscribeOrders(() => setVersion((v) => v + 1)), []);
@@ -34,28 +35,16 @@ const LabReportPage = () => {
   const releasedCount = rows.filter((r) => r.status === 'reported' && r.results).length;
 
   return (
-    <div className='min-h-screen flex' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
-      <Sidebar activeKey='lab' />
-      <main className='flex-1 flex flex-col min-w-0'>
-        <Header breadcrumb={['งานชันสูตรโรค (Lab)', 'ใบรายงานผลสำหรับผู้ป่วย', orderId]} />
-        <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
+    <>
+      <div className='flex-1 flex flex-col min-w-0' style={{ gap: 'var(--dim-space-500)' }}>
           <div className='flex items-center flex-wrap mih-lab-no-print' style={{ gap: 'var(--dim-space-300)' }}>
-            <button
-              type='button'
-              onClick={() => history.push('/lab/queue')}
-              className='inline-flex items-center gap-1 text-sm text-ink-secondary hover:text-brand-500'
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 'var(--dim-space-0)' }}
-            >
-              <Icon name='chevron-left' size={16} />
-              กลับไปยังงานชันสูตรโรค (Lab)
-            </button>
             <div className='flex-1' />
             <span className='text-xs text-ink-tertiary'>
               {releasedCount > 0
                 ? `${releasedCount} รายการที่รับรองผลแล้ว`
                 : 'ยังไม่มีผลที่รับรองแล้วในคำสั่งนี้'}
             </span>
-            <NeutralSubdueButton variant='outline' size='md' onClick={() => history.push('/lab/queue')}>
+            <NeutralSubdueButton variant='outline' size='md' onClick={() => onDone?.()}>
               ปิด
             </NeutralSubdueButton>
             <BrandButton
@@ -102,8 +91,7 @@ const LabReportPage = () => {
               </div>
             </div>
           )}
-        </div>
-      </main>
+      </div>
 
       {/* The real print target — same component, hidden until printing.
           Positioned out of flow so it cannot take width from the app shell
@@ -111,6 +99,35 @@ const LabReportPage = () => {
       <div className='mih-lab-print-root'>
         <LabPatientReport rows={rows} />
       </div>
+    </>
+  );
+};
+
+/* Route shell — /lab/report/:orderId. */
+const LabReportPage = () => {
+  const history = useHistory();
+  const { orderId } = useParams();
+
+  return (
+    <div className='min-h-screen flex' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
+      <Sidebar activeKey='lab' />
+      <main className='flex-1 flex flex-col min-w-0'>
+        <Header breadcrumb={['งานชันสูตรโรค (Lab)', 'ใบรายงานผลสำหรับผู้ป่วย', orderId]} />
+        <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
+          <div>
+            <button
+              type='button'
+              onClick={() => history.push('/lab/queue')}
+              className='inline-flex items-center gap-1 text-sm text-ink-secondary hover:text-brand-500'
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 'var(--dim-space-0)' }}
+            >
+              <Icon name='chevron-left' size={16} />
+              กลับไปยังงานชันสูตรโรค (Lab)
+            </button>
+          </div>
+          <LabReportBody orderId={orderId} onDone={() => history.push('/lab/queue')} />
+        </div>
+      </main>
     </div>
   );
 };
