@@ -106,7 +106,7 @@ export const AppointmentReadOnlyCards = ({ appt }) => {
       <ApptReadOnlyCard title='รายละเอียดการนัดหมาย'>
         <FieldGrid cols={2} rowGap='var(--dim-space-400)' columnGap='var(--dim-space-1200)'>
           <ApptReadOnlyField label='หน่วยงานที่สั่งนัด' value={row.orderingUnit} />
-          <ApptReadOnlyField label='คลินิก / หน่วยงานที่นัดตรวจ' value={row.clinic} />
+          <ApptReadOnlyField label='คลินิกที่นัดตรวจ' value={row.clinic} />
         </FieldGrid>
         <FieldGrid cols={2} rowGap='var(--dim-space-400)' columnGap='var(--dim-space-1200)'>
           <ApptReadOnlyField label='ลักษณะการนัดหมาย' value={row.type} />

@@ -398,9 +398,16 @@ export function buildDoctorRoster(total = DOCTOR_ROSTER_SIZE) {
   }));
 }
 
-/** Dropdown options for appointment form — all roster doctors. */
+/** Dropdown options for appointment form — all roster doctors.
+    พกรูป portrait ไปด้วยเสมอ (มติผู้ใช้ 27 ส.ค. 69) — รายชื่อแพทย์ล้วน ๆ จำหน้า
+    ไม่ได้ และ Select/DropdownRow รองรับ `image` อยู่แล้ว */
 export function doctorSelectOptions(doctors = buildDoctorRoster()) {
-  return doctors.map((d) => ({ value: d.name, label: d.name }));
+  return doctors.map((d) => ({
+    value: d.name,
+    label: d.name,
+    image: d.avatarSrc,
+    imageVariant: 'avatar',
+  }));
 }
 
 /** ชื่อแพทย์ → รูป portrait ในทะเบียน */

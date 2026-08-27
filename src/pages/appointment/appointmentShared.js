@@ -44,7 +44,8 @@ export const STAFF_CLOSED_DATES = [
 ];
 
 export const ANY_DOCTOR_VALUE = 'ไม่ระบุแพทย์';
-export const ANY_DOCTOR_OPTION = { value: ANY_DOCTOR_VALUE, label: 'ไม่ระบุแพทย์' };
+/* leadingIcon ไว้ให้ label ตรงแนวกับแถวแพทย์ที่มีรูป portrait */
+export const ANY_DOCTOR_OPTION = { value: ANY_DOCTOR_VALUE, label: 'ไม่ระบุแพทย์', leadingIcon: 'groups' };
 export const MONTH_PREVIEW_SLOT_LIMIT = 5;
 
 export const APPT_MIN_LEAD_MS = 60 * 60 * 1000;

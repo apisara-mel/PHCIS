@@ -4164,7 +4164,7 @@ export const Step6Appointment = ({ form, setForm, patient, cardPatient }) => {
           >
             <ApptCard title='รายละเอียดการนัดหมาย'>
               <FieldGrid cols={2} rowGap='var(--dim-space-400)' columnGap='var(--dim-space-600)'>
-                <Field label='คลินิก / หน่วยงานที่นัดตรวจ' required>
+                <Field label='คลินิกที่นัดตรวจ' required>
                   <Select
                     value={appt.clinic}
                     onChange={setAppt('clinic')}

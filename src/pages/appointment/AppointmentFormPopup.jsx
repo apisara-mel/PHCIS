@@ -42,10 +42,12 @@ import {
 } from './AppointmentReadOnlyDetail';
 import { getResourcePattern } from './appointmentSettingsStore';
 import { getApptTypeOptions } from './appointmentTypeCatalog';
-import { APPT_DX_ICD10, APPT_PURPOSE_MASTER } from './appointmentHcisMasters';
+import { APPT_DX_ICD10, APPT_PURPOSE_MASTER, CLINIC_MASTER } from './appointmentHcisMasters';
 import { useActiveCenter } from '@/pages/users/usersShared';
 import { NEW_USER_AVATAR } from '@/data/avatarAssets';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
+import BrandIconButton from '@/components/button/BrandIconButton';
+import Icd10SearchPopup from '@/components/popup/Icd10SearchPopup';
 
 /** HCIS §2.3 "วันเวลาที่สั่งนัด" — auto, read-only. */
 const orderedAtStamp = (() => {
@@ -99,12 +101,6 @@ const ORDERING_UNIT_OPTIONS = [
   { value: 'ทันตกรรม', label: 'ทันตกรรม' },
   { value: 'กุมารเวช', label: 'กุมารเวช' },
   { value: 'ศูนย์บริการสาธารณสุข 7', label: 'ศูนย์บริการสาธารณสุข 7' },
-];
-
-const CLINIC_OPTIONS = [
-  { value: 'คลินิกตรวจโรคทั่วไป', label: 'คลินิกตรวจโรคทั่วไป (General Clinic)' },
-  { value: 'คลินิกอายุรกรรม', label: 'คลินิกอายุรกรรม (Internal Medicine)' },
-  { value: 'ทันตกรรม', label: 'ทันตกรรม (Dental Clinic)' },
 ];
 
 /** Legacy fallback — used when the user-defined catalog (TOR 1.6.2.5) is empty. */
@@ -199,11 +195,11 @@ const APPT_CARD_TITLE_STYLE = {
   lineHeight: 1.5,
 };
 
-const ApptCard = ({ title, children }) => (
+const ApptCard = ({ title, children, gap = 'var(--dim-space-400)' }) => (
   <div
     className='flex flex-col w-full'
     style={{
-      gap: 'var(--dim-space-400)',
+      gap,
       padding: 'var(--dim-space-600)',
       borderRadius: 'var(--dim-radius-400)',
       border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
@@ -348,6 +344,11 @@ function formToSavePayload(form, scheduleSlots = []) {
     preOrder: form.preOrder,
     preOrderNote: form.preOrderNote,
     examMode,
+    /* เดิม payload ไม่มีสองฟิลด์นี้เลย — กรอกแล้วหายตอนบันทึก */
+    purposeCode: form.purposeCode,
+    dxCode: form.dxCode,
+    dxName: form.dxName,
+    snomedCode: form.snomedCode,
     date: form.date,
     time,
     queueNo: slotMeta?.queueNo,
@@ -364,12 +365,22 @@ function formToSavePayload(form, scheduleSlots = []) {
    margin ติดลบ เพื่อไม่ให้ layout ขยับ */
 const STICKY_STRIP_WRAP = {
   position: 'sticky',
-  top: 0,
+  /* sticky ยึดกับ **padding box** ของกล่องที่เลื่อน ไม่ใช่ขอบนอก — body ของ
+     Popup มี paddingTop space-200 การ์ดจึงหยุดต่ำกว่าขอบ popup 8px แล้วเห็น
+     label ของฟิลด์ไหลผ่านช่องนั้น. marginTop ติดลบแก้ไม่ได้เพราะขยับแค่ตำแหน่ง
+     ตอนยังไม่ stick — ต้องดัน `top` ให้ติดลบเท่ากันถึงจะ pin ชิดขอบ popup จริง
+     (มติผู้ใช้ 27 ส.ค. 69) */
+  top: 'calc(-1 * var(--dim-space-200))',
   zIndex: 2,
   width: '100%',
   background: 'var(--surface-modal-default)',
+  /* ดึงขึ้นให้ชิดขอบบนของ body ที่เลื่อน (body มี paddingTop space-200) แล้ว
+     ไม่ใส่ paddingTop คืน — การ์ดจึงหยุดชิดขอบบนสุดตอน stick ไม่ลอยต่ำลงมา
+     8px แบบเดิมจนเห็นการ์ดใบก่อนหน้าโผล่อยู่เหนือมัน (มติผู้ใช้ 27 ส.ค. 69)
+     มุมโค้งของการ์ดไม่ทะลุ เพราะกล่องครอบนี้เป็นสี่เหลี่ยมทึบสีพื้น modal
+     ส่วนล่างยังหักล้าง gap space-600 ของคอลัมน์ฟอร์มไว้เหมือนเดิม */
   marginTop: 'calc(-1 * var(--dim-space-200))',
-  paddingTop: 'var(--dim-space-200)',
+  paddingTop: 'var(--dim-space-0, 0px)',
   marginBottom: 'calc(-1 * var(--dim-space-600))',
   paddingBottom: 'var(--dim-space-600)',
 };
@@ -552,6 +563,7 @@ const AppointmentFormPopup = ({
   const [medicalHistoryOpen, setMedicalHistoryOpen] = useState(false);
   /** payload ที่รอคำตอบเรื่องพิมพ์ใบนัด — ไม่ null = nested popup เปิดอยู่ */
   const [pendingSave, setPendingSave] = useState(null);
+  const [dxSearchOpen, setDxSearchOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -566,10 +578,47 @@ const AppointmentFormPopup = ({
     if (!open) {
       setMedicalHistoryOpen(false);
       setPendingSave(null);
+      setDxSearchOpen(false);
     }
   }, [open]);
 
   const historyPatient = useMemo(() => ({ hn: form.hn?.trim() || '' }), [form.hn]);
+
+  /* รหัสที่เลือกมาจาก popup ค้นหาอาจไม่อยู่ในทะเบียนย่อของดรอปดาวน์ — เติมเข้าไป
+     ไม่งั้น Select จะหาค่าไม่เจอแล้วโชว์ placeholder ทั้งที่บันทึกค่าไว้แล้ว */
+  /* คลินิกที่นัดตรวจอ่านจาก CLINIC_MASTER ซึ่งเป็นทะเบียนคลินิกของโมดูลนัดหมาย
+     (ตัวเดียวกับที่ "รูปแบบการนัดหมาย" ใช้จับคู่คลินิก) — ของเดิม hardcode ไว้ใน
+     ไฟล์นี้แค่ 3 รายการ ทั้งที่ PHCIS มีคลินิกครบทุกแผนก (มติผู้ใช้ 27 ส.ค. 69)
+     คลินิกของนัดเก่าที่ไม่อยู่ในทะเบียนแล้วยังต้องเลือกค้างได้ ไม่งั้นแก้นัดนั้น
+     ทีไรคลินิกจะถูกล้างทิ้งเงียบ ๆ */
+  const clinicOptions = useMemo(() => {
+    const base = CLINIC_MASTER.map((name) => ({ value: name, label: name }));
+    if (!form.clinic || base.some((o) => o.value === form.clinic)) return base;
+    return [...base, { value: form.clinic, label: form.clinic }];
+  }, [form.clinic]);
+
+  const dxOptions = useMemo(() => {
+    const base = [
+      { value: '', label: 'ไม่ระบุ' },
+      ...APPT_DX_ICD10.map((d) => ({ value: d.code, label: `${d.code} · ${d.label}` })),
+    ];
+    if (!form.dxCode || base.some((o) => o.value === form.dxCode)) return base;
+    return [...base, {
+      value: form.dxCode,
+      label: `${form.dxCode}${form.dxName ? ` · ${form.dxName}` : ''}`,
+    }];
+  }, [form.dxCode, form.dxName]);
+
+  const applyDxPick = (pick) => {
+    setForm((f) => ({
+      ...f,
+      dxCode: pick.code || '',
+      dxName: pick.name || '',
+      snomedCode: pick.snomed?.code || '',
+      snomedTerm: pick.snomed?.term || '',
+    }));
+    setDxSearchOpen(false);
+  };
 
   /* ช่องนี้ล็อกไว้ ดรอปดาวน์จึงมีตัวเลือกเดียวคือค่าที่ถืออยู่ — นัดเก่าที่สั่งจาก
      ศูนย์อื่นยังแสดงชื่อศูนย์เดิมได้ถูกต้อง ไม่ถูกเขียนทับด้วยศูนย์ปัจจุบัน */
@@ -758,7 +807,7 @@ const AppointmentFormPopup = ({
           <AppointmentPatientStrip form={form} />
         )}
 
-        <ApptCard title='รายละเอียดการนัดหมาย'>
+        <ApptCard title='รายละเอียดการนัดหมาย' gap='var(--dim-space-600)'>
           <FieldGrid
             cols={2}
             /* 24px ระหว่างแถว (มติผู้ใช้ 27 ส.ค. 69) — 16px เดิมทำให้ label ของ
@@ -804,26 +853,36 @@ const AppointmentFormPopup = ({
                 showHelperText={false}
               />
             </Field>
-            <Field label='โรคที่นัดมาตรวจ (ICD-10)'>
-              <Select
-                size='large'
-                value={form.dxCode || ''}
-                onChange={setField('dxCode')}
-                options={[
-                  { value: '', label: 'ไม่ระบุ' },
-                  ...APPT_DX_ICD10.map((d) => ({ value: d.code, label: `${d.code} · ${d.label}` })),
-                ]}
-                placeholder='ค้นหารหัส ICD-10 หรือชื่อโรค'
-                showLabel={false}
-                showHelperText={false}
-              />
+            {/* ทะเบียนย่อในดรอปดาวน์ครอบเฉพาะโรคที่นัดบ่อย — ปุ่มค้นหาเปิด popup
+                ซ้อนที่ค้นได้ทั้ง ICD-10 (Doctor AI) และ SNOMED CT
+                (มติผู้ใช้ 27 ส.ค. 69) */}
+            <Field label='โรคที่นัดมาตรวจ (ICD-10/SNOMED)'>
+              <div className='flex w-full min-w-0 items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                <Select
+                  size='large'
+                  className='flex-1 min-w-0'
+                  value={form.dxCode || ''}
+                  onChange={setField('dxCode')}
+                  options={dxOptions}
+                  placeholder='ค้นหารหัส ICD-10 หรือชื่อโรค'
+                  showLabel={false}
+                  showHelperText={false}
+                />
+                <BrandIconButton
+                  icon='search'
+                  variant='outline'
+                  size='lg'
+                  aria-label='ค้นหารหัส ICD-10 / SNOMED CT'
+                  onClick={() => setDxSearchOpen(true)}
+                />
+              </div>
             </Field>
-            <Field label='คลินิก / หน่วยงานที่นัดตรวจ' required>
+            <Field label='คลินิกที่นัดตรวจ' required>
               <Select
                 size='large'
                 value={form.clinic}
                 onChange={setField('clinic')}
-                options={CLINIC_OPTIONS}
+                options={clinicOptions}
                 placeholder='เลือกคลินิก'
                 showLabel={false}
                 showHelperText={false}
@@ -849,6 +908,17 @@ const AppointmentFormPopup = ({
                 showHelperText={false}
               />
             </Field>
+          </FieldGrid>
+
+          {/* เหตุผลการนัดหมาย กับ การเตรียมตัวก่อนตรวจ ต้องอยู่แถวเดียวกัน
+              (มติผู้ใช้ 27 ส.ค. 69) — ฟิลด์ก่อนหน้ามีจำนวนคี่ ถ้าอยู่กริดเดียวกัน
+              กล่องข้อความสองใบจะถูกดันคนละแถวเสมอ จึงแยกเป็นกริดของตัวเอง
+              (ApptCard ตั้ง gap เท่า rowGap ไว้แล้ว รอยต่อจึงมองไม่ออก) */}
+          <FieldGrid
+            cols={2}
+            rowGap='var(--dim-space-600)'
+            columnGap='var(--dim-space-1200)'
+          >
             <Field label='เหตุผลการนัดหมาย / อาการเบื้องต้น' required>
               <SuggestibleTextarea
                 voice
@@ -1078,6 +1148,13 @@ const AppointmentFormPopup = ({
         {`นัดหมายของ ${form.patient || '—'} (HN ${form.hn || '—'}) จะถูกบันทึกทั้งสองทางเลือก`}
       </p>
     </Popup>
+
+    <Icd10SearchPopup
+      open={dxSearchOpen}
+      onClose={() => setDxSearchOpen(false)}
+      onSelect={applyDxPick}
+      initialQuery={form.dxName || ''}
+    />
 
     <MedicalHistoryPopup
       open={medicalHistoryOpen}
