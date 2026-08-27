@@ -55,7 +55,7 @@ import ExamNotesPanel from '@/components/examination/ExamNotesPanel';
 import LabRadiologyResultsPanel from '@/pages/treat/panels/LabRadiologyResultsPanel';
 import VaccineGrowthPanel from '@/pages/treat/panels/VaccineGrowthPanel';
 import ReferralHistoryPanel from '@/pages/treat/panels/ReferralHistoryPanel';
-import VisitJourneyPanel, { VisitJourneyStagePanel } from '@/pages/treat/panels/VisitJourneyPanel';
+import { VisitJourneyStagePanel } from '@/pages/treat/panels/VisitJourneyPanel';
 import VisitAttachmentsPanel from '@/pages/treat/panels/VisitAttachmentsPanel';
 import ProblemListPanel from '@/pages/treat/panels/ProblemListPanel';
 import DiagnosisCodingPanel from '@/pages/treat/panels/DiagnosisCodingPanel';
@@ -176,8 +176,10 @@ import DoctorProfileAvatar, { DOCTOR_PROFILE_AVATAR_SRC } from '@/components/lay
    via `MedicalHistoryReadOnlyLayout`.
    ───────────────────────────────────────────────────────────── */
 
+/* แท็บ "ภาพรวมการรักษา (ลงทะเบียน → ชำระเงิน)" ถูกเอาออก 28 ส.ค. 69 —
+   ไฟล์ VisitJourneyPanel.jsx ยังอยู่เพราะ `VisitJourneyStagePanel` ในไฟล์
+   เดียวกันยังถูกใช้โดยแท็บผลแล็บ / ตรวจร่างกาย / วินิจฉัย */
 const HISTORY_TABS = [
-  'ภาพรวมการรักษา (ลงทะเบียน → ชำระเงิน)',
   'ผลการคัดกรองและซักประวัติ',
   'ผลการตรวจแล็บ',
   'ผลการ X-ray / RIS',
@@ -186,13 +188,13 @@ const HISTORY_TABS = [
   /* EMR §1.4 — แท็บที่เพิ่มในเวฟ TOR §1.4. แต่ละแท็บมี panel เป็นไฟล์ของ
      ตัวเองใน src/pages/treat/panels/ เพื่อไม่ให้ไฟล์นี้บวมต่อ */
   'ผลตรวจแล็บและรังสีวิทยา (เปรียบเทียบ)',
-  'วัคซีนและกราฟการเจริญเติบโต',
+  'วัคซีน',
+  'กราฟการเจริญเติบโต',
   /* TOR §1.4.3.4 — แพทย์ต้องเห็นประวัติการส่งต่อของผู้ป่วยได้จากในหน้า
      บันทึกการรักษาโดยตรง ไม่ต้องข้ามไป /treat/refer */
   'ประวัติการส่งต่อ',
 ];
 
-const HISTORY_TAB_JOURNEY = 'ภาพรวมการรักษา (ลงทะเบียน → ชำระเงิน)';
 const HISTORY_TAB_SCREENING = 'ผลการคัดกรองและซักประวัติ';
 const HISTORY_TAB_LAB = 'ผลการตรวจแล็บ';
 const HISTORY_TAB_EXAM = 'ผลการตรวจร่างกาย';
@@ -204,9 +206,19 @@ const HISTORY_TAB_DX = 'ผลการวินิจฉัย';
    capsules still all show the same summary; that predates the RIS module. */
 const HISTORY_TAB_XRAY = 'ผลการ X-ray / RIS';
 
+/* แท็บที่อ่านข้อมูลของ "การรับบริการครั้งเดียว" — ต้องมีตัวเลือกวันที่กำกับ
+   เมื่อรางวันที่ถูกซ่อนในโหมดดูตามรายการตรวจ */
+const DATE_SCOPED_HISTORY_TABS = new Set([
+  HISTORY_TAB_SCREENING,
+  HISTORY_TAB_LAB,
+  HISTORY_TAB_EXAM,
+  HISTORY_TAB_DX,
+]);
+
 /* EMR §1.4 tab → panel component (ไฟล์แยกใน src/pages/treat/panels/) */
 const HISTORY_TAB_LABRAD  = 'ผลตรวจแล็บและรังสีวิทยา (เปรียบเทียบ)';
-const HISTORY_TAB_VACCINE = 'วัคซีนและกราฟการเจริญเติบโต';
+const HISTORY_TAB_VACCINE = 'วัคซีน';
+const HISTORY_TAB_GROWTH  = 'กราฟการเจริญเติบโต';
 const HISTORY_TAB_REFER   = 'ประวัติการส่งต่อ';
 
 /* Step 5 "สั่งการรักษา" อยู่ที่ index 4 ใน STEP_RENDERERS — ใช้โดย CTA
@@ -571,8 +583,20 @@ const XrayHistoryTabPanel = ({ patient }) => {
 /* `form` / `setForm` / `onStepChange` เป็น optional เพื่อความเข้ากันได้ย้อนหลัง:
    Step 6 และ ANC เรียก layout นี้โดยไม่ส่ง form มา — แท็บ EMR §1.4 ที่ต้องใช้
    form จะ fallback เป็น object ว่างแทนที่จะพัง */
+/* สองแกนของประวัติการรักษา — เดิมมีทั้งคู่บนจอพร้อมกัน (รายวันที่อยู่ราง
+   ซ้าย · รายการตรวจเป็นชิปด้านบน) แต่ไม่มีอะไรบอกว่าแกนไหนเป็นตัวนำ
+   ป๊อปอัปจึงมีตัวสลับให้เลือก โดยตั้งต้นที่ "ดูตามรายการตรวจ" ซึ่งเป็นวิธีที่
+   หมอเปิดดูจริง (อยากรู้ว่าผลแล็บ/ภาพรังสีของคนนี้เป็นอย่างไร มากกว่าอยากรู้
+   ว่าวันที่ 8 ม.ค. เกิดอะไรขึ้น) — มติผู้ใช้ 28 ส.ค. 69 */
+const HISTORY_VIEW_MODES = [
+  { key: 'order', label: 'ดูตามรายการตรวจ' },
+  { key: 'date', label: 'ดูตามวันที่รับบริการ' },
+];
+
 export const MedicalHistoryReadOnlyLayout = ({
   patient, hideSectionTitle = false, independentScroll = false,
+  /** แสดงตัวสลับแกน (ป๊อปอัปประวัติการรักษาใช้ · ขั้นในหน้าคลินิกไม่ใช้) */
+  viewModes = false,
   form = null, setForm = null, onStepChange = null,
   /* CPOE §1.5 — /treat/record มี 8 ขั้นแล้ว (แทรก SOAP Note) ทำให้ index
      ของ "สั่งการรักษา" เลื่อนจาก 4 → 5. ผู้เรียกที่ส่ง `stepIndexes` มา
@@ -600,6 +624,12 @@ export const MedicalHistoryReadOnlyLayout = ({
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activeTab, setActiveTab] = useState(0);
+  const [viewMode, setViewMode] = useState('order');
+  /* โหมด "ตามรายการตรวจ" ซ่อนรางวันที่ — แผงที่ผูกกับครั้งเดียว (ภาพรวมการรักษา ·
+     ผลแล็บ · ตรวจร่างกาย · วินิจฉัย · สรุปคัดกรอง) ได้ตัวเลือกวันที่แบบดรอปดาวน์
+     ไว้ในแผงแทน ส่วนแผงที่รวมข้ามครั้งอยู่แล้ว (X-ray · เปรียบเทียบแล็บ/รังสี ·
+     วัคซีน · ส่งต่อ) ไม่ต้องเลือกวันที่เลย */
+  const byOrder = viewModes && viewMode === 'order';
   const selected = visits[selectedIndex] ?? visits[0];
   const isCurrentVisit = Boolean(selected?.isCurrent);
 
@@ -615,6 +645,35 @@ export const MedicalHistoryReadOnlyLayout = ({
   const activeTabLabel = HISTORY_TABS[activeTab];
 
   return (
+    <div
+      className='flex flex-col w-full min-w-0'
+      style={{
+        gap: 'var(--dim-space-400)',
+        ...(independentScroll
+          ? { flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }
+          : null),
+      }}
+    >
+    {/* ตัวสลับแกนอยู่บนสุดของป๊อปอัป เหนือทั้งรางวันที่และแผงขวา กว้างเท่า
+        ตัวอักษรและจัดกึ่งกลาง — มันคุมทั้งจอ ไม่ใช่ของคอลัมน์ใดคอลัมน์หนึ่ง
+        (มติผู้ใช้ 28 ส.ค. 69) */}
+    {viewModes && (
+      <div className='flex w-full justify-center shrink-0'>
+        <TabBar aria-label='มุมมองประวัติการรักษา'>
+          {HISTORY_VIEW_MODES.map((m) => (
+            <TabPill
+              key={m.key}
+              size='small'
+              selected={viewMode === m.key}
+              onClick={() => setViewMode(m.key)}
+            >
+              {m.label}
+            </TabPill>
+          ))}
+        </TabBar>
+      </div>
+    )}
+
     <div
       className='flex w-full min-w-0'
       style={{
@@ -634,19 +693,21 @@ export const MedicalHistoryReadOnlyLayout = ({
           already has `shrink-0 + flex flex-col`; wrapping it in this
           fixed-width scroll container keeps its width while letting
           the rows scroll within the popup viewport. */}
-      <div
-        style={
-          independentScroll
-            ? { flexShrink: 0, height: '100%', overflowY: 'auto', overflowX: 'hidden' }
-            : undefined
-        }
-      >
-        <ServiceDateList
-          items={dateItems}
-          selectedIndex={selectedIndex}
-          onSelect={setSelectedIndex}
-        />
-      </div>
+      {!byOrder && (
+        <div
+          style={
+            independentScroll
+              ? { flexShrink: 0, height: '100%', overflowY: 'auto', overflowX: 'hidden' }
+              : undefined
+          }
+        >
+          <ServiceDateList
+            items={dateItems}
+            selectedIndex={selectedIndex}
+            onSelect={setSelectedIndex}
+          />
+        </div>
+      )}
 
       <section
         className='flex flex-col flex-1 min-w-0'
@@ -681,7 +742,7 @@ export const MedicalHistoryReadOnlyLayout = ({
           <SectionTitle icon='description'>ประวัติการรักษา (Medical History)</SectionTitle>
         )}
 
-        <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+        <div className='flex flex-wrap shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
           {HISTORY_TABS.map((label, i) => (
             <TabCapsule
               key={label}
@@ -693,20 +754,28 @@ export const MedicalHistoryReadOnlyLayout = ({
           ))}
         </div>
 
+        {/* ตัวเลือกวันที่สำหรับแผงที่ผูกกับการรับบริการครั้งเดียว — ขึ้นเฉพาะ
+            โหมด "ตามรายการตรวจ" ที่รางวันที่ถูกซ่อน */}
+        {byOrder && DATE_SCOPED_HISTORY_TABS.has(activeTabLabel) && (
+          <div style={{ maxWidth: 320 }}>
+            <Select
+              label='ครั้งที่รับบริการ'
+              value={String(selectedIndex)}
+              onChange={(v) => setSelectedIndex(Number(v))}
+              options={dateItems.map((d, i) => ({
+                value: String(i),
+                label: d.center ? `${d.date} · ${d.center}` : d.date,
+              }))}
+            />
+          </div>
+        )}
+
         <div style={{
           height: 1,
           background: 'var(--border-neutral-tertiary, var(--border-card-default))',
         }} />
 
-        {activeTabLabel === HISTORY_TAB_JOURNEY ? (
-          <VisitJourneyPanel
-            patient={patient}
-            visitDate={isCurrentVisit ? 'ครั้งนี้' : selected.date}
-            visitDetail={selected}
-            form={form}
-            isCurrentVisit={isCurrentVisit}
-          />
-        ) : activeTabLabel === HISTORY_TAB_XRAY ? (
+        {activeTabLabel === HISTORY_TAB_XRAY ? (
           <XrayHistoryTabPanel patient={patient} />
         ) : activeTabLabel === HISTORY_TAB_LABRAD ? (
           <LabRadiologyResultsPanel
@@ -716,7 +785,9 @@ export const MedicalHistoryReadOnlyLayout = ({
               : undefined}
           />
         ) : activeTabLabel === HISTORY_TAB_VACCINE ? (
-          <VaccineGrowthPanel patient={patient} form={form || {}} />
+          <VaccineGrowthPanel patient={patient} form={form || {}} section='vaccine' />
+        ) : activeTabLabel === HISTORY_TAB_GROWTH ? (
+          <VaccineGrowthPanel patient={patient} form={form || {}} section='growth' />
         ) : activeTabLabel === HISTORY_TAB_REFER ? (
           /* TOR §1.4.3.4 — อ่านจาก store เดียวกับ /treat/refer ไม่มีสำเนาข้อมูล */
           <ReferralHistoryPanel
@@ -795,6 +866,7 @@ export const MedicalHistoryReadOnlyLayout = ({
         </>
         )}
       </section>
+    </div>
     </div>
   );
 };

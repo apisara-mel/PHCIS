@@ -16,7 +16,7 @@ const MedicalHistoryPopup = ({ open, onClose, patient }) => (
     bodyScrollable={false}
     primaryAction={{ label: 'ปิด', onClick: onClose }}
   >
-    <MedicalHistoryReadOnlyLayout patient={patient} hideSectionTitle independentScroll />
+    <MedicalHistoryReadOnlyLayout patient={patient} hideSectionTitle independentScroll viewModes />
   </Popup>
 );
 

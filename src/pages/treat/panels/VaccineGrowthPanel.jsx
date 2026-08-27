@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import Table from '@/components/table/Table';
-import TabPill from '@/components/tab/TabPill';
+import TabPill, { TabBar } from '@/components/tab/TabPill';
 import StatusBadge from '@/components/badge/StatusBadge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import InputField from '@/components/forms/InputField';
@@ -352,7 +352,7 @@ const blankVaccine = () => ({
   epiKey: '', doseNo: 1, injectedOn: '', lot: '', expiry: '', site: '', reaction: '',
 });
 
-const VaccineGrowthPanel = ({ form, patient }) => {
+const VaccineGrowthPanel = ({ form, patient, section = 'all' }) => {
   const access = useTreatmentAccess();
   const hn = patient?.hn || '';
   const gender = patient?.gender || '';
@@ -538,6 +538,10 @@ const VaccineGrowthPanel = ({ form, patient }) => {
 
   return (
     <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+      {/* แท็บ "วัคซีน" กับ "กราฟการเจริญเติบโต" แยกกันแล้ว (มติผู้ใช้ 28 ส.ค. 69)
+          — แผงเดียวกันแต่แสดงคนละส่วนตาม prop `section` */}
+      {section !== 'growth' && (
+      <>
       {/* ── ตาราง EPI ตามช่วงอายุ ─────────────────────────── */}
       <PanelCard
         title='ตารางวัคซีนพื้นฐาน (EPI) ตามช่วงอายุ'
@@ -620,7 +624,11 @@ const VaccineGrowthPanel = ({ form, patient }) => {
           </>
         )}
       </PanelCard>
+      </>
+      )}
 
+      {section !== 'vaccine' && (
+      <>
       {/* ── กราฟการเจริญเติบโต ──────────────────────────── */}
       <PanelCard
         title='กราฟการเจริญเติบโต (0–5 ปี)'
@@ -686,13 +694,16 @@ const VaccineGrowthPanel = ({ form, patient }) => {
           </PanelAlert>
         )}
 
-        <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        {/* TabPill ต้องอยู่ใน TabBar ถึงจะเป็นแคปซูลเต็มรูปพร้อมตัวบอกตำแหน่ง
+            เดิมวางลอยใน div ธรรมดา ตัวที่ไม่ถูกเลือกจึงเป็นข้อความเปล่า ๆ
+            (มติผู้ใช้ 28 ส.ค. 69) */}
+        <TabBar aria-label='หน่วยวัดของกราฟการเจริญเติบโต' className='w-full shrink-0'>
           {[...GROWTH_METRICS, { key: 'bmi', label: 'ดัชนีมวลกาย (BMI)', unit: 'kg/m²' }].map((m) => (
             <TabPill key={m.key} selected={metric === m.key} onClick={() => setMetric(m.key)}>
               {m.label}
             </TabPill>
           ))}
-        </div>
+        </TabBar>
 
         {!showGrowthChart ? (
           <PanelEmptyState
@@ -708,11 +719,6 @@ const VaccineGrowthPanel = ({ form, patient }) => {
               />
         ) : (
           <>
-            {bmiBandsMissing ? (
-              <PanelAlert tone='info' icon='info' title='แท็บ BMI ยังไม่มีแถบเปอร์เซ็นไทล์'>
-                ระบบยังไม่มีชุดข้อมูล BMI-for-age (kg/m² ตามอายุ) จึงแสดงเป็นเส้นแนวโน้มอย่างเดียว
-              </PanelAlert>
-            ) : null}
             {growthPoints.filter((p) => Number.isFinite(p.value)).length === 1 ? (
               <PanelAlert tone='info' icon='scatter_plot' title='มีค่าที่วัดเพียงจุดเดียว'>
                 ระบบจะพล็อตจุดกากบาทบนแถบสีให้ แต่ยังลากเส้นแนวโน้มไม่ได้จนกว่าจะมีการวัดครั้งที่ 2
@@ -753,6 +759,8 @@ const VaccineGrowthPanel = ({ form, patient }) => {
           </>
         )}
       </PanelCard>
+      </>
+      )}
 
       {/* ── ฟอร์มบันทึก/แก้ไขเข็ม ───────────────────────── */}
       <AlertDialog
