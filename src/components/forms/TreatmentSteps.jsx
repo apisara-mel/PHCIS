@@ -18,7 +18,6 @@ import BrandIconButton from '@/components/button/BrandIconButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import TabCapsule from '@/components/tab/TabCapsule';
 import TabPill, { TabBar, TabPillSmall } from '@/components/tab/TabPill';
-import GroupedTimeline from '@/components/timeline/GroupedTimeline';
 import VitalsSignHorizontalPanel from '@/components/vitals/VitalsSignHorizontalPanel';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import ColorfulIconBadge from '@/components/badge/ColorfulIconBadge';
@@ -216,32 +215,50 @@ const DATE_SCOPED_HISTORY_TABS = new Set([
   HISTORY_TAB_DX,
 ]);
 
-/* ── Timeline ของโหมด "ดูตามรายการตรวจ" ─────────────────────────────────
-   หมวดที่ผูกกับการรับบริการครั้งเดียวไม่ได้อ่านทีละใบอีกแล้ว แต่ไล่ทุกครั้งที่
-   มารับบริการเป็นไทม์ไลน์ จัดกลุ่มด้วยหัวข้อวันที่แบบ sticky (GroupedTimeline
-   ตัวเดียวกับไทม์ไลน์อื่นในระบบ) — ตัวหนังสือขนาด xs/sm ล้วน ไม่มีการ์ดซ้อน
-   การ์ด เพราะเป็นรายการที่ต้องกวาดตาอ่านย้อนหลัง ไม่ใช่หน้าอ่านทีละใบ
-   (มติผู้ใช้ 28 ส.ค. 69) แต่ละหมวดอ่านคนละช่องของบันทึก จึงประกาศไว้ที่เดียว */
+/* แต่ละหมวดอ่านคนละช่องของบันทึกการรับบริการ จึงประกาศไว้ที่เดียว —
+   ช่องที่ครั้งนั้นไม่มีค่าจะถูกตัดออก ไม่แสดงเป็นขีดกลางเรียงกันเป็นพืด */
 const TIMELINE_FIELDS_BY_TAB = {
   [HISTORY_TAB_SCREENING]: (v) => [
     ['อาการสำคัญ (CC)', v.cc],
     ['ระยะเวลาที่มีอาการ', v.duration],
-    ['ระดับความเจ็บปวด', v.pain?.label],
+    ['ระดับความเจ็บปวด', v.painLabel],
+    ['ความเร่งด่วน (Triage)', v.triage],
+    ['อุณหภูมิ', v.temp],
+    ['ความดันโลหิต', v.bp],
+    ['ชีพจร', v.pulse],
+    ['น้ำหนัก', v.weightText],
+    ['ห้องตรวจ', v.room],
+    ['สิทธิการรักษา', v.rights],
   ],
   [HISTORY_TAB_LAB]: (v) => [
-    ['แผนก/คลินิก', v.dept],
-    ['แพทย์ผู้ตรวจ', v.doctor],
+    ['ผลตรวจทางห้องปฏิบัติการ', v.labs],
+    ['ผลตรวจทางรังสีวิทยา', v.imaging],
+    ['การวินิจฉัย', v.dx],
     ['การรักษา/ยาที่สั่ง', v.rx],
+    ['แพทย์ผู้สั่งตรวจ', v.doctor],
+    ['แผนก/คลินิก', v.dept],
+    ['การนัดติดตาม', v.followUp],
   ],
   [HISTORY_TAB_EXAM]: (v) => [
+    ['อาการสำคัญ (CC)', v.cc],
+    ['อุณหภูมิ', v.temp],
+    ['ความดันโลหิต', v.bp],
+    ['ชีพจร', v.pulse],
+    ['น้ำหนัก', v.weightText],
     ['แผนก/คลินิก', v.dept],
     ['แพทย์ผู้ตรวจ', v.doctor],
-    ['อาการสำคัญ (CC)', v.cc],
+    ['ห้องตรวจ', v.room],
+    ['บันทึกเพิ่มเติม', v.note],
   ],
   [HISTORY_TAB_DX]: (v) => [
     ['การวินิจฉัย', v.dx],
     ['การรักษา/ยาที่สั่ง', v.rx],
+    ['อาการสำคัญ (CC)', v.cc],
+    ['ระยะเวลาที่มีอาการ', v.duration],
     ['แพทย์ผู้ตรวจ', v.doctor],
+    ['แผนก/คลินิก', v.dept],
+    ['การนัดติดตาม', v.followUp],
+    ['บันทึกเพิ่มเติม', v.note],
   ],
 };
 
@@ -258,59 +275,114 @@ const TimelineField = ({ label, value }) => (
       fontFamily: 'var(--type-family-body)',
       fontSize: 'var(--type-size-sm)',
       lineHeight: 1.5,
-    }}>{value || '—'}</span>
+    }}>{value}</span>
   </div>
 );
 
+const TIMELINE_RAIL_X = 7;   /* กึ่งกลางจุด 14px */
+const TIMELINE_INDENT = 32;  /* ระยะจากรางถึงเนื้อหา */
+
+/* หนึ่งครั้งที่มารับบริการ = หนึ่งหมุดบนราง — จุด + เส้นต่อเนื่อง + การ์ดเนื้อหา */
+const VisitTimelineEntry = ({ entry, isLast }) => (
+  <li className='relative w-full min-w-0' style={{ paddingLeft: TIMELINE_INDENT }}>
+    {/* เส้นรางต่อลงไปหาหมุดถัดไป — หมุดสุดท้ายไม่มีเส้นห้อย */}
+    {!isLast && (
+      <span
+        aria-hidden
+        style={{
+          position: 'absolute', left: TIMELINE_RAIL_X - 1, top: 18, bottom: -18, width: 2,
+          background: 'var(--border-brandPrimary-quaternary, #E2F3EB)',
+        }}
+      />
+    )}
+    <span
+      aria-hidden
+      style={{
+        position: 'absolute', left: 0, top: 4, width: 14, height: 14,
+        borderRadius: '50%',
+        background: 'var(--surface-card-default, #FFFFFF)',
+        border: 'var(--dim-stroke-200, 2px) solid var(--border-brandPrimary-secondary, #08A768)',
+      }}
+    />
+
+    <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+      <div className='flex flex-wrap items-baseline' style={{ gap: 'var(--dim-space-200)' }}>
+        <span style={{
+          color: 'var(--text-content-default)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+          fontWeight: 'var(--type-weight-medium)',
+          lineHeight: 1.5,
+        }}>{entry.date}</span>
+        {entry.center && (
+          <span style={{
+            color: 'var(--text-content-tertiary)',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-xs)',
+            lineHeight: 1.5,
+          }}>{entry.center}</span>
+        )}
+      </div>
+
+      {entry.fields.length === 0 ? (
+        <span style={{
+          color: 'var(--text-content-tertiary)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+        }}>ไม่มีข้อมูลหมวดนี้ในครั้งนั้น</span>
+      ) : (
+        <div
+          className='grid w-full'
+          style={{
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: 'var(--dim-space-300)',
+            padding: 'var(--dim-space-400)',
+            borderRadius: 'var(--dim-radius-400)',
+            border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+            background: 'var(--surface-neutral-quaternary)',
+          }}
+        >
+          {entry.fields.map(([label, value]) => (
+            <TimelineField key={label} label={label} value={value} />
+          ))}
+        </div>
+      )}
+    </div>
+  </li>
+);
+
+/* ── Timeline ของโหมด "ดูตามรายการตรวจ" ─────────────────────────────────
+   หมวดที่ผูกกับการรับบริการครั้งเดียวไม่ได้อ่านทีละใบ แต่ไล่ทุกครั้งที่มา
+   รับบริการเป็นไทม์ไลน์แนวตั้ง — จุดบนรางเดียวกันทั้งชุด ใหม่สุดอยู่บน
+   ตัวหนังสือขนาด xs (ป้ายกำกับ) / sm (ค่า) ล้วน เพราะเป็นรายการที่ต้องกวาดตา
+   อ่านย้อนหลัง ไม่ใช่หน้าอ่านทีละใบ · แต่ละหมวดอ่านคนละช่องของบันทึก จึง
+   ประกาศ TIMELINE_FIELDS_BY_TAB ไว้ที่เดียว (มติผู้ใช้ 28 ส.ค. 69) */
 const VisitFieldTimeline = ({ visits, tabLabel }) => {
   const fieldsOf = TIMELINE_FIELDS_BY_TAB[tabLabel];
-  const groups = useMemo(
+  const entries = useMemo(
     () => (visits || []).map((v, i) => ({
       key: `${v.date}-${i}`,
-      label: v.center ? `${v.date} · ${v.center}` : v.date,
+      date: v.date,
+      center: v.center,
       fields: (fieldsOf ? fieldsOf(v) : []).filter(([, value]) => value),
     })),
     [visits, fieldsOf],
   );
 
-  if (!groups.length) {
+  if (!entries.length) {
     return <ValueText>ยังไม่มีประวัติการรับบริการของผู้รับบริการรายนี้</ValueText>;
   }
 
   return (
-    <GroupedTimeline
-      groups={groups}
-      getGroupKey={(g) => g.key}
-      getGroupLabel={(g) => g.label}
-      getGroupCount={(g) => g.fields.length}
-      countLabel='รายการ'
-      sectionGap='var(--dim-space-500)'
-      renderGroupBody={(g) => (
-        g.fields.length === 0
-          ? (
-            <span style={{
-              color: 'var(--text-content-tertiary)',
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-sm)',
-            }}>ไม่มีข้อมูลหมวดนี้ในครั้งนั้น</span>
-          )
-          : (
-            <div
-              className='grid w-full'
-              style={{
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                gap: 'var(--dim-space-300)',
-                paddingLeft: 'var(--dim-space-300)',
-                borderLeft: 'var(--dim-stroke-200, 2px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
-              }}
-            >
-              {g.fields.map(([label, value]) => (
-                <TimelineField key={label} label={label} value={value} />
-              ))}
-            </div>
-          )
-      )}
-    />
+    <ol className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-600)' }}>
+      {entries.map((entry, i) => (
+        <VisitTimelineEntry
+          key={entry.key}
+          entry={entry}
+          isLast={i === entries.length - 1}
+        />
+      ))}
+    </ol>
   );
 };
 
