@@ -117,7 +117,14 @@ const REQUIRED_VITAL_FIELDS = [
   'waist',
 ];
 
-const VitalsForm = ({ onValidityChange, onValuesChange, patientSex, patientAgeYears }) => {
+const VitalsForm = ({
+  onValidityChange,
+  onValuesChange,
+  patientSex,
+  patientAgeYears,
+  /** node ที่วางชิดขวาบนแถวเดียวกับชิปช่วงอายุ (เช่น ปุ่มดูประวัติสัญญาณชีพ) */
+  headerAction,
+}) => {
   const [roundVitalOverrides, setRoundVitalOverrides] = useState({});
 
   /* Per-field validity map populated by each VitalCard / PressureCard
@@ -286,6 +293,7 @@ const VitalsForm = ({ onValidityChange, onValuesChange, patientSex, patientAgeYe
          title used everywhere else in the design system. Trailing badge
          / success / chevron are off because this row only labels the
          form section and exposes no action affordance. */}
+      {/* ชิปช่วงอายุกับปุ่มดูประวัติอยู่บรรทัดเดียวกัน (มติผู้ใช้ 28 ส.ค. 69) */}
       <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
         <FilterTag
           value='ต่ำกว่า 18 ปี'
@@ -297,6 +305,8 @@ const VitalsForm = ({ onValidityChange, onValuesChange, patientSex, patientAgeYe
           selected={ageBand === 'adult'}
           onClick={() => setAgeBand('adult')}
         />
+        <div className='flex-1' />
+        {headerAction}
       </div>
 
       {/* Two-column body — left: history timeline (brand-tinted aside);

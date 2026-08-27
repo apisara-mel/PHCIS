@@ -199,29 +199,6 @@ const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
 
   return (
     <div className='flex flex-col'>
-      {/* ปุ่มดูประวัติสัญญาณชีพ — ตัดแถบสรุปค่าล่าสุดออกแล้ว ทั้งกรณีปกติและผิดปกติ
-          (มติผู้ใช้ 28 ส.ค. 69) ค่าที่ผิดปกติยังเห็นได้ในตัวฟอร์มและในประวัติ */}
-      <div
-        className='flex items-center flex-wrap w-full'
-        style={{
-          gap: 'var(--dim-space-200)',
-          paddingTop: 'var(--dim-space-400)',
-          paddingLeft: 'var(--dim-space-600)',
-          paddingRight: 'var(--dim-space-600)',
-          paddingBottom: 'var(--dim-space-0, 0px)',
-        }}
-      >
-        <div className='flex-1' />
-        <BrandSubdueButton
-          variant='outline'
-          size='sm'
-          leadingIcon='monitoring'
-          onClick={() => setHistoryOpen(true)}
-        >
-          ดูประวัติสัญญาณชีพ
-        </BrandSubdueButton>
-      </div>
-
       <VitalsForm
         onValidityChange={onValidityChange}
         /* ToR ๑.๒.๒.๕ — ใช้ตัดสินว่าโชว์ BMI หรือกราฟการเจริญเติบโต */
@@ -229,6 +206,18 @@ const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
         patientAgeYears={parseInt(patient.age, 10) || undefined}
         /* ส่งค่าที่พยาบาลกรอกให้ step "ตรวจสอบข้อมูล" อ่านต่อ */
         onValuesChange={(v) => setScreeningSection(patient.hn, 'vitals', v)}
+        /* ปุ่มไปอยู่แถวเดียวกับชิปช่วงอายุใน VitalsForm (มติผู้ใช้ 28 ส.ค. 69) —
+           เดิมเป็นแถวของตัวเองเหนือฟอร์ม เสียบรรทัดเปล่าไปหนึ่งแถว */
+        headerAction={(
+          <BrandSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon='monitoring'
+            onClick={() => setHistoryOpen(true)}
+          >
+            ดูประวัติสัญญาณชีพ
+          </BrandSubdueButton>
+        )}
       />
 
       {/* TOR 1.2.2.4 — history popup with date-range window */}
