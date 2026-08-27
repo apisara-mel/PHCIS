@@ -1009,6 +1009,7 @@ const ScreeningPage = () => {
       id: r.id,
       hn: r.hn,
       name: r.name,
+      avatarUrl: r.avatarUrl,
       queue: r.queue,
       badge: r.vipBadge,
       statusKey: r.statusKey,

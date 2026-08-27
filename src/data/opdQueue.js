@@ -31,6 +31,8 @@ export const buildOpdQueueRoster = (total = 25) => {
       hn: profile.hn,
       vn: profile.vn,
       name: profile.shortName,
+      /* รูปจากทะเบียนผู้ป่วย — พาเนลคิวคัดกรองขึ้นรูปจริงเหมือนพาเนลของห้องตรวจ */
+      avatarUrl: profile.avatarUrl,
       doctor: profile.doctor,
       room: `ห้องตรวจที่ ${(i % 4) + 1}`,
       dept: i === 2 || i === 7
