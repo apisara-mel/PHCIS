@@ -13,6 +13,7 @@
    เพราะข้อมูลนี้อยู่ในบริบทการรักษาจริงของผู้รับบริการ */
 
 import { getScreeningReview } from '@/data/opdScreeningReview';
+import { screeningSeedForHn } from '@/data/opdScreeningSeed';
 import { painLevelByKey, triageLevelByLevel } from '@/data/opdScreeningCatalog';
 
 /* VitalsForm seeds ช่องที่ยังไม่วัดด้วย 0 — อุณหภูมิ 0 °C ไม่ใช่ค่าที่วัดได้
@@ -40,7 +41,9 @@ const asRecords = (section, extra = (r) => r) => {
 const deniedPresence = (section) => section?.declaresPresence === false;
 
 export const getCarriedScreening = (patient = {}) => {
-  const review = getScreeningReview(patient.hn);
+  /* ของจริงจากจุดคัดกรองชนะเสมอ — seed เติมเฉพาะหมวดที่ยังไม่มีใครกรอก
+     (มติผู้ใช้ 28 ส.ค. 69 · ดู opdScreeningSeed.js สำหรับเหตุผลที่กลับมติเดิม) */
+  const review = { ...screeningSeedForHn(patient.hn), ...getScreeningReview(patient.hn) };
   const symptom = review.symptom || null;
   const vitals = review.vitals || null;
   const captured = Object.keys(review).some((key) => key !== '_meta');

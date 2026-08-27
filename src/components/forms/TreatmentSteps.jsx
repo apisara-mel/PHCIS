@@ -1617,7 +1617,12 @@ export const Step2Screening = ({ patient, title = 'คัดกรองแล�
   );
   const [activeTab, setActiveTab] = useState(0);
   return (
-    <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+    /* เนื้อหาเดิมชนขอบการ์ดทั้งสี่ด้าน — เว้นระยะรอบให้เท่ากับการ์ดอื่นในขั้นตอน
+       (มติผู้ใช้ 28 ส.ค. 69) */
+    <section
+      className='flex flex-col w-full'
+      style={{ gap: 'var(--dim-space-500)', padding: 'var(--dim-space-500)' }}
+    >
       <SectionTitle icon='description'>{title}</SectionTitle>
 
       <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
