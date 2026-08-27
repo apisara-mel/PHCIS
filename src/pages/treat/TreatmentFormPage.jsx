@@ -13,7 +13,7 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import TreatmentFormShell from '@/templates/TreatmentFormShell';
 import {
-  Step1History, Step2Screening, Step3Examination, Step4DoctorRecord,
+  Step2Screening, Step3Examination, Step4DoctorRecord,
   Step5Orders, Step6Appointment,
 } from '@/components/forms/TreatmentSteps';
 import SoapNotePanel from '@/pages/treat/panels/SoapNotePanel';
@@ -218,14 +218,13 @@ const buildInitialForm = (p) => ({
    เหมือนเดิมทุกประการ) แล้วเติมศูนย์พิมพ์เอกสาร / เทมเพลตใบคำขอ /
    ใบรับรองภาษาอังกฤษ / แบบฟอร์มยินยอม ต่อท้าย */
 const STEP_RENDERERS = [
-  Step1History, Step2Screening, Step3Examination,
+  Step2Screening, Step3Examination,
   SoapNotePanel,
   Step4DoctorRecord, Step5Orders, Step6Appointment, CpoeDocumentsStep,
 ];
 
 /* index ของแต่ละ step ให้ panel ใช้กระโดดข้าม step โดยไม่ต้องรู้ตัวเลข */
 const CPOE_STEP_INDEXES = {
-  history: cpoeStepIndex('history'),
   screening: cpoeStepIndex('screening'),
   examination: cpoeStepIndex('examination'),
   soap: cpoeStepIndex('soap'),
