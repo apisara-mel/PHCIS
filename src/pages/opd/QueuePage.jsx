@@ -55,12 +55,14 @@ const SUMMARY_CARDS = [
      · progress → 'doing'          (status pill "กำลังคัดกรอง")
      · done     → 'screened'       (status pill "คัดกรองแล้ว"; รอตรวจ = `done` ในแท็บทั้งหมด)
      · draft    → 'draft'          (status pill "กำลังคัดกรอง", workflow=draft) */
+/* ลำดับแท็บไล่ตามงานจริงของวัน: คิววันนี้ → กำลังคัดกรอง → คัดกรองแล้ว → ที่ร่างไว้
+   แล้วปิดท้ายด้วยรายชื่อทั้งหมด ซึ่งเป็นมุมมองค้นย้อนหลัง ไม่ใช่คิวที่ต้องทำ */
 const TABS = [
-  { key: 'all',      label: 'ทั้งหมด',         icon: 'group',         count: 130 },
-  { key: 'waiting',  label: 'รอคัดกรอง',       icon: 'schedule',      count: 83  },
+  { key: 'waiting',  label: 'คิววันนี้',         icon: 'schedule',      count: 83  },
   { key: 'progress', label: 'กำลังคัดกรอง',    icon: 'assignment',    count: 12  },
   { key: 'done',     label: 'คัดกรองแล้ว',     icon: 'check_circle',  count: 2   },
   { key: 'draft',    label: 'ที่ร่างไว้',       icon: 'save',          count: 6   },
+  { key: 'all',      label: 'รายชื่อผู้ป่วยทั้งหมด', icon: 'group',         count: 130 },
 ];
 
 /* Reverse map — used by the activeTab filter below. 'all' bypasses the

@@ -127,13 +127,26 @@ export const DEFAULT_VISIT_DETAIL = {
   ],
 };
 
+/* ประวัติสำรองสำหรับ HN ที่ยังไม่มีในตาราง `TREATMENT_VISITS` ข้างบน — เดิมคืน
+   `[DEFAULT_VISIT_DETAIL]` ใบเดียว ป๊อปอัป "ประวัติการรักษา" จึงมีวันที่รับบริการ
+   แค่บรรทัดเดียวทุกครั้งที่เปิดจากหน้าที่ HN คนละรูปแบบ (เช่นหอสังเกตอาการที่ใช้
+   `67004128` ขณะที่ตารางนี้คีย์ด้วย `67-00001`) ให้ประวัติหลายวันที่แทน เพื่อให้
+   แถบซ้ายและการสลับวันที่ทำงานจริงบนทุกหน้า (มติผู้ใช้ 28 ส.ค. 69) */
+const FALLBACK_VISITS = [
+  { date: '2 เมษายน 2569',   center: 'ศูนย์ 8 บางนา',  dept: 'อายุรกรรม',  doctor: 'พญ.สมหญิง รักษ์ดี', cc: 'ปวดหลังช่วงล่างมาก ในเวลาที่ก้ม', dx: 'Low back pain (M54.5)',        rx: 'Paracetamol, PT' },
+  { date: '11 มีนาคม 2569',  center: 'ศูนย์ 4 ดินแดง', dept: 'อายุรกรรม',  doctor: 'นพ.วรวิทย์ เกียรติเจริญ', cc: 'แน่นหน้าอก เหนื่อยง่าย',   dx: 'Stable angina (I20.9)',        rx: 'ISDN (PRN), ตรวจ EKG' },
+  { date: '19 กุมภาพันธ์ 2569', center: 'ศูนย์ 4 ดินแดง', dept: 'ตรวจรักษา', doctor: 'พญ.ปรียาภรณ์ สุขสวัสดิ์', cc: 'ความดันสูง ปวดท้ายทอย',   dx: 'Essential hypertension (I10)', rx: 'Amlodipine 5 mg' },
+  { date: '8 มกราคม 2569',   center: 'ศูนย์ 8 บางนา',  dept: 'ตรวจรักษา',  doctor: 'นพ.สมชาย ใจดี',      cc: 'ไอ มีเสมหะ ไข้ต่ำ ๆ',        dx: 'Acute bronchitis (J20.9)',     rx: 'Bromhexine, Paracetamol' },
+  { date: '3 ธันวาคม 2568',  center: 'ศูนย์ 4 ดินแดง', dept: 'อายุรกรรม',  doctor: 'พญ.สมหญิง รักษ์ดี',  cc: 'ตรวจติดตามระดับน้ำตาล',      dx: 'Follow-up T2DM (E11.9)',       rx: 'Metformin 500 mg' },
+  { date: '17 ตุลาคม 2568',  center: 'ศูนย์ 8 บางนา',  dept: 'ตรวจรักษา',  doctor: 'พญ.วิภา สุขศรี',     cc: 'ตรวจสุขภาพประจำปี',           dx: 'Health check-up (Z00.0)',      rx: '—' },
+];
+
 /* Per-HN list of visit-detail records — most recent first. The simple
    `TREATMENT_VISITS` table above already lists the dates for each HN;
    here we just attach a center label to the top entry and reuse the
    default detail block so every selected date renders a full panel. */
 const buildVisitDetailsForHn = (hn) => {
-  const visits = TREATMENT_VISITS[hn] || [];
-  if (visits.length === 0) return [DEFAULT_VISIT_DETAIL];
+  const visits = TREATMENT_VISITS[hn]?.length ? TREATMENT_VISITS[hn] : FALLBACK_VISITS;
   return visits.map((v) => ({
     ...DEFAULT_VISIT_DETAIL,
     date: v.date,

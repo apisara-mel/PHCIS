@@ -87,3 +87,14 @@ export const STAFF_AVATARS = [
   '/images/staff/doctors/doctor-portrait-24.png',
   '/images/staff/doctors/doctor-portrait-25.png',
 ];
+
+/* ชื่อเจ้าหน้าที่ในข้อมูลตัวอย่างเป็นสตริงล้วน ไม่มี id ให้ join กับ USERS จึง
+   แฮชชื่อเป็นดัชนีคงที่ในกองรูปข้างบน — ชื่อเดิมได้รูปเดิมเสมอ แค่ไม่ใช่รูป "จริง"
+   ของคนคนนั้น (ตัวเดียวกับที่ ObservationQueuePage / ObservationExternalReferForm
+   เขียนไว้เองคนละชุด — ย้ายมาไว้ที่เดียวเมื่อแตะไฟล์พวกนั้นครั้งหน้า) */
+export const staffAvatarForName = (name = '') => {
+  if (!name || !STAFF_AVATARS.length) return '';
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return STAFF_AVATARS[hash % STAFF_AVATARS.length];
+};

@@ -19,6 +19,7 @@ import Alert from '@/components/alert/Alert';
 import TabPill, { TabBar } from '@/components/tab/TabPill';
 import VitalTrendChart from '@/components/observation/VitalTrendChart';
 import { getPatientByHN } from '@/data/patientProfiles';
+import { staffAvatarForName } from '@/data/avatarAssets';
 import {
   MOCK_OBSERVATION_PATIENTS,
   getOutOfRangeVitals,
@@ -130,15 +131,14 @@ const NURSING_NOTE_SUGGESTIONS = [
 /* Timeline header's two quick-add popups (split from one combined button
    per user request) skip the role gate above — each offers its own tag
    set as chips, no "เข้าสู่ระบบในฐานะ" step. */
-const OPINION_NOTE_TYPES = [
-  'บันทึกความคืบหน้าในการรักษา (Progress Note)',
-  'บันทึกการพยาบาล (Nurse Note)',
-  'บันทึกของแพทย์ (Doctor Note)',
-];
+/* แท็บคือ "หัตถการอะไร" ล้วน ๆ — เอา 'บันทึกหัตถการ' / 'บันทึกกิจกรรมการพยาบาล'
+   ออกแล้ว เพราะสองคำนั้นซ้ำกับชื่อป๊อปอัปที่ครอบมันอยู่ ไม่ได้บอกว่าทำหัตถการอะไร
+   (มติผู้ใช้ 28 ส.ค. 69) */
+/* ทุกตัวเลือกเป็นกริยา ("ทำอะไร") ไม่ใช่คำนาม — 'การพ่นยา' → 'พ่นยา' ที่เหลือ
+   เป็นกริยาอยู่แล้ว (มติผู้ใช้ 28 ส.ค. 69) */
 const PROCEDURE_NOTE_TYPES = [
-  'บันทึกหัตถการ',
-  'บันทึกกิจกรรมการพยาบาล',
-  'การพ่นยา',
+  'สังเกตอาการ',
+  'พ่นยา',
   'ให้ออกซิเจน',
   'เช็ดตัวลดไข้',
   'ทำแผล',
@@ -146,6 +146,49 @@ const PROCEDURE_NOTE_TYPES = [
   'ให้สารน้ำทางหลอดเลือดดำ',
   'อื่นๆ',
 ];
+
+
+/* ช่องข้อมูลของ visit บนการ์ดใต้แถบขั้นตอน — ป้ายกำกับเล็กด้านบน ค่าด้านล่าง
+   มีรูปเจ้าหน้าที่นำหน้าเมื่อค่านั้นเป็นคน */
+const VisitField = ({ label, value, avatarUrl }) => (
+  <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100)' }}>
+    <span
+      style={{
+        color: 'var(--text-content-tertiary)',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-xs)',
+        lineHeight: 1.5,
+      }}
+    >
+      {label}
+    </span>
+    {/* ทุกช่องสูงเท่ากันที่ความสูงของรูปเจ้าหน้าที่ ช่องที่ไม่มีรูปจึงไม่เตี้ยกว่า
+        และป้ายกำกับด้านบนอยู่ระดับเดียวกันทั้งแถว */}
+    <span
+      className='inline-flex items-center min-w-0'
+      style={{
+        minHeight: 'var(--dim-size-600, 28px)',
+        gap: 'var(--dim-space-200)',
+        color: 'var(--text-content-default)',
+        fontFamily: 'var(--type-family-body)',
+        fontWeight: 'var(--type-weight-medium)',
+        fontSize: 'var(--type-size-sm)',
+        lineHeight: 1.5,
+      }}
+    >
+      {avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt=''
+          aria-hidden
+          className='rounded-full object-cover shrink-0'
+          style={{ width: 'var(--dim-size-600, 28px)', height: 'var(--dim-size-600, 28px)' }}
+        />
+      ) : null}
+      <span className='truncate'>{value || '-'}</span>
+    </span>
+  </div>
+);
 
 /* Section order for the page-level step indicator — same StepProgress
    component used by the treatment/CPOE wizard (Figma node 2709:6562).
@@ -174,9 +217,10 @@ export default function ObservationDetailPage() {
   const [newVital, setNewVital] = useState({ ...BLANK_OBSERVATION_VITALS_FORM });
   const [showVitalsModal, setShowVitalsModal] = useState(false);
   const [showTrendGraphModal, setShowTrendGraphModal] = useState(false);
-  /* null when closed, otherwise which quick-add popup is open (each with
-     its own tag set — see PROCEDURE_NOTE_TYPES / OPINION_NOTE_TYPES). */
-  const [addNoteVariant, setAddNoteVariant] = useState(null);
+  /* ป๊อปอัปบันทึกของไทม์ไลน์ — เหลือทางเข้าเดียว (ปุ่ม "บันทึก") หลังตัดปุ่ม
+     "ความคิดเห็น" ที่เคยเปิดฟอร์มเดียวกันแต่ไม่มีแท็บประเภทออกไป
+     (มติผู้ใช้ 28 ส.ค. 69) */
+  const [showAddNoteModal, setShowAddNoteModal] = useState(false);
   /* null when closed, otherwise which quick-order popup is open — both
      "สั่งยา STAT Dose" and "สั่ง Lab ด่วน" write to the same
      patient.statOrders array via handleAddOrder, just with their own
@@ -239,7 +283,7 @@ export default function ObservationDetailPage() {
   const [newNursingNote, setNewNursingNote] = useState('');
   /* Always overwritten by handleOpenAddNoteModal before either quick-add
      popup opens — this initial value is never actually shown. */
-  const [noteType, setNoteType] = useState(OPINION_NOTE_TYPES[0]);
+  const [noteType, setNoteType] = useState('');
 
   const [dischargeForm, setDischargeForm] = useState({
     doctorSummary: patient.dischargeSummary?.doctorSummary || '',
@@ -430,20 +474,19 @@ export default function ObservationDetailPage() {
     setNewNursingNote('');
   };
 
-  const handleOpenAddNoteModal = (variant) => {
+  const handleOpenAddNoteModal = () => {
     /* Blank the shared newNursingNote state — mirrors handleOpenVitalsModal
        so a half-typed note left in step 3's inline panel can't leak into
-       this popup. Defaults the tag to this variant's first option,
-       regardless of step 3's role-gated noteType — these popups skip the
-       role gate entirely. */
+       this popup, which skips step 3's "เข้าสู่ระบบในฐานะ" role gate.
+       เริ่มที่ "ยังไม่เลือกประเภท" — บันทึกจะติดประเภทก็ต่อเมื่อผู้ใช้กดเลือกเอง */
     setNewNursingNote('');
-    setNoteType((variant === 'procedure' ? PROCEDURE_NOTE_TYPES : OPINION_NOTE_TYPES)[0]);
-    setAddNoteVariant(variant);
+    setNoteType('');
+    setShowAddNoteModal(true);
   };
 
   const handleSaveNoteModal = (e) => {
     handleAddNursingNote(e);
-    if (newNursingNote.trim()) setAddNoteVariant(null);
+    if (newNursingNote.trim()) setShowAddNoteModal(false);
   };
 
   /* referHospital/referDepartment use the custom Select (button-based
@@ -588,7 +631,10 @@ export default function ObservationDetailPage() {
   const goNextStep = () =>
     setActiveTab(OBSERVATION_STEP_KEYS[Math.min(OBSERVATION_STEP_KEYS.length - 1, currentStepIdx + 1)]);
   const nextStepTitleTh = observationSteps[currentStepIdx + 1]?.title || '';
-  const footerPrimaryLabel = isLastStep ? 'ส่งต่อ' : `ถัดไป: ${nextStepTitleTh}`;
+  /* "บันทึกและส่งต่อ" ไม่ใช่ "ส่งต่อ" เฉย ๆ — ปุ่มนี้เขียนบันทึกสังเกตอาการทั้งชุดลงก่อน
+     แล้วจึงเปิดป๊อปอัปส่งต่อ ชื่อเดิมบอกแค่ครึ่งเดียวของสิ่งที่มันทำ และไม่ตรงกับปุ่มจบ
+     ขั้นตอนสุดท้ายของเวชระเบียนที่ใช้คำว่า "บันทึกและส่งต่อ" อยู่แล้ว (มติผู้ใช้ 27 ส.ค. 69) */
+  const footerPrimaryLabel = isLastStep ? 'บันทึกและส่งต่อ' : `ถัดไป: ${nextStepTitleTh}`;
   const openReferModal = () => {
     /* Reset to a blank pick every open — mirrors handleOpenVitalsModal so
        a previous referral's target doesn't silently carry over. */
@@ -671,6 +717,19 @@ export default function ObservationDetailPage() {
     address: linkedProfile?.address || '-',
     avatarUrl: patient.avatar || linkedProfile?.avatarUrl || '/avatars/somchai-mock.png',
     vip: false,
+    /* VN อยู่บนการ์ดคู่กับ HN — แต่เมื่อจำหน่ายแล้ว visit นั้นปิดไปแล้ว เลขจึงไม่ใช่
+       ข้อมูลที่ยังใช้อ้างอิงที่หน้าเตียง ซ่อนไปเลยดีกว่าแสดงเลขของ visit ที่จบแล้ว
+       ("พร้อมจำหน่าย" ยังไม่ปิดเคส จึงยังแสดง) (มติผู้ใช้ 28 ส.ค. 69) */
+    vn: patient.status === 'discharged' ? '' : patient.vn,
+    /* แถบความปลอดภัยทางคลินิกแบบเดียวกับหน้าอื่น — ข้อมูลมาจากตัวบันทึกสังเกตอาการ
+       เอง เพราะ HN ของหอนี้ยังไม่ตรงรูปแบบทะเบียนกลาง (`linkedProfile` จึงมักว่าง);
+       เผื่อไว้ให้ทะเบียนกลางชนะเมื่อวันหนึ่ง HN ตรงกัน */
+    drugAllergies: patient.drugAllergies?.length
+      ? patient.drugAllergies
+      : linkedProfile?.drugAllergies || [],
+    chronicDiseases: patient.chronicDiseases?.length
+      ? patient.chronicDiseases
+      : linkedProfile?.chronicDiseases || [],
   };
 
   return (
@@ -695,43 +754,7 @@ export default function ObservationDetailPage() {
             พิมพ์ใบสังเกตอาการ (Timed Sheet)
           </NeutralSubdueButton>
         }
-        tags={
-          <>
-            <span className='px-2.5 py-1 bg-brand-700 text-white rounded-full text-xs font-bold'>
-              {patient.bedNo}
-            </span>
-            <StatusBadge
-              style={
-                patient.status === 'discharged'
-                  ? 'neutral'
-                  : patient.status === 'ready_discharge'
-                  ? 'success'
-                  : latestEsi != null && latestEsi <= 2
-                  ? 'error'
-                  : latestEsi === 3
-                  ? 'yellow'
-                  : 'info'
-              }
-              size='small'
-              showDot
-            >
-              {patient.status === 'discharged'
-                ? 'จำหน่ายแล้ว'
-                : patient.status === 'ready_discharge'
-                ? 'พร้อมจำหน่าย'
-                : 'กำลังสังเกตอาการ'}
-            </StatusBadge>
-            <span className='inline-flex items-center rounded-full bg-badge-blueBg text-badge-blueText font-medium px-2.5 py-1 text-xs'>
-              VN: {patient.vn}
-            </span>
-            <span className='inline-flex items-center rounded-full bg-badge-tealBg text-badge-tealText font-medium px-2.5 py-1 text-xs'>
-              พยาบาลรับผู้ป่วย: {patient.nurseName}
-            </span>
-            <span className='inline-flex items-center rounded-full bg-badge-purpleBg text-badge-purpleText font-medium px-2.5 py-1 text-xs'>
-              เวลาเข้าเตียง: {patient.admitTime}
-            </span>
-          </>
-        }
+        forceAlertRow
       />
 
       <RecordWizardMorphBand
@@ -743,6 +766,54 @@ export default function ObservationDetailPage() {
         onStepClick={(idx) => setActiveTab(OBSERVATION_STEP_KEYS[idx])}
         stickyTop={MORPH_STICKY_BELOW_PATIENT}
       />
+
+      {/* ข้อมูลประจำ visit นี้ (เตียง · สถานะ · ผู้ดูแล · เวลาเข้าเตียง) อยู่บนการ์ดสีขาว
+          ใต้แถบขั้นตอน ไม่ใช่ในการ์ดผู้ป่วย — การ์ดบนคือตัวตนของคนไข้ที่ไม่เปลี่ยนตาม
+          ที่อยู่ในระบบ ส่วนชุดนี้เป็นสถานะของการนอนสังเกตอาการรอบนี้ · เป็นข้อความ
+          มีป้ายกำกับ ไม่ใช่ badge เพราะทุกช่องคือ "ค่าของฟิลด์" ไม่ใช่สถานะที่ต้องสะดุดตา
+          (มติผู้ใช้ 28 ส.ค. 69) */}
+      <div
+        style={{
+          paddingLeft: 'var(--dim-space-600)',
+          paddingRight: 'var(--dim-space-600)',
+          paddingTop: 'var(--dim-space-400)',
+        }}
+      >
+        <div
+          className='w-full flex flex-wrap items-start'
+          style={{
+            background: 'var(--surface-card-100, #FFFFFF)',
+            borderRadius: 'var(--dim-radius-500, 24px)',
+            boxShadow: 'var(--shadow-card)',
+            padding: 'var(--dim-space-400)',
+            columnGap: 'var(--dim-space-600)',
+            rowGap: 'var(--dim-space-300)',
+          }}
+        >
+          <VisitField label='เตียง' value={patient.bedNo} />
+          <VisitField
+            label='สถานะ'
+            value={
+              patient.status === 'discharged'
+                ? 'จำหน่ายแล้ว'
+                : patient.status === 'ready_discharge'
+                ? 'พร้อมจำหน่าย'
+                : 'กำลังสังเกตอาการ'
+            }
+          />
+          <VisitField
+            label='พยาบาลรับผู้ป่วย'
+            value={patient.nurseName}
+            avatarUrl={staffAvatarForName(patient.nurseName)}
+          />
+          <VisitField
+            label='แพทย์เจ้าของคนไข้'
+            value={patient.doctorName}
+            avatarUrl={staffAvatarForName(patient.doctorName)}
+          />
+          <VisitField label='เวลาเข้าเตียง' value={patient.admitTime} />
+        </div>
+      </div>
 
       <div
         className='flex flex-col flex-1 min-w-0'
@@ -797,17 +868,9 @@ export default function ObservationDetailPage() {
                   variant='outline'
                   size='sm'
                   leadingIcon='medical_services'
-                  onClick={() => handleOpenAddNoteModal('procedure')}
+                  onClick={handleOpenAddNoteModal}
                 >
-                  บันทึกหัตถการและกิจกรรมการพยาบาล
-                </BrandSubdueButton>
-                <BrandSubdueButton
-                  variant='outline'
-                  size='sm'
-                  leadingIcon='edit_note'
-                  onClick={() => handleOpenAddNoteModal('opinion')}
-                >
-                  ความคิดเห็น
+                  บันทึก
                 </BrandSubdueButton>
                 <BrandSubdueButton
                   variant='outline'
@@ -1223,21 +1286,17 @@ export default function ObservationDetailPage() {
         </div>
       </Popup>
 
-      {/* Modal: Add Procedure / Opinion — split from one combined popup into
-          two entry points ("บันทึกหัตถการและกิจกรรมการพยาบาล" / "ความคิดเห็น"
-          buttons above), each defaulting to its own tag set. Unlike step 3's
-          role-gated "บันทึกความเห็น" panel, both skip the "เข้าสู่ระบบในฐานะ"
-          role gate (shares noteType/newNursingNote state +
-          handleAddNursingNote so every entry point logs to the same
-          nursingNotes array). */}
+      {/* Modal: บันทึก — ทางเข้าเดียวของบันทึกบนไทม์ไลน์ (ปุ่ม "บันทึก" ด้านบน)
+          ข้ามด่านบทบาท "เข้าสู่ระบบในฐานะ" ของ step 3 และเขียนลง nursingNotes
+          ชุดเดียวกันผ่าน handleAddNursingNote เหมือนเดิม */}
       <Popup
-        open={addNoteVariant !== null}
-        onClose={() => setAddNoteVariant(null)}
-        title={addNoteVariant === 'procedure' ? 'บันทึกหัตถการและกิจกรรมการพยาบาล' : 'ความคิดเห็น'}
-        leading={<span className='material-symbols-outlined text-2xl' style={{ color: 'var(--brand-p700)' }}>{addNoteVariant === 'procedure' ? 'medical_services' : 'edit_note'}</span>}
+        open={showAddNoteModal}
+        onClose={() => setShowAddNoteModal(false)}
+        title='บันทึก'
+        leading={<span className='material-symbols-outlined text-2xl' style={{ color: 'var(--brand-p700)' }}>medical_services</span>}
         size='large'
-        secondaryAction={{ label: 'ยกเลิก', onClick: () => setAddNoteVariant(null) }}
-        primaryAction={{ label: 'บันทึกความเห็น', onClick: handleSaveNoteModal, disabled: !newNursingNote.trim() }}
+        secondaryAction={{ label: 'ยกเลิก', onClick: () => setShowAddNoteModal(false) }}
+        primaryAction={{ label: 'บันทึก', onClick: handleSaveNoteModal, disabled: !newNursingNote.trim() }}
       >
         <PatientSummaryCard
           avatarUrl={patient.avatar || getPatientByHN(patient.hn)?.avatarUrl}
@@ -1249,30 +1308,32 @@ export default function ObservationDetailPage() {
           ]}
         />
 
+        {/* แท็บคือ "ทำอะไร" (สังเกตอาการ / พ่นยา / ทำแผล) ซึ่งเป็นเนื้อของบันทึก
+            ไม่ใช่ป้ายบทบาทผู้บันทึกที่ระบบประทับให้เองอยู่แล้ว */}
         <div>
-          <p
-            className='font-medium mb-2'
-            style={{ color: 'var(--text-content-secondary)', fontSize: 'var(--type-size-xs)' }}
-          >
-            ประเภทบันทึก
-          </p>
-          <div className='flex flex-wrap' role='radiogroup' aria-label='ประเภทบันทึก' style={{ gap: 'var(--dim-space-200)' }}>
-            {(addNoteVariant === 'procedure' ? PROCEDURE_NOTE_TYPES : OPINION_NOTE_TYPES).map((t) => (
-              <SelectableTag
-                key={t}
-                size='md'
-                selected={noteType === t}
-                onClick={() => setNoteType(t)}
-                ariaLabel={t}
-              >
-                {t}
-              </SelectableTag>
-            ))}
+            <p
+              className='font-medium mb-2'
+              style={{ color: 'var(--text-content-secondary)', fontSize: 'var(--type-size-xs)' }}
+            >
+              ประเภทบันทึก
+            </p>
+            <div className='flex flex-wrap' role='radiogroup' aria-label='ประเภทบันทึก' style={{ gap: 'var(--dim-space-200)' }}>
+              {PROCEDURE_NOTE_TYPES.map((t) => (
+                <SelectableTag
+                  key={t}
+                  size='md'
+                  selected={noteType === t}
+                  onClick={() => setNoteType(t)}
+                  ariaLabel={t}
+                >
+                  {t}
+                </SelectableTag>
+              ))}
           </div>
         </div>
         <SuggestibleTextarea
           voice
-          label='ความคิดเห็น'
+          label='บันทึก'
           placeholder='ระบุบันทึกทางการพยาบาล อาการเปลี่ยนแปลง การตอบสนองต่อการรักษา หรือการประเมินความเสี่ยง'
           value={newNursingNote}
           onChange={(e) => setNewNursingNote(e.target.value)}

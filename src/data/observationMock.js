@@ -221,6 +221,10 @@ const BLANK_PATIENT_FIELDS = {
   patientName: '', avatar: '', hn: '', vn: '', nationalId: '', age: null, gender: '',
   admitTime: '', dischargeTime: '', chiefComplaint: '', diagnosis: '',
   doctorName: '', nurseName: '', rights: '',
+  /* ข้อมูลความปลอดภัยทางคลินิกที่ <PatientCard> ใช้แสดงแถบ แพ้ยา / โรคประจำตัว
+     บนหัวแฟ้ม — เป็นของตัวบันทึกเอง ไม่ใช่ทะเบียนกลาง เพราะ HN ของหอสังเกตอาการ
+     ยังไม่ตรงกับรูปแบบใน patientProfiles.js/mrPatients.js */
+  drugAllergies: [], chronicDiseases: [],
   vitalsTrend: [], statOrders: [], nursingNotes: [], dischargeSummary: null,
 };
 
@@ -375,6 +379,14 @@ export const MOCK_OBSERVATION_PATIENTS = [
     stayMinutes: 395,
     chiefComplaint: 'แน่นหน้าอก หายใจไม่สะดวก หลังออกกำลังกาย 1 ชม. ก่อนมา',
     diagnosis: 'Acute Bronchospasm / Observe IHD',
+    drugAllergies: [
+      { name: 'Aspirin', symptom: 'หลอดลมหดเกร็ง หายใจมีเสียงหวีด (AERD)', severity: 'high' },
+      { name: 'NSAIDs',  symptom: 'ผื่นลมพิษ แน่นหน้าอก',                    severity: 'high' },
+    ],
+    chronicDiseases: [
+      { name: 'โรคหืด (Asthma)',        severity: 'high',   detail: 'ควบคุมด้วย ICS · พก Salbutamol MDI ประจำตัว' },
+      { name: 'ความดันโลหิตสูง (HT)',   severity: 'medium', detail: 'Amlodipine 5 mg วันละครั้ง' },
+    ],
     doctorName: 'นพ. วรวิทย์ เกียรติเจริญ',
     nurseName: 'พว. สุภาพร ชัยมงคล',
     rights: 'สิทธิบัตรทอง (NHSO)',
@@ -424,6 +436,13 @@ export const MOCK_OBSERVATION_PATIENTS = [
     stayMinutes: 140, // 2h 20m
     chiefComplaint: 'เวียนศีรษะ บ้านหมุน คลื่นไส้อาเจียน 3 ครั้ง ความดันสูง 180/105',
     diagnosis: 'Hypertensive Urgency / Acute Vertigo',
+    drugAllergies: [
+      { name: 'Penicillin', symptom: 'ผื่นลมพิษทั่วตัว หน้าบวม', severity: 'critical' },
+    ],
+    chronicDiseases: [
+      { name: 'ความดันโลหิตสูง (HT)',        severity: 'high',   detail: 'ขาดยาต่อเนื่อง 2 สัปดาห์ก่อนมา' },
+      { name: 'ไขมันในเลือดสูง (DLP)',      severity: 'medium', detail: 'Simvastatin 20 mg ก่อนนอน' },
+    ],
     doctorName: 'พญ. ปรียาภรณ์ สุขสวัสดิ์',
     nurseName: 'พว. นิภา วงศ์สว่าง',
     rights: 'สิทธิข้าราชการ (Direct Billing)',
@@ -468,6 +487,10 @@ export const MOCK_OBSERVATION_PATIENTS = [
     stayMinutes: 290, // 4h 50m
     chiefComplaint: 'ไข้สูง 38.8 C ปวดศีรษะ อ่อนเพลีย ซดน้ำเกลือแร่ไม่ได้',
     diagnosis: 'Acute Viral Infection / Dehydration',
+    drugAllergies: [],
+    chronicDiseases: [
+      { name: 'โรคจมูกอักเสบจากภูมิแพ้ (AR)', severity: 'medium', detail: 'แพ้ฝุ่น · ใช้ยาแก้แพ้ตามอาการ' },
+    ],
     doctorName: 'พญ. นภัสสร สายชล',
     nurseName: 'พว. กัลยา จิตต์มั่น',
     rights: 'สิทธิบัตรทอง (NHSO)',
@@ -513,6 +536,13 @@ export const MOCK_OBSERVATION_PATIENTS = [
     stayMinutes: 65, // 1h 5m
     chiefComplaint: 'ปวดท้องรุนแรงบริเวณลิ้นปี่ ท้องอืด เหงื่อแตก อาเจียนเป็นเศษอาหาร',
     diagnosis: 'Acute Abdomen / Suspect Peptic Ulcer Perforation',
+    drugAllergies: [
+      { name: 'NSAIDs', symptom: 'ปวดแสบท้อง เลือดออกทางเดินอาหารส่วนต้น', severity: 'critical' },
+    ],
+    chronicDiseases: [
+      { name: 'โรคกระเพาะอาหารอักเสบเรื้อรัง', severity: 'high',   detail: 'เคยมีแผลในกระเพาะ · ใช้ PPI เป็นระยะ' },
+      { name: 'เบาหวานชนิดที่ 2 (DM)',          severity: 'medium', detail: 'Metformin 500 mg วันละสองครั้ง' },
+    ],
     doctorName: 'นพ. วรวิทย์ เกียรติเจริญ',
     nurseName: 'พว. สุภาพร ชัยมงคล',
     rights: 'สิทธิประกันสังคม (SSO)',

@@ -229,20 +229,7 @@ const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
               <AlertPill key={a.key} label={a.label} value={a.value} unit={a.unit} tier={a.tier} dir={a.dir} />
             ))}
           </>
-        ) : (
-          <span
-            className='inline-flex items-center'
-            style={{
-              gap: 'var(--dim-space-100)',
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-sm)',
-              color: 'var(--text-content-tertiary, #858C92)',
-            }}
-          >
-            <Icon name='monitor_heart' size={18} style={{ color: 'var(--text-brandPrimary-default, #007549)' }} />
-            ค่าที่บันทึกล่าสุด · {latest.date} — อยู่ในเกณฑ์ปกติ
-          </span>
-        )}
+        ) : null}
         <div className='flex-1' />
         <BrandSubdueButton
           variant='outline'

@@ -36,7 +36,7 @@ import BedInfoTooltip, {
   resolveBedWardNote,
 } from '@/components/observation/BedInfoTooltip';
 import Pagination from '@/components/pagination/Pagination';
-import { BedSelectionGrid, NestedBedSelectionPanel } from '@/components/popup/BedSelectionPopup';
+import { BedSelectionGrid } from '@/components/popup/BedSelectionPopup';
 import Popup from '@/components/popup/Popup';
 import AlertDialog from '@/components/popup/AlertDialog';
 import { getPatientByHN, PATIENT_PROFILES } from '@/data/patientProfiles';
@@ -496,12 +496,6 @@ export default function ObservationQueuePage() {
     && vitalsForm.esi != null && vitalsForm.esi !== '';
 
   const [showAdmitModal, setShowAdmitModal] = useState(false);
-  /* Admit modal's bed picker — reuses the same BedSelectionPopup (photo
-     tiles) as OPD screening's "เลือกเตียงผู้ป่วย" instead of a plain
-     dropdown. Only offers empty beds (plus whichever bed is currently
-     targeted, so re-opening the picker mid-edit still shows the pick). */
-  const [showBedPickerModal, setShowBedPickerModal] = useState(false);
-
   /* "เพิ่มเตียงใหม่เข้าระบบ" — adds a brand-new empty bed to the ward
      (distinct from admitting a patient into an existing one). bedTypeId
      picks a photo from MOCK_PATIENT_BEDS; description is always blank
@@ -600,32 +594,32 @@ export default function ObservationQueuePage() {
      in as isOverstay's `now` argument and every stay would measure zero. */
   const overstayCount = patients.filter((p) => isOverstay(p)).length;
 
+  /* ไม่มีบรรทัด `indicator` ท้ายการ์ด — ข้อความอย่าง "พร้อมใช้งาน 24 ชม." /
+     "ครองเตียงสังเกตอาการ" เป็นคำขยายป้ายกำกับที่อยู่เหนือมันซ้ำ ๆ ไม่ได้บอก
+     อะไรที่ตัวเลขยังไม่บอก และดันการ์ดทั้งแถวให้สูงขึ้นสองบรรทัด
+     (มติผู้ใช้ 27 ส.ค. 69) */
   const summaryCards = [
-    { key: 'total', label: 'เตียงทั้งหมด', value: `${totalBeds} เตียง`, indicator: 'พร้อมใช้งาน 24 ชม.', color: 'info', icon: 'hotel' },
-    { key: 'observing', label: 'กำลังสังเกตอาการ', value: `${occupiedCount} ราย`, indicator: 'ครองเตียงสังเกตอาการ', color: 'info', icon: 'child_care' },
+    { key: 'total', label: 'เตียงทั้งหมด', value: `${totalBeds} เตียง`, color: 'info', icon: 'hotel' },
+    { key: 'observing', label: 'กำลังสังเกตอาการ', value: `${occupiedCount} ราย`, color: 'info', icon: 'child_care' },
     /* Available vs cleaning are separate cards — combining them under
        "เตียงว่าง" hid dirty beds and made the door glyph misleading. */
     {
       key: 'empty',
       label: 'เตียงพร้อมรับผู้ป่วยใหม่',
       value: `${emptyCount} เตียง`,
-      indicator: isFullCapacity ? 'เตียงเต็ม (Full Capacity)' : 'ว่าง พร้อมรับผู้ป่วย',
       color: isFullCapacity ? 'destructive' : 'positive',
       icon: isFullCapacity ? 'do_not_disturb_on' : 'event_available',
-      indicatorIcon: isFullCapacity ? 'warning' : 'person_add',
     },
     {
       key: 'cleaning',
       label: 'เตียงรอทำความสะอาด',
       value: `${cleaningCount} เตียง`,
-      indicator: cleaningCount > 0 ? 'รอทำความสะอาด' : 'ไม่มีเตียงรอทำความสะอาด',
       color: cleaningCount > 0 ? 'inprogress' : 'positive',
       icon: 'cleaning_services',
-      indicatorIcon: cleaningCount > 0 ? 'hourglass_top' : 'check_circle',
     },
-    { key: 'referred', label: 'รายการที่ส่งต่อแล้ว', value: `${referredCount} ราย`, indicator: 'จำหน่าย/ส่งต่อสำเร็จ', color: 'positive', icon: 'check_circle' },
-    { key: 'overstay', label: `ครองเตียงเกิน ${OVERSTAY_LIMIT_MINUTES / 60} ชม.`, value: `${overstayCount} ราย`, indicator: 'รอแพทย์ประเมินซ้ำ', color: 'inprogress', icon: 'hourglass_top' },
-    { key: 'highAcuity', label: 'ESI 1–2', value: `${highAcuityCount} ราย`, indicator: 'ความเร่งด่วนสูง', color: 'destructive', icon: 'warning' },
+    { key: 'referred', label: 'รายการที่ส่งต่อแล้ว', value: `${referredCount} ราย`, color: 'positive', icon: 'check_circle' },
+    { key: 'overstay', label: `ครองเตียงเกิน ${OVERSTAY_LIMIT_MINUTES / 60} ชม.`, value: `${overstayCount} ราย`, color: 'inprogress', icon: 'hourglass_top' },
+    { key: 'highAcuity', label: 'ESI 1–2', value: `${highAcuityCount} ราย`, color: 'destructive', icon: 'warning' },
   ];
 
   /* Count uses TabUnderline's built-in brandtag pill (Figma tab count
@@ -728,6 +722,21 @@ export default function ObservationQueuePage() {
   })();
 
   /* "กำลังสังเกตอาการ" tab — รูปแบบเตียง / Pain / ESI / สถานะ / ผู้สั่ง / พยาบาลรับผู้ป่วย. */
+  /* ตัวเลือก "ผู้สั่ง" ของฟอร์มรับผู้ป่วย — USERS (มีรูปจริง) บวกชื่อแพทย์ที่ปรากฏ
+     ในข้อมูลเตียงจริง ๆ ซึ่งไม่ได้อยู่ในทะเบียนผู้ใช้ (เช่นค่าตั้งต้น "นพ. วรวิทย์
+     เกียรติเจริญ") ถ้าไม่รวมเข้ามา ค่าที่เลือกอยู่จะหาไม่เจอใน options ช่องจึงแสดง
+     เป็นข้อความเปล่าไม่มีรูป — ชื่อนอกทะเบียนใช้รูปจากการแฮชชื่อแบบเดียวกับตัวกรอง
+     (มติผู้ใช้ 28 ส.ค. 69) */
+  const doctorSelectOptions = (() => {
+    const seen = new Set(DOCTOR_STAFF_OPTIONS.map((o) => o.value));
+    return [
+      ...DOCTOR_STAFF_OPTIONS,
+      ...uniqueSorted(patients.map((p) => p.doctorName))
+        .filter((d) => d && !seen.has(d))
+        .map((d) => ({ value: d, label: d, image: avatarForName(d) })),
+    ];
+  })();
+
   const observingFilterOptions = (() => {
     const board = patients.filter((p) => (
       p.status === 'observing' || p.status === 'empty' || p.status === BED_CLEANING_STATUS
@@ -1076,9 +1085,8 @@ export default function ObservationQueuePage() {
     setShowAdmitModal(true);
   };
   /* Only empty beds are offered (plus whichever bed is currently targeted,
-     so switching bed mid-pick still shows it) — occupied beds have no
-     equivalent of BedSelectionPopup's own "disabled" state, so they're
-     filtered out entirely instead of shown-but-unclickable. */
+     so switching bed mid-pick still shows it) — เตียงที่มีคนครองไม่ต้องโผล่ใน
+     ดรอปดาวน์เลย ดีกว่าโชว์แล้วกดไม่ได้ */
   const observationBedOptions = patients
     .filter((p) => isBedAvailable(p) || p.id === admitForm.bedId)
     .map((p) => ({
@@ -1149,12 +1157,25 @@ export default function ObservationQueuePage() {
         'ระบบสังเกตอาการ (Observation)',
       ]}
       title='ห้องเฝ้าสังเกตอาการ (Observation Unit)'
-      summaryCards={summaryCards}
+      /* แท็บ "รายการที่ส่งต่อแล้ว" ไม่มีแถบสรุป — ตัวเลขทั้ง 7 ใบเป็นภาพรวมของ
+         หอสังเกตอาการ ณ ตอนนี้ (เตียงว่าง/เตียงรอทำความสะอาด/ครองเตียงเกิน 6 ชม.)
+         ซึ่งไม่ได้อธิบายรายการที่จำหน่าย/ส่งต่อไปแล้ว (มติผู้ใช้ 27 ส.ค. 69) */
+      summaryCards={activeTab === 'observing' ? summaryCards : undefined}
+      /* แถบสรุปอยู่ "ใต้" แท็บ — ตัวเลขทั้ง 7 ใบเป็นภาพรวมของหอสังเกตอาการ
+         ที่อ่านคู่กับรายการในแท็บที่เลือกอยู่ ไม่ใช่ส่วนหัวของหน้า และเลื่อน
+         หายไปใต้แถบแท็บที่ยังปักอยู่ (มติผู้ใช้ 27 ส.ค. 69) */
+      summaryBelowTabs
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(key) => {
         setActiveTab(key);
         setAllTabFilters(DEFAULT_ALL_TAB_FILTERS);
+        /* มุมมองตั้งต้นต่างกันตามแท็บ เพราะสองแท็บตอบคำถามคนละแบบ:
+           "กำลังสังเกตอาการ" = ผังเตียงที่พยาบาลกวาดตาดูสัญญาณชีพ → กริด ·
+           "รายการที่ส่งต่อแล้ว" = ทะเบียนย้อนหลังไว้ค้น/เรียง/เทียบ → ตาราง
+           สลับเองด้วย ViewToggle ได้ตามปกติ แค่กลับไปค่าตั้งต้นเมื่อเปลี่ยนแท็บ
+           เหมือนตัวกรอง (มติผู้ใช้ 27 ส.ค. 69) */
+        setViewMode(key === 'all' ? 'table' : 'grid');
       }}
       actions={
         <div className='flex items-center gap-2'>
@@ -2154,39 +2175,28 @@ export default function ObservationQueuePage() {
               fields — "ผู้ป่วย" search above fills them straight into
               admitForm (see handleSelectPatientFromSearch) and the
               PatientSummaryCard confirms what was picked. Only the bed
-              itself still needs a choice here — opens the same photo-
-              tile BedSelectionPopup as OPD screening instead of a
-              plain text dropdown. */}
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-            <p style={ADMIT_FIELD_LABEL_STYLE}>
-              เลือกเตียงสังเกตอาการ
-            </p>
-            <button
-              type='button'
-              onClick={() => setShowBedPickerModal(true)}
-              className='w-full flex items-center justify-between rounded-lg border border-ink-line bg-surface-card px-3 py-2 hover:border-brand-300 transition-colors'
-            >
-              <div className='flex items-center gap-2.5'>
-                <img
-                  src={resolveBedImage(selectedBed)}
-                  alt=''
-                  className='w-10 h-10 rounded-md object-cover border border-ink-line shrink-0'
-                />
-                <div className='text-left'>
-                  <div className='font-semibold text-ink'>{selectedBed?.bedNo || '-'}</div>
-                  <div className='text-ink-tertiary text-[11px]'>{selectedBed?.bedType || ''}</div>
-                </div>
-              </div>
-              <span className='material-symbols-outlined text-ink-tertiary'>expand_more</span>
-            </button>
-            {!isSelectedBedFree && (
+              itself still needs a choice here — ดรอปดาวน์มาตรฐานที่แต่ละแถว
+              มีรูปเตียงจริงกับชนิดเตียงกำกับ แทนป๊อปอัปกริดรูปที่ต้องเปิดอีกชั้น
+              เพื่อเลือกค่าเดียว (มติผู้ใช้ 28 ส.ค. 69) */}
+          <Select
+            label='เลือกเตียงสังเกตอาการ'
+            value={admitForm.bedId}
+            onChange={(bedId) => setAdmitForm((prev) => ({ ...prev, bedId }))}
+            options={observationBedOptions.map((b) => ({
+              value: b.id,
+              label: b.code,
+              subtext: b.title,
+              image: b.imageSrc,
+            }))}
+            required
+          />
+          {!isSelectedBedFree && (
               <p style={{ marginTop: 'var(--dim-space-150)', color: 'var(--text-danger-default)', fontSize: 'var(--type-size-xs)' }}>
                 {selectedBed?.status === BED_CLEANING_STATUS
                   ? 'เตียงนี้รอทำความสะอาด — ต้องกด “ทำความสะอาดเสร็จ” ก่อนจึงจะรับผู้ป่วยเข้าเตียงได้'
                   : 'เตียงนี้มีผู้ป่วยครองอยู่แล้ว — กรุณาเลือกเตียงว่าง'}
               </p>
             )}
-          </div>
 
           {/* Same suggestion popover as OPD screening's "อาการ (Chief
               Complaint)" field — reuses its suggestion list, appears
@@ -2209,7 +2219,7 @@ export default function ObservationQueuePage() {
               label='ผู้สั่ง'
               value={admitForm.doctorName}
               onChange={(val) => setAdmitForm({ ...admitForm, doctorName: val })}
-              options={DOCTOR_STAFF_OPTIONS}
+              options={doctorSelectOptions}
               required
             />
             {/* พยาบาลรับผู้ป่วย — locked to the signed-in user (filled field + avatar). */}
@@ -2268,13 +2278,6 @@ export default function ObservationQueuePage() {
             </FieldShell>
           </div>
         </div>
-        <NestedBedSelectionPanel
-          open={showBedPickerModal}
-          beds={observationBedOptions}
-          initialSelectedId={admitForm.bedId}
-          onClose={() => setShowBedPickerModal(false)}
-          onConfirm={(bedId) => setAdmitForm((prev) => ({ ...prev, bedId }))}
-        />
       </Popup>
 
       {/* Bed picker nested inside admit Popup above — Popup stack handles z-index. */}

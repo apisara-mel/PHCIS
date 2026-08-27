@@ -68,7 +68,7 @@ const SUMMARY_CARDS = [
 
 /* Tab strip — Figma Registration Dashboard 292:88376 (Tab Bar / Underline). */
 const TABS = [
-  { key: 'pending',   label: 'รอลงทะเบียน',          icon: 'schedule',      count: 0 },
+  { key: 'pending',   label: 'คิววันนี้',              icon: 'schedule',      count: 0 },
   { key: 'progress',  label: 'กำลังลงทะเบียน',        icon: 'assignment',    count: 0 },
   { key: 'done',      label: 'ลงทะเบียนแล้ว',         icon: 'check_circle',  count: 0 },
   { key: 'draft',     label: 'ที่ร่างไว้',             icon: 'save',          count: 0 },
