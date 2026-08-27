@@ -51,6 +51,8 @@ import Popup from '@/components/popup/Popup';
 import DragAndDrop from '@/components/form-builder/DragAndDrop';
 import {
   formatNationalId,
+  foreignIdDisplayValue,
+  foreignIdPatch,
   formatThaiBuddhistDate,
   parseThaiBuddhistDate,
   ID_CARD_CHIP_PHOTO_MOCK,
@@ -887,6 +889,16 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
   const ageFromYear = !birthYearError && String(form.birthYearBE || '').length === 4
     ? `${currentBE - Number(form.birthYearBE)} ปี`
     : '';
+  /* สลับกลุ่มคนไทย ↔ ไม่ใช่คนไทย — ล้างค่าที่ไม่เกี่ยวกับกลุ่มใหม่ทิ้ง ไม่งั้น
+     เลข Passport ที่พิมพ์ไว้จะติดไปกับคนไทยและถูกพิมพ์ลงบัตรผู้รับบริการ */
+  const handleNonThaiToggle = (checked) => {
+    setForm((s) => ({
+      ...s,
+      hnGroup: checked ? 'foreign-doc' : 'thai-cid',
+      ...(checked ? {} : { passportNo: '' }),
+    }));
+  };
+
   const handleDobUnknownToggle = (checked) => {
     setForm((s) => ({
       ...s,
@@ -972,20 +984,6 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
             </Field>
           </FieldGrid>
 
-          {/* TOR 1.1.1.20 กลุ่ม 2 — ชาวต่างชาติ: เลข Passport บังคับ */}
-          {isForeignDoc && (
-            <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
-              <Field label='เลขที่ Passport' required>
-                <InputField
-                  value={form.passportNo}
-                  onChange={(v) => set('passportNo')(String(v ?? '').toUpperCase())}
-                  placeholder='เช่น MJ0455812'
-                  maxLength={12}
-                />
-              </Field>
-            </FieldGrid>
-          )}
-
           {/* Figma 205:14733 — เพศกำเนิด aligns with คำนำหน้า col; เพศสภาพ with ชื่อ. */}
           <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
             <Field label='เพศกำเนิด' required>
@@ -1009,18 +1007,37 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
 
           <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
             <Field
-              label='เลขบัตรประชาชน'
-              required={!isForeignDoc && !isNoDoc}
+              label={isForeignDoc ? 'เลขบัตรประชาชน 13 หลัก หรือ Passport' : 'เลขบัตรประชาชน'}
+              required={!isNoDoc}
               hint={isNoDoc ? 'กลุ่มไม่มีเอกสาร — ออก HN ชั่วคราว ไม่ต้องกรอกเลขบัตร' : undefined}
             >
-              <InputField
-                value={form.nationalId}
-                onChange={(v) => set('nationalId')(formatNationalId(v))}
-                placeholder={isNoDoc ? 'ไม่ต้องกรอก (HN ชั่วคราว)' : 'เลขบัตรประชาชน'}
-                disabled={fromChip || isNoDoc}
-                maxLength={17}
-                inputMode='numeric'
-              />
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+                <InputField
+                  value={isForeignDoc ? foreignIdDisplayValue(form) : form.nationalId}
+                  onChange={(v) => (isForeignDoc
+                    ? setForm((st) => ({ ...st, ...foreignIdPatch(v) }))
+                    : set('nationalId')(formatNationalId(v)))}
+                  placeholder={isNoDoc
+                    ? 'ไม่ต้องกรอก (HN ชั่วคราว)'
+                    : isForeignDoc
+                      ? 'เลข 13 หลัก หรือเลข Passport เช่น MJ0455812'
+                      : 'เลขบัตรประชาชน'}
+                  disabled={fromChip || isNoDoc}
+                  maxLength={isForeignDoc ? 17 : 17}
+                  inputMode={isForeignDoc ? 'text' : 'numeric'}
+                />
+                {/* TOR 1.1.1.20 กลุ่ม 2 — ผู้รับบริการที่ไม่ใช่คนไทยใช้ได้ทั้งเลข 13 หลัก
+                    (เลขประจำตัวคนต่างด้าว) และเลข Passport จึงเป็นช่องเดียวแล้วติ๊กบอกกลุ่ม
+                    ติ๊กแล้ว HN ขึ้นต้นด้วย F และชื่อภาษาอังกฤษห้ามมีอักษรไทย */}
+                {!isNoDoc && (
+                  <Checkbox
+                    checked={isForeignDoc}
+                    onChange={handleNonThaiToggle}
+                    disabled={fromChip}
+                    label='ไม่ใช่คนไทย'
+                  />
+                )}
+              </div>
             </Field>
             <Field label='วันออกบัตร' required>
               <DatePicker
