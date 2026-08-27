@@ -105,6 +105,9 @@ const HorizontalVitalItem = ({
   slot,
   variant = 'strip',
   equalColumns = 5,
+  /* พื้นที่ขั้นต่ำต่อช่อง — โหมด `single` วางครบ 9 ค่าในแถวเดียว ถ้าปล่อยให้
+     ยืดหดอิสระ ป้ายภาษาอังกฤษจะถูกตัดกลางคำ ("Temperatur / e") */
+  minTileWidth = null,
 }) => {
   const variantClass = variant === 'grid' || variant === 'tablet-grid'
     ? 'w-full min-w-0'
@@ -116,7 +119,7 @@ const HorizontalVitalItem = ({
     ? { width: '100%' }
     : variant === 'tablet'
       ? equalColumnStyle(equalColumns)
-      : undefined;
+      : (minTileWidth ? { flex: '1 0 auto', minWidth: minTileWidth, maxWidth: 'none' } : undefined);
 
   return (
     <div
@@ -297,7 +300,12 @@ export const VitalsSignHorizontalStrip = ({
         >
           {tiles.map((tile, i) => (
             <React.Fragment key={tile.key}>
-              <HorizontalVitalItem tile={tile} slot={vitals?.[tile.key]} variant='strip' />
+              <HorizontalVitalItem
+                tile={tile}
+                slot={vitals?.[tile.key]}
+                variant='strip'
+                minTileWidth={116}
+              />
               {i < tiles.length - 1 && <TileDivider />}
             </React.Fragment>
           ))}

@@ -1122,28 +1122,45 @@ export const MedicalHistoryReadOnlyLayout = ({
           />
         ) : (
         <>
+        {/* สัญญาณชีพเป็นแถวเดียว (`single`) แทนกริด 5×2 ของ `tablet` — ประหยัด
+            ความสูงไปครึ่งหนึ่ง และค่าทั้ง 9 อ่านไล่ไปทางเดียวได้ในสายตาเดียว
+            อาการป่วย + Pain score วางคู่กันเป็นสองคอลัมน์แทนการซ้อนกันเต็มแถว
+            (มติผู้ใช้ 28 ส.ค. 69) */}
         <VitalsSignHorizontalPanel
           key={selected.date}
-          layout='tablet'
+          layout='single'
           measurementRounds={selected.measurementRounds ?? DEFAULT_MEASUREMENT_ROUNDS}
           graphSubtitle={selected.date ? `การวัด — ${selected.date}` : undefined}
         />
 
-        {/* อาการป่วย */}
-        <SummaryPanel title='อาการป่วย'>
-          <div className='flex w-full' style={{ gap: 'var(--dim-space-400)' }}>
-            <HistoryInfoText label='อาการ (Chief Complaint)' value={selected.cc} />
-            <HistoryInfoText label='ระยะเวลาที่มีอาการ (Duration of Illness)' value={selected.duration} />
-          </div>
-        </SummaryPanel>
+        <div
+          className='grid w-full'
+          style={{
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: 'var(--dim-space-400)',
+            alignItems: 'start',
+          }}
+        >
+          <SummaryPanel title='อาการป่วย'>
+            <div className='flex w-full' style={{ gap: 'var(--dim-space-400)' }}>
+              <HistoryInfoText label='อาการ (Chief Complaint)' value={selected.cc} />
+              <HistoryInfoText label='ระยะเวลาที่มีอาการ (Duration of Illness)' value={selected.duration} />
+            </div>
+          </SummaryPanel>
 
-        {/* ระดับความเจ็บปวด (Pain Score) */}
-        <SummaryPanel title='ระดับความเจ็บปวด (Pain Score)'>
-          <PainTile pain={selected.pain} />
-        </SummaryPanel>
+          <SummaryPanel title='ระดับความเจ็บปวด (Pain Score)'>
+            <PainTile pain={selected.pain} />
+          </SummaryPanel>
+        </div>
 
         <SummaryPanel title='ประวัติการแพ้ยา / สารเคมี'>
-          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          <div
+            className='grid w-full'
+            style={{
+              gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+              gap: 'var(--dim-space-300)',
+            }}
+          >
             {selected.allergies.map((entry, i) => (
               <AllergyCard key={`allergy-${i}`} index={i} entry={entry} />
             ))}
@@ -1151,7 +1168,13 @@ export const MedicalHistoryReadOnlyLayout = ({
         </SummaryPanel>
 
         <SummaryPanel title='ประวัติโรคประจำตัว (Underlying Disease / Congenital Disease)'>
-          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+          <div
+            className='grid w-full'
+            style={{
+              gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+              gap: 'var(--dim-space-300)',
+            }}
+          >
             {selected.chronicDiseases.map((entry, i) => (
               <ChronicDiseaseCard key={`chronic-${i}`} index={i} entry={entry} />
             ))}
