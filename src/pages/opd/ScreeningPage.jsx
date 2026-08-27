@@ -5,6 +5,8 @@ import Header, { SubHeader } from '@/components/layout/Header';
 import PatientCard from '@/components/card/PatientCard';
 import RecordWizardMorphBand, { MORPH_STICKY_BELOW_PATIENT } from '@/components/layout/RecordWizardMorphBand';
 import QueueSubMenu from '@/components/layout/QueueSubMenu';
+import QueueCallActions from '@/components/queue/QueueCallActions';
+import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
 import { useStepDirection } from '@/components/step/stepTransition';
 import ScreeningStep1 from '@/pages/opd/ScreeningStep1';
 import ScreeningStep3 from '@/pages/opd/ScreeningStep3';
@@ -989,8 +991,20 @@ const ScreeningPage = () => {
   /* QueueSubMenu — same Sub Menu B pattern as TreatmentFormPage /
      RegistrationFormPage. Buckets come from the shared OPD roster so
      counts match /opd/queue. */
+  /* ปุ่มจัดการคิวในพาเนล (มติผู้ใช้ 28 ส.ค. 69) — roster กลางยังเป็นค่าคงที่
+     ไม่มี store ที่เขียนได้ จึงเก็บผลของ พักคิว/ยกเลิกคิว เป็น state ของหน้านี้
+     แบบเดียวกับพาเนลคิวของหน้าลงทะเบียน: `paused` แค่สลับปุ่ม ส่วนยกเลิกเอาแถวออก */
+  const [queuePaused, setQueuePaused] = useState({});
+  const [queueCancelled, setQueueCancelled] = useState({});
+  const [queueCancelCandidate, setQueueCancelCandidate] = useState(null);
+
   const queueBuckets = useMemo(() => {
-    const raw = buildOpdQueueSubMenuBuckets(OPD_QUEUE_ROWS);
+    /* หมวด "คิวที่รออยู่" แสดงครบทุกคิว ไม่ตัดเหลือ 2 แถวแบบ preview —
+       พาเนลเหลือหมวดเดียวและมี overflow-y อยู่แล้ว ลิสต์ยาวจึงเลื่อนได้ */
+    const raw = buildOpdQueueSubMenuBuckets(
+      OPD_QUEUE_ROWS.filter((r) => !queueCancelled[r.id]),
+      { waiting: Infinity },
+    );
     const map = (rows) => rows.map((r) => ({
       id: r.id,
       hn: r.hn,
@@ -1005,7 +1019,7 @@ const ScreeningPage = () => {
       inProgress: { items: map(raw.inProgress.items), total: raw.inProgress.total },
       waiting: { items: map(raw.waiting.items), total: raw.waiting.total },
     };
-  }, []);
+  }, [queueCancelled]);
 
   const goToPatientScreening = useCallback((p) => {
     history.push({
@@ -1096,11 +1110,37 @@ const ScreeningPage = () => {
       {/* QueueSubMenu — Figma "Sub Menu B" (same as /treat/record). Sits
           between Sidebar and the screening form so nurses can jump to
           another queue patient without returning to /opd/queue first. */}
+      <DeleteQueueConfirmPopup
+        open={!!queueCancelCandidate}
+        onClose={() => setQueueCancelCandidate(null)}
+        onConfirm={() => {
+          setQueueCancelled((s2) => ({ ...s2, [queueCancelCandidate.id]: true }));
+          setQueueCancelCandidate(null);
+        }}
+        title='ยืนยันการยกเลิกคิว'
+        subtitle='คิวนี้จะถูกนำออกจากรายการ และไม่สามารถย้อนกลับได้'
+        queue={queueCancelCandidate?.queue}
+        hn={queueCancelCandidate?.hn || '—'}
+        patientName={queueCancelCandidate?.name || '—'}
+      />
       <QueueSubMenu
         queue={queueBuckets}
         sectionLabels={OPD_QUEUE_SUBMENU_LABELS}
-        onViewAll={() => history.push('/opd/queue')}
+        /* เห็นแค่ "คิวที่รออยู่" พร้อมเลขคิวและปุ่มจัดการคิว · ไม่มีจุดสีนำหน้า
+           และไม่มีปุ่ม "ดูทั้งหมด" แล้ว (มติผู้ใช้ 28 ส.ค. 69) — พาเนลเหลือ
+           หมวดเดียว จุดสีจึงไม่ได้แยกอะไร และทางออกไปคิวเต็มอยู่ที่ rail อยู่แล้ว */
+        sections={['waiting']}
+        showQueueNo
+        showDots={false}
         onPickPatient={goToPatientScreening}
+        renderRowActions={(p) => (
+          <QueueCallActions
+            paused={!!queuePaused[p.id]}
+            onPause={() => setQueuePaused((s2) => ({ ...s2, [p.id]: !s2[p.id] }))}
+            onCancel={() => setQueueCancelCandidate(p)}
+            onCall={() => goToPatientScreening(p)}
+          />
+        )}
       />
       <main className='flex-1 flex flex-col min-w-0'>
         {/* ส่ง breadcrumb เองแทนการพึ่ง default ของ <Header> (ซึ่งยังเป็น
