@@ -1882,6 +1882,34 @@ export const Step3Examination = ({ form, setForm, patient }) => {
         measurementRounds={DEFAULT_MEASUREMENT_ROUNDS}
       />
 
+      {/* บันทึกการตรวจ (บันทึกจากพยาบาล ↔ บันทึกของแพทย์) ย้ายขึ้นบนสุดและแยก
+          เป็นการ์ดของตัวเอง — เดิมอยู่ท้ายการ์ดเดียวกับแผนภาพร่างกายและไฟล์แนบ
+          ทั้งที่เป็นคนละงาน: อันนี้คือ "พิมพ์สิ่งที่ตรวจพบ" ส่วนอีกอันคือ
+          "ชี้ตำแหน่งบนภาพ" (มติผู้ใช้ 28 ส.ค. 69) */}
+      <div
+        className='flex flex-col w-full'
+        style={{
+          gap: 'var(--dim-space-400)',
+          padding: 'var(--dim-space-600)',
+          borderRadius: 'var(--dim-radius-400)',
+          background: 'var(--surface-card-100)',
+        }}
+      >
+        <ExamNotesPanel
+          embedded
+          nurseNotes={form.nurseExam}
+          doctorNotes={form.doctorExam}
+          attachments={form.examAttachments}
+          onDoctorChange={set('doctorExam')}
+          onCopyFromNurse={handleCopyFromNurse}
+          onAttachmentsChange={handleAttachmentsChange}
+          onRemoveAttachment={(id) => setForm((s) => ({
+            ...s,
+            examAttachments: (s.examAttachments || []).filter((f) => f.id !== id),
+          }))}
+        />
+      </div>
+
       <div
         className='flex flex-col w-full'
         style={{
@@ -1913,20 +1941,6 @@ export const Step3Examination = ({ form, setForm, patient }) => {
           onSystemChange={set('examSystem')}
           onViewChange={set('examView')}
           sidebar={<ExamSupportList width={320} patientHn={patient?.hn} />}
-        />
-
-        <ExamNotesPanel
-          embedded
-          nurseNotes={form.nurseExam}
-          doctorNotes={form.doctorExam}
-          attachments={form.examAttachments}
-          onDoctorChange={set('doctorExam')}
-          onCopyFromNurse={handleCopyFromNurse}
-          onAttachmentsChange={handleAttachmentsChange}
-          onRemoveAttachment={(id) => setForm((s) => ({
-            ...s,
-            examAttachments: (s.examAttachments || []).filter((f) => f.id !== id),
-          }))}
         />
 
         {/* EMR §1.4.3.22 / §1.4.6.5 — ไฟล์แนบ multimedia พร้อมโควตาจริง
