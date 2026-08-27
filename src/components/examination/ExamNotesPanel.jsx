@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import BrandCircleSubdueIconButton from '@/components/button/BrandCircleSubdueIconButton';
 import DragAndDrop from '@/components/form-builder/DragAndDrop';
+import Select from '@/components/forms/Select';
+import { getCarriedScreening } from '@/data/screeningHandoff';
+import Checkbox from '@/components/checkbox/Checkbox';
 import Tooltip from '@/components/tooltip/Tooltip';
 import {
   CHIEF_COMPLAINT_SUGGESTIONS,
   PRESENT_ILLNESS_SUGGESTIONS,
   PHYSICAL_EXAM_SUGGESTIONS,
-  DURATION_SUGGESTIONS,
 } from '@/pages/opd/ScreeningPage';
 
 /* MIH ExamNotesPanel — Figma PHCIS | Medical-examination 151:36633 (บันทึกการตรวจ).
@@ -221,8 +223,8 @@ const DOCTOR_FIELDS = [
     key: 'cc',
     label: 'อาการ (Chief Complaint)',
     required: true,
-    height: 140,
-    minHeight: 120,
+    height: 104,
+    minHeight: 88,
     suggestions: CHIEF_COMPLAINT_SUGGESTIONS,
     minChars: 3,
     popoverAriaLabel: 'คำแนะนำอาการ',
@@ -231,8 +233,8 @@ const DOCTOR_FIELDS = [
     key: 'pi',
     label: 'ประวัติปัจจุบัน (Present Illness)',
     required: true,
-    height: 180,
-    minHeight: 140,
+    height: 104,
+    minHeight: 88,
     suggestions: PRESENT_ILLNESS_SUGGESTIONS,
     minChars: 3,
     popoverAriaLabel: 'คำแนะนำประวัติปัจจุบัน',
@@ -241,8 +243,8 @@ const DOCTOR_FIELDS = [
     key: 'pe',
     label: 'ตรวจร่างกาย (Physical Examination)',
     required: true,
-    height: 240,
-    minHeight: 180,
+    height: 120,
+    minHeight: 96,
     suggestions: PHYSICAL_EXAM_SUGGESTIONS,
     minChars: 3,
     popoverAriaLabel: 'คำแนะนำผลตรวจร่างกาย',
@@ -251,13 +253,22 @@ const DOCTOR_FIELDS = [
     key: 'duration',
     label: 'ระยะเวลาที่มีอาการ',
     required: true,
-    height: 120,
-    minHeight: 96,
-    suggestions: DURATION_SUGGESTIONS,
-    minChars: 1,
-    popoverAriaLabel: 'คำแนะนำระยะเวลา',
+    /* เป็นดรอปดาวน์ ไม่ใช่ช่องพิมพ์ — ระยะเวลาเป็นค่าที่เลือกจากชุดเดียวกันทุกครั้ง
+       การพิมพ์อิสระทำให้ได้ "3วัน" "3 วัน" "สามวัน" ปนกันจนสรุปสถิติไม่ได้
+       (มติผู้ใช้ 28 ส.ค. 69) */
+    control: 'select',
+    options: SYMPTOM_DURATION_OPTIONS,
   },
 ];
+
+/* 1 วัน → 1 ปี — ถี่ช่วงต้น (วัน) แล้วห่างขึ้นเรื่อย ๆ ตามที่หมอถามจริง */
+export const SYMPTOM_DURATION_OPTIONS = [
+  '1 วัน', '2 วัน', '3 วัน', '4 วัน', '5 วัน', '6 วัน',
+  '1 สัปดาห์', '2 สัปดาห์', '3 สัปดาห์',
+  '1 เดือน', '2 เดือน', '3 เดือน', '4 เดือน', '5 เดือน', '6 เดือน',
+  '7 เดือน', '8 เดือน', '9 เดือน', '10 เดือน', '11 เดือน',
+  '1 ปี',
+].map((v) => ({ value: v, label: v }));
 
 const Field = ({ label, required, children }) => (
   <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150)' }}>
@@ -281,6 +292,11 @@ const ExamNotesPanel = ({
   nurseNotes = {},
   doctorNotes = {},
   attachments = [],
+  /** ใช้ดึงผลคัดกรองมาแสดงในคอลัมน์ซ้ายให้ครบทุกหัวข้อ */
+  patient = null,
+  /** ผลที่ระบบมีอยู่แล้วและถูกติ๊กให้แนบไปกับบันทึก — { lab, imaging } */
+  linkedResults = {},
+  onLinkedResultsChange,
   onDoctorChange,
   onCopyFromNurse,
   onAttachmentsChange,
@@ -291,6 +307,47 @@ const ExamNotesPanel = ({
   /* SuggestibleTextarea emits DOM-event-shaped onChange — extract value. */
   const setDoctorFromEvent = (key) => (e) =>
     onDoctorChange?.({ ...doctorNotes, [key]: e?.target?.value ?? '' });
+
+  /* คอลัมน์ซ้ายต้องเห็น "ทุกอย่างที่พยาบาลบันทึกไว้" ไม่ใช่แค่ 4 ช่องที่คัดลอกได้
+     — สัญญาณชีพ · อาการป่วย · ความเร่งด่วน · Pain score · คำสั่งการพยาบาล ·
+     สิ่งที่จุดคัดกรองระบุไว้ · เตียงสังเกตอาการ (มติผู้ใช้ 28 ส.ค. 69) */
+  const screening = getCarriedScreening(patient || {});
+  const nurseBlocks = [
+    {
+      title: 'สัญญาณชีพล่าสุด',
+      rows: (screening.vitalItems || []).filter((v) => v.value)
+        .map((v) => [v.label, v.value]),
+    },
+    {
+      title: 'อาการป่วย',
+      rows: [
+        ['อาการสำคัญ (CC)', screening.cc],
+        ['ระยะเวลาที่มีอาการ', screening.duration],
+        ['ประวัติการเจ็บป่วยปัจจุบัน', screening.presentIllness],
+      ].filter(([, v]) => v),
+    },
+    {
+      title: 'ความเร่งด่วน',
+      rows: screening.triage
+        ? [['ระดับ', `${screening.triage.label} · ${screening.triage.subLabel}`]]
+        : [],
+    },
+    {
+      title: 'ระดับความเจ็บปวด (Pain Score)',
+      rows: screening.pain ? [['ระดับ', screening.pain.label]] : [],
+    },
+    {
+      title: 'คำสั่งการพยาบาลและการสังเกตอาการ',
+      rows: (screening.orders || []).map((o, i) => [`คำสั่งที่ ${i + 1}`, o]),
+    },
+    {
+      title: 'สิ่งที่จุดคัดกรองระบุไว้',
+      rows: [
+        ['ใบรับรองแพทย์', screening.cert == null ? '' : (screening.cert ? 'ต้องการ' : 'ไม่ต้องการ')],
+        ['เตียงสังเกตอาการ', screening.bedId],
+      ].filter(([, v]) => v),
+    },
+  ].filter((b) => b.rows.length > 0);
 
   /* embedded = หน้าที่เรียกใช้เป็นคนวางการ์ดขาวและ padding เอง พาเนลจึงโปร่งใส
      ไม่งั้นจะได้พื้นเทาซ้อนอยู่ในการ์ดขาวอีกชั้น (มติผู้ใช้ 28 ส.ค. 69) */
@@ -312,27 +369,20 @@ const ExamNotesPanel = ({
       className={`flex flex-col w-full ${className}`}
       style={shellStyle}
     >
-      <span style={{
-        color: 'var(--text-topic-secondary-title)',
-        fontFamily: 'var(--type-family-heading-content)',
-        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-        fontSize: 'var(--type-size-base)',
-      }}
-      >
-        บันทึกการตรวจ
-      </span>
+      {/* หัวข้อ "บันทึกการตรวจ" ถูกเอาออก 28 ส.ค. 69 — หัวข้อย่อยสองคอลัมน์
+          (บันทึกจากพยาบาล / บันทึกของแพทย์) บอกอยู่แล้วว่าการ์ดนี้คืออะไร */}
 
       <div className='flex w-full items-stretch min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
         {/* Nurse column */}
         <div
           className='flex flex-col shrink-0'
           style={{
+            /* ไม่มีพื้นขาว/กรอบของตัวเอง — การ์ดขาวมาจากตัวห่อในหน้าแล้ว
+               (มติผู้ใช้ 28 ส.ค. 69) เหลือเส้นคั่นบาง ๆ ระหว่างสองคอลัมน์ */
             width: 448,
             gap: 'var(--dim-space-400)',
-            padding: 'var(--dim-space-600)',
-            borderRadius: 'var(--dim-radius-400)',
-            border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
-            background: 'var(--surface-card-100)',
+            paddingRight: 'var(--dim-space-600)',
+            borderRight: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
           }}
         >
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
@@ -376,6 +426,40 @@ const ExamNotesPanel = ({
               />
             );
           })}
+
+          {nurseBlocks.map((block) => (
+            <div
+              key={block.title}
+              className='flex flex-col w-full'
+              style={{
+                gap: 'var(--dim-space-200)',
+                padding: 'var(--dim-space-400)',
+                borderRadius: 'var(--dim-radius-300)',
+                border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+              }}
+            >
+              <span style={{
+                color: 'var(--text-content-tertiary)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs)',
+                fontWeight: 'var(--type-weight-medium)',
+              }}>{block.title}</span>
+              {block.rows.map(([label, value]) => (
+                <div key={label} className='flex items-baseline w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                  <span style={{
+                    color: 'var(--text-content-tertiary)',
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-xs)',
+                  }}>{label}</span>
+                  <span className='ml-auto text-right' style={{
+                    color: 'var(--text-content-default)',
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-sm)',
+                  }}>{value}</span>
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
 
         {/* Doctor column */}
@@ -383,10 +467,7 @@ const ExamNotesPanel = ({
           className='flex flex-col flex-1 min-w-0'
           style={{
             gap: 'var(--dim-space-400)',
-            padding: 'var(--dim-space-600)',
-            borderRadius: 'var(--dim-radius-400)',
-            border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
-            background: 'var(--surface-card-100)',
+            paddingLeft: 'var(--dim-space-600)',
           }}
         >
           <span style={{
@@ -401,16 +482,25 @@ const ExamNotesPanel = ({
 
           {DOCTOR_FIELDS.map((f) => (
             <Field key={f.key} label={f.label} required={f.required}>
-              <SuggestibleTextarea
-                voice
-                value={doctorNotes[f.key] ?? ''}
-                onChange={setDoctorFromEvent(f.key)}
-                height={f.height}
-                minHeight={f.minHeight}
-                suggestions={f.suggestions}
-                minChars={f.minChars}
-                popoverAriaLabel={f.popoverAriaLabel}
-              />
+              {f.control === 'select' ? (
+                <Select
+                  value={doctorNotes[f.key] ?? ''}
+                  onChange={(v) => onDoctorChange?.({ ...doctorNotes, [f.key]: v })}
+                  options={f.options}
+                  placeholder='เลือกระยะเวลาที่มีอาการ'
+                />
+              ) : (
+                <SuggestibleTextarea
+                  voice
+                  value={doctorNotes[f.key] ?? ''}
+                  onChange={setDoctorFromEvent(f.key)}
+                  height={f.height}
+                  minHeight={f.minHeight}
+                  suggestions={f.suggestions}
+                  minChars={f.minChars}
+                  popoverAriaLabel={f.popoverAriaLabel}
+                />
+              )}
             </Field>
           ))}
 
@@ -430,9 +520,29 @@ const ExamNotesPanel = ({
             >
               ข้อมูลประกอบการวินิจฉัย
             </span>
+            {/* แนบผลที่ระบบมีอยู่แล้วด้วยการติ๊ก ไม่ต้องดาวน์โหลดมาอัปโหลดซ้ำ —
+                ติ๊กแล้วผลของ visit นี้จะถูกอ้างอิงไปกับบันทึกการตรวจ
+                (มติผู้ใช้ 28 ส.ค. 69) */}
+            <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
+              <Checkbox
+                label='แนบผลแล็บ'
+                checked={!!linkedResults.lab}
+                onChange={(e) => onLinkedResultsChange?.({
+                  ...linkedResults, lab: e?.target?.checked ?? !linkedResults.lab,
+                })}
+              />
+              <Checkbox
+                label='แนบผลฉายรังสี'
+                checked={!!linkedResults.imaging}
+                onChange={(e) => onLinkedResultsChange?.({
+                  ...linkedResults, imaging: e?.target?.checked ?? !linkedResults.imaging,
+                })}
+              />
+            </div>
             <DragAndDrop
               onChange={(files) => onAttachmentsChange?.(files)}
               accept='.png,.jpg,.jpeg,.pdf'
+              style={{ minHeight: 96 }}
             />
             {attachments.length > 0 && (
               <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>

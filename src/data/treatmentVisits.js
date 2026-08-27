@@ -311,14 +311,12 @@ export const EXAM_VIEW_TABS = [
   { key: 'right', label: 'ด้านขวา' },
 ];
 
+/* รางข้างแผนภาพร่างกายเหลือแค่ผลตรวจของ visit นี้ — ห้ารายการประวัติ (วัคซีน ·
+   การรักษา · ส่งปรึกษา · จ่ายยา · ส่งต่อ) ถูกเอาออก 28 ส.ค. 69 เพราะย้ายไปอยู่
+   เป็นแท็บในป๊อปอัป "ข้อมูลทางการแพทย์ (EMR)" ครบแล้ว มีสองทางเข้าซ้ำกัน */
 export const EXAM_SUPPORT_ITEMS = [
   { key: 'lab', label: 'ผลตรวจชันสูตร', circleIcon: 'biotech', hasResult: true },
   { key: 'radiology', label: 'ผลตรวจรังสี', circleIcon: 'radiology', hasResult: true },
-  { key: 'vaccine', label: 'ประวัติการฉีดวัคซีน', circleIcon: 'vaccines', hasResult: false },
-  { key: 'history', label: 'ประวัติการรักษา', circleIcon: 'stethoscope', hasResult: false },
-  { key: 'referral', label: 'ประวัติส่งปรึกษา', circleIcon: 'forum', hasResult: false },
-  { key: 'rx', label: 'ประวัติการจ่ายยา', circleIcon: 'pill', hasResult: false },
-  { key: 'transfer', label: 'ประวัติการส่งต่อ', circleIcon: 'swap_horiz', hasResult: false },
 ];
 
 export const DEFAULT_NURSE_EXAM_NOTES = {
@@ -1481,10 +1479,12 @@ export const CERT_DOCTOR_OPTIONS = [
   },
 ];
 
+/* เลขใบอนุญาตประกอบวิชาชีพเวชกรรมขึ้นต้นด้วย "ว." — "ท." เป็นของทันตแพทย์
+   (มติผู้ใช้ 28 ส.ค. 69) */
 export const CERT_LICENSE_OPTIONS = [
-  { value: 'TH-00012345', label: 'ท.00012345' },
-  { value: 'TH-00034521', label: 'ท.00034521' },
-  { value: 'TH-00045678', label: 'ท.00045678' },
+  { value: 'TH-00012345', label: 'ว.00012345' },
+  { value: 'TH-00034521', label: 'ว.00034521' },
+  { value: 'TH-00045678', label: 'ว.00045678' },
 ];
 
 /* Doctor-order suggestions surfaced under คำสั่งแพทย์ — Thai-prefixed

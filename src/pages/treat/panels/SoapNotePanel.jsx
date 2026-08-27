@@ -3,6 +3,7 @@ import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import StatusBadge from '@/components/badge/StatusBadge';
+import TabPill, { TabBar } from '@/components/tab/TabPill';
 import BrandButton from '@/components/button/BrandButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -17,7 +18,7 @@ import {
   PanelAlert, ReasonDialog, CountLabel,
 } from '@/pages/treat/panels/panelHooks';
 import {
-  SOAP_FIELDS, SOAP_SUGGESTIONS, SOAP_TEMPLATES, soapTemplateMeta,
+  SOAP_FIELDS, SOAP_SUGGESTIONS,
   PATIENT_ADVICE_TOPICS, MIN_SOAP_CHARS, blankSoap, soapHasContent,
   soapDiffFields, pastSoapFor, rememberSoap, auditSoap,
 } from '@/data/treatmentSoap';
@@ -45,6 +46,15 @@ const LETTER_TONE = {
   a: { bg: 'var(--surface-colorfulbadge-magenta, #FCE7F3)', fg: 'var(--text-colorfulbadge-magenta, #BE185D)' },
   p: { bg: 'var(--surface-colorfulbadge-orange, #FFEDD5)', fg: 'var(--text-statusbadge-warning, #C2410C)' },
 };
+
+/* แต่ละตัวอักษรเป็นการ์ดของตัวเองอยู่แล้ว แต่ทั้งสี่ใบหน้าตาเหมือนกันหมด
+   กวาดตาแล้วแยกไม่ออกว่าอยู่ช่วงไหน — ติดแถบสีซ้ายตามสีประจำตัวอักษร
+   (เดียวกับ LetterAvatar) แล้วเว้นระยะระหว่างการ์ดให้กว้างขึ้น
+   (มติผู้ใช้ 28 ส.ค. 69) */
+const soapCardStyle = (tone) => ({
+  borderLeft: `var(--dim-stroke-400, 4px) solid ${tone.fg}`,
+  boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+});
 
 const LetterAvatar = ({ letter, tone }) => (
   <span
@@ -124,13 +134,14 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
     [key]: typeof e === 'string' ? e : e?.target?.value ?? '',
   });
 
-  const [templateGuard, setTemplateGuard] = useState(null);
   const [copyOpen, setCopyOpen] = useState(false);
   const [copyPick, setCopyPick] = useState(null);
   const [saveGuard, setSaveGuard] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [amendTarget, setAmendTarget] = useState(null);
-  const [adviceOpen, setAdviceOpen] = useState('');
+  /* เปิดมาที่ "การใช้ยา" เลย — เป็นหัวข้อที่หมอกรอกแทบทุกครั้ง และการ์ดที่ไม่มี
+     ช่องพิมพ์เปิดอยู่จะดูเหมือนยังโหลดไม่เสร็จ (มติผู้ใช้ 28 ส.ค. 69) */
+  const [adviceOpen, setAdviceOpen] = useState(PATIENT_ADVICE_TOPICS[0].key);
 
   /* โน้ตของ visit นี้ที่บันทึกไปแล้ว (แสดง/แก้ไข/ยกเลิก ครบ 4 การกระทำ) */
   const [notes, refreshNotes] = useTreatmentStore(
@@ -244,30 +255,8 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
     auditSoap({ hn, visitId, field: 'ดึงข้อมูลเข้าช่อง O', newValue: text.slice(0, 80) });
   };
 
-  /* ── เทมเพลต ────────────────────────────────────────────── */
-  const applyTemplate = (key) => {
-    const tpl = soapTemplateMeta(key);
-    if (!tpl) return;
-    setSoap((s) => ({
-      ...s,
-      templateKey: key,
-      s: s.s ? `${s.s}\n${tpl.body.s}` : tpl.body.s,
-      o: s.o ? `${s.o}\n${tpl.body.o}` : tpl.body.o,
-      a: s.a ? `${s.a}\n${tpl.body.a}` : tpl.body.a,
-      p: s.p ? `${s.p}\n${tpl.body.p}` : tpl.body.p,
-    }));
-    auditSoap({ hn, visitId, field: 'ใช้เทมเพลต SOAP', newValue: tpl.label });
-    setTemplateGuard(null);
-  };
-
-  const requestTemplate = (key) => {
-    if (!key) return;
-    if (['s', 'o', 'a', 'p'].some((k) => String(soap[k] || '').trim())) {
-      setTemplateGuard(key);
-      return;
-    }
-    applyTemplate(key);
-  };
+  /* เทมเพลต SOAP ถูกเอาออกทั้งชุด 28 ส.ค. 69 — ช่อง S/O/A/P ต้องเริ่มว่างเปล่า
+     ไม่มีโครงร่างเติมให้ (ตัวเลือกเทมเพลตบนแถบเครื่องมือถูกตัดไปก่อนหน้านี้แล้ว) */
 
   /* ── copy-forward ───────────────────────────────────────── */
   const applyCopy = () => {
@@ -367,55 +356,13 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
   };
 
   return (
-    <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-      {/* แถบเครื่องมือบนสุด — เทมเพลต + copy-forward + บันทึก */}
-      <PanelCard
-        title='SOAP Note — บันทึกการรักษาของแพทย์'
-        subtitle={`ผู้บันทึก ${cardPatient?.fullName ? 'สำหรับ ' + cardPatient.fullName : ''} · บันทึกนี้จะไปแสดงที่แท็บ "บันทึกทางคลินิก" และประวัติการแก้ไขโดยอัตโนมัติ`}
-        action={
-          <>
-            <GuardedAction
-              allowed={canEdit && pastVisits.length > 0}
-              reason={pastVisits.length === 0
-                ? 'ผู้รับบริการรายนี้ยังไม่มี SOAP Note จากการตรวจครั้งก่อน จึงคัดลอกไม่ได้'
-                : NO_EDIT_RIGHT_TOOLTIP}
-            >
-              <NeutralSubdueButton variant='outline' size='sm' leadingIcon='content_copy' onClick={() => setCopyOpen(true)}>
-                คัดลอกจาก SOAP ครั้งก่อน
-              </NeutralSubdueButton>
-            </GuardedAction>
-            <GuardedAction allowed={canEdit}>
-              <BrandPrimaryButton size='sm' leadingIcon='save' onClick={doSave}>
-                {soap.savedNoteId ? 'บันทึกการแก้ไข' : 'บันทึกเป็นบันทึกทางคลินิก'}
-              </BrandPrimaryButton>
-            </GuardedAction>
-          </>
-        }
-      >
-        <div className='flex flex-wrap items-end w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <div style={{ minWidth: 300, flex: 1 }}>
-            <Select
-              label='เทมเพลต SOAP'
-              value={soap.templateKey}
-              onChange={requestTemplate}
-              disabled={!canEdit}
-              options={SOAP_TEMPLATES.map((t) => ({ value: t.key, label: t.label, subtext: t.description }))}
-              placeholder='เลือกเทมเพลตเพื่อเติมโครงร่างทั้ง 4 ช่อง'
-              helperText='เทมเพลตจะ "ต่อท้าย" ข้อความเดิม ไม่เขียนทับสิ่งที่พิมพ์ไว้'
-            />
-          </div>
-          {soap.copiedFrom ? (
-            <ColorfulBadge style='yellow' size='default' width='hug' icon='content_copy'>
-              คัดลอกจากการตรวจ {soap.copiedFrom}
-            </ColorfulBadge>
-          ) : null}
-          {soap.savedNoteId ? (
-            <StatusBadge style='success' size='default' icon='check_circle'>บันทึกแล้ว</StatusBadge>
-          ) : (
-            <StatusBadge style='neutral' size='default' icon='edit_note'>ยังไม่ได้บันทึก (ร่างถูกเก็บอัตโนมัติ)</StatusBadge>
-          )}
-        </div>
-
+    <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+      {/* แถบเครื่องมือ SOAP บนสุด (หัวข้อ · เทมเพลต · คัดลอกจากครั้งก่อน ·
+          ปุ่มบันทึกเป็นบันทึกทางคลินิก · ป้ายสถานะการบันทึก) ถูกเอาออก
+          28 ส.ค. 69 — ⚠️ ปุ่มบันทึกที่ถูกตัดไปเป็นทางเดียวที่เรียก `doSave`
+          ตอนนี้จึงไม่มีทางสร้าง "บันทึกทางคลินิก" จากขั้นนี้ ต้องหาที่ผูกใหม่
+          (ร่างยังถูกเก็บอัตโนมัติตามเดิม) */}
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
         {!canEdit ? (
           <PanelAlert tone='info' icon='visibility' title='โหมดดูอย่างเดียว'>
             {NO_EDIT_RIGHT_TOOLTIP} — อ่านบันทึกได้ทั้งหมด แต่ปุ่มบันทึก/แก้ไข/ยกเลิกถูกปิดไว้
@@ -448,10 +395,11 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
             ช่องที่แก้ไข: {changedFields.map((k) => SOAP_FIELDS.find((f) => f.key === k)?.letter).join(' · ')}
           </PanelAlert>
         ) : null}
-      </PanelCard>
+      </div>
 
       {/* ── S ─────────────────────────────────────────────── */}
       <PanelCard
+        style={soapCardStyle(LETTER_TONE.s)}
         title={<span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           <LetterAvatar letter='S' tone={LETTER_TONE.s} />
           <span style={PANEL_TITLE_STYLE}>{SOAP_FIELDS[0].title}</span>
@@ -474,6 +422,7 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
         <SuggestibleTextarea
           voice
           label='บันทึก Subjective'
+          style={{ maxWidth: 'none' }}
           value={soap.s}
           onChange={setField('s')}
           suggestions={SOAP_SUGGESTIONS.s}
@@ -488,21 +437,12 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
 
       {/* ── O ─────────────────────────────────────────────── */}
       <PanelCard
+        style={soapCardStyle(LETTER_TONE.o)}
         title={<span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           <LetterAvatar letter='O' tone={LETTER_TONE.o} />
           <span style={PANEL_TITLE_STYLE}>{SOAP_FIELDS[1].title}</span>
         </span>}
         subtitle={SOAP_FIELDS[1].hint}
-        action={
-          <NeutralSubdueButton
-            variant='outline'
-            size='sm'
-            leadingIcon='monitor_heart'
-            onClick={() => goto('examination')}
-          >
-            ไปแก้ไขผลตรวจร่างกาย
-          </NeutralSubdueButton>
-        }
       >
         {oChanged ? (
           <PanelAlert tone='warning' icon='sync_problem' title='ข้อมูลต้นทางมีการเปลี่ยนแปลง'>
@@ -520,6 +460,7 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
         <SuggestibleTextarea
           voice
           label='บันทึก Objective'
+          style={{ maxWidth: 'none' }}
           value={soap.o}
           onChange={setField('o')}
           suggestions={SOAP_SUGGESTIONS.o}
@@ -534,29 +475,16 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
 
       {/* ── A ─────────────────────────────────────────────── */}
       <PanelCard
+        style={soapCardStyle(LETTER_TONE.a)}
         title={<span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           <LetterAvatar letter='A' tone={LETTER_TONE.a} />
           <span style={PANEL_TITLE_STYLE}>{SOAP_FIELDS[2].title}</span>
         </span>}
         subtitle={SOAP_FIELDS[2].hint}
-        action={
-          <BrandButton variant='outline' size='sm' leadingIcon='clinical_notes' onClick={() => goto('diagnosis')}>
-            ไปลงรหัสวินิจฉัย
-          </BrandButton>
-        }
       >
-        {diagnoses.length === 0 ? (
-          <PanelEmptyState
-            icon='clinical_notes'
-            title='ยังไม่มีรหัสการวินิจฉัยของการตรวจครั้งนี้'
-            subtitle='เขียนข้อสรุปทางคลินิกไว้ก่อนได้ แล้วไปลงรหัส ICD-10 / SNOMED-CT ที่ขั้นวินิจฉัย'
-            action={
-              <BrandButton variant='outline' size='sm' leadingIcon='arrow_forward' onClick={() => goto('diagnosis')}>
-                ไปลงรหัสวินิจฉัย
-              </BrandButton>
-            }
-          />
-        ) : (
+        {/* empty state และปุ่ม "ไปลงรหัสวินิจฉัย" ถูกเอาออก 28 ส.ค. 69 —
+            ขั้นวินิจฉัยมาก่อน SOAP ในลำดับใหม่แล้ว จึงไม่ต้องมีทางลัดย้อนกลับ */}
+        {diagnoses.length === 0 ? null : (
           <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
             {diagnoses.map((d) => {
               const meta = resolveDiagnosisType(d.type)
@@ -573,6 +501,7 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
         <SuggestibleTextarea
           voice
           label='ข้อสรุปทางคลินิก (Clinical impression)'
+          style={{ maxWidth: 'none' }}
           value={soap.a}
           onChange={setField('a')}
           suggestions={SOAP_SUGGESTIONS.a}
@@ -587,6 +516,7 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
 
       {/* ── P ─────────────────────────────────────────────── */}
       <PanelCard
+        style={soapCardStyle(LETTER_TONE.p)}
         title={<span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           <LetterAvatar letter='P' tone={LETTER_TONE.p} />
           <span style={PANEL_TITLE_STYLE}>{SOAP_FIELDS[3].title}</span>
@@ -633,43 +563,13 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
           ))}
         </div>
 
-        {/* §1.5.1.3 Continue order — สานคำสั่งต่อจาก visit ก่อน */}
-        <div
-          className='flex flex-wrap items-center justify-between w-full'
-          style={{
-            gap: 'var(--dim-space-300, 12px)',
-            borderRadius: 'var(--dim-radius-300, 10px)',
-            border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
-            paddingTop: 'var(--dim-space-300, 12px)',
-            paddingRight: 'var(--dim-space-300, 12px)',
-            paddingBottom: 'var(--dim-space-300, 12px)',
-            paddingLeft: 'var(--dim-space-300, 12px)',
-          }}
-        >
-          <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-            <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))' }}>
-              Continue order — สั่งต่อเนื่องจากการตรวจครั้งก่อน
-            </span>
-            <span style={PANEL_LABEL_STYLE}>
-              เปิดไว้เมื่อคำสั่งเดิม (ยา/แล็บ/หัตถการ) ยังใช้ต่อไปโดยไม่เปลี่ยนแปลง —
-              ระบบจะติดป้าย "ต่อเนื่อง" ที่ทุกรายการและไม่นับเป็นคำสั่งใหม่ในรายงาน
-            </span>
-          </div>
-          <GuardedAction allowed={canEdit}>
-            <NeutralSubdueButton
-              variant={form?.continueOrder ? 'fill' : 'outline'}
-              size='sm'
-              leadingIcon={form?.continueOrder ? 'toggle_on' : 'toggle_off'}
-              onClick={() => setForm((f) => ({ ...f, continueOrder: !f.continueOrder }))}
-            >
-              {form?.continueOrder ? 'เปิดใช้ Continue order' : 'ปิดอยู่'}
-            </NeutralSubdueButton>
-          </GuardedAction>
-        </div>
+        {/* แถบ Continue order (§1.5.1.3) ถูกเอาออก 28 ส.ค. 69 —
+            `form.continueOrder` ยังอยู่ในฟอร์ม รอหาที่วางใหม่ */}
 
         <SuggestibleTextarea
           voice
           label='แผนการรักษา'
+          style={{ maxWidth: 'none' }}
           value={soap.p}
           onChange={setField('p')}
           suggestions={SOAP_SUGGESTIONS.p}
@@ -685,48 +585,28 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
       {/* คำแนะนำสำหรับผู้รับบริการ — §1.5.4.10 ครบ 6 หัวข้อ */}
       <PanelCard
         title='คำแนะนำสำหรับผู้รับบริการ'
-        subtitle='TOR กำหนดครบ 6 หัวข้อ — การใช้ยา · การปฏิบัติตัว · อาหาร · การมาตามนัด · การออกกำลังกาย · การป้องกันภาวะแทรกซ้อน'
+        style={{ boxShadow: 'var(--shadow-brand-drop-bottom-200)' }}
         action={<CountLabel n={adviceFilled} unit={`/ ${PATIENT_ADVICE_TOPICS.length} หัวข้อ`} />}
       >
-        <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        <div className='flex w-full'>
+        <TabBar aria-label='หัวข้อคำแนะนำสำหรับผู้รับบริการ'>
+          {/* ชิปหัวข้อคำแนะนำใช้ TabPill ของดีไซน์ซิสเทม ไม่ใช่ปุ่มที่เขียนสไตล์เอง
+              (มติผู้ใช้ 28 ส.ค. 69) — หัวข้อที่กรอกแล้วเปลี่ยนไอคอนเป็น check_circle */}
           {PATIENT_ADVICE_TOPICS.map((t) => {
             const filled = String(advice[t.key] || '').trim().length > 0;
             return (
-              <button
+              <TabPill
                 key={t.key}
-                type='button'
+                size='small'
+                selected={adviceOpen === t.key}
+                leadingIcon={filled ? 'check_circle' : t.icon}
                 onClick={() => setAdviceOpen(adviceOpen === t.key ? '' : t.key)}
-                className='inline-flex items-center'
-                style={{
-                  gap: 'var(--dim-space-100, 4px)',
-                  borderRadius: 'var(--dim-radius-full)',
-                  border: `var(--dim-stroke-100, 1px) solid ${adviceOpen === t.key
-                    ? 'var(--border-brandPrimary-default, #007549)'
-                    : filled
-                      ? 'var(--border-brandPrimary-tertiary, #C5EDDA)'
-                      : 'var(--border-neutral-quaternary)'}`,
-                  background: filled
-                    ? 'var(--surface-brandPrimary-quaternary, #F4FBF8)'
-                    : 'var(--surface-neutral-quaternary, #F9FBFB)',
-                  paddingTop: 'var(--dim-space-200, 8px)',
-                  paddingRight: 'var(--dim-space-300, 12px)',
-                  paddingBottom: 'var(--dim-space-200, 8px)',
-                  paddingLeft: 'var(--dim-space-300, 12px)',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--type-family-body)',
-                  fontSize: 'var(--type-size-sm, 14px)',
-                  color: 'var(--text-content-default)',
-                }}
               >
-                <Sym
-                  name={filled ? 'check_circle' : t.icon}
-                  size={16}
-                  color={filled ? 'var(--icon-positive-success, #10B981)' : 'var(--icon-neutral-tertiary, #ADB2B7)'}
-                />
                 {t.label}
-              </button>
+              </TabPill>
             );
           })}
+        </TabBar>
         </div>
         {adviceOpen ? (
           <SuggestibleTextarea
@@ -742,86 +622,11 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
             popoverAriaLabel='ตัวอย่างคำแนะนำ'
             placeholder='พิมพ์คำแนะนำที่จะพิมพ์ลงเอกสารสรุปการรักษาให้ผู้รับบริการ'
           />
-        ) : (
-          <span style={PANEL_LABEL_STYLE}>เลือกหัวข้อด้านบนเพื่อพิมพ์คำแนะนำ — หัวข้อที่กรอกแล้วจะขึ้นเครื่องหมายถูก</span>
-        )}
+        ) : null}
       </PanelCard>
 
-      {/* บันทึกที่เก็บไว้แล้วของ visit นี้ — แสดง/แก้ไข/ยกเลิก */}
-      <PanelCard
-        title='SOAP Note ที่บันทึกไว้แล้วในการตรวจครั้งนี้'
-        subtitle='บันทึกที่ยกเลิกจะถูกขีดฆ่าไว้พร้อมเหตุผล ไม่ลบออกจากเวชระเบียน'
-        action={<CountLabel n={notes.length} unit='บันทึก' />}
-      >
-        {notes.length === 0 ? (
-          <PanelEmptyState
-            icon='note_add'
-            title='ยังไม่ได้บันทึก SOAP Note ของการตรวจครั้งนี้'
-            subtitle='พิมพ์เนื้อหาอย่างน้อย 1 ช่อง แล้วกด "บันทึกเป็นบันทึกทางคลินิก" ด้านบน'
-          />
-        ) : (
-          <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
-            <Table
-              rowKey={(r) => r.id}
-              rows={notes}
-              columns={[
-                {
-                  key: 'recordedAt', header: 'เวลาบันทึก',
-                  render: (r) => (
-                    <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                      <span style={{ ...PANEL_VALUE_STYLE, ...strikeIf(!!r.cancelledAt) }}>{r.recordedAt}</span>
-                      {r.amendedAt ? <span style={PANEL_LABEL_STYLE}>แก้ไข {r.amendedAt}</span> : null}
-                    </div>
-                  ),
-                },
-                { key: 'author', header: 'ผู้บันทึก' },
-                {
-                  key: 'body', header: 'เนื้อหา', flex: 1,
-                  render: (r) => (
-                    <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                      <span style={{ ...PANEL_VALUE_STYLE, whiteSpace: 'pre-wrap', ...strikeIf(!!r.cancelledAt) }}>
-                        {noteDisplayBody(r)}
-                      </span>
-                      {r.cancelledAt ? <CancelledMark at={r.cancelledAt} reason={r.cancelReason} label='บันทึกถูกยกเลิก' /> : null}
-                    </div>
-                  ),
-                },
-                {
-                  key: 'actions', header: '',
-                  render: (r) => (
-                    <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                      <GuardedAction allowed={canEdit && !r.cancelledAt}>
-                        <NeutralSubdueButton variant='outline' size='sm' leadingIcon='edit' onClick={() => setAmendTarget(r)}>
-                          ขอแก้ไข
-                        </NeutralSubdueButton>
-                      </GuardedAction>
-                      <GuardedAction allowed={canEdit && !r.cancelledAt}>
-                        <NeutralSubdueButton variant='outline' size='sm' leadingIcon='block' onClick={() => setCancelTarget(r)}>
-                          ยกเลิก
-                        </NeutralSubdueButton>
-                      </GuardedAction>
-                    </div>
-                  ),
-                },
-              ]}
-              emptyMessage='ยังไม่มีบันทึก'
-            />
-          </div>
-        )}
-      </PanelCard>
-
-      {/* เตือนก่อนใช้เทมเพลตทับของที่พิมพ์ไว้ */}
-      <AlertDialog
-        open={!!templateGuard}
-        type='warning'
-        title='ใช้เทมเพลตกับบันทึกที่มีเนื้อหาอยู่แล้ว'
-        description={`ระบบจะ "ต่อท้าย" โครงร่างของเทมเพลต "${soapTemplateMeta(templateGuard)?.label || ''}" ลงในทุกช่องที่มีข้อความอยู่แล้ว โดยไม่ลบสิ่งที่คุณพิมพ์ไว้ ต้องการดำเนินการต่อหรือไม่`}
-        confirmLabel='ต่อท้ายเทมเพลต'
-        cancelLabel='ยกเลิก'
-        onConfirm={() => applyTemplate(templateGuard)}
-        onCancel={() => setTemplateGuard(null)}
-        onClose={() => setTemplateGuard(null)}
-      />
+      {/* การ์ด "SOAP Note ที่บันทึกไว้แล้วในการตรวจครั้งนี้" ถูกเอาออก 28 ส.ค. 69
+          — บันทึกที่เก็บแล้วอ่านได้จากแท็บ "บันทึกทางคลินิก" อยู่แล้ว */}
 
       {/* เลือก visit เพื่อคัดลอก */}
       <AlertDialog

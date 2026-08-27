@@ -117,19 +117,8 @@ const BodyDiagramPanel = ({
         </div>
       ) : (
         <>
-          <div
-            className='flex flex-wrap content-center items-center w-full'
-            style={{ gap: 'var(--dim-space-300)', rowGap: 'var(--dim-space-300)' }}
-          >
-            {systemTabs}
-            <BrandCircleSubdueIconButton
-              variant='fill'
-              size='md'
-              icon='add'
-              aria-label='เพิ่มระบบตรวจ'
-              onClick={onAddSystem}
-            />
-          </div>
+          {/* แถบชิประบบตรวจ (Heent · Heart · Lungs · Abdomen · Extremities + ปุ่มเพิ่ม)
+              ถูกเอาออก 28 ส.ค. 69 — โหมด `summary` ยังมีแถบนี้อยู่ */}
 
           <div
             className='flex w-full min-w-0 items-stretch'

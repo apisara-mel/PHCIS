@@ -313,16 +313,9 @@ const DocumentCenterPanel = ({ form, setForm, patient }) => {
           </GuardedAction>
         }
       >
-        {!hasDiagnosis ? (
-          <PanelAlert tone='warning' icon='clinical_notes' title='ยังไม่มีการวินิจฉัยในการตรวจครั้งนี้'>
-            ใบรับรองแพทย์ที่ต้องอ้างอิงผลการวินิจฉัยจะยังออกไม่ได้ — บันทึกรหัสวินิจฉัยในขั้นตอนวินิจฉัยก่อน
-          </PanelAlert>
-        ) : null}
-        {!hasSignature ? (
-          <PanelAlert tone='info' icon='draw' title='ยังไม่ได้ยืนยันลายเซ็นแพทย์'>
-            แบบเอกสารที่ต้องมีลายเซ็นจะพิมพ์ไม่ได้จนกว่าจะยืนยันลายเซ็นในการ์ดใบรับรองแพทย์ด้านบน
-          </PanelAlert>
-        ) : null}
+        {/* แถบเตือน "ยังไม่มีการวินิจฉัย" และ "ยังไม่ได้ยืนยันลายเซ็นแพทย์"
+            ถูกเอาออก 28 ส.ค. 69 — การ์ดแต่ละใบมีป้าย "ต้องมีการวินิจฉัย" /
+            "ต้องมีลายเซ็น" ของตัวเองอยู่แล้ว และปุ่มถูกปิดพร้อมเหตุผลใน tooltip */}
 
         {Object.keys(grouped).map((g) => (
           <div key={g} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>

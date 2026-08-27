@@ -4,6 +4,8 @@ import React, {
 import { Redirect, useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import QueueSubMenu from '@/components/layout/QueueSubMenu';
+import Popover from '@/components/popup/Popover';
+import ActionList from '@/components/list/ActionList';
 import QueueCallActions from '@/components/queue/QueueCallActions';
 import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
 import Header from '@/components/layout/Header';
@@ -98,8 +100,17 @@ const buildInitialForm = (p) => ({
      ("ยังไม่มีบันทึกรหัสการวินิจฉัย (ICD10)") on first paint — the
      doctor hasn't typed anything yet. Rows are pushed in as the
      clinician adds diagnoses via the Doctor AI search or the
-     "เพิ่มรหัสการวินิจฉัย" CTA. */
-  diagnoses: [],
+     "เพิ่มรหัสการวินิจฉัย" CTA.
+
+     ⚠️ ต้นแบบตั้งค่าเริ่มต้นเป็นรายการที่ "ดึงข้อมูลอัตโนมัติ" มาแล้ว แทนที่จะ
+     ว่างเปล่า (มติผู้ใช้ 28 ส.ค. 69) — ขั้นวินิจฉัยและขั้นเอกสารจึงมีของให้ดู
+     โดยไม่ต้องพิมพ์เอง สอดคล้องกับโรคประจำตัวบนหัวการ์ด (ไขมันในเลือดสูง ·
+     ความดันโลหิตสูง) และอาการของ visit นี้ (ปวดเข่า) */
+  diagnoses: [
+    { code: 'M17.0', name: 'Bilateral primary osteoarthritis of knee (ข้อเข่าเสื่อมปฐมภูมิสองข้าง)', type: 'principle' },
+    { code: 'I10',   name: 'Essential (primary) hypertension (ความดันโลหิตสูงชนิดไม่ทราบสาเหตุ)', type: 'comorbidity' },
+    { code: 'E78.5', name: 'Hyperlipidaemia, unspecified (ไขมันในเลือดสูง)', type: 'comorbidity' },
+  ],
   /* Doctor AI ICD search box value. Starts empty so the AISearch
      resolves to its DEFAULT state on first paint (per Figma
      MIH-DS Foundation 3396:1599 — empty + blurred + light-indigo border
@@ -219,8 +230,9 @@ const buildInitialForm = (p) => ({
    ใบรับรองภาษาอังกฤษ / แบบฟอร์มยินยอม ต่อท้าย */
 const STEP_RENDERERS = [
   Step2Screening, Step3Examination,
+  Step4DoctorRecord, Step5Orders,
   SoapNotePanel,
-  Step4DoctorRecord, Step5Orders, Step6Appointment, CpoeDocumentsStep,
+  Step6Appointment, CpoeDocumentsStep,
 ];
 
 /* index ของแต่ละ step ให้ panel ใช้กระโดดข้าม step โดยไม่ต้องรู้ตัวเลข */
@@ -314,6 +326,10 @@ const TreatmentFormPage = () => {
   const [queuePaused, setQueuePaused] = useState({});
   const [queueCancelled, setQueueCancelled] = useState({});
   const [queueCancelCandidate, setQueueCancelCandidate] = useState(null);
+
+  /* เมนู "ส่งตรวจ" บนแถวปุ่มหัวการ์ด */
+  const orderMenuRef = useRef(null);
+  const [orderMenuOpen, setOrderMenuOpen] = useState(false);
 
   const queueBuckets = useMemo(() => {
     /* หมวด "คิวที่เหลือวันนี้" แสดงครบทุกคิว ไม่ตัดเหลือ preview 2 แถว —
@@ -619,20 +635,63 @@ const TreatmentFormPage = () => {
             <>
               {/* ปุ่ม "ไป Step 6: CPOE" และ "ส่งยาไปห้องยา" ถูกเอาออกจากหัวการ์ด
                   (มติผู้ใช้ 28 ส.ค. 69) */}
-              {/* บันทึกส่งตรวจ — งานสั่งตรวจแล็บอยู่ในขั้น "สั่งการรักษา" ของ visit นี้
-                  อยู่แล้ว ปุ่มนี้จึงพาไปที่นั่นพร้อมเปิดแท็บ "แล็บ" ให้เลย แทนที่จะ
-                  ให้หมอออกไปหน้าโมดูลแล็บ (/lab/order) แล้วค้น HN ใหม่
-                  (มติผู้ใช้ 28 ส.ค. 69) */}
-              <BrandSubdueButton
-                variant='outline'
-                leadingIcon='labs'
-                onClick={() => {
-                  setForm((s2) => ({ ...s2, orderCategory: 'lab' }));
-                  requestStepChange(CPOE_STEP_ORDERS);
-                }}
-              >
-                บันทึกส่งตรวจ
-              </BrandSubdueButton>
+              {/* ส่งตรวจ — งานสั่งตรวจอยู่ในขั้น "สั่งการรักษา" ของ visit นี้อยู่แล้ว
+                  เมนูจึงพาไปที่นั่นพร้อมเปิดแท็บที่ตรงกับสิ่งที่จะสั่ง แทนที่จะให้หมอ
+                  ออกไปหน้าโมดูลแล็บ/รังสี แล้วค้น HN ใหม่ (มติผู้ใช้ 28 ส.ค. 69) */}
+              <div className='inline-flex shrink-0'>
+                <BrandSubdueButton
+                  ref={orderMenuRef}
+                  variant='outline'
+                  leadingIcon='labs'
+                  trailingIcon='expand_more'
+                  active={orderMenuOpen}
+                  aria-haspopup='menu'
+                  aria-expanded={orderMenuOpen}
+                  onClick={() => setOrderMenuOpen((o) => !o)}
+                >
+                  ส่งตรวจ
+                </BrandSubdueButton>
+                <Popover
+                  open={orderMenuOpen}
+                  onClose={() => setOrderMenuOpen(false)}
+                  anchorRef={orderMenuRef}
+                  style={{
+                    width: 240,
+                    background: 'var(--surface-dropdown-default)',
+                    border: 'var(--dim-stroke-100) solid var(--border-dropdown-default)',
+                    borderRadius: 'var(--dim-radius-500)',
+                    boxShadow: 'var(--shadow-dropdown)',
+                    padding: 'var(--dim-space-100)',
+                    zIndex: 'var(--sm-z-modal-popover, 1450)',
+                  }}
+                >
+                  <div role='menu' aria-label='ส่งตรวจ'>
+                    {[
+                      { key: 'lab', label: 'ส่งตรวจแล็บ', icon: 'biotech' },
+                      { key: 'xray', label: 'ส่งตรวจรังสีวิทยา', icon: 'radiology' },
+                    ].map((item) => (
+                      <ActionList
+                        key={item.key}
+                        as='button'
+                        role='menuitem'
+                        label={item.label}
+                        leadingIcon={item.icon}
+                        showLeadingIcon
+                        showSubtext={false}
+                        showSwitch={false}
+                        showBadge={false}
+                        showCheck={false}
+                        showChevronRight={false}
+                        onClick={() => {
+                          setOrderMenuOpen(false);
+                          setForm((s2) => ({ ...s2, orderCategory: item.key }));
+                          requestStepChange(CPOE_STEP_ORDERS);
+                        }}
+                      />
+                    ))}
+                  </div>
+                </Popover>
+              </div>
               {/* CPOE §1.5.10.1 — เดิมปุ่มนี้ยังไม่ผูก sheet จริง ตอนนี้พาไป
                   ศูนย์พิมพ์เอกสาร (step 8) ที่ต่อ PharmacyPrescriptionPrint
                   ไว้แล้ว พร้อม preview ก่อนพิมพ์ */}
@@ -665,6 +724,8 @@ const TreatmentFormPage = () => {
             ใช้ค่าเดิมอยู่ */}
         <TreatmentFormShell
           steps={CPOE_TREATMENT_STEPS}
+          /* สองขั้นนี้เนื้อหาเป็นการ์ดขาวของตัวเองอยู่แล้ว ไม่ต้องมีการ์ดรองซ้อน */
+          plainBodySteps={[CPOE_STEP_INDEXES.examination, CPOE_STEP_INDEXES.soap]}
           stepIndex={stepIndex}
           onStepChange={requestStepChange}
           completedSteps={completedSteps}

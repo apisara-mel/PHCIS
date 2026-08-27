@@ -105,6 +105,9 @@ const HorizontalVitalItem = ({
   slot,
   variant = 'strip',
   equalColumns = 5,
+  /* ย่อเป็นข้อมูลล้วน — ป้ายภาษาไทยบรรทัดเดียว (ตัดบรรทัดอังกฤษ) และค่าเล็กลง
+     ใช้ในขั้นตรวจร่างกายที่ต้องการประหยัดพื้นที่ (มติผู้ใช้ 28 ส.ค. 69) */
+  compact = false,
   /* พื้นที่ขั้นต่ำต่อช่อง — โหมด `single` วางครบ 9 ค่าในแถวเดียว ถ้าปล่อยให้
      ยืดหดอิสระ ป้ายภาษาอังกฤษจะถูกตัดกลางคำ ("Temperatur / e") */
   minTileWidth = null,
@@ -125,7 +128,7 @@ const HorizontalVitalItem = ({
     <div
       className={`flex flex-col items-center ${variantClass}`}
       style={{
-        gap: 'var(--dim-space-200)',
+        gap: compact ? 'var(--dim-space-050, 2px)' : 'var(--dim-space-200)',
         paddingLeft: 'var(--dim-space-200)',
         paddingRight: 'var(--dim-space-200)',
         boxSizing: 'border-box',
@@ -138,21 +141,20 @@ const HorizontalVitalItem = ({
           color: 'var(--text-content-tertiary)',
           fontFamily: 'var(--type-family-body)',
           fontSize: 'var(--type-size-xs)',
-          fontWeight: 'var(--type-weight-medium)',
-          lineHeight: 1.5,
+          fontWeight: 'var(--type-weight-regular)',
+          lineHeight: 1.4,
           wordBreak: 'break-word',
         }}
       >
         {tile.th}
-        <br />
-        {tile.en}
+        {compact ? null : <><br />{tile.en}</>}
       </span>
       <div className='flex flex-col items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
         <span style={{
           color: resolveVitalValueColor(slot),
           fontFamily: 'var(--type-family-heading-content)',
           fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-          fontSize: 'var(--type-size-base)',
+          fontSize: compact ? 'var(--type-size-sm)' : 'var(--type-size-base)',
           lineHeight: 1.5,
           textAlign: 'center',
           whiteSpace: 'nowrap',
@@ -278,6 +280,9 @@ export const VitalsSignHorizontalStrip = ({
   tiles,
   vitals,
   layout = 'responsive',
+  /* 'plain' = ตัวห่อในหน้าเป็นการ์ดขาวอยู่แล้ว แถบนี้จึงไม่ต้องมีการ์ดรองซ้อนอีก */
+  surface = 'quaternary',
+  compact = false,
 }) => {
   const row1 = tiles.slice(0, VITAL_SIGN_TABLET_ROW1_COUNT);
   const row2 = tiles.slice(VITAL_SIGN_TABLET_ROW1_COUNT);
@@ -285,7 +290,7 @@ export const VitalsSignHorizontalStrip = ({
 
   if (layout === 'tablet') {
     return (
-      <div className='w-full' style={stripShellStyle}>
+      <div className='w-full' style={surface === 'plain' ? undefined : stripShellStyle}>
         <TabletVitalsStrip tiles={tiles} vitals={vitals} />
       </div>
     );
@@ -293,7 +298,7 @@ export const VitalsSignHorizontalStrip = ({
 
   if (layout === 'single') {
     return (
-      <div className='w-full' style={stripShellStyle}>
+      <div className='w-full' style={surface === 'plain' ? undefined : stripShellStyle}>
         <div
           className='flex flex-nowrap items-start w-full overflow-x-auto'
           style={{ ...stripRowShellStyle, gap: 'var(--dim-space-300)' }}
@@ -304,7 +309,8 @@ export const VitalsSignHorizontalStrip = ({
                 tile={tile}
                 slot={vitals?.[tile.key]}
                 variant='strip'
-                minTileWidth={116}
+                minTileWidth={compact ? 96 : 116}
+                compact={compact}
               />
               {i < tiles.length - 1 && <TileDivider />}
             </React.Fragment>
@@ -368,6 +374,10 @@ const VitalsSignHorizontalPanel = ({
      (ขั้นตรวจร่างกายใช้ card เพราะอยู่บนพื้นหน้าไม่ได้ซ้อนในการ์ดอื่น
       — มติผู้ใช้ 28 ส.ค. 69) */
   surface = 'quaternary',
+  /** ย่อขนาดตัวหนังสือให้เป็นข้อมูลล้วน — ประหยัดพื้นที่ */
+  compact = false,
+  /* การ์ดที่ห่ออยู่มีหัวข้อของตัวเองแล้ว แผงจึงไม่ต้องพิมพ์ซ้ำ */
+  showTitle = true,
   graphSubtitle,
   graphDisabled = false,
   className = '',
@@ -398,12 +408,14 @@ const VitalsSignHorizontalPanel = ({
       className={`flex flex-col w-full ${className}`.trim()}
       style={{
         gap: 'var(--dim-space-300)',
-        padding: 'var(--dim-space-400)',
-        borderRadius: 'var(--dim-radius-500)',
-        border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+        padding: surface === 'plain' ? 0 : 'var(--dim-space-400)',
+        borderRadius: surface === 'plain' ? 0 : 'var(--dim-radius-500)',
+        border: surface === 'plain'
+          ? 'none'
+          : 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
         background: surface === 'card'
           ? 'var(--surface-card-100, #FFFFFF)'
-          : 'var(--surface-neutral-quaternary)',
+          : surface === 'plain' ? 'transparent' : 'var(--surface-neutral-quaternary)',
         ...style,
       }}
     >
@@ -418,7 +430,7 @@ const VitalsSignHorizontalPanel = ({
           lineHeight: 1.5,
         }}
         >
-          สัญญาณชีพ (Vital Signs)
+          {showTitle ? 'สัญญาณชีพ (Vital Signs)' : ''}
         </span>
         <VitalsSignGraphDialog
           subtitle={graphSubtitleResolved}
@@ -436,10 +448,10 @@ const VitalsSignHorizontalPanel = ({
             background: 'var(--surface-card-100)',
           }}
         >
-          <VitalsSignHorizontalStrip tiles={tiles} vitals={vitals} layout={stripLayout} />
+          <VitalsSignHorizontalStrip tiles={tiles} vitals={vitals} layout={stripLayout} surface={surface} compact={compact} />
         </div>
       ) : (
-        <VitalsSignHorizontalStrip tiles={tiles} vitals={vitals} layout={stripLayout} />
+        <VitalsSignHorizontalStrip tiles={tiles} vitals={vitals} layout={stripLayout} surface={surface} compact={compact} />
       )}
     </div>
   );

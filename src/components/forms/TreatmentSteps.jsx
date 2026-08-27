@@ -62,7 +62,6 @@ import { consultsForPatient, clinicMeta, consultStatusMeta } from '@/data/treatm
 import {
   imagingHistoryForPatient, FILM_ASSETS, RESULT_CLASS_META,
 } from '@/data/treatmentImagingHistory';
-import VisitAttachmentsPanel from '@/pages/treat/panels/VisitAttachmentsPanel';
 import ProblemListPanel from '@/pages/treat/panels/ProblemListPanel';
 import DiagnosisCodingPanel from '@/pages/treat/panels/DiagnosisCodingPanel';
 import ClinicalNotesPanel from '@/pages/treat/panels/ClinicalNotesPanel';
@@ -79,7 +78,6 @@ import ConsultComposerPanel from '@/pages/treat/panels/ConsultComposerPanel';
 import MedicalSupplyOrderPanel, { MEDICAL_SUPPLY_CATALOG } from '@/pages/treat/panels/MedicalSupplyOrderPanel';
 import { CpoeWorkflowPanel } from '@/pages/treat/CpoeWorkflowPage';
 import { ICD9_PROCEDURES } from '@/pages/treat/panels/ProcedureOrderPanel';
-import DocumentCenterPanel from '@/pages/treat/panels/DocumentCenterPanel';
 import ReDiagnosisPopup from '@/components/popup/ReDiagnosisPopup';
 import ReMedicinePopup from '@/components/popup/ReMedicinePopup';
 import DeleteDiagnosisConfirmPopup from '@/components/popup/DeleteDiagnosisConfirmPopup';
@@ -1866,8 +1864,40 @@ const TREATMENT_PANEL_TITLE_STYLE = {
    · บันทึกการตรวจ 150:36350 (grey panel)
    ───────────────────────────────────────────────────────────── */
 
+/* การ์ดขาวหนึ่งใบต่อหนึ่งหัวข้อในขั้นตรวจร่างกาย — คุมทรงที่เดียวเพื่อให้
+   ทุกใบกว้าง เว้นขอบ และวางหัวข้อเหมือนกัน */
+const ExamStepCard = ({ title, children }) => (
+  <section
+    className='flex flex-col w-full min-w-0'
+    style={{
+      gap: 'var(--dim-space-400)',
+      padding: 'var(--dim-space-600)',
+      borderRadius: 'var(--dim-radius-400)',
+      border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+      background: 'var(--surface-card-100)',
+      boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+    }}
+  >
+    {title ? (
+      <span style={{
+        color: 'var(--text-topic-secondary-title)',
+        fontFamily: 'var(--type-family-heading-content)',
+        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
+        fontSize: 'var(--type-size-base)',
+      }}>{title}</span>
+    ) : null}
+    {children}
+  </section>
+);
+
+const EXAM_SUBTABS = ['บันทึกการตรวจ', 'ตรวจร่างกาย'];
+
 export const Step3Examination = ({ form, setForm, patient }) => {
   const set = (k) => (v) => setForm((s) => ({ ...s, [k]: v }));
+  /* สองงานของขั้นนี้สลับกันด้วยแท็บแคปซูล แทนการวางต่อกันลงมาให้เลื่อนยาว —
+     "บันทึกการตรวจ" คือพิมพ์สิ่งที่ตรวจพบ · "ตรวจร่างกาย" คือชี้ตำแหน่งบนภาพ
+     (มติผู้ใช้ 28 ส.ค. 69) */
+  const [examTab, setExamTab] = useState(0);
 
   const handleCopyFromNurse = (key) => {
     const fromNurse = form.nurseExam?.[key];
@@ -1891,32 +1921,35 @@ export const Step3Examination = ({ form, setForm, patient }) => {
   };
 
   return (
-    <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      {/* หัวข้อ "ตรวจร่างกาย" ถูกเอาออก — แถบขั้นตอนด้านบนบอกอยู่แล้ว (28 ส.ค. 69) */}
-      <VitalsSignHorizontalPanel
-        variant='exam'
-        surface='card'
-        measurementRounds={DEFAULT_MEASUREMENT_ROUNDS}
-      />
+    /* สามส่วนของขั้นนี้เป็น "การ์ดขาวคนละใบ" ที่หัวข้อของตัวเอง — สัญญาณชีพ ·
+       บันทึกของแพทย์ · ตรวจร่างกาย เดิมทั้งสามซ้อนกันจนอ่านเป็นก้อนเดียว
+       (มติผู้ใช้ 28 ส.ค. 69) `ExamStepCard` คุมทรงการ์ดที่เดียว ทั้งสามใบจึง
+       กว้าง เว้นขอบ และมีหัวข้อในระดับเดียวกันเสมอ */
+    <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+      {/* การ์ดสัญญาณชีพเดี่ยว ๆ ถูกเอาออก 28 ส.ค. 69 — ค่าทั้งชุดย้ายไปอยู่ใน
+          คอลัมน์ "บันทึกจากพยาบาล" ของการ์ดถัดไป พร้อมหัวข้ออื่นของจุดคัดกรอง */}
+      <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+        {EXAM_SUBTABS.map((label, i) => (
+          <TabCapsule
+            key={label}
+            variant='filter'
+            label={label}
+            selected={i === examTab}
+            onClick={() => setExamTab(i)}
+          />
+        ))}
+      </div>
 
-      {/* บันทึกการตรวจ (บันทึกจากพยาบาล ↔ บันทึกของแพทย์) ย้ายขึ้นบนสุดและแยก
-          เป็นการ์ดของตัวเอง — เดิมอยู่ท้ายการ์ดเดียวกับแผนภาพร่างกายและไฟล์แนบ
-          ทั้งที่เป็นคนละงาน: อันนี้คือ "พิมพ์สิ่งที่ตรวจพบ" ส่วนอีกอันคือ
-          "ชี้ตำแหน่งบนภาพ" (มติผู้ใช้ 28 ส.ค. 69) */}
-      <div
-        className='flex flex-col w-full'
-        style={{
-          gap: 'var(--dim-space-400)',
-          padding: 'var(--dim-space-600)',
-          borderRadius: 'var(--dim-radius-400)',
-          background: 'var(--surface-card-100)',
-        }}
-      >
+      {examTab === 0 ? (
+      <ExamStepCard>
         <ExamNotesPanel
           embedded
+          patient={patient}
           nurseNotes={form.nurseExam}
           doctorNotes={form.doctorExam}
           attachments={form.examAttachments}
+          linkedResults={form.examLinkedResults || {}}
+          onLinkedResultsChange={set('examLinkedResults')}
           onDoctorChange={set('doctorExam')}
           onCopyFromNurse={handleCopyFromNurse}
           onAttachmentsChange={handleAttachmentsChange}
@@ -1925,17 +1958,9 @@ export const Step3Examination = ({ form, setForm, patient }) => {
             examAttachments: (s.examAttachments || []).filter((f) => f.id !== id),
           }))}
         />
-      </div>
-
-      <div
-        className='flex flex-col w-full'
-        style={{
-          gap: 'var(--dim-space-400)',
-          padding: 'var(--dim-space-600) 0',
-          borderRadius: 'var(--dim-radius-400)',
-          background: 'var(--surface-card-100)',
-        }}
-      >
+      </ExamStepCard>
+      ) : (
+      <ExamStepCard>
         {/* Per-tab marker + drawing isolation. Both `form.bodyMarkers`
             and `form.bodyDrawings` are keyed by exam system (HEENT /
             Heart / Lungs / …). The panel only sees the active
@@ -1959,11 +1984,12 @@ export const Step3Examination = ({ form, setForm, patient }) => {
           onViewChange={set('examView')}
           sidebar={<ExamSupportList width={320} patientHn={patient?.hn} />}
         />
+      </ExamStepCard>
+      )}
 
-        {/* EMR §1.4.3.22 / §1.4.6.5 — ไฟล์แนบ multimedia พร้อมโควตาจริง
-            (10 MB/ไฟล์ · 50 MB/visit). อยู่คนละไฟล์: panels/VisitAttachmentsPanel */}
-        <VisitAttachmentsPanel form={form} setForm={setForm} patient={patient} />
-      </div>
+      {/* การ์ด "ไฟล์แนบของการตรวจครั้งนี้" (VisitAttachmentsPanel) ถูกเอาออก
+          28 ส.ค. 69 — การ์ด "บันทึกของแพทย์" มีโซนแนบไฟล์ของตัวเองอยู่แล้ว
+          (DragAndDrop ใน ExamNotesPanel) จึงมีสองที่ให้แนบไฟล์ซ้ำกัน */}
     </section>
   );
 };
@@ -2123,20 +2149,19 @@ const ICD_TABLE_COLUMNS = [
   },
 ];
 
-/* Step 3 lives at index 2 in `STEP_RENDERERS` (Step1=0, Step2=1,
-   Step3=2 …). Named constant keeps the navigation calls below readable
-   without forcing readers to mentally count zero-indexed positions. */
+/* ค่าสำรองสำหรับหน้าที่ไม่ส่ง `stepIndexes` มา (คลินิกอื่นที่ยังใช้ลำดับเดิม
+   และ ComponentsLibraryPage) — หน้า CPOE ส่ง `stepIndexes` มาเสมอ */
 const STEP_EXAMINATION_INDEX = 2;
 const STEP_DOCTOR_RECORD_INDEX = 3;
 
-export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient }) => {
-  /* Navigate back to the Physical Examination step. Both the empty
-     state CTA and the populated-state "แก้ไข" header button use this
-     — they share the same intent (send the doctor to Step 3 where the
-     live examination editors live). Guarded by `?.` so demo mounts
-     (e.g. ComponentsLibraryPage) that don't supply the prop simply
-     no-op instead of crashing. */
-  const goToExamStep = () => onStepChange?.(STEP_EXAMINATION_INDEX);
+export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIndexes = null }) => {
+  /* พาไปขั้น "ตรวจร่างกาย" ที่มีตัวแก้ไขจริง — อ่าน index จาก `stepIndexes`
+     ที่หน้าเรียกส่งมา ไม่ใช่ค่าคงที่ ลำดับขั้นเปลี่ยนมาแล้วสองรอบ (ตัดประวัติ
+     การรักษาออก · ย้าย SOAP ไปลำดับ 5) ค่าคงที่เดิมจึงพาไปผิดขั้น
+     (มติผู้ใช้ 28 ส.ค. 69) · `?.` กันหน้าเดโมที่ไม่ส่ง prop มา */
+  const goToExamStep = () => onStepChange?.(
+    stepIndexes?.examination ?? STEP_EXAMINATION_INDEX,
+  );
 
   const set = (k) => (v) => setForm((s) => ({ ...s, [k]: v }));
   /* SuggestibleTextarea (and Voice variant) forwards onChange as a
@@ -2319,12 +2344,8 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient }) => {
         showSuccess={false}
       />
 
-      {/* Vital signs banner — carried over from Steps 2/3 so the doctor
-          sees the patient's vitals while writing the diagnosis. */}
-      <VitalsSignHorizontalPanel
-        variant='exam'
-        measurementRounds={DEFAULT_MEASUREMENT_ROUNDS}
-      />
+      {/* แถบสัญญาณชีพในขั้นวินิจฉัยถูกเอาออก 28 ส.ค. 69 — ค่าชุดเดียวกันอยู่ใน
+          คอลัมน์ "บันทึกจากพยาบาล" ของขั้นตรวจร่างกายแล้ว */}
 
       {/* บันทึกจากการตรวจร่างกาย — read-only summary of Step 3 with the
           body diagram + doctor textareas + attachments. The "แก้ไข"
@@ -5888,14 +5909,9 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
         </div>
       )}
 
-      {/* EMR §1.4.6.x — ศูนย์เอกสารและ e-Document (ไฟล์แยก).
-          การ์ดใบรับรองแพทย์ + ลายเซ็นด้านบนยังทำงานเหมือนเดิมทุกอย่าง
-          (state ชุด certIssue/certType/certNo/restDays/certSignature/
-          certSignedAt ไม่ถูกแตะ) — ส่วนนี้เพิ่มแบบเอกสารที่เหลือ
-          คำแนะนำสำหรับผู้รับบริการ และทะเบียนเอกสารที่ออกไปแล้ว */}
-      <div className='w-full min-w-0' style={{ marginTop: 'var(--dim-space-600)' }}>
-        <DocumentCenterPanel form={form} setForm={setForm} patient={patient} />
-      </div>
+      {/* ศูนย์เอกสารและ e-Document (`DocumentCenterPanel`) ถูกเอาออกจากขั้นนี้
+          28 ส.ค. 69 — ขั้นเอกสารจบที่การ์ดใบรับรองแพทย์และกล่องลายเซ็น
+          ไฟล์พาเนลยังอยู่ และหน้าทันตกรรมยังเรียกใช้อยู่ */}
     </section>
   );
 };

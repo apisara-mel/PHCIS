@@ -137,6 +137,10 @@ const TreatmentFormShell = ({
   morphTitle,
   hideMorphTitle = false,
   morphStickyTop = MORPH_STICKY_BELOW_PATIENT,
+  /* ขั้นที่เนื้อหาเป็นการ์ดของตัวเองอยู่แล้ว (เช่น ตรวจร่างกาย · SOAP Note ของ
+     CPOE) ส่งชุด index มาที่นี่ แล้วเปลือกจะไม่วางการ์ดขาวซ้อนให้อีก
+     (มติผู้ใช้ 28 ส.ค. 69 — เดิมเห็นเป็นการ์ดในการ์ด) */
+  plainBodySteps = [],
   /** Optional persistent clinical summary rendered beside every step. */
   sidePanel = null,
   sidePanelCollapsed = false,
@@ -281,12 +285,14 @@ const TreatmentFormShell = ({
         <div className={sidePanel ? 'mih-treatment-shell-layout' : 'flex flex-col flex-1 min-h-0'}>
         <div
           className='mih-treatment-shell-main flex flex-col w-full flex-1 min-h-0'
-          style={{
-            borderRadius: 'var(--dim-radius-500)',
-            background: 'var(--surface-card-100)',
-            boxShadow: 'var(--shadow-brand-drop-bottom-200)',
-            overflow: 'hidden',
-          }}
+          style={plainBodySteps.includes(stepIndex)
+            ? { overflow: 'visible' }
+            : {
+              borderRadius: 'var(--dim-radius-500)',
+              background: 'var(--surface-card-100)',
+              boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+              overflow: 'hidden',
+            }}
         >
           {/* Step 1 brings its own ServiceDateList rail flush against the
               card's left edge, so it opts out of the 24px body padding.
@@ -303,7 +309,9 @@ const TreatmentFormShell = ({
               stepIndex === 0 && step0FlushLeft
                 ? undefined
                 : {
-                    padding: 'var(--dim-space-600)',
+                    /* ขั้นที่เนื้อหาเป็นการ์ดเอง — ตัวห่อชั้นนอกเว้น 24px ให้แล้ว
+                       ถ้าเว้นอีกชั้นจะกลายเป็น 48px (มติผู้ใช้ 28 ส.ค. 69) */
+                    padding: plainBodySteps.includes(stepIndex) ? 0 : 'var(--dim-space-600)',
                     minHeight: 640,
                   }
             }
