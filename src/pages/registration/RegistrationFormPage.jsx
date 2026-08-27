@@ -4,6 +4,8 @@ import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import QueueSubMenu from '@/components/layout/QueueSubMenu';
+import MissingFieldsPopup from './MissingFieldsPopup';
+import StepReview from './StepReview';
 import QueueCallActions from '@/components/queue/QueueCallActions';
 import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
@@ -65,9 +67,14 @@ const STEP_RENDERERS = [
   Step3Contact,
   Step4Rights,
   Step5Flags,
+  /* ขั้นที่ 7 — ทวนข้อมูลทั้งหมดก่อนบันทึก (มติผู้ใช้ 27 ส.ค. 69) */
+  StepReview,
 ];
 
-const SAVE_BUTTON_TEXT = 'บันทึกข้อมูลผู้รับบริการ';
+/* ต้องตรงกับข้อความปุ่มขั้นสุดท้ายใน <FormShell> — โค้ดดักเจตนา "กดบันทึก"
+   ด้วยการอ่าน textContent ของปุ่ม ถ้าเปลี่ยนที่ FormShell แล้วลืมแก้ตรงนี้
+   การเตือน "ยังไม่ได้บันทึก" ตอนออกจากหน้าจะเงียบไปเฉย ๆ */
+const SAVE_BUTTON_TEXT = 'บันทึกและส่งต่อ';
 const LAST_STEP_INDEX = STEP_RENDERERS.length - 1;
 
 const normName = (v) => String(v ?? '').trim();
@@ -221,9 +228,9 @@ const RegistrationFormPage = () => {
   const handleSaveAttempt = () => {
     const report = getRegistrationMissingReport(formRef.current);
     if (report.length > 0) {
+      /* ป๊อปอัปเดียวบอกว่าขาดอะไรบ้าง — เลิกใช้ toast + แผงในหน้า + แถวชิป
+         สามชิ้นพร้อมกัน ซึ่งชิปยาวจนซ้อนทับกันอ่านไม่ออก (มติผู้ใช้ 27 ส.ค. 69) */
       setMissingReport(report);
-      const first = report[0];
-      showToast('error', `บันทึกไม่ได้ — ข้อมูลไม่ครบ ${report.length} ขั้นตอน · เริ่มที่ ${first.stepLabel}: ${first.fields.join(' · ')}`);
       return;
     }
     const matches = unconfirmedDuplicates();
@@ -363,6 +370,13 @@ const RegistrationFormPage = () => {
         patientName={queueCancelCandidate?.name || '—'}
         avatarSrc={queueCancelCandidate?.avatarUrl}
       />
+      <MissingFieldsPopup
+        open={!!(missingReport && missingReport.length > 0)}
+        onClose={() => setMissingReport(null)}
+        report={missingReport || []}
+        onJumpToStep={(idx) => { setStepIndex(idx); setMissingReport(null); }}
+      />
+
       <QueueSubMenu
         queue={queueBuckets}
         sectionLabels={REGISTRATION_QUEUE_SUBMENU_LABELS}
@@ -395,47 +409,22 @@ const RegistrationFormPage = () => {
           onSaveDraft={() => showToast('success', 'บันทึกร่างแล้ว')}
           /* เมนู "การนัดหมาย" บนแถบหัวผูกกับผู้รับบริการรายนี้ */
           patientHn={form.hn || patient?.hn || ''}
+          /* step ที่เนื้อหาเป็นการ์ดอยู่แล้วประกาศ `rendersOwnCards` ไว้เอง */
+          bodyCard={!ActiveStep?.rendersOwnCards}
           /* สถานะผู้รับบริการ = การ์ดขาวแยกใบเหนือการ์ดเนื้อหา เฉพาะขั้นตอน
              "ข้อมูลส่วนตัว" (มติผู้ใช้ 27 ส.ค. 69) */
           beforeCard={stepIndex === 1
             ? <PatientStatusCard form={form} setForm={setForm} patient={patient} />
             : null}
         >
-          {/* 1.1.1.13 — clickable missing-field panel (คลิก jump ไป step) */}
-          {missingReport && missingReport.length > 0 && (
-            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-              <Alert
-                type='error'
-                title='ยังบันทึกไม่ได้ — ข้อมูลที่จำเป็นยังไม่ครบ'
-                subtext='กดปุ่มขั้นตอนด้านล่างเพื่อข้ามไปกรอกข้อมูลที่ขาด'
-                showCloseButton={false}
-                showBadge={false}
-                showIndicator={false}
-                style={{ width: '100%' }}
-              />
-              <div className='flex w-full flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-                {missingReport.map((r) => (
-                  <BrandSubdueButton
-                    key={r.stepIndex}
-                    variant='outline'
-                    size='sm'
-                    leadingIcon='error'
-                    onClick={() => {
-                      setStepIndex(r.stepIndex);
-                      setMissingReport(null);
-                    }}
-                  >
-                    {`${r.stepLabel}: ${r.fields.join(' · ')}`}
-                  </BrandSubdueButton>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* 1.1.1.13 — รายการข้อมูลที่ยังขาด ย้ายไปอยู่ใน <MissingFieldsPopup> */}
           <ActiveStep
             form={form}
             setForm={setForm}
             patient={patient}
             onNameBlurCheck={stepIndex === 1 ? handleNameBlurCheck : undefined}
+            /* ใช้เฉพาะขั้น "ตรวจสอบข้อมูล" — ปุ่มแก้ไขในแต่ละการ์ดพากลับไปขั้นต้นทาง */
+            onJumpToStep={setStepIndex}
           />
         </FormShell>
         <Footer />
@@ -481,7 +470,7 @@ const RegistrationFormPage = () => {
         onClose={() => setReferOpen(false)}
         onConfirm={handleReferConfirm}
         fromDepartment='งานเวชระเบียน'
-        subtitle='เลือกแผนกและจุดบริการปลายทางหลังลงทะเบียนผู้รับบริการ'
+        subtitle='เลือกจุดบริการหรือแผนกปลายทาง'
       />
 
       {/* ออกจากฟอร์มที่แก้ไขค้าง */}

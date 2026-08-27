@@ -30,6 +30,11 @@ export const REGISTRATION_STEP_LABELS = [
   'ข้อมูลการติดต่อ',
   'สิทธิการรักษา',
   'หมายเหตุและ Flag',
+  /* ขั้นสุดท้าย — ทวนข้อมูลทั้งหมดก่อนบันทึกจริง (มติผู้ใช้ 27 ส.ค. 69)
+     ⚠️ ต้องยาวเท่ากับ `REGISTRATION_STEP_NAMES`, `STEP_MISSING_BUILDERS` และ
+     `getRegistrationCompletedSteps` ใน data/registrationForm.js เพราะทั้งสี่
+     อ้าง stepIndex ตัวเดียวกัน */
+  'ตรวจสอบข้อมูล',
 ];
 
 const SUBHEADER_FALLBACK = 72;
@@ -60,8 +65,11 @@ const FormActionBar = ({ onHistoryOpen, onReadSmartCard, smartCardRead = false, 
 );
 
 const Footer = ({ stepIndex, lastSavedMin = 2, onPrev, onCancel, onNext, onSave, isLast }) => {
+  /* ขั้นสุดท้ายคือ "ตรวจสอบข้อมูล" — กดแล้วบันทึกและส่งต่อไปขั้นถัดไปของงาน
+     (มติผู้ใช้ 27 ส.ค. 69) · ข้อความต้องตรงกับ `SAVE_BUTTON_TEXT` ใน
+     RegistrationFormPage ซึ่งดักเจตนา "กดบันทึก" จาก textContent ของปุ่ม */
   const nextStepLabel = isLast
-    ? 'บันทึกข้อมูลผู้รับบริการ'
+    ? 'บันทึกและส่งต่อ'
     : `ถัดไป: ${REGISTRATION_STEP_LABELS[stepIndex + 1]}`;
   const isFirst = stepIndex === 0;
 
@@ -118,7 +126,7 @@ const Footer = ({ stepIndex, lastSavedMin = 2, onPrev, onCancel, onNext, onSave,
       <BrandSubdueButton variant='outline' size='lg' leadingIcon='save' onClick={onSave}>
         บันทึกร่าง
       </BrandSubdueButton>
-      <BrandPrimaryButton size='lg' trailingIcon={isLast ? 'check' : 'arrow_forward'} onClick={onNext}>
+      <BrandPrimaryButton size='lg' trailingIcon='arrow_forward' onClick={onNext}>
         {nextStepLabel}
       </BrandPrimaryButton>
     </div>
@@ -138,6 +146,11 @@ const FormShell = ({
   beforeCard,
   /** HN ของผู้รับบริการที่กำลังลงทะเบียน — ผูกเมนู "การนัดหมาย" กับคนไข้รายนี้ */
   patientHn,
+  /** false = ไม่ต้องมีการ์ดขาวใหญ่ครอบเนื้อหา — ใช้กับ step ที่เนื้อหาเป็นการ์ด
+      ย่อยอยู่แล้ว (ที่อยู่ / ติดต่อ / สิทธิ / Flag / ตรวจสอบข้อมูล) การ์ดครอบ
+      การ์ดอ่านเป็นกรอบซ้อนกันเปล่า ๆ (มติผู้ใช้ 27 ส.ค. 69)
+      step ประกาศเองผ่าน `<StepComponent>.rendersOwnCards = true` */
+  bodyCard = true,
   children,
 }) => {
   const history = useHistory();
@@ -223,27 +236,39 @@ const FormShell = ({
       >
         {beforeCard}
 
-        <div
-          className='flex flex-col w-full'
-          style={{
-            borderRadius: 'var(--dim-radius-500)',
-            background: 'var(--surface-card-100)',
-            boxShadow: 'var(--shadow-brand-drop-bottom-200)',
-            overflow: 'hidden',
-          }}
-        >
+        {bodyCard ? (
+          <div
+            className='flex flex-col w-full'
+            style={{
+              borderRadius: 'var(--dim-radius-500)',
+              background: 'var(--surface-card-100)',
+              boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              key={stepIndex}
+              data-direction={stepDirection}
+              className='mih-step-content flex flex-col'
+              style={{
+                padding: 'var(--dim-space-600)',
+                gap: 'var(--dim-space-300)',
+              }}
+            >
+              {children}
+            </div>
+          </div>
+        ) : (
+          /* ไม่มีการ์ดครอบ — เนื้อหาวางตรงบนพื้นหน้า การ์ดย่อยข้างในแบ่งกลุ่มเอง */
           <div
             key={stepIndex}
             data-direction={stepDirection}
-            className='mih-step-content flex flex-col'
-            style={{
-              padding: 'var(--dim-space-600)',
-              gap: 'var(--dim-space-300)',
-            }}
+            className='mih-step-content flex flex-col w-full'
+            style={{ gap: 'var(--dim-space-300)' }}
           >
             {children}
           </div>
-        </div>
+        )}
       </div>
 
       <Footer
