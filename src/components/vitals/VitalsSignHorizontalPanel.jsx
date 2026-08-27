@@ -364,6 +364,10 @@ const VitalsSignHorizontalPanel = ({
   tiles = VITAL_SIGN_TILES,
   layout = 'responsive',
   variant = 'default',
+  /* 'quaternary' (ค่าเดิม) = พื้นเทาอ่อน · 'card' = การ์ดขาวยืนเดี่ยว
+     (ขั้นตรวจร่างกายใช้ card เพราะอยู่บนพื้นหน้าไม่ได้ซ้อนในการ์ดอื่น
+      — มติผู้ใช้ 28 ส.ค. 69) */
+  surface = 'quaternary',
   graphSubtitle,
   graphDisabled = false,
   className = '',
@@ -397,7 +401,9 @@ const VitalsSignHorizontalPanel = ({
         padding: 'var(--dim-space-400)',
         borderRadius: 'var(--dim-radius-500)',
         border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
-        background: 'var(--surface-neutral-quaternary)',
+        background: surface === 'card'
+          ? 'var(--surface-card-100, #FFFFFF)'
+          : 'var(--surface-neutral-quaternary)',
         ...style,
       }}
     >

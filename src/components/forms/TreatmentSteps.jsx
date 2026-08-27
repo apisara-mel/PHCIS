@@ -1483,9 +1483,39 @@ const ScreeningSummaryBody = ({ summary }) => {
     <>
     <SummaryPanel title='สัญญาณชีพล่าสุด'>
       {vitalItems.length > 0 ? (
-        <div className='grid grid-cols-2 w-full' style={{ gap: 'var(--dim-space-300)' }}>
+        /* ป้ายกำกับกับค่าอยู่บรรทัดเดียวกัน ซ้าย-ขวา — เดิมซ้อนกันสองบรรทัดต่อค่า
+            กินความสูงเป็นเท่าตัวและเหลือที่ว่างด้านขวาเปล่า ๆ (มติผู้ใช้ 28 ส.ค. 69) */
+        <div
+          className='grid w-full'
+          style={{
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            columnGap: 'var(--dim-space-500)',
+          }}
+        >
           {vitalItems.map((item) => (
-            <HistoryInfoText key={item.label} label={item.label} value={item.value} />
+            <div
+              key={item.label}
+              className='flex items-baseline w-full'
+              style={{
+                gap: 'var(--dim-space-300)',
+                paddingTop: 'var(--dim-space-150)',
+                paddingBottom: 'var(--dim-space-150)',
+                borderBottom: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+              }}
+            >
+              <span style={{
+                color: 'var(--text-content-tertiary)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs)',
+                lineHeight: 1.5,
+              }}>{item.label}</span>
+              <span className='ml-auto text-right' style={{
+                color: 'var(--text-content-default)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm)',
+                lineHeight: 1.5,
+              }}>{item.value}</span>
+            </div>
           ))}
         </div>
       ) : <ValueText>ยังไม่มีค่าสัญญาณชีพที่บันทึก</ValueText>}
@@ -1867,18 +1897,10 @@ export const Step3Examination = ({ form, setForm, patient }) => {
 
   return (
     <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      <Topic
-        hierarchy='primary'
-        title='ตรวจร่างกาย'
-        leadingIcon='description'
-        showSubText={false}
-        showBadge={false}
-        showChevron={false}
-        showSuccess={false}
-      />
-
+      {/* หัวข้อ "ตรวจร่างกาย" ถูกเอาออก — แถบขั้นตอนด้านบนบอกอยู่แล้ว (28 ส.ค. 69) */}
       <VitalsSignHorizontalPanel
         variant='exam'
+        surface='card'
         measurementRounds={DEFAULT_MEASUREMENT_ROUNDS}
       />
 
