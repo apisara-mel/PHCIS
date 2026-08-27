@@ -90,6 +90,10 @@ const GrowthZoneLegend = ({ metric }) => {
 /* export ให้ `GrowthStatusCard` (ขั้นสัญญาณชีพของหน้าคัดกรอง) ใช้กราฟใบเดียวกับ
    คลินิกวัคซีน — เกณฑ์กรมอนามัยจึงมาจากที่เดียวทั้งระบบ */
 export const GrowthChart = ({ bands, points, unit, metric, xMode = 'months' }) => {
+  /* ชี้เมาส์บนกราฟแล้วอ่านค่าได้ (มติผู้ใช้ 28 ส.ค. 69) — เดิมกราฟบอกได้แค่ว่า
+     จุดของผู้รับบริการตกอยู่แถบสีไหน แต่อ่านตัวเลขเกณฑ์ที่อายุนั้นไม่ได้เลย
+     เก็บเป็น "ดัชนีของ band" ไม่ใช่พิกัดพิกเซล เพื่อให้เส้นนำทางสแนปเข้าจุดข้อมูลจริง */
+  const [hoverIdx, setHoverIdx] = useState(null);
   const hasBands = Array.isArray(bands) && bands.length > 0;
   const measured = points.filter((p) => Number.isFinite(p.value));
 
@@ -175,6 +179,19 @@ export const GrowthChart = ({ bands, points, unit, metric, xMode = 'months' }) =
           viewBox={`0 0 ${CHART_W} ${CHART_H}`}
           role='img'
           aria-label='กราฟการเจริญเติบโตเทียบเกณฑ์กรมอนามัย'
+          onMouseMove={hasBands ? (e) => {
+            const box = e.currentTarget.getBoundingClientRect();
+            /* แปลงพิกัดจอ → พิกัด viewBox ก่อน เพราะ svg ถูกย่อ/ขยายตามคอนเทนเนอร์ */
+            const svgX = ((e.clientX - box.left) / box.width) * CHART_W;
+            let best = 0;
+            let bestD = Infinity;
+            bands.forEach((b, i) => {
+              const d = Math.abs(x(bandX(b)) - svgX);
+              if (d < bestD) { bestD = d; best = i; }
+            });
+            setHoverIdx(best);
+          } : undefined}
+          onMouseLeave={hasBands ? () => setHoverIdx(null) : undefined}
           style={{
             minWidth: CHART_W,
             display: 'block',
@@ -250,6 +267,63 @@ export const GrowthChart = ({ bands, points, unit, metric, xMode = 'months' }) =
             />
           ))}
           {measured.map((p, i) => crossMark(x(pointX(p)), y(p.value)))}
+
+          {/* เส้นนำทาง + กล่องอ่านค่าเมื่อชี้เมาส์ — สแนปเข้าจุดข้อมูลจริงของเกณฑ์ */}
+          {hasBands && hoverIdx != null && bands[hoverIdx] ? (() => {
+            const b = bands[hoverIdx];
+            const hx = x(bandX(b));
+            const ageLabel = xMode === 'months'
+              ? `อายุ ${Math.round(bandX(b))} เดือน`
+              : `อายุ ${Math.round(bandX(b))} ปี`;
+            /* ค่าที่ผู้รับบริการวัดได้ ณ อายุใกล้เคียงที่สุด (ถ้ามี) */
+            const near = measured.reduce((acc, pt) => {
+              const d = Math.abs(x(pointX(pt)) - hx);
+              return (!acc || d < acc.d) ? { pt, d } : acc;
+            }, null);
+            const rows = [
+              ['สูงกว่าเกณฑ์ (P97)', b.p97],
+              ['เกณฑ์กลาง (P50)', b.p50],
+              ['ต่ำกว่าเกณฑ์ (P3)', b.p3],
+            ].filter(([, v]) => Number.isFinite(v));
+            if (near && near.d <= 12) rows.push(['ค่าที่วัดได้', near.pt.value]);
+            const boxW = 150;
+            const boxH = 22 + rows.length * 15;
+            /* กล่องพลิกไปฝั่งซ้ายเมื่อชนขอบขวา จะได้ไม่ล้นออกนอกกราฟ */
+            const bx = hx + 10 + boxW > CHART_W - PAD_R ? hx - 10 - boxW : hx + 10;
+            return (
+              <g pointerEvents='none'>
+                <line
+                  x1={hx} y1={PAD_T} x2={hx} y2={CHART_H - PAD_B}
+                  stroke='var(--border-neutral-secondary, #C8CDD1)' strokeWidth='1' strokeDasharray='3 3'
+                />
+                {rows.filter(([label]) => label !== 'ค่าที่วัดได้').map(([label, v]) => (
+                  <circle key={label} cx={hx} cy={y(v)} r='3' fill='var(--border-brandPrimary-default, #007549)' />
+                ))}
+                <rect
+                  x={bx} y={PAD_T} width={boxW} height={boxH} rx='6'
+                  fill='var(--surface-neutral-primary, #FFFFFF)'
+                  stroke='var(--border-neutral-tertiary, #E2E4E6)'
+                />
+                <text
+                  x={bx + 8} y={PAD_T + 15}
+                  fill='var(--text-content-default, #363B3F)'
+                  style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xxs, 10px)', fontWeight: 'var(--type-weight-medium, 500)' }}
+                >
+                  {ageLabel}
+                </text>
+                {rows.map(([label, v], i) => (
+                  <text
+                    key={label}
+                    x={bx + 8} y={PAD_T + 30 + i * 15}
+                    fill='var(--text-content-secondary, #5C656D)'
+                    style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xxs, 10px)' }}
+                  >
+                    {`${label} ${Math.round(v * 10) / 10} ${unit}`}
+                  </text>
+                ))}
+              </g>
+            );
+          })() : null}
 
           <text
             x={PAD_L} y={PAD_T - 2} textAnchor='start'

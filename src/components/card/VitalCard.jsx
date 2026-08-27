@@ -40,7 +40,7 @@ const Badge = ({ tone = 'orange', children }) => (
   </SharedBadge>
 );
 
-const Header = ({ label, unit, required, badge }) => (
+const Header = ({ label, unit, required, badge, labelAction }) => (
   <div className='flex items-center gap-3 w-full'>
     <div className='flex-1 flex items-center gap-0.5 leading-snug min-w-0'>
       <p
@@ -62,6 +62,9 @@ const Header = ({ label, unit, required, badge }) => (
         </span>
       )}
     </div>
+    {/* ตัวสลับเล็ก ๆ ข้างชื่อช่อง เช่น เส้นรอบเอว ↔ เส้นรอบหัว — วางในหัวการ์ด
+        แทนที่จะเป็นปุ่มลอยข้างนอก ผู้ใช้จะได้เห็นว่ามันคุมช่องนี้ช่องเดียว */}
+    {labelAction}
     {badge && <Badge tone={badge.tone}>{badge.label}</Badge>}
   </div>
 );
@@ -83,6 +86,8 @@ const VitalCard = ({
      that gates the in-card status badge, so card UI and form gate
      stay in lockstep.                                                 */
   onValidityChange,
+  /** node เล็ก ๆ ที่วางข้างชื่อช่อง (เช่น ปุ่มสลับชนิดการวัด) */
+  labelAction,
 }) => {
   const [value, setValue] = useState(initial);
   /* Vital signs cannot be negative — clamp at 0 for both the stepper
@@ -127,7 +132,7 @@ const VitalCard = ({
 
   return (
     <div className='bg-surface-card border border-ink-line rounded-card p-4 flex flex-col gap-1 w-full'>
-      <Header label={label} unit={unit} required={required} badge={visibleBadge} />
+      <Header label={label} unit={unit} required={required} badge={visibleBadge} labelAction={labelAction} />
 
       {children ? (
         children

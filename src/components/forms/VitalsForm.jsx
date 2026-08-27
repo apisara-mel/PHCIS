@@ -136,6 +136,9 @@ const VitalsForm = ({ onValidityChange, onValuesChange, patientSex, patientAgeYe
      ขึ้นไปดูจาก BMI ปุ่มคู่นี้จึงสลับ "การ์ดภาวะโภชนาการ" ในกริดจริง ๆ ไม่ใช่
      ตัวกรองเปล่า (ชิป ≥2 ปี ชุดเดิมถูกตัดออกเพราะกดไม่ได้ — มติผู้ใช้ 28 ส.ค. 69)
      ค่าเริ่มต้นเดาจากอายุผู้รับบริการถ้ารู้ ไม่รู้ก็ถือเป็นผู้ใหญ่ */
+  /* ช่องวัดรอบตัวช่องเดียวใช้ได้สองแบบ — ผู้ใหญ่วัดเส้นรอบเอว เด็กเล็กวัดเส้นรอบหัว
+     (มติผู้ใช้ 28 ส.ค. 69) เก็บค่าไว้ที่ `waist` ช่องเดิม เปลี่ยนแค่ชื่อกับคำอธิบาย */
+  const [girth, setGirth] = useState('waist');
   const [ageBand, setAgeBand] = useState(
     Number(patientAgeYears) > 0 && Number(patientAgeYears) < 18 ? 'child' : 'adult',
   );
@@ -326,9 +329,13 @@ const VitalsForm = ({ onValidityChange, onValuesChange, patientSex, patientAgeYe
           className='flex-1 min-w-0 self-stretch flex flex-col gap-4'
           style={{ boxSizing: 'border-box' }}
         >
-          <h3 className='text-base font-bold text-token-topicTertiaryTitle'>
-            {measurementTitle}
-          </h3>
+          {/* หัวข้อ "การวัดวันที่ …" ขึ้นเมื่อมีรอบวัดแล้วเท่านั้น — ยังไม่กดเพิ่มรอบ
+              ก็ยังไม่มีการวัดให้ตั้งชื่อ (มติผู้ใช้ 28 ส.ค. 69) */}
+          {!firstVisit && (
+            <h3 className='text-base font-bold text-token-topicTertiaryTitle'>
+              {measurementTitle}
+            </h3>
+          )}
           {/* React key — `activeRound.id` reseeds the cards when the user
               switches rounds or adds a fresh one so VitalCard's internal
               `useState(initial)` re-reads the current displayed values. */}
@@ -420,12 +427,33 @@ const VitalsForm = ({ onValidityChange, onValuesChange, patientSex, patientAgeYe
               />
             )}
             <VitalCard
-              label='เส้นรอบเอว'
+              label={girth === 'head' ? 'เส้นรอบหัว' : 'เส้นรอบเอว'}
               unit='ซม.'
               required
               value={vitals.waist.value}
               onValidityChange={(v) => setFieldValid('waist', v)}
-              hint='ปกติ ≤ 90 ซม. (ชาย)'
+              hint={girth === 'head'
+                ? 'วัดรอบศีรษะส่วนที่กว้างที่สุด (ใช้กับเด็กเล็ก)'
+                : 'ปกติ ≤ 90 ซม. (ชาย)'}
+              labelAction={(
+                <button
+                  type='button'
+                  onClick={() => setGirth((g) => (g === 'head' ? 'waist' : 'head'))}
+                  className='shrink-0 whitespace-nowrap'
+                  style={{
+                    padding: 'var(--dim-space-050) var(--dim-space-200)',
+                    borderRadius: 'var(--dim-radius-full)',
+                    border: 'var(--dim-stroke-100) solid var(--border-brandPrimaryButton-tertiary)',
+                    color: 'var(--text-brandPrimary-default)',
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-xxs, 10px)',
+                    lineHeight: 1.6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {girth === 'head' ? 'วัดเส้นรอบเอว' : 'วัดเส้นรอบหัว'}
+                </button>
+              )}
             />
           </div>
 
