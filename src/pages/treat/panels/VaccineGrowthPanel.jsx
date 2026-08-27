@@ -656,54 +656,23 @@ const VaccineGrowthPanel = ({ form, patient, section = 'all' }) => {
           </PanelAlert>
         ) : null}
 
-        {isDemo ? (
-          <PanelAlert tone='info' icon='child_care' title='แสดงกราฟตัวอย่าง (เกณฑ์อ้างอิง)'>
-            {Number.isFinite(ageYears) && ageYears > 18
-              ? `ผู้รับบริการอายุ ${ageYears} ปี — กราฟการเจริญเติบโตใช้กับเด็ก 0–5 ปี ระบบจึงแสดงตัวอย่างจาก ${growthCtx.demoMeta?.label || 'เด็กตัวอย่าง'} (HN ${growthCtx.demoMeta?.hn}) เทียบเกณฑ์กรมอนามัย`
-              : `ยังไม่มีค่าวัดของผู้รับบริการรายนี้ — แสดงตัวอย่างจาก ${growthCtx.demoMeta?.label || 'เด็กตัวอย่าง'} (HN ${growthCtx.demoMeta?.hn})`}
-            {' '}
-            <a
-              href={growthCtx.demoMeta?.referenceUrl || 'https://cf.mahidol.ac.th/factsforlifethai/nutrition/graph05.html'}
-              target='_blank'
-              rel='noopener noreferrer'
-              style={{ color: 'var(--text-brandPrimary-default, #007549)', textDecoration: 'underline' }}
-            >
-              อ่านวิธีแปลผล (Facts for Life)
-            </a>
-          </PanelAlert>
-        ) : (
-          /* §1.4.3.10 — ที่มาของแถบ percentile แบบมีโครงสร้าง (ไม่ hard-code
-             ข้อความ) เพื่อให้ผู้ใช้ตรวจสอบได้ว่าเส้นอ้างอิงมาจากไหนและ
-             ยังขาดอะไรจึงจะเป็นชุดทางการ */
-          <PanelAlert tone='warning' icon='science' title={`แถบ percentile: ${GROWTH_BAND_PROVENANCE.statusLabel}`}>
-            <span style={{ display: 'block' }}>
-              <b>ควรอ้างอิง:</b> {GROWTH_BAND_PROVENANCE.intendedSource}
-            </span>
-            <span style={{ display: 'block' }}>
-              <b>ที่ใช้อยู่จริง:</b> {GROWTH_BAND_PROVENANCE.actualSource}
-            </span>
-            <span style={{ display: 'block' }}>
-              {GROWTH_BAND_PROVENANCE.ageRange} · {GROWTH_BAND_PROVENANCE.percentiles} · {GROWTH_BAND_PROVENANCE.interpolation}
-            </span>
-            <span style={{ display: 'block' }}>
-              <b>ข้อจำกัด:</b> {GROWTH_BAND_PROVENANCE.limitation}
-            </span>
-            <span style={{ display: 'block' }}>
-              ทบทวนล่าสุด {GROWTH_BAND_PROVENANCE.lastReviewedAt} โดย {GROWTH_BAND_PROVENANCE.reviewedBy}
-            </span>
-          </PanelAlert>
-        )}
+        {/* แถบอธิบายที่มาของแถบ percentile และแถบกราฟตัวอย่าง ถูกเอาออก 28 ส.ค. 69 */}
+
 
         {/* TabPill ต้องอยู่ใน TabBar ถึงจะเป็นแคปซูลเต็มรูปพร้อมตัวบอกตำแหน่ง
             เดิมวางลอยใน div ธรรมดา ตัวที่ไม่ถูกเลือกจึงเป็นข้อความเปล่า ๆ
             (มติผู้ใช้ 28 ส.ค. 69) */}
-        <TabBar aria-label='หน่วยวัดของกราฟการเจริญเติบโต' className='w-full shrink-0'>
+        {/* กว้างเท่าตัวอักษร ไม่ยืดเต็มแถว — ห่อด้วย flex row ให้ TabBar เป็น
+            flex item ที่ขนาดตามเนื้อหา (มติผู้ใช้ 28 ส.ค. 69) */}
+        <div className='flex w-full shrink-0'>
+        <TabBar aria-label='หน่วยวัดของกราฟการเจริญเติบโต'>
           {[...GROWTH_METRICS, { key: 'bmi', label: 'ดัชนีมวลกาย (BMI)', unit: 'kg/m²' }].map((m) => (
             <TabPill key={m.key} selected={metric === m.key} onClick={() => setMetric(m.key)}>
               {m.label}
             </TabPill>
           ))}
         </TabBar>
+        </div>
 
         {!showGrowthChart ? (
           <PanelEmptyState

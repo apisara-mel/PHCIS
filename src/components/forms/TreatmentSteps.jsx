@@ -18,6 +18,7 @@ import BrandIconButton from '@/components/button/BrandIconButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import TabCapsule from '@/components/tab/TabCapsule';
 import TabPill, { TabBar, TabPillSmall } from '@/components/tab/TabPill';
+import GroupedTimeline from '@/components/timeline/GroupedTimeline';
 import VitalsSignHorizontalPanel from '@/components/vitals/VitalsSignHorizontalPanel';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import ColorfulIconBadge from '@/components/badge/ColorfulIconBadge';
@@ -187,7 +188,7 @@ const HISTORY_TABS = [
   'ผลการวินิจฉัย',
   /* EMR §1.4 — แท็บที่เพิ่มในเวฟ TOR §1.4. แต่ละแท็บมี panel เป็นไฟล์ของ
      ตัวเองใน src/pages/treat/panels/ เพื่อไม่ให้ไฟล์นี้บวมต่อ */
-  'ผลตรวจแล็บและรังสีวิทยา (เปรียบเทียบ)',
+  'ผลตรวจแล็บและรังสีวิทยา',
   'วัคซีน',
   'กราฟการเจริญเติบโต',
   /* TOR §1.4.3.4 — แพทย์ต้องเห็นประวัติการส่งต่อของผู้ป่วยได้จากในหน้า
@@ -215,8 +216,106 @@ const DATE_SCOPED_HISTORY_TABS = new Set([
   HISTORY_TAB_DX,
 ]);
 
+/* ── Timeline ของโหมด "ดูตามรายการตรวจ" ─────────────────────────────────
+   หมวดที่ผูกกับการรับบริการครั้งเดียวไม่ได้อ่านทีละใบอีกแล้ว แต่ไล่ทุกครั้งที่
+   มารับบริการเป็นไทม์ไลน์ จัดกลุ่มด้วยหัวข้อวันที่แบบ sticky (GroupedTimeline
+   ตัวเดียวกับไทม์ไลน์อื่นในระบบ) — ตัวหนังสือขนาด xs/sm ล้วน ไม่มีการ์ดซ้อน
+   การ์ด เพราะเป็นรายการที่ต้องกวาดตาอ่านย้อนหลัง ไม่ใช่หน้าอ่านทีละใบ
+   (มติผู้ใช้ 28 ส.ค. 69) แต่ละหมวดอ่านคนละช่องของบันทึก จึงประกาศไว้ที่เดียว */
+const TIMELINE_FIELDS_BY_TAB = {
+  [HISTORY_TAB_SCREENING]: (v) => [
+    ['อาการสำคัญ (CC)', v.cc],
+    ['ระยะเวลาที่มีอาการ', v.duration],
+    ['ระดับความเจ็บปวด', v.pain?.label],
+  ],
+  [HISTORY_TAB_LAB]: (v) => [
+    ['แผนก/คลินิก', v.dept],
+    ['แพทย์ผู้ตรวจ', v.doctor],
+    ['การรักษา/ยาที่สั่ง', v.rx],
+  ],
+  [HISTORY_TAB_EXAM]: (v) => [
+    ['แผนก/คลินิก', v.dept],
+    ['แพทย์ผู้ตรวจ', v.doctor],
+    ['อาการสำคัญ (CC)', v.cc],
+  ],
+  [HISTORY_TAB_DX]: (v) => [
+    ['การวินิจฉัย', v.dx],
+    ['การรักษา/ยาที่สั่ง', v.rx],
+    ['แพทย์ผู้ตรวจ', v.doctor],
+  ],
+};
+
+const TimelineField = ({ label, value }) => (
+  <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+    <span style={{
+      color: 'var(--text-content-tertiary)',
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-xs)',
+      lineHeight: 1.5,
+    }}>{label}</span>
+    <span style={{
+      color: 'var(--text-content-default)',
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-sm)',
+      lineHeight: 1.5,
+    }}>{value || '—'}</span>
+  </div>
+);
+
+const VisitFieldTimeline = ({ visits, tabLabel }) => {
+  const fieldsOf = TIMELINE_FIELDS_BY_TAB[tabLabel];
+  const groups = useMemo(
+    () => (visits || []).map((v, i) => ({
+      key: `${v.date}-${i}`,
+      label: v.center ? `${v.date} · ${v.center}` : v.date,
+      fields: (fieldsOf ? fieldsOf(v) : []).filter(([, value]) => value),
+    })),
+    [visits, fieldsOf],
+  );
+
+  if (!groups.length) {
+    return <ValueText>ยังไม่มีประวัติการรับบริการของผู้รับบริการรายนี้</ValueText>;
+  }
+
+  return (
+    <GroupedTimeline
+      groups={groups}
+      getGroupKey={(g) => g.key}
+      getGroupLabel={(g) => g.label}
+      getGroupCount={(g) => g.fields.length}
+      countLabel='รายการ'
+      sectionGap='var(--dim-space-500)'
+      renderGroupBody={(g) => (
+        g.fields.length === 0
+          ? (
+            <span style={{
+              color: 'var(--text-content-tertiary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm)',
+            }}>ไม่มีข้อมูลหมวดนี้ในครั้งนั้น</span>
+          )
+          : (
+            <div
+              className='grid w-full'
+              style={{
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: 'var(--dim-space-300)',
+                paddingLeft: 'var(--dim-space-300)',
+                borderLeft: 'var(--dim-stroke-200, 2px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+              }}
+            >
+              {g.fields.map(([label, value]) => (
+                <TimelineField key={label} label={label} value={value} />
+              ))}
+            </div>
+          )
+      )}
+    />
+  );
+};
+
 /* EMR §1.4 tab → panel component (ไฟล์แยกใน src/pages/treat/panels/) */
-const HISTORY_TAB_LABRAD  = 'ผลตรวจแล็บและรังสีวิทยา (เปรียบเทียบ)';
+const HISTORY_TAB_LABRAD  = 'ผลตรวจแล็บและรังสีวิทยา';
 const HISTORY_TAB_VACCINE = 'วัคซีน';
 const HISTORY_TAB_GROWTH  = 'กราฟการเจริญเติบโต';
 const HISTORY_TAB_REFER   = 'ประวัติการส่งต่อ';
@@ -754,28 +853,11 @@ export const MedicalHistoryReadOnlyLayout = ({
           ))}
         </div>
 
-        {/* ตัวเลือกวันที่สำหรับแผงที่ผูกกับการรับบริการครั้งเดียว — ขึ้นเฉพาะ
-            โหมด "ตามรายการตรวจ" ที่รางวันที่ถูกซ่อน */}
-        {byOrder && DATE_SCOPED_HISTORY_TABS.has(activeTabLabel) && (
-          <div style={{ maxWidth: 320 }}>
-            <Select
-              label='ครั้งที่รับบริการ'
-              value={String(selectedIndex)}
-              onChange={(v) => setSelectedIndex(Number(v))}
-              options={dateItems.map((d, i) => ({
-                value: String(i),
-                label: d.center ? `${d.date} · ${d.center}` : d.date,
-              }))}
-            />
-          </div>
-        )}
 
-        <div style={{
-          height: 1,
-          background: 'var(--border-neutral-tertiary, var(--border-card-default))',
-        }} />
 
-        {activeTabLabel === HISTORY_TAB_XRAY ? (
+        {byOrder && DATE_SCOPED_HISTORY_TABS.has(activeTabLabel) ? (
+          <VisitFieldTimeline visits={visits} tabLabel={activeTabLabel} />
+        ) : activeTabLabel === HISTORY_TAB_XRAY ? (
           <XrayHistoryTabPanel patient={patient} />
         ) : activeTabLabel === HISTORY_TAB_LABRAD ? (
           <LabRadiologyResultsPanel
