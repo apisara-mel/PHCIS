@@ -55,15 +55,19 @@ const SUMMARY_CARDS = [
   { key: 'avgwait',  label: 'นาทีรอเฉลี่ย',      value: 34, color: 'positive',   icon: 'schedule'        },
 ];
 
+/* ชื่อและลำดับแท็บใช้ชุดเดียวกับหน้าคัดกรอง (มติผู้ใช้ 28 ส.ค. 69) — เริ่มที่
+   "คิววันนี้" ซึ่งเป็นงานของวัน และ "รายชื่อผู้ป่วยทั้งหมด" ไปอยู่ท้ายสุดในฐานะ
+   ที่ค้นหา ไม่ใช่หน้าแรก · การ์ดสรุปยังเขียน "รอตรวจ" อยู่ เพราะการ์ดคือสถิติ
+   ของสถานะ ส่วนแท็บคือตัวกรองรายการ */
 const TABS = [
-  { key: 'all',      label: 'ทั้งหมด',          icon: 'group',         count: 8 },
-  { key: 'waiting',  label: 'รอตรวจ',           icon: 'schedule',      count: 2 },
+  { key: 'waiting',  label: 'คิววันนี้',          icon: 'schedule',      count: 2 },
   { key: 'progress', label: 'กำลังตรวจ',         icon: 'assignment',    count: 2 },
   { key: 'done',     label: 'ตรวจเสร็จแล้ว',     icon: 'check_circle',  count: 2 },
   { key: 'draft',    label: 'ที่ร่างไว้',         icon: 'save',          count: 2 },
   /* มติ คทง.1 — To-Do List ผล Lab/X-ray ที่ออกแล้วแต่ยังไม่มีใครรับทราบ
      (ผู้ป่วยกลับบ้านไปแล้วก็ยังต้องมีคนตามผล) count เติมตอน render */
   { key: 'results',  label: 'ผลตรวจรอรับทราบ',   icon: 'lab_profile',   count: 0 },
+  { key: 'all',      label: 'รายชื่อผู้ป่วยทั้งหมด', icon: 'group',    count: 8 },
 ];
 
 const TAB_STATUS_FILTER = {
@@ -90,18 +94,12 @@ const FILTER_OPTIONS = {
     { value: 'walkin', label: 'Walk-in' },
     { value: 'appointment', label: 'นัดหมาย' },
   ],
-  time: [
-    { value: 'all', label: 'ทั้งวัน' },
-    { value: 'morning', label: 'ช่วงเช้า' },
-    { value: 'afternoon', label: 'ช่วงบ่าย' },
-  ],
 };
 const FILTER_DEFAULTS = {
   department: 'all',
   doctor: 'all',
   type: 'all',
   dateValue: { quick: 'today' },
-  time: 'all',
 };
 
 const DATE_CHIP_LABELS = {
@@ -336,7 +334,9 @@ const BASE_COLUMNS = [
 
 const TreatmentQueuePage = () => {
   const history = useHistory();
-  const [activeTab, setActiveTab] = useState('all');
+  /* เปิดมาที่ "คิววันนี้" — งานของวันนี้ ไม่ใช่ทะเบียนผู้ป่วยทั้งหมด
+     (ทรงเดียวกับหน้าคัดกรอง) */
+  const [activeTab, setActiveTab] = useState('waiting');
 
   /* มติ คทง.1 — To-Do List ผลตรวจของแพทย์ที่ล็อกอินอยู่ (Lab + X-ray รวมกัน)
      ผลวิกฤต/ผิดปกติเรียงขึ้นก่อน กด "รับทราบผล" แล้วประทับชื่อ+เวลา */
@@ -416,8 +416,7 @@ const TreatmentQueuePage = () => {
     filters.department === FILTER_DEFAULTS.department &&
     filters.doctor === FILTER_DEFAULTS.doctor &&
     filters.type === FILTER_DEFAULTS.type &&
-    filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick &&
-    filters.time === FILTER_DEFAULTS.time;
+    filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick;
   const filtersActive = !isAllDefault || searchQ.trim() !== '';
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     filtersActive,
@@ -703,7 +702,6 @@ const TreatmentQueuePage = () => {
                 defaultQuick={FILTER_DEFAULTS.dateValue.quick}
                 quickLabels={DATE_CHIP_LABELS}
               />
-              <FilterDropdown prefix='เวลา:' options={FILTER_OPTIONS.time} value={filters.time} onChange={setFilter('time')} />
               <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>
