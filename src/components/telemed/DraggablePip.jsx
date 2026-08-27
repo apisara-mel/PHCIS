@@ -56,7 +56,7 @@ const DraggablePip = ({
   const beginDrag = (event) => {
     if (event.button != null && event.button !== 0) return;
     const interactive = event.target?.closest?.(
-      'button, a, input, textarea, select, [data-no-drag], [role="button"]',
+      'button, a, input, textarea, select, label, [data-no-drag], [role="button"], [role="radio"], [role="dialog"]',
     );
     if (interactive) return;
 

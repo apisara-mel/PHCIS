@@ -856,7 +856,7 @@ export const HivStiStep5Orders = ({ form, setForm, clinicPatient, readOnly }) =>
                   size='md'
                   leadingIcon='videocam'
                   disabled={readOnly}
-                  onClick={() => telemed.start()}
+                  onClick={() => telemed.start(clinicPatient?.hn)}
                 >
                   กลับเข้าห้องปรึกษา
                 </BrandSubdueButton>
@@ -877,7 +877,7 @@ export const HivStiStep5Orders = ({ form, setForm, clinicPatient, readOnly }) =>
                   leadingIcon='videocam'
                   disabled={readOnly}
                   onClick={() => {
-                    telemed.start();
+                    telemed.start(clinicPatient?.hn);
                     setForm((f) => ({ ...f, telemedStatus: 'started' }));
                   }}
                 >

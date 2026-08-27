@@ -25,7 +25,14 @@ export function TelemedCallProvider({ children }) {
      ห้องปรึกษาจะแสดงผู้รับบริการคนเดิมเสมอไม่ว่ากดแถวไหน */
   const [visitId, setVisitId] = useState(null);
 
-  const start = useCallback((id = null) => { setVisitId(id); setActive(true); setMinimized(false); }, []);
+  /* ผู้เรียกบางที่ส่งเป็นสตริง บางที่ส่งเป็น { visitId } — รับให้ได้ทั้งสองแบบ
+     ไม่งั้นจะได้ "[object Object]" แล้วหาแถวไม่เจอ ตกไปใช้ผู้ป่วยค่าเริ่มต้น */
+  const start = useCallback((arg = null) => {
+    const id = (arg && typeof arg === 'object') ? (arg.visitId ?? arg.id ?? null) : arg;
+    setVisitId(id ? String(id) : null);
+    setActive(true);
+    setMinimized(false);
+  }, []);
   const close = useCallback(() => { setActive(false); setMinimized(false); }, []);
   const minimize = useCallback(() => setMinimized(true), []);
   const maximize = useCallback(() => setMinimized(false), []);

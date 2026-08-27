@@ -343,7 +343,7 @@ const TelemedRpmBoardPage = () => {
     const visit = getTelemedVisitByHn(row.hn);
     if (visit) setTelemedVisitStatus(visit.id, 'inprogress', telemedActor(role));
     logTelemedEvent(role, 'เปิดสาย Telemedicine จากกระดาน RPM', { detail: row.name });
-    startCall();
+    startCall(visit?.id || row.hn);
   };
 
   const handleQueue = (row) => {
