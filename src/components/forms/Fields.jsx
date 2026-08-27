@@ -109,6 +109,10 @@ export const SubCard = ({
       border: isBrandQuaternary
         ? 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)'
         : 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+      /* การ์ดขาว (tone 'card') คือใบที่วางบนพื้นหน้าจอ จึงยกด้วยเงาชุดเดียวกับ
+         การ์ดเนื้อหาของ FormShell / PatientStatusCard — ส่วน tone 'neutral' และ
+         'brandQuaternary' เป็นกล่องซ้อนอยู่ในการ์ดอีกที ไม่ต้องมีเงา */
+      boxShadow: isTopicTitle ? undefined : 'var(--shadow-brand-drop-bottom-200)',
     }}
   >
     {(title || onDelete) && (
