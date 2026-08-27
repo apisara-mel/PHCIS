@@ -114,6 +114,10 @@ export const buildEmptyRegistrationForm = () => ({
   bloodType: '',
   education: '',
   occupation: '',
+  /* ข้อความที่พิมพ์เองเมื่อเลือก "อื่นๆ" — แยกจากค่าที่เลือกไว้ เพื่อให้ยังนับ
+     สถิติจากค่าในทะเบียนได้ และรู้ว่ารายไหนเป็นค่านอกทะเบียน */
+  occupationOther: '',
+  birthPlaceOther: '',
   marital: '',
   spouseFirstName: '',
   spouseLastName: '',
@@ -141,7 +145,7 @@ export const buildEmptyRegistrationForm = () => ({
   phone: '',
   altPhone: '',
   email: '',
-  emergency: [{ name: '', last: '', relation: '', phone: '', tag: '' }],
+  emergency: [{ name: '', last: '', relation: '', relationOther: '', phone: '', tag: '' }],
 
   // Step 4 — rights (Figma 214:21954 lookup · 1:4150 post-search card group)
   rightsLookupDone: false,
@@ -170,15 +174,19 @@ export const buildEmptyRegistrationForm = () => ({
   chronicConditions: [],
 });
 
-/** Mock lookup result — Figma PHCIS-Registration 1:4150 (สิทธิที่ 1 + สิทธิที่ 2). */
+/** Mock lookup result — Figma PHCIS-Registration 1:4150 (สิทธิที่ 1 + สิทธิที่ 2).
+
+   ชุดสิทธิตรงกับหน้าตรวจสอบสิทธิของตู้ Kiosk (`08-EntitlementDetailsSelf`) —
+   สองที่ต้องเห็นสิทธิชุดเดียวกันเมื่อเป็นคนคนเดียวกัน (มติผู้ใช้ 27 ส.ค. 69)
+   `role` = "ใช้สิทธิในฐานะ" ตามที่ Kiosk แสดง */
 export const buildMockRightsGroups = () => [
   {
     id: 'rights-g1',
     title: 'สิทธิที่ 1',
     priorityItems: [
-      { id: 'rights-g1-i1', label: 'บัตรทอง' },
-      { id: 'rights-g1-i2', label: 'สิทธิ ข้าราชการ กทม.' },
-      { id: 'rights-g1-i3', label: 'ประกันสังคม' },
+      { id: 'rights-g1-i1', label: 'บัตรทอง', role: 'เจ้าของสิทธิ (ตนเอง)' },
+      { id: 'rights-g1-i2', label: 'สิทธิ ข้าราชการ กทม.', role: 'เจ้าของสิทธิ (ตนเอง)' },
+      { id: 'rights-g1-i3', label: 'ประกันสังคม', role: 'เจ้าของสิทธิ (ตนเอง)' },
     ],
     documents: [],
     photos: [],
@@ -188,9 +196,9 @@ export const buildMockRightsGroups = () => [
     id: 'rights-g2',
     title: 'สิทธิที่ 2',
     priorityItems: [
-      { id: 'rights-g2-i1', label: 'AIA H&S Extra Plan 2' },
-      { id: 'rights-g2-i2', label: 'AIA NPA2500' },
-      { id: 'rights-g2-i3', label: 'ออมสิน Smart Care Plus' },
+      { id: 'rights-g2-i1', label: 'AIA H&S Extra Plan 2', role: 'เจ้าของสิทธิ (ตนเอง)' },
+      { id: 'rights-g2-i2', label: 'AIA NPA2500', role: 'เจ้าของสิทธิ (ตนเอง)' },
+      { id: 'rights-g2-i3', label: 'ออมสิน Smart Care Plus', role: 'เจ้าของสิทธิ (ตนเอง)' },
     ],
     documents: [],
     photos: [],
@@ -360,6 +368,50 @@ const allFilled = (form, keys) => keys.every((k) => nonEmpty(form?.[k]));
 
 const STEP1_REQUIRED_CONSENT_IDS = REGISTRATION_REQUIRED_CONSENT_IDS;
 
+/* ทะเบียนอาชีพ (มติผู้ใช้ 27 ส.ค. 69) — ของเดิมมี 8 รายการซึ่งครอบไม่ถึง
+   ประชากรที่ศูนย์บริการดูแลจริง (เกษตรกร ประมง พระภิกษุ ผู้พิการ เด็กก่อนวัยเรียน
+   ไม่มีสักตัว) เจ้าหน้าที่จึงต้องเลือก "อื่นๆ" แทบทุกราย จนช่องนี้ไม่มีความหมาย
+   ทางสถิติ. เรียงจากกลุ่มที่พบบ่อยที่สุดลงไป และปิดท้ายด้วย "อื่นๆ" เสมอ
+   ดรอปดาวน์ของระบบพิมพ์ค้นได้อยู่แล้ว (Select searchable) */
+export const OCCUPATION_OPTIONS = [
+  'นักเรียน/นักศึกษา',
+  'เด็กก่อนวัยเรียน',
+  'ข้าราชการ',
+  'พนักงานราชการ/ลูกจ้างภาครัฐ',
+  'พนักงานรัฐวิสาหกิจ',
+  'ทหาร/ตำรวจ',
+  'ครู/อาจารย์',
+  'บุคลากรทางการแพทย์และสาธารณสุข',
+  'พนักงานบริษัทเอกชน',
+  'พนักงานโรงงาน/อุตสาหกรรม',
+  'ค้าขาย/ธุรกิจส่วนตัว',
+  'รับจ้างทั่วไป',
+  'เกษตรกร',
+  'ประมง',
+  'ปศุสัตว์',
+  'งานก่อสร้าง',
+  'ขับรถรับจ้าง/ขนส่ง',
+  'งานบริการ/ท่องเที่ยว',
+  'แม่บ้าน/งานบ้าน',
+  'พระภิกษุ/นักบวช',
+  'เกษียณอายุ',
+  'ว่างงาน',
+  'ผู้พิการ/ทุพพลภาพ',
+  'อื่นๆ',
+];
+
+export const EDUCATION_OPTIONS = [
+  'ไม่ได้รับการศึกษา',
+  'ประถมศึกษา',
+  'มัธยมศึกษาตอนต้น',
+  'มัธยมศึกษาตอนปลาย',
+  'ปวช.',
+  'ปวส./อนุปริญญา',
+  'ปริญญาตรี',
+  'ปริญญาโท',
+  'ปริญญาเอก',
+];
+
 const STEP2_REQUIRED_KEYS = [
   'prefixTh', 'firstNameTh', 'lastNameTh',
   'prefixEn', 'firstNameEn', 'lastNameEn',
@@ -496,6 +548,13 @@ export const getPersonalMissingFields = (form) => {
   if (form?.lifeStatus === 'deceased' && !nonEmpty(form?.deceasedDate)) {
     missing.push('วันที่เสียชีวิต');
   }
+  /* เลือก "อื่นๆ" แล้วไม่ระบุ = ข้อมูลหายไปเฉย ๆ ต้องบล็อกเหมือนช่องว่าง */
+  if (form?.occupation === 'อื่นๆ' && !nonEmpty(form?.occupationOther)) {
+    missing.push('อาชีพ (ระบุ)');
+  }
+  if (form?.birthPlace === '__other' && !nonEmpty(form?.birthPlaceOther)) {
+    missing.push('สถานที่เกิด (ระบุ)');
+  }
   return missing;
 };
 
@@ -539,10 +598,18 @@ export const getRegistrationCompletedSteps = (form) => [
   isStepContactComplete(form),
   isStepRightsComplete(form),
   isStepFlagsComplete(form),
+  /* "ตรวจสอบข้อมูล" — ขั้นทวน ถือว่าครบเมื่อ 6 ขั้นก่อนหน้าครบทั้งหมด ไม่งั้น
+     stepper จะติ๊กเขียวทั้งที่ยังบันทึกไม่ได้ */
+  isStepConsentComplete(form)
+    && isStepPersonalComplete(form)
+    && isStepAddressComplete(form)
+    && isStepContactComplete(form)
+    && isStepRightsComplete(form)
+    && isStepFlagsComplete(form),
 ];
 
-/* TOR 1.1.1.13 — per-step missing-field report for the explicit error
-   toast + clickable jump panel. Index matches STEP_RENDERERS order. */
+/* TOR 1.1.1.13 — per-step missing-field report ที่ <MissingFieldsPopup> ใช้
+   แสดงว่าขาดอะไรบ้าง · index ต้องตรงกับ STEP_RENDERERS */
 const STEP_MISSING_BUILDERS = [
   (form) => (isStepConsentComplete(form) ? [] : ['แบบฟอร์มยินยอมที่ยังไม่ได้กรอก']),
   (form) => getPersonalMissingFields(form),
@@ -567,6 +634,8 @@ const STEP_MISSING_BUILDERS = [
     else if (form?.mobility === 'other' && !nonEmpty(form?.mobilityOther)) missing.push('รายละเอียดการเคลื่อนไหว (อื่นๆ)');
     return missing;
   },
+  /* ตรวจสอบข้อมูล — ขั้นทวนอย่างเดียว ไม่มีฟิลด์ของตัวเอง */
+  () => [],
 ];
 
 export const REGISTRATION_STEP_NAMES = [
@@ -576,6 +645,7 @@ export const REGISTRATION_STEP_NAMES = [
   'ข้อมูลการติดต่อ',
   'สิทธิการรักษา',
   'หมายเหตุและ Flag',
+  'ตรวจสอบข้อมูล',
 ];
 
 /** Missing fields for one step — `[ 'ชื่อ (ไทย)', … ]`. */

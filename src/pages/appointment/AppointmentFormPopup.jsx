@@ -48,6 +48,7 @@ import { NEW_USER_AVATAR } from '@/data/avatarAssets';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import BrandIconButton from '@/components/button/BrandIconButton';
 import Icd10SearchPopup from '@/components/popup/Icd10SearchPopup';
+import AdvanceOrderField from '@/components/appointment/AdvanceOrderField';
 
 /** HCIS §2.3 "วันเวลาที่สั่งนัด" — auto, read-only. */
 const orderedAtStamp = (() => {
@@ -71,6 +72,7 @@ const BLANK_FORM = {
   prep: '',
   preOrder: 'none',
   preOrderNote: '',
+  advanceOrders: [],
   examMode: 'onsite',
   date: '',
   slotRange: '',
@@ -278,6 +280,7 @@ function mapApptToForm(appt, slotPick, mode, staff, patientSelectable = false) {
       prep: appt.prep || '',
       preOrder: appt.preOrder || 'none',
       preOrderNote: appt.preOrderNote || '',
+      advanceOrders: Array.isArray(appt.advanceOrders) ? appt.advanceOrders : [],
       examMode,
       date: appt.date || slotPick?.date || '',
       slotRange: resolveRange(appt.slotRange, appt.time, slotPick?.time, slotPick?.slotRange),
@@ -343,6 +346,7 @@ function formToSavePayload(form, scheduleSlots = []) {
     prep: form.prep,
     preOrder: form.preOrder,
     preOrderNote: form.preOrderNote,
+    advanceOrders: form.advanceOrders || [],
     examMode,
     /* เดิม payload ไม่มีสองฟิลด์นี้เลย — กรอกแล้วหายตอนบันทึก */
     purposeCode: form.purposeCode,
@@ -653,7 +657,8 @@ const AppointmentFormPopup = ({
     && form.prep.trim()
     && form.date
     && form.slotRange
-    && (form.preOrder !== 'has' || form.preOrderNote.trim());
+    && (form.preOrder !== 'has'
+      || (form.preOrderNote.trim() && (form.advanceOrders || []).length > 0));
   /* Create: prefilled demo is submittable without an extra edit (Figma filled state).
      Edit: require a change before บันทึก (Figma 3:9730 annotation). */
   const canSave = formComplete && (mode === 'create' || dirty);
@@ -974,15 +979,14 @@ const AppointmentFormPopup = ({
           </div>
           <ApptCollapse open={form.preOrder === 'has'}>
             <FieldGrid cols={2} columnGap='var(--dim-space-1200)' rowGap='var(--dim-space-600)'>
+              {/* ของเดิมเป็นปุ่มตาย ไม่มี onClick กดแล้วไม่เกิดอะไร ทั้งที่ทั้ง
+                  popup เลือกคำสั่งและกล่องยืนยันลบมีอยู่ในระบบแล้ว
+                  (มติผู้ใช้ 27 ส.ค. 69) */}
               <Field label='คำสั่ง' required>
-                <BrandButton
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  leadingIcon='add'
-                >
-                  เลือกคำสั่งล่วงหน้า
-                </BrandButton>
+                <AdvanceOrderField
+                  value={form.advanceOrders}
+                  onChange={setField('advanceOrders')}
+                />
               </Field>
               <Field label='เงื่อนไขก่อนทำ' required>
                 <SuggestibleTextarea

@@ -45,10 +45,20 @@ import {
   getBirthYearError,
   ageToBirthYearBE,
   appendRegistrationAudit,
+  EDUCATION_OPTIONS,
+  OCCUPATION_OPTIONS,
 } from '@/data/registrationForm';
 import { MR_GENDERS, MR_GENDER_IDENTITIES } from '@/data/mrPatients';
+import {
+  THAI_PROVINCE_NAMES,
+  THAI_POSTCODES,
+  provinceByPostcode,
+} from '@/data/thaiProvinces';
+import { districtsOfProvince, subdistrictsOfDistrict } from '@/data/thaiDistricts';
 import useTakePhotoCapture from '@/hooks/useTakePhotoCapture';
 import { shouldUseNativeCameraInput } from '@/utils/cameraDevice';
+import { HOSPITAL_OPTIONS, HOSPITAL_OTHER_VALUE } from '@/data/hospitals';
+import SelectWithOther from '@/components/forms/SelectWithOther';
 
 /* Per-step form bodies for the Registration (เวชระเบียน) flow.
    Each step accepts (form, setForm) and reads/writes its own slice.
@@ -62,8 +72,10 @@ import { shouldUseNativeCameraInput } from '@/utils/cameraDevice';
 const PREFIX_TH = ['นาย', 'นาง', 'นางสาว', 'เด็กชาย', 'เด็กหญิง'];
 const PREFIX_EN = ['Mr.', 'Mrs.', 'Ms.', 'Master', 'Miss'];
 const BLOOD_TYPES = ['O', 'A', 'B', 'AB'];
-const EDUCATION = ['ประถมศึกษา', 'มัธยมศึกษา', 'ปริญญาตรี', 'ปริญญาโท', 'ปริญญาเอก'];
-const OCCUPATIONS = ['นักเรียน/นักศึกษา', 'พนักงานบริษัทเอกชน', 'ข้าราชการ', 'พนักงานราชการ', 'ค้าขาย', 'แม่บ้าน', 'เกษียณ', 'อื่นๆ'];
+/* ทะเบียนการศึกษา/อาชีพ ย้ายไปอยู่ที่ registrationForm.js แล้ว — เป็นข้อมูล
+   ไม่ใช่ UI และหน้าอื่น (สรุปข้อมูล / รายงาน) ต้องอ่านชุดเดียวกัน */
+const EDUCATION = EDUCATION_OPTIONS;
+const OCCUPATIONS = OCCUPATION_OPTIONS;
 const MARITAL = ['โสด', 'สมรส', 'หย่า', 'หม้าย'];
 /** Spouse name row — Figma 2373:119045; only when marital status is สมรส. */
 const SHOWS_SPOUSE_FIELDS = (marital) => marital === 'สมรส';
@@ -1002,11 +1014,20 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
                 showHelperText={false}
               />
             </Field>
+            {/* เดิมเป็นข้อความพิมพ์อิสระ คนกรอกคนละแบบ ("รพ.กลาง" / "โรงพยาบาลกลาง")
+                จนนับสถิติไม่ได้ — เปลี่ยนเป็นทะเบียนสถานพยาบาลที่พิมพ์ค้นได้
+                พร้อมตัวเลือก "อื่นๆ" สำหรับที่ไม่มีในทะเบียน (มติผู้ใช้ 27 ส.ค. 69) */}
             <Field label='สถานที่เกิด'>
-              <InputField
+              <SelectWithOther
                 value={form.birthPlace}
                 onChange={set('birthPlace')}
-                placeholder='เช่น โรงพยาบาลกลาง กรุงเทพมหานคร'
+                otherValue={form.birthPlaceOther}
+                onOtherChange={set('birthPlaceOther')}
+                options={HOSPITAL_OPTIONS}
+                otherOption={HOSPITAL_OTHER_VALUE}
+                placeholder='ค้นหาชื่อโรงพยาบาล'
+                otherPlaceholder='ระบุสถานที่เกิด เช่น เกิดที่บ้าน / คลินิก'
+                otherLabel='ระบุสถานที่เกิด'
               />
             </Field>
           </FieldGrid>
@@ -1021,11 +1042,15 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
               />
             </Field>
             <Field label='อาชีพ' required>
-              <Select
+              <SelectWithOther
                 value={form.occupation}
                 onChange={set('occupation')}
+                otherValue={form.occupationOther}
+                onOtherChange={set('occupationOther')}
                 options={OCCUPATIONS}
                 placeholder='เลือกอาชีพ'
+                otherPlaceholder='ระบุอาชีพ'
+                otherLabel='ระบุอาชีพ'
               />
             </Field>
           </FieldGrid>
@@ -1096,9 +1121,10 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
    Step 2 — ที่อยู่ (Figma 2373:119046)
    ───────────────────────────────────────────────────────────── */
 
-const PROVINCES = ['กรุงเทพมหานคร', 'นนทบุรี', 'ปทุมธานี', 'สมุทรปราการ', 'นครปฐม', 'เชียงใหม่'];
-const DISTRICTS = ['พระโขนง', 'ดินแดง', 'ห้วยขวาง', 'บางเขน', 'จตุจักร', 'ปทุมวัน'];
-const SUBDISTRICTS = ['บางจาก', 'ดินแดง', 'ห้วยขวาง', 'อนุสาวรีย์', 'จตุจักร', 'ปทุมวัน'];
+/* จังหวัด/รหัสไปรษณีย์ ครบทุกจังหวัด — ดู src/data/thaiProvinces.js
+   (เดิม hardcode ไว้ 6 จังหวัด / 5 รหัส · มติผู้ใช้ 27 ส.ค. 69) */
+const PROVINCES = THAI_PROVINCE_NAMES;
+/* เขต/อำเภอ และ แขวง/ตำบล กรองตามระดับบนที่เลือก — ดู src/data/thaiDistricts.js */
 
 /* Placeholders mirror the field label per Figma 207:20375 — every empty
    Step 2 input shows its own muted label inside the field so the empty
@@ -1116,14 +1142,20 @@ const ADDRESS_PLACEHOLDERS = {
 
 const AddressBlock = ({ data, onChange, disabled = false }) => {
   const set = (k) => (v) => onChange({ ...data, [k]: v });
+  const districtOptions = districtsOfProvince(data.province);
+  const subdistrictOptions = subdistrictsOfDistrict(data.province, data.district);
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
       <FieldGrid cols={4} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
         <Field label='รหัสไปรษณีย์' required>
           <Select
             value={data.zip}
-            onChange={set('zip')}
-            options={['10260', '10310', '10110', '10330', '11000']}
+            /* เลือกรหัสแล้วเติมจังหวัดให้เลย ลดการกรอกซ้ำและกันเลือกไม่ตรงกัน */
+            onChange={(v) => {
+              const province = provinceByPostcode(v);
+              onChange({ ...data, zip: v, ...(province ? { province } : {}) });
+            }}
+            options={THAI_POSTCODES}
             placeholder={ADDRESS_PLACEHOLDERS.zip}
             disabled={disabled}
           />
@@ -1131,7 +1163,9 @@ const AddressBlock = ({ data, onChange, disabled = false }) => {
         <Field label='จังหวัด' required>
           <Select
             value={data.province}
-            onChange={set('province')}
+            /* เปลี่ยนจังหวัด → ล้างเขต/แขวงที่เลือกไว้ ไม่งั้นจะค้างค่าของจังหวัดเดิม
+               ซึ่งไม่มีอยู่ในลิสต์ใหม่ (มติผู้ใช้ 27 ส.ค. 69) */
+            onChange={(v) => onChange({ ...data, province: v, district: '', subdistrict: '' })}
             options={PROVINCES}
             placeholder={ADDRESS_PLACEHOLDERS.province}
             disabled={disabled}
@@ -1140,20 +1174,34 @@ const AddressBlock = ({ data, onChange, disabled = false }) => {
         <Field label='เขต/อำเภอ' required>
           <Select
             value={data.district}
-            onChange={set('district')}
-            options={DISTRICTS}
+            onChange={(v) => onChange({ ...data, district: v, subdistrict: '' })}
+            options={districtOptions}
             placeholder={ADDRESS_PLACEHOLDERS.district}
-            disabled={disabled}
+            /* ยังไม่เลือกจังหวัด = เลือกเขตไม่ได้ */
+            disabled={disabled || !data.province}
           />
         </Field>
         <Field label='แขวง/ตำบล'>
-          <Select
-            value={data.subdistrict}
-            onChange={set('subdistrict')}
-            options={SUBDISTRICTS}
-            placeholder={ADDRESS_PLACEHOLDERS.subdistrict}
-            disabled={disabled}
-          />
+          {/* เลือกเขต/อำเภอแล้วต้องกรอกตำบลได้เสมอ (มติผู้ใช้ 27 ส.ค. 69)
+              จังหวัดที่ยังไม่มีชุดข้อมูลตำบล (ดู thaiDistricts.js) ให้พิมพ์เองแทน
+              การ disable ทิ้งไว้ — ปล่อยให้กรอกไม่ได้เท่ากับกรอกที่อยู่ไม่จบ */}
+          {subdistrictOptions.length > 0 ? (
+            <Select
+              value={data.subdistrict}
+              onChange={set('subdistrict')}
+              options={subdistrictOptions}
+              placeholder={ADDRESS_PLACEHOLDERS.subdistrict}
+              disabled={disabled || !data.district}
+            />
+          ) : (
+            <InputField
+              value={data.subdistrict}
+              onChange={set('subdistrict')}
+              placeholder={ADDRESS_PLACEHOLDERS.subdistrict}
+              disabled={disabled || !data.district}
+              showHelperText={false}
+            />
+          )}
         </Field>
       </FieldGrid>
       <FieldGrid cols={4} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
@@ -1247,13 +1295,13 @@ export const Step2Address = ({ form, setForm }) => {
 
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
-      <SectionTitle icon='location_on'>ที่อยู่</SectionTitle>
-
-      <SubCard surfaceTone='neutral' title='ที่อยู่ตามทะเบียนบ้าน'>
+      {/* ไม่มีหัวข้อ "ที่อยู่" ซ้ำแล้ว — stepper ด้านบนบอกอยู่ว่าอยู่ขั้นนี้
+          (มติผู้ใช้ 27 ส.ค. 69) */}
+      <SubCard titleTone='brand' titleIcon='home' title='ที่อยู่ตามทะเบียนบ้าน'>
         <AddressBlock data={form.addressRegistered} onChange={setAddr('addressRegistered')} />
       </SubCard>
 
-      <SubCard surfaceTone='neutral' title='ที่อยู่ปัจจุบัน'>
+      <SubCard titleTone='brand' titleIcon='location_on' title='ที่อยู่ปัจจุบัน'>
         <CheckboxButton
           checked={form.useRegisteredForCurrent}
           onChange={handleUseRegistered('addressCurrent', 'useRegisteredForCurrent')}
@@ -1279,7 +1327,7 @@ export const Step2Address = ({ form, setForm }) => {
         />
       </SubCard>
 
-      <SubCard surfaceTone='neutral' title='ที่อยู่ติดต่อได้'>
+      <SubCard titleTone='brand' titleIcon='contact_mail' title='ที่อยู่ติดต่อได้'>
         <CheckboxButton
           checked={form.useRegisteredForContact}
           onChange={handleUseRegistered('addressContact', 'useRegisteredForContact')}
@@ -1301,11 +1349,15 @@ export const Step2Address = ({ form, setForm }) => {
   );
 };
 
+/* ขั้นนี้เนื้อหาเป็นการ์ดย่อยสามใบอยู่แล้ว — บอก <FormShell> ว่าไม่ต้องมีการ์ด
+   ขาวใหญ่ครอบอีกชั้น (มติผู้ใช้ 27 ส.ค. 69) */
+Step2Address.rendersOwnCards = true;
+
 /* ─────────────────────────────────────────────────────────────
    Step 3 — ข้อมูลการติดต่อ (Figma 2373:119047)
    ───────────────────────────────────────────────────────────── */
 
-const RELATIONS = ['บิดา', 'มารดา', 'คู่สมรส', 'บุตร', 'พี่/น้อง', 'ญาติ', 'เพื่อน', 'อื่นๆ'];
+const RELATIONS = ['บิดา', 'มารดา', 'คู่สมรส', 'บุตร', 'พี่/น้อง', 'ปู่/ย่า/ตา/ยาย', 'ญาติ', 'เพื่อน', 'เพื่อนบ้าน', 'ผู้ดูแล', 'นายจ้าง', 'อื่นๆ'];
 
 /** Figma 207:15747 — every required emergency-contact field filled. */
 const isEmergencyContactComplete = (entry) =>
@@ -1338,7 +1390,7 @@ export const Step3Contact = ({ form, setForm }) => {
   };
   const addEmergency = () => setForm((s) => ({
     ...s,
-    emergency: [...s.emergency, { name: '', last: '', relation: 'บิดา', phone: '', tag: '' }],
+    emergency: [...s.emergency, { name: '', last: '', relation: 'บิดา', relationOther: '', phone: '', tag: '' }],
   }));
   const removeEmergency = (idx) => setForm((s) => ({
     ...s,
@@ -1357,11 +1409,10 @@ export const Step3Contact = ({ form, setForm }) => {
   };
 
   return (
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-1200)' }}>
-      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
-        <SectionTitle iconElement={<SectionTitleIcon src={ICON_SECTION_PHONE} />}>
-          ข้อมูลการติดต่อ
-        </SectionTitle>
+    /* สองกลุ่มแยกเป็นการ์ดคนละใบ หัวการ์ดเขียวมีไอคอนนำหน้า ทรงเดียวกับขั้น
+       "ที่อยู่" (มติผู้ใช้ 27 ส.ค. 69) */
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+      <SubCard titleTone='brand' titleIcon='call' title='ข้อมูลการติดต่อ'>
         <FieldGrid cols={4} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
           <Field label='โทรศัพท์มือถือ' required>
             <InputField value={form.phone} onChange={set('phone')} placeholder='081-234-5678' />
@@ -1373,12 +1424,9 @@ export const Step3Contact = ({ form, setForm }) => {
             <InputField value={form.email} onChange={set('email')} placeholder='somchai.m@email.com' leadingIcon='mail' />
           </Field>
         </FieldGrid>
-      </div>
+      </SubCard>
 
-      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
-        <SectionTitle iconElement={<SectionTitleIcon src={ICON_SECTION_ALERT_TRIANGLE} />}>
-          ผู้ติดต่อฉุกเฉิน
-        </SectionTitle>
+      <SubCard titleTone='brand' titleIcon='emergency' title='ผู้ติดต่อฉุกเฉิน'>
         {form.emergency.map((e, idx) => (
           <SubCard
             key={idx}
@@ -1395,7 +1443,18 @@ export const Step3Contact = ({ form, setForm }) => {
                 <InputField value={e.last} onChange={(v) => updateEmergency(idx, 'last', v)} placeholder='ชื่อผู้ติดต่อ' />
               </Field>
               <Field label='ความสัมพันธ์' required>
-                <Select value={e.relation} onChange={(v) => updateEmergency(idx, 'relation', v)} options={RELATIONS} placeholder='ความสัมพันธ์' />
+                {/* เลือก "อื่นๆ" แล้วต้องระบุ ไม่งั้นผู้ติดต่อฉุกเฉินจะไม่รู้ว่า
+                    เกี่ยวข้องกันยังไง (มติผู้ใช้ 27 ส.ค. 69) */}
+                <SelectWithOther
+                  value={e.relation}
+                  onChange={(v) => updateEmergency(idx, 'relation', v)}
+                  otherValue={e.relationOther}
+                  onOtherChange={(v) => updateEmergency(idx, 'relationOther', v)}
+                  options={RELATIONS}
+                  placeholder='ความสัมพันธ์'
+                  otherPlaceholder='ระบุความสัมพันธ์'
+                  otherLabel='ระบุความสัมพันธ์'
+                />
               </Field>
               <Field label='โทรศัพท์' required>
                 <InputField value={e.phone} onChange={(v) => updateEmergency(idx, 'phone', v)} placeholder='โทรศัพท์' />
@@ -1413,7 +1472,7 @@ export const Step3Contact = ({ form, setForm }) => {
             เพิ่มผู้ติดต่อฉุกเฉิน
           </BrandDashedAddButton>
         </div>
-      </div>
+      </SubCard>
 
       <DeleteEmergencyContactConfirmPopup
         open={emergencyDeleteIndex !== null}
@@ -1423,6 +1482,8 @@ export const Step3Contact = ({ form, setForm }) => {
     </div>
   );
 };
+
+Step3Contact.rendersOwnCards = true;
 
 /* ─────────────────────────────────────────────────────────────
    Step 4 — สิทธิการรักษา (Figma 214:21954 · 1:4150 lookup · 1:4153 group card)
@@ -1442,14 +1503,16 @@ const RIGHTS_LOOKUP_PANEL_STYLE = {
   marginTop: 'var(--dim-space-1200)',
 };
 
+/* การ์ดกลุ่มสิทธิ — ขาวแยกใบเหมือนการ์ดอื่นในฟอร์ม (มติผู้ใช้ 27 ส.ค. 69) */
 const RIGHTS_GROUP_SHELL = {
   display: 'flex',
   flexDirection: 'column',
   gap: 'var(--dim-space-300)',
   padding: 'var(--dim-space-600)',
   borderRadius: 'var(--dim-radius-400)',
-  background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+  background: 'var(--surface-card-100)',
   border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
+  boxShadow: 'var(--shadow-brand-drop-bottom-200)',
   width: '100%',
   boxSizing: 'border-box',
 };
@@ -1827,6 +1890,67 @@ const RightsPhotoThumb = ({ previewUrl, name, onRemove }) => (
   </div>
 );
 
+/* รายละเอียดสิทธิแต่ละรายการ — ทรงเดียวกับหน้าตรวจสอบสิทธิของตู้ Kiosk
+   (`08-EntitlementDetailsSelf`): ติ๊กถูก + ชื่อสิทธิ + แถบ "ใช้สิทธิในฐานะ"
+   (มติผู้ใช้ 27 ส.ค. 69) ตู้กับเคาน์เตอร์ต้องบอกเรื่องเดียวกันกับผู้รับบริการ */
+/* ชื่อสิทธิกับแถบ "ใช้สิทธิในฐานะ" อยู่แถวเดียวกัน (มติผู้ใช้ 27 ส.ค. 69) —
+   เป็นข้อมูลของสิทธิใบเดียวกัน วางคนละบรรทัดแล้วอ่านเหมือนคนละเรื่อง และกิน
+   ความสูงเป็นสองเท่าเมื่อมีหลายสิทธิ · flex-wrap ไว้ให้จอแคบตกบรรทัดเองแทน
+   ที่จะบีบข้อความ */
+const RightsEntitlementDetails = ({ items = [] }) => {
+  if (!items.length) return null;
+  return (
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+      {items.map((item) => (
+        <div
+          key={item.id}
+          className='flex items-center w-full flex-wrap'
+          style={{ gap: 'var(--dim-space-200) var(--dim-space-300)' }}
+        >
+          <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
+            <Sym name='check_circle' size={18} color='var(--icon-positive-success, var(--text-brandPrimary-default))' />
+            <span style={{
+              color: 'var(--text-content-default)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-sm)',
+              lineHeight: 1.5,
+            }}>
+              {item.label}
+            </span>
+          </div>
+          <div
+            className='flex items-center shrink-0'
+            style={{
+              gap: 'var(--dim-space-200)',
+              marginLeft: 'auto',
+              padding: 'var(--dim-space-200) var(--dim-space-300)',
+              borderRadius: 'var(--dim-radius-300, 10px)',
+              background: 'var(--surface-brandPrimary-quaternary)',
+            }}
+          >
+            <span style={{
+              color: 'var(--text-content-secondary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+              lineHeight: 1.5,
+            }}>
+              ใช้สิทธิในฐานะ
+            </span>
+            <span style={{
+              color: 'var(--text-content-default)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+              lineHeight: 1.5,
+            }}>
+              {item.role || 'เจ้าของสิทธิ (ตนเอง)'}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const RightsGroupCard = ({
   group,
   onRemoveDocument,
@@ -1906,80 +2030,92 @@ const RightsGroupCard = ({
         />
       </div>
 
-      {/* Figma 214:29504 — เอกสารประกอบ: chips + sm DragAndDrop in one row. */}
+      {/* รายละเอียดสิทธิแบบเดียวกับตู้ Kiosk */}
       <div style={RIGHTS_INNER_CARD}>
-        <span style={{
-          color: 'var(--text-topic-tertiary-title, var(--text-content-default))',
-          fontFamily: 'var(--type-family-body)',
-          fontSize: 'var(--type-size-sm)',
-          lineHeight: 1.5,
-        }}>
-          เอกสารประกอบ
-        </span>
-        <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-400)' }}>
-          {(group.documents ?? []).map((doc) => (
-            <RightsUploadedDocChip
-              key={doc.id}
-              name={doc.name}
-              sizeLabel={doc.sizeLabel}
-              onRemove={() => onRemoveDocument(group.id, doc.id)}
-            />
-          ))}
-          <DragAndDrop
-            size='sm'
-            className='shrink-0'
-            value={[]}
-            onChange={handleUploadFiles}
-            accept='image/*,.pdf'
-          />
-        </div>
+        <RightsEntitlementDetails items={group.priorityItems} />
       </div>
 
-      {/* Figma 216:28535 — รูปภาพประกอบ: thumbs + 128×128 capture tile. */}
-      <div style={RIGHTS_INNER_CARD}>
-        <span style={{
-          color: 'var(--text-topic-tertiary-title, var(--text-content-default))',
-          fontFamily: 'var(--type-family-body)',
-          fontSize: 'var(--type-size-sm)',
-          lineHeight: 1.5,
-        }}>
-          รูปภาพประกอบ
-        </span>
-        <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-400)' }}>
-          {photos.map((photo) => (
-            <RightsPhotoThumb
-              key={photo.id}
-              previewUrl={photo.previewUrl}
-              name={photo.name}
-              onRemove={() => onRemovePhoto(group.id, photo.id)}
+      {/* สองกล่องอยู่แถวเดียวกัน (มติผู้ใช้ 27 ส.ค. 69) — เอกสารกับรูปภาพเป็น
+          สิ่งแนบของเรื่องเดียวกัน วางซ้อนกันทำให้การ์ดยาวเกินจำเป็น */}
+      <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-400)' }}>
+        <div className='flex-1 min-w-0'>
+        {/* Figma 214:29504 — เอกสารประกอบ: chips + sm DragAndDrop in one row. */}
+        <div style={RIGHTS_INNER_CARD}>
+          <span style={{
+            color: 'var(--text-topic-tertiary-title, var(--text-content-default))',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-sm)',
+            lineHeight: 1.5,
+          }}>
+            เอกสารประกอบ
+          </span>
+          <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-400)' }}>
+            {(group.documents ?? []).map((doc) => (
+              <RightsUploadedDocChip
+                key={doc.id}
+                name={doc.name}
+                sizeLabel={doc.sizeLabel}
+                onRemove={() => onRemoveDocument(group.id, doc.id)}
+              />
+            ))}
+            <DragAndDrop
+              size='sm'
+              className='shrink-0'
+              value={[]}
+              onChange={handleUploadFiles}
+              accept='image/*,.pdf'
             />
-          ))}
-          {useNativeCapture ? (
-            <>
-              <label
-                htmlFor={cameraInputId}
-                className='inline-flex shrink-0 cursor-pointer'
-                style={RIGHTS_PHOTO_CAPTURE_TILE}
-              >
+          </div>
+        </div>
+        </div>
+        <div className='flex-1 min-w-0'>
+        {/* Figma 216:28535 — รูปภาพประกอบ: thumbs + 128×128 capture tile. */}
+        <div style={RIGHTS_INNER_CARD}>
+          <span style={{
+            color: 'var(--text-topic-tertiary-title, var(--text-content-default))',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-sm)',
+            lineHeight: 1.5,
+          }}>
+            รูปภาพประกอบ
+          </span>
+          <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-400)' }}>
+            {photos.map((photo) => (
+              <RightsPhotoThumb
+                key={photo.id}
+                previewUrl={photo.previewUrl}
+                name={photo.name}
+                onRemove={() => onRemovePhoto(group.id, photo.id)}
+              />
+            ))}
+            {useNativeCapture ? (
+              <>
+                <label
+                  htmlFor={cameraInputId}
+                  className='inline-flex shrink-0 cursor-pointer'
+                  style={RIGHTS_PHOTO_CAPTURE_TILE}
+                >
+                  <Sym name='image' size={20} color='currentColor' />
+                  ถ่ายรูป
+                </label>
+                <input
+                  ref={cameraInputRef}
+                  id={cameraInputId}
+                  type='file'
+                  accept='image/*'
+                  capture='environment'
+                  className='sr-only'
+                  onChange={handleNativeInput}
+                />
+              </>
+            ) : (
+              <button type='button' style={RIGHTS_PHOTO_CAPTURE_TILE} onClick={openTakePhoto}>
                 <Sym name='image' size={20} color='currentColor' />
                 ถ่ายรูป
-              </label>
-              <input
-                ref={cameraInputRef}
-                id={cameraInputId}
-                type='file'
-                accept='image/*'
-                capture='environment'
-                className='sr-only'
-                onChange={handleNativeInput}
-              />
-            </>
-          ) : (
-            <button type='button' style={RIGHTS_PHOTO_CAPTURE_TILE} onClick={openTakePhoto}>
-              <Sym name='image' size={20} color='currentColor' />
-              ถ่ายรูป
-            </button>
-          )}
+              </button>
+            )}
+          </div>
+        </div>
         </div>
       </div>
       <CameraCapturePopup
@@ -2069,12 +2205,15 @@ const Step4RightsResults = ({ form, setForm }) => {
   };
 
   return (
-    <>
-      <SectionTitle icon='credit_card'>สิทธิ์การรักษา</SectionTitle>
-      <div className='flex w-full justify-center' style={{ marginTop: -80 }}>
-        <RightsLookupPanel form={form} setForm={setForm} />
-      </div>
-      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600)' }}>
+    /* สามส่วนแยกการ์ดคนละใบ: การตรวจสอบสิทธิ์ · สิทธิที่ 1 · สิทธิที่ 2
+       (มติผู้ใช้ 27 ส.ค. 69) และไม่มีหัวข้อ "สิทธิ์การรักษา" ซ้ำกับชื่อ step */
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+      <SubCard titleTone='brand' titleIcon='credit_card' title='ตรวจสอบสิทธิ์'>
+        <div className='flex w-full justify-center'>
+          <RightsLookupPanel form={form} setForm={setForm} />
+        </div>
+      </SubCard>
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
         {form.rightsGroups.map((group) => (
           <RightsGroupCard
             key={group.id}
@@ -2087,7 +2226,7 @@ const Step4RightsResults = ({ form, setForm }) => {
           />
         ))}
       </div>
-    </>
+    </div>
   );
 };
 
@@ -2096,6 +2235,8 @@ export const Step4Rights = ({ form, setForm }) => (
     ? <Step4RightsResults form={form} setForm={setForm} />
     : <Step4RightsLookupEmpty form={form} setForm={setForm} />
 );
+
+Step4Rights.rendersOwnCards = true;
 
 /* ─────────────────────────────────────────────────────────────
    Step 5 — หมายเหตุและ Flag (Figma 2373:119049)
@@ -2474,10 +2615,10 @@ export const Step5Flags = ({ form, setForm }) => {
   const canAddChronicCondition = isDrugAllergyEntryComplete(lastChronicCondition);
 
   return (
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-1200)' }}>
+    /* สองกลุ่มแยกการ์ดคนละใบ (มติผู้ใช้ 27 ส.ค. 69) */
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
       {/* Figma PHCIS-Registration 210:21268 — mobility block */}
-      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-        <SectionTitle icon='directions_walk'>สภาพของผู้รับบริการ</SectionTitle>
+      <SubCard titleTone='brand' titleIcon='directions_walk' title='สภาพของผู้รับบริการ'>
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
           <div
             role='radiogroup'
@@ -2522,11 +2663,10 @@ export const Step5Flags = ({ form, setForm }) => {
             </div>
           )}
         </div>
-      </div>
+      </SubCard>
 
       {/* Figma 210:21275 — topic + choices in one column, 24px (space/600) between rows */}
-      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600)' }}>
-        <SectionTitle icon='flag'>หมายเหตุและ Flag</SectionTitle>
+      <SubCard titleTone='brand' titleIcon='flag' title='หมายเหตุและ Flag'>
           <Checkbox checked={form.flags.vip} onChange={(v) => setFlag('vip', v)} label='VIP / ผู้ป่วยพิเศษ' />
           {/* Toggling "แพ้อาหาร" ON seeds the first food card so the
               receptionist sees input fields immediately, mirroring the
@@ -2557,34 +2697,44 @@ export const Step5Flags = ({ form, setForm }) => {
                       : null
                   }
                 >
-                  <Field label='ชื่ออาหาร' required>
-                    <SuggestibleTextarea
-                      voice
-                      value={a.name}
-                      onChange={(e) => updateFoodAllergy(idx, 'name', e?.target?.value ?? '')}
-                      placeholder='เช่น กุ้ง, ปลาทะเล, นมวัว, ถั่วลิสง'
-                      suggestions={ALLERGY_FOOD_NAME_SUGGESTIONS}
-                      minChars={1}
-                      height={160}
-                      minHeight={96}
-                      popoverAriaLabel='คำแนะนำชื่ออาหาร'
-                    />
-                  </Field>
-                  <Field
-                    label='อาการ'
-                    required
-                    hint='ระบุอาการแพ้ทุกครั้งที่เคยพบ เพื่อช่วยแพทย์ประเมินความเสี่ยง'
+                  {/* ชื่อ + อาการ อยู่แถวเดียวกัน ห่าง 40px (มติผู้ใช้ 27 ส.ค. 69)
+                      ⚠️ TOKEN DEBT — สเกล space ยังไม่มี 40px (มี 800=32 · 1200=48)
+                      อ้าง `--dim-space-1000` ไว้ตามชื่อในสเกล ถ้าเพิ่ม token ที่ repo
+                      `mih-design` แล้ว `npm run tokens:pull` ค่าจะมาแทน fallback เอง */}
+                  <div
+                    className='flex items-start w-full'
+                    style={{ gap: 'var(--dim-space-1000, 40px)' }}
                   >
-                    <SuggestibleTextarea
-                      voice
-                      value={a.symptom}
-                      onChange={(e) => updateFoodAllergy(idx, 'symptom', e?.target?.value ?? '')}
-                      placeholder='อาการแพ้รุนแรง เช่น Anaphylaxis, ผื่นลมพิษทั่วตัว, หน้าบวม, หายใจไม่ออก'
-                      suggestions={ALLERGY_SYMPTOM_SUGGESTIONS}
-                      minChars={1}
-                      popoverAriaLabel='คำแนะนำอาการแพ้'
-                    />
-                  </Field>
+                    <Field label='ชื่ออาหาร' required style={{ flex: '1 1 0' }}>
+                      <SuggestibleTextarea
+                        voice
+                        value={a.name}
+                        onChange={(e) => updateFoodAllergy(idx, 'name', e?.target?.value ?? '')}
+                        placeholder='เช่น กุ้ง, ปลาทะเล, นมวัว, ถั่วลิสง'
+                        suggestions={ALLERGY_FOOD_NAME_SUGGESTIONS}
+                        minChars={1}
+                        height={160}
+                        minHeight={96}
+                        popoverAriaLabel='คำแนะนำชื่ออาหาร'
+                      />
+                    </Field>
+                    <Field
+                      label='อาการ'
+                      required
+                      hint='ระบุอาการแพ้ทุกครั้งที่เคยพบ เพื่อช่วยแพทย์ประเมินความเสี่ยง'
+                      style={{ flex: '1 1 0' }}
+                    >
+                      <SuggestibleTextarea
+                        voice
+                        value={a.symptom}
+                        onChange={(e) => updateFoodAllergy(idx, 'symptom', e?.target?.value ?? '')}
+                        placeholder='อาการแพ้รุนแรง เช่น Anaphylaxis, ผื่นลมพิษทั่วตัว, หน้าบวม, หายใจไม่ออก'
+                        suggestions={ALLERGY_SYMPTOM_SUGGESTIONS}
+                        minChars={1}
+                        popoverAriaLabel='คำแนะนำอาการแพ้'
+                      />
+                    </Field>
+                  </div>
                   <Field label='ระดับความรุนแรง' required>
                     <Select
                       value={a.severity}
@@ -2641,35 +2791,45 @@ export const Step5Flags = ({ form, setForm }) => {
                   }
                 >
                   {/* Figma 1:4146 — Voice Textarea (2568:11454) + autocomplete. */}
-                  <Field label='ชื่อยา' required>
-                    <SuggestibleTextarea
-                      voice
-                      value={a.name}
-                      onChange={(e) => updateAllergy(idx, 'name', e?.target?.value ?? '')}
-                      placeholder='Penicillin'
-                      suggestions={ALLERGY_DRUG_NAME_SUGGESTIONS}
-                      minChars={1}
-                      height={160}
-                      minHeight={96}
-                      popoverAriaLabel='คำแนะนำชื่อยา'
-                    />
-                  </Field>
-                  {/* Figma 1:4146 — Voice Textarea (2568:11508) + suggestion popover. */}
-                  <Field
-                    label='อาการ'
-                    required
-                    hint='ระบุอาการแพ้ทุกครั้งที่เคยพบ เพื่อช่วยแพทย์ประเมินความเสี่ยง'
+                  {/* ชื่อ + อาการ อยู่แถวเดียวกัน ห่าง 40px (มติผู้ใช้ 27 ส.ค. 69)
+                      ⚠️ TOKEN DEBT — สเกล space ยังไม่มี 40px (มี 800=32 · 1200=48)
+                      อ้าง `--dim-space-1000` ไว้ตามชื่อในสเกล ถ้าเพิ่ม token ที่ repo
+                      `mih-design` แล้ว `npm run tokens:pull` ค่าจะมาแทน fallback เอง */}
+                  <div
+                    className='flex items-start w-full'
+                    style={{ gap: 'var(--dim-space-1000, 40px)' }}
                   >
-                    <SuggestibleTextarea
-                      voice
-                      value={a.symptom}
-                      onChange={(e) => updateAllergy(idx, 'symptom', e?.target?.value ?? '')}
-                      placeholder='อาการแพ้รุนแรง เช่น Anaphylaxis, ผื่นลมพิษทั่วตัว, หน้าบวม, หายใจไม่ออก'
-                      suggestions={ALLERGY_SYMPTOM_SUGGESTIONS}
-                      minChars={1}
-                      popoverAriaLabel='คำแนะนำอาการแพ้'
-                    />
-                  </Field>
+                    <Field label='ชื่อยา' required style={{ flex: '1 1 0' }}>
+                      <SuggestibleTextarea
+                        voice
+                        value={a.name}
+                        onChange={(e) => updateAllergy(idx, 'name', e?.target?.value ?? '')}
+                        placeholder='Penicillin'
+                        suggestions={ALLERGY_DRUG_NAME_SUGGESTIONS}
+                        minChars={1}
+                        height={160}
+                        minHeight={96}
+                        popoverAriaLabel='คำแนะนำชื่อยา'
+                      />
+                    </Field>
+                    {/* Figma 1:4146 — Voice Textarea (2568:11508) + suggestion popover. */}
+                    <Field
+                      label='อาการ'
+                      required
+                      hint='ระบุอาการแพ้ทุกครั้งที่เคยพบ เพื่อช่วยแพทย์ประเมินความเสี่ยง'
+                      style={{ flex: '1 1 0' }}
+                    >
+                      <SuggestibleTextarea
+                        voice
+                        value={a.symptom}
+                        onChange={(e) => updateAllergy(idx, 'symptom', e?.target?.value ?? '')}
+                        placeholder='อาการแพ้รุนแรง เช่น Anaphylaxis, ผื่นลมพิษทั่วตัว, หน้าบวม, หายใจไม่ออก'
+                        suggestions={ALLERGY_SYMPTOM_SUGGESTIONS}
+                        minChars={1}
+                        popoverAriaLabel='คำแนะนำอาการแพ้'
+                      />
+                    </Field>
+                  </div>
                   <Field label='ระดับความรุนแรง' required>
                     <Select
                       value={a.severity}
@@ -2723,34 +2883,44 @@ export const Step5Flags = ({ form, setForm }) => {
                       : null
                   }
                 >
-                  <Field label='ชื่อสารเคมี' required>
-                    <SuggestibleTextarea
-                      voice
-                      value={a.name}
-                      onChange={(e) => updateChemicalAllergy(idx, 'name', e?.target?.value ?? '')}
-                      placeholder='เช่น น้ำยาฟอกขาว, ลาเท็กซ์, นิกเกิล'
-                      suggestions={ALLERGY_CHEMICAL_NAME_SUGGESTIONS}
-                      minChars={1}
-                      height={160}
-                      minHeight={96}
-                      popoverAriaLabel='คำแนะนำชื่อสารเคมี'
-                    />
-                  </Field>
-                  <Field
-                    label='อาการ'
-                    required
-                    hint='ระบุอาการแพ้ทุกครั้งที่เคยพบ เพื่อช่วยแพทย์ประเมินความเสี่ยง'
+                  {/* ชื่อ + อาการ อยู่แถวเดียวกัน ห่าง 40px (มติผู้ใช้ 27 ส.ค. 69)
+                      ⚠️ TOKEN DEBT — สเกล space ยังไม่มี 40px (มี 800=32 · 1200=48)
+                      อ้าง `--dim-space-1000` ไว้ตามชื่อในสเกล ถ้าเพิ่ม token ที่ repo
+                      `mih-design` แล้ว `npm run tokens:pull` ค่าจะมาแทน fallback เอง */}
+                  <div
+                    className='flex items-start w-full'
+                    style={{ gap: 'var(--dim-space-1000, 40px)' }}
                   >
-                    <SuggestibleTextarea
-                      voice
-                      value={a.symptom}
-                      onChange={(e) => updateChemicalAllergy(idx, 'symptom', e?.target?.value ?? '')}
-                      placeholder='อาการแพ้รุนแรง เช่น ผื่นแดงคัน, ผื่นลมพิษ, ปวดแสบปวดร้อน'
-                      suggestions={ALLERGY_SYMPTOM_SUGGESTIONS}
-                      minChars={1}
-                      popoverAriaLabel='คำแนะนำอาการแพ้สารเคมี'
-                    />
-                  </Field>
+                    <Field label='ชื่อสารเคมี' required style={{ flex: '1 1 0' }}>
+                      <SuggestibleTextarea
+                        voice
+                        value={a.name}
+                        onChange={(e) => updateChemicalAllergy(idx, 'name', e?.target?.value ?? '')}
+                        placeholder='เช่น น้ำยาฟอกขาว, ลาเท็กซ์, นิกเกิล'
+                        suggestions={ALLERGY_CHEMICAL_NAME_SUGGESTIONS}
+                        minChars={1}
+                        height={160}
+                        minHeight={96}
+                        popoverAriaLabel='คำแนะนำชื่อสารเคมี'
+                      />
+                    </Field>
+                    <Field
+                      label='อาการ'
+                      required
+                      hint='ระบุอาการแพ้ทุกครั้งที่เคยพบ เพื่อช่วยแพทย์ประเมินความเสี่ยง'
+                      style={{ flex: '1 1 0' }}
+                    >
+                      <SuggestibleTextarea
+                        voice
+                        value={a.symptom}
+                        onChange={(e) => updateChemicalAllergy(idx, 'symptom', e?.target?.value ?? '')}
+                        placeholder='อาการแพ้รุนแรง เช่น ผื่นแดงคัน, ผื่นลมพิษ, ปวดแสบปวดร้อน'
+                        suggestions={ALLERGY_SYMPTOM_SUGGESTIONS}
+                        minChars={1}
+                        popoverAriaLabel='คำแนะนำอาการแพ้สารเคมี'
+                      />
+                    </Field>
+                  </div>
                   <Field label='ระดับความรุนแรง' required>
                     <Select
                       value={a.severity}
@@ -2851,10 +3021,11 @@ export const Step5Flags = ({ form, setForm }) => {
             </>
           )}
           <Checkbox checked={form.flags.flagOther} onChange={(v) => setFlag('flagOther', v)} label='อื่นๆ' />
-        <div className='flex justify-center'>
+        {/* ปุ่มอยู่ชิดซ้าย ไม่ใช่กลางการ์ด (มติผู้ใช้ 27 ส.ค. 69) */}
+        <div className='flex justify-start'>
           <AddRowButton>เพิ่ม Flag</AddRowButton>
         </div>
-      </div>
+      </SubCard>
 
       <DeleteDrugAllergyConfirmPopup
         open={allergyDeleteIndex !== null}
@@ -2891,3 +3062,6 @@ export const Step5Flags = ({ form, setForm }) => {
     </div>
   );
 };
+
+/* ขั้นนี้เนื้อหาเป็นการ์ดสองใบอยู่แล้ว — ไม่ต้องมีการ์ดใหญ่ครอบ */
+Step5Flags.rendersOwnCards = true;
