@@ -13,7 +13,8 @@ import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandButton from '@/components/button/BrandButton';
 import SuccessToast from '@/components/toast/SuccessToast';
-import DashboardTemplateSwitcher, { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { DashboardHeaderActions, DashboardHeaderFilters } from '@/components/dashboard/DashboardPageHeader';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import AreaHealthMapPanel from '@/components/dashboard/AreaHealthMapPanel';
 import { AreaLineChart, DonutWithLegend, HBarList, PyramidPct, VBars } from '@/components/graph/Charts';
@@ -547,7 +548,7 @@ const ExecutiveDashboardPage = () => {
         activeKey='dashboard'
         breadcrumb={breadcrumb}
         title='Dashboard ผู้บริหาร'
-        actions={(<><DashboardTemplateSwitcher size='md' value={screenValue('executive')} />{roleSwitch}</>)}
+        actions={<DashboardHeaderActions>{roleSwitch}</DashboardHeaderActions>}
         >
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -570,7 +571,15 @@ const ExecutiveDashboardPage = () => {
       activeKey='dashboard'
       breadcrumb={breadcrumb}
       title='Dashboard ผู้บริหาร (Area Health Analytics)'
-      actions={(<><DashboardTemplateSwitcher size='md' value={screenValue('executive')} />{roleSwitch}</>)}
+      afterTitle={(
+        <DashboardHeaderFilters
+          dateFilter={dateFilter}
+          onDateFilterChange={setDateFilter}
+          defaultQuick='thisyear'
+          templateValue={screenValue('executive')}
+        ></DashboardHeaderFilters>
+      )}
+      actions={<DashboardHeaderActions>{roleSwitch}</DashboardHeaderActions>}
     >
       <div
         className='flex flex-col flex-1 min-w-0'
@@ -620,23 +629,6 @@ const ExecutiveDashboardPage = () => {
             </NeutralSubdueButton>
           )}
         >
-          <FilterDateTag
-            prefix='วัน:'
-            value={dateFilter}
-            onChange={setDateFilter}
-            defaultQuick='thisyear'
-            showResolvedDate
-          />
-          {/* ปีงบประมาณ — เลือกแล้วเซ็ตช่วงวันให้ตรงรอบปีงบ (1 ต.ค. – 30 ก.ย.) */}
-          <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
-            <Dropdown
-              size='md'
-              value={fiscalYearOf(dateFilter)}
-              onChange={(be) => setDateFilter(fiscalYearDateFilter(be))}
-              options={FISCAL_YEAR_OPTIONS}
-              placeholder='ปีงบประมาณ'
-            />
-          </div>
           <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
             <Dropdown
               size='md'

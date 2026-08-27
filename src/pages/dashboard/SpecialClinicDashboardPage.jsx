@@ -12,7 +12,8 @@ import Icon from '@/components/icons/Icon';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import SuccessToast from '@/components/toast/SuccessToast';
-import DashboardTemplateSwitcher, { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { DashboardHeaderActions, DashboardHeaderFilters } from '@/components/dashboard/DashboardPageHeader';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import { DonutWithLegend, Gauge, HBarList, VBars } from '@/components/graph/Charts';
@@ -743,11 +744,16 @@ const SpecialClinicDashboardPage = () => {
       activeKey='dashboard'
       breadcrumb={breadcrumb}
       title='Dashboard คลินิกพิเศษ'
-      actions={(<><DashboardTemplateSwitcher size='md' value={screenValue('clinics')} />{roleSwitch}</>)}
+      actions={<DashboardHeaderActions>{roleSwitch}</DashboardHeaderActions>}
       /* เลือกคลินิกด้วย dropdown แทนแถบ pill (มติผู้ใช้ 27 ส.ค. 69) — คลินิกพิเศษ
          มี 12 รายการ แถว pill จึงล้นจอและต้องเลื่อนแนวนอนหาอันที่ต้องการ */
       afterTitle={(
-        <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+        <DashboardHeaderFilters
+          dateFilter={pageDate}
+          onDateFilterChange={setPageDate}
+          defaultQuick='thisyear'
+          templateValue={screenValue('clinics')}
+        >
           <FilterDropdown
             prefix='คลินิก:'
             leadingIcon={clinicOptions.find((o) => o.value === activeClinic)?.leadingIcon}
@@ -755,21 +761,7 @@ const SpecialClinicDashboardPage = () => {
             value={activeClinic}
             onChange={setActiveClinic}
           />
-          {/* วัน + ปีงบประมาณ — ให้ครบทุกหน้าแดชบอร์ด (มติผู้ใช้ 27 ส.ค. 69)
-              NOTE: ข้อมูลของหน้านี้ยังไม่มีมิติวันที่ ตัวกรองจึงกำหนดแค่ขอบเขต
-              ที่แสดงบนหัวหน้าจอ ยังไม่กรองตัวเลขในการ์ด — ต้องเติม field วันที่
-              ลง mock ก่อนถึงจะผูกได้ */}
-          <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thisyear' />
-          <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
-            <Dropdown
-              size='md'
-              value={fiscalYearOf(pageDate)}
-              onChange={(be) => setPageDate(fiscalYearDateFilter(be))}
-              options={FISCAL_YEAR_OPTIONS}
-              placeholder='ปีงบประมาณ'
-            />
-          </div>
-        </span>
+        </DashboardHeaderFilters>
       )}
     >
       <div

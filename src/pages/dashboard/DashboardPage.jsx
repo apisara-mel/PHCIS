@@ -4,16 +4,16 @@ import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import Icon from '@/components/icons/Icon';
-import FilterDateTag from '@/components/forms/FilterDateTag';
-import { FilterDropdown } from '@/components/forms/FilterTag';
 import FilterTag from '@/components/forms/FilterTag';
 import SecondarySearch from '@/components/search/SecondarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import { DonutWithLegend, HBarList, Reveal } from '@/components/graph/Charts';
 import SummaryCardsBar from '@/components/layout/SummaryCardsBar';
-import DashboardTemplateSwitcher, { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import DashboardPageHeader from '@/components/dashboard/DashboardPageHeader';
 import {
   ALL_WIDGET_KEYS,
+  DASHBOARD_LAYOUTS,
   listDashboardTemplates,
   widgetMeta,
 } from '@/data/dashboardTemplates';
@@ -32,7 +32,6 @@ import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import { MIH_FOOTER_LEGAL_AUTOHIDE } from '@/components/layout/wizardChromeMorphStyles';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
-import Topic from '@/components/topic/Topic';
 import { ANC_PATIENTS } from '@/data/ancVisits';
 import PHCIS_CHART, { PHCIS_CHART_PALETTE } from '@/data/phcisChartPalette';
 import {
@@ -308,9 +307,15 @@ const DashboardPage = () => {
   };
 
   const activeTemplate = templateId ? templates.find((t) => t.id === templateId) : null;
-  /* หน้าจอมาตรฐาน = การ์ดครบทุกใบตามลำดับเดิมของหน้า */
-  const activeWidgets = activeTemplate ? activeTemplate.widgets : ALL_WIDGET_KEYS;
-  const showKpi = activeWidgets.includes('kpi');
+  /* หน้าจอมาตรฐาน = การ์ดครบทุกใบตามลำดับเดิมของหน้า (key ล้วน)
+     เทมเพลตที่สร้างเอง = widget object ที่มี type + span ตามเค้าโครงที่เลือก */
+  const activeWidgets = activeTemplate
+    ? activeTemplate.widgets.map((w) => (typeof w === 'string' ? { type: w, span: null } : w))
+    : ALL_WIDGET_KEYS.map((k) => ({ type: k, span: null }));
+  const templateColumns = activeTemplate
+    ? (DASHBOARD_LAYOUTS.find((l) => l.key === activeTemplate.layout) || {}).columns || 3
+    : null;
+  const showKpi = activeWidgets.some((w) => w.type === 'kpi');
 
   const applyTemplate = (saved) => {
     setTemplates(listDashboardTemplates());
@@ -524,55 +529,11 @@ const DashboardPage = () => {
     serviceCenterMap:  <ServiceCenterMapCard />,
   };
 
-  const bodyWidgets = activeWidgets.filter((key) => widgetNodes[key]);
+  const bodyWidgets = activeWidgets.filter((w) => widgetNodes[w.type]);
 
-  return (
-  <ClinicFilterProvider>
-  <div className='min-h-screen w-full flex bg-brand-50'>
-    <Sidebar activeKey='dashboard' />
-    <main className='flex-1 flex flex-col min-w-0'>
-      <Header breadcrumb={['แดชบอร์ด']} />
-
-      {/* — White section: page header + overview — */}
-      <div className='bg-surface-card px-6 pt-6 pb-4 border-b-0 shadow-header flex flex-col gap-4'>
-        <div
-          className='flex items-center w-full min-w-0'
-          style={{ gap: 'var(--dim-space-400)' }}
-        >
-          {/* Page topic — DS <Topic> tertiary (heading-content · title weight · content title color) */}
-          <div className='min-w-0'>
-            <Topic
-              hierarchy='tertiary'
-              title='แดชบอร์ดภาพรวมโรงพยาบาล'
-              showSubText={false}
-              showBadge={false}
-              showChevron={false}
-              showLeadingIcon={false}
-              showSuccess={false}
-            />
-          </div>
-          {/* ตัวกรองอยู่ชิดชื่อหน้าฝั่งซ้าย ลำดับ วัน → ปีงบประมาณ และเป็น
-              FilterTag ทั้งคู่ (มติผู้ใช้ 27 ส.ค. 69) — ปุ่มคำสั่งอยู่ฝั่งขวา */}
-          <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thisyear' />
-          <FilterDropdown
-            prefix='ปีงบ:'
-            leadingIcon='event'
-            options={YEAR_OPTIONS}
-            value={year}
-            onChange={setYear}
-            /* มีค่าเสมอ (ปีงบปัจจุบันเป็นค่าเริ่มต้น) จึงเป็นชิปแบรนด์ตลอด
-               เหมือนชิป `วัน:` ที่อยู่ข้างกัน */
-            active
-          />
-          <div className='flex-1' />
-          {/* เทมเพลตหน้าจอ + สร้างเทมเพลต — แทนแถบ Tab ของกลุ่มแดชบอร์ด */}
-          <DashboardTemplateSwitcher
-            value={activeTemplate ? activeTemplate.id : screenValue('overview')}
-            templates={templates}
-            onSelectTemplate={setTemplateId}
-          />
-          {/* นำส่งออกรายงาน — เลือกหมวดรายงานจาก dropdown แล้วเปิด popup
-              นำส่งออก (ExportFormatPopup ตัวเดียวกับหน้ารายงานอื่นในกลุ่ม) */}
+  /* เมนูนำส่งออกรายงาน — ส่งเข้า slot `actions` ของหัวหน้าจอกลาง */
+  /* เลือกหมวดรายงานจาก dropdown แล้วเปิด ExportFormatPopup ตัวเดียวกับหน้าอื่น */
+  const reportsExportMenu = (
           <div className='relative shrink-0' ref={reportsMenuAnchor}>
             <NeutralSubdueButton
               variant='outline'
@@ -640,17 +601,26 @@ const DashboardPage = () => {
               </div>
             </Popover>
           </div>
-          <BrandButton
-            variant='fill'
-            size='sm'
-            leadingIcon='save'
-            onClick={() => alert(`ส่งออกข้อมูล ${yearLabel}`)}
-          >
-            ส่งออกข้อมูล
-          </BrandButton>
-        </div>
+  );
 
-      </div>
+  return (
+  <ClinicFilterProvider>
+  <div className='min-h-screen w-full flex bg-brand-50'>
+    <Sidebar activeKey='dashboard' />
+    <main className='flex-1 flex flex-col min-w-0'>
+      <Header breadcrumb={['แดชบอร์ด']} />
+
+      {/* — หัวหน้าจอ: component กลางของกลุ่มแดชบอร์ด (มติผู้ใช้ 27 ส.ค. 69) — */}
+      <DashboardPageHeader
+        title='แดชบอร์ดภาพรวมโรงพยาบาล'
+        dateFilter={pageDate}
+        onDateFilterChange={setPageDate}
+        templateValue={activeTemplate ? activeTemplate.id : screenValue('overview')}
+        templates={templates}
+        onSelectTemplate={setTemplateId}
+        onApplyTemplate={applyTemplate}
+        actions={reportsExportMenu}
+      />
 
       {/* Body grid — การ์ดและลำดับมาจากเทมเพลตที่เลือก */}
       <div className='px-6 pt-6 pb-6 flex flex-col gap-4'>
@@ -684,10 +654,21 @@ const DashboardPage = () => {
         ) : (
           /* `grid` บน <Reveal> ทำให้การ์ดลูกยืดเต็มความสูงแถวเหมือนตอนที่การ์ด
              เป็น grid item โดยตรง (align-items: stretch) */
-          <div className='grid grid-cols-12 gap-4'>
-            {bodyWidgets.map((key) => (
-              <Reveal key={key} className={`${widgetMeta(key)?.span || 'col-span-12'} grid`}>
-                {widgetNodes[key]}
+          <div
+            className={templateColumns ? 'grid gap-4' : 'grid grid-cols-12 gap-4'}
+            style={templateColumns
+              ? { gridTemplateColumns: `repeat(${templateColumns}, minmax(0, 1fr))` }
+              : undefined}
+          >
+            {bodyWidgets.map((w, i) => (
+              <Reveal
+                key={w.id || `${w.type}-${i}`}
+                className={templateColumns ? 'grid' : `${widgetMeta(w.type)?.span || 'col-span-12'} grid`}
+                style={templateColumns
+                  ? { gridColumn: `span ${Math.min(w.span || 1, templateColumns)}` }
+                  : undefined}
+              >
+                {widgetNodes[w.type]}
               </Reveal>
             ))}
           </div>

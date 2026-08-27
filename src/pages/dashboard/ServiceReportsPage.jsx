@@ -7,7 +7,8 @@ import FilterDateTag from '@/components/forms/FilterDateTag';
 import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Dropdown from '@/components/forms/Dropdown';
-import DashboardTemplateSwitcher, { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { DashboardHeaderActions, DashboardHeaderFilters } from '@/components/dashboard/DashboardPageHeader';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import { DonutWithLegend, HBarList, VBars } from '@/components/graph/Charts';
 import PHCIS_CHART, { PHCIS_CHART_PALETTE } from '@/data/phcisChartPalette';
@@ -508,7 +509,15 @@ const ServiceReportsPage = () => {
       activeKey='dashboard'
       breadcrumb={breadcrumb}
       title='รายงานผู้รับบริการ'
-      actions={<DashboardTemplateSwitcher size='md' value={undefined} />}
+      afterTitle={(
+        <DashboardHeaderFilters
+          dateFilter={dateFilter}
+          onDateFilterChange={setDateFilter}
+          defaultQuick='thismonth'
+          templateValue={screenValue('reports')}
+        ></DashboardHeaderFilters>
+      )}
+      actions={<DashboardHeaderActions />}
     >
       <div
         className='flex flex-col flex-1 min-w-0'
@@ -535,23 +544,6 @@ const ServiceReportsPage = () => {
             </NeutralSubdueButton>
           )}
         >
-          <FilterDateTag
-            prefix='วัน:'
-            value={dateFilter}
-            onChange={setDateFilter}
-            defaultQuick='thismonth'
-            showResolvedDate
-          />
-          {/* ปีงบประมาณ — เลือกแล้วเซ็ตช่วงวันให้ตรงรอบปีงบ (1 ต.ค. – 30 ก.ย.) */}
-          <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
-            <Dropdown
-              size='md'
-              value={fiscalYearOf(dateFilter)}
-              onChange={(be) => setDateFilter(fiscalYearDateFilter(be))}
-              options={FISCAL_YEAR_OPTIONS}
-              placeholder='ปีงบประมาณ'
-            />
-          </div>
           <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
             <Dropdown
               size='md'

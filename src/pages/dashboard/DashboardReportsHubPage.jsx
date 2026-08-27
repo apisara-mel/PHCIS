@@ -15,7 +15,8 @@ import SearchResultCount from '@/components/search/SearchResultCount';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
-import DashboardTemplateSwitcher, { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { DashboardHeaderActions, DashboardHeaderFilters } from '@/components/dashboard/DashboardPageHeader';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import { Reveal } from '@/components/graph/Charts';
 import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
@@ -304,30 +305,18 @@ const DashboardReportsHubPage = () => {
       breadcrumb={breadcrumb}
       title='ศูนย์รวมรายงานและแพลตฟอร์มวิเคราะห์ข้อมูล'
       afterTitle={(
-        <span className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-          {/* วัน + ปีงบประมาณ — ให้ครบทุกหน้าแดชบอร์ด (มติผู้ใช้ 27 ส.ค. 69)
-              NOTE: ข้อมูลของหน้านี้ยังไม่มีมิติวันที่ ตัวกรองจึงกำหนดแค่ขอบเขต
-              ที่แสดงบนหัวหน้าจอ ยังไม่กรองตัวเลขในการ์ด — ต้องเติม field วันที่
-              ลง mock ก่อนถึงจะผูกได้ */}
-          <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thisyear' />
-          <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
-            <Dropdown
-              size='md'
-              value={fiscalYearOf(pageDate)}
-              onChange={(be) => setPageDate(fiscalYearDateFilter(be))}
-              options={FISCAL_YEAR_OPTIONS}
-              placeholder='ปีงบประมาณ'
-            />
-          </div>
-        </span>
+        <DashboardHeaderFilters
+          dateFilter={pageDate}
+          onDateFilterChange={setPageDate}
+          defaultQuick='thisyear'
+        ></DashboardHeaderFilters>
       )}
       actions={(
-        <>
-          <DashboardTemplateSwitcher size='md' value={undefined} />
+        <DashboardHeaderActions>
           <BrandButton size='md' leadingIcon='add' onClick={openNewRequest}>
             ขอรายงานใหม่
           </BrandButton>
-        </>
+        </DashboardHeaderActions>
       )}
     >
       <div

@@ -22,7 +22,7 @@ import React, { useEffect, useRef, useState } from 'react';
 /* ── Scroll-triggered reveal wrapper ────────────────────────
    Fades + slides children in once they enter the viewport.
    Plays once per mount (observer disconnects after firing). */
-export const Reveal = ({ children, delay = 0, threshold = 0.15, className = '' }) => {
+export const Reveal = ({ children, delay = 0, threshold = 0.15, className = '', style }) => {
   const ref = useRef(null);
   const [revealed, setRevealed] = useState(false);
   useEffect(() => {
@@ -46,6 +46,9 @@ export const Reveal = ({ children, delay = 0, threshold = 0.15, className = '' }
         transform: revealed ? 'none' : 'translateY(20px)',
         transition: `opacity 700ms cubic-bezier(0.22, 0.61, 0.36, 1) ${delay}ms, transform 700ms cubic-bezier(0.22, 0.61, 0.36, 1) ${delay}ms`,
         willChange: revealed ? 'auto' : 'opacity, transform',
+        /* ผู้เรียกส่ง layout style เข้ามาได้ (เช่น gridColumn ของเทมเพลตแดชบอร์ด)
+           — วางท้ายสุดเพื่อให้ override ได้ แต่ไม่ไปทับ opacity/transform ที่ไม่ได้ส่ง */
+        ...style,
       }}
     >
       {children}

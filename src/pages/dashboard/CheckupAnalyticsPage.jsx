@@ -14,7 +14,8 @@ import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import SuccessToast from '@/components/toast/SuccessToast';
-import DashboardTemplateSwitcher, { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
+import { DashboardHeaderActions, DashboardHeaderFilters } from '@/components/dashboard/DashboardPageHeader';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import { AreaLineChart, DonutWithLegend, HBarList } from '@/components/graph/Charts';
 import PHCIS_CHART, { PHCIS_CHART_PALETTE } from '@/data/phcisChartPalette';
@@ -32,6 +33,7 @@ import {
   StatTile,
   StatTileRow,
   buildExportReport,
+  fiscalYearOf,
   hbarRows,
 } from '@/pages/dashboard/dashboardReportKit';
 import { formatIsoDateThai, safePct, toIsoDate } from '@/data/dashboardCommon';
@@ -561,6 +563,13 @@ const CheckupAnalyticsPage = () => {
   const [lang, setLang] = useState(DEFAULT_LANG);
   const [year, setYear] = useState(DEFAULT_YEAR);
   const [pageDate, setPageDate] = useState({ quick: 'thisyear' });
+  /* ชิป `ปีงบ:` บนหัวหน้าจอเป็นตัวเดียวกับปีงบที่กรองข้อมูลของหน้านี้ —
+     เลือกช่วงวันแล้วถ้าตรงรอบปีงบไหน ให้ `year` เดินตามทันที ไม่ต้องมีสองที่ */
+  const handleHeaderDate = (next) => {
+    setPageDate(next);
+    const be = fiscalYearOf(next);
+    if (be) setYear(be);
+  };
   const [org, setOrg] = useState(DEFAULT_ORG);
   const [formatKey, setFormatKey] = useState(DEFAULT_FORMAT);
 
@@ -837,7 +846,15 @@ const CheckupAnalyticsPage = () => {
       activeKey='dashboard'
       breadcrumb={breadcrumb}
       title={t(lang, 'pageTitle')}
-      actions={<DashboardTemplateSwitcher size='md' value={screenValue('checkup')} />}
+      afterTitle={(
+        <DashboardHeaderFilters
+          dateFilter={pageDate}
+          onDateFilterChange={handleHeaderDate}
+          defaultQuick='thisyear'
+          templateValue={screenValue('checkup')}
+        ></DashboardHeaderFilters>
+      )}
+      actions={undefined}
     >
       <div
         className='flex flex-col flex-1 min-w-0'
@@ -869,9 +886,6 @@ const CheckupAnalyticsPage = () => {
           {/* ตัวกรองวัน — คู่กับปีงบประมาณ ให้ครบทุกหน้าแดชบอร์ด
               (มติผู้ใช้ 27 ส.ค. 69) */}
           <FilterDateTag prefix='วัน:' value={pageDate} onChange={setPageDate} defaultQuick='thisyear' />
-          <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
-            <Dropdown size='md' value={year} onChange={setYear} options={YEAR_OPTIONS} placeholder={t(lang, 'year')} />
-          </div>
           <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
             <Dropdown size='md' value={org} onChange={setOrg} options={ORG_OPTIONS} placeholder={t(lang, 'org')} />
           </div>
