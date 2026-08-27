@@ -502,18 +502,14 @@ const TreatmentFormPage = () => {
     return '';
   }, [completedSteps]);
 
-  const validateStep = useCallback((index) => {
-    const message = validationMessageForStep(index);
-    if (!message) return true;
-    setPageToast({ id: Date.now(), variant: 'error', message });
-    return false;
-  }, [validationMessageForStep]);
-
+  /* กดข้ามไปขั้นไหนก็ได้ (มติผู้ใช้ 28 ส.ค. 69) — เดิมการเดินหน้าถูกบล็อกไว้
+     จนกว่าขั้นปัจจุบันจะครบ ซึ่งขวางการทำงานจริงของแพทย์ที่มักกรอกไม่เรียงขั้น
+     (เช่นสั่ง Lab ก่อนแล้วค่อยกลับมาเขียน SOAP) ด่านตรวจความครบยังอยู่ครบที่
+     `validateBeforeFinish` ตอนกด "จบการบันทึก" ซึ่งเป็นจุดที่มันสำคัญจริง */
   const requestStepChange = useCallback((nextIndex) => {
     if (nextIndex === stepIndex) return;
-    if (nextIndex > stepIndex && !validateStep(stepIndex)) return;
     setStepIndex(nextIndex);
-  }, [stepIndex, validateStep]);
+  }, [stepIndex]);
 
   const validateBeforeFinish = useCallback(() => {
     const requiredSteps = [
