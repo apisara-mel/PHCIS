@@ -212,6 +212,15 @@ const NURSE_FIELDS = [
   { key: 'duration', label: 'ระยะเวลาที่มีอาการ' },
 ];
 
+/* 1 วัน → 1 ปี — ถี่ช่วงต้น (วัน) แล้วห่างขึ้นเรื่อย ๆ ตามที่หมอถามจริง */
+export const SYMPTOM_DURATION_OPTIONS = [
+  '1 วัน', '2 วัน', '3 วัน', '4 วัน', '5 วัน', '6 วัน',
+  '1 สัปดาห์', '2 สัปดาห์', '3 สัปดาห์',
+  '1 เดือน', '2 เดือน', '3 เดือน', '4 เดือน', '5 เดือน', '6 เดือน',
+  '7 เดือน', '8 เดือน', '9 เดือน', '10 เดือน', '11 เดือน',
+  '1 ปี',
+].map((v) => ({ value: v, label: v }));
+
 /* Each doctor textarea drives a SuggestibleTextarea + VoiceTextarea
    (Figma 162:24221 popover · 3280:3970 voice toolbar). `voice` swaps
    the inner field for VoiceTextarea so dictation + language picker are
@@ -261,14 +270,6 @@ const DOCTOR_FIELDS = [
   },
 ];
 
-/* 1 วัน → 1 ปี — ถี่ช่วงต้น (วัน) แล้วห่างขึ้นเรื่อย ๆ ตามที่หมอถามจริง */
-export const SYMPTOM_DURATION_OPTIONS = [
-  '1 วัน', '2 วัน', '3 วัน', '4 วัน', '5 วัน', '6 วัน',
-  '1 สัปดาห์', '2 สัปดาห์', '3 สัปดาห์',
-  '1 เดือน', '2 เดือน', '3 เดือน', '4 เดือน', '5 เดือน', '6 เดือน',
-  '7 เดือน', '8 เดือน', '9 เดือน', '10 เดือน', '11 เดือน',
-  '1 ปี',
-].map((v) => ({ value: v, label: v }));
 
 const Field = ({ label, required, children }) => (
   <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150)' }}>
