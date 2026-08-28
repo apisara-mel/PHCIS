@@ -693,9 +693,9 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
                 showBadge={false}
                 showIndicator={false}
               />
-            ) : (
-              <Alert type='success' title='ไม่พบข้อห้ามจากการทำงานของไต' subtext='ระบบตรวจ eGFR เทียบกับรายการ Contrast แล้ว' showBadge={false} showIndicator={false} showDetail={false} />
-            )}
+            ) : null}
+            {/* แถบเขียว "ไม่พบข้อห้ามจากการทำงานของไต" ถูกเอาออก 28 ส.ค. 69 —
+                แจ้งเฉพาะตอนมีข้อห้ามจริง (hard stop) พอ */}
             <InputField
               label='เหตุผลที่จำเป็นต้องใช้ Contrast'
               required={contrastOrders.length > 0 && egfrLow}
@@ -1071,41 +1071,9 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
 
         {screen}
 
-        <div
-          className='flex items-center flex-wrap w-full'
-          style={{
-            gap: 'var(--dim-space-300)',
-            padding: 'var(--dim-space-400)',
-            border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-            borderRadius: 'var(--dim-radius-400)',
-            background: 'var(--surface-navigation-default)',
-            boxShadow: 'var(--shadow-brand-drop-top-100)',
-          }}
-        >
-          {step > 0 ? (
-            <NeutralSubdueButton size='lg' leadingIcon='arrow_back' onClick={() => setStep((current) => current - 1)}>
-              ย้อนกลับ
-            </NeutralSubdueButton>
-          ) : null}
-          <div className='flex-1 min-w-0' />
-          <BrandSubdueButton
-            size='lg'
-            variant='outline'
-            leadingIcon={step === 3 ? 'download' : 'save'}
-            onClick={() => setToast(step === 3 ? 'เตรียมไฟล์ CSV แล้ว' : 'บันทึกร่าง CPOE เรียบร้อยแล้ว')}
-          >
-            {step === 3 ? 'ส่งออก CSV' : 'บันทึกร่าง CPOE'}
-          </BrandSubdueButton>
-          <BrandButton
-            size='lg'
-            leadingIcon={step === 2 && routing.length === 0 ? 'verified' : step === 3 ? 'refresh' : undefined}
-            trailingIcon={step < 3 && !(step === 2 && routing.length === 0) ? 'arrow_forward' : undefined}
-            onClick={goNext}
-            disabled={nextDisabled}
-          >
-            {nextLabel}
-          </BrandButton>
-        </div>
+        {/* แถบปุ่มท้ายฟอร์ม (ย้อนกลับ · บันทึกร่าง CPOE · ไปเลือกรายการ)
+            ถูกเอาออก 28 ส.ค. 69 — ฟอร์มอยู่ในขั้นตอนของหน้าบันทึกการรักษา
+            ซึ่งมีแถบปุ่มของตัวเองอยู่ท้ายจออยู่แล้ว */}
 
         <AlertDialog
           open={!!cancelTarget}
