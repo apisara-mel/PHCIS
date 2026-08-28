@@ -42,7 +42,7 @@ import { printLab } from '@/data/labPrintSettings';
    listed (hiding their existence would mislead the reader) but masked until
    an explicit reveal, and every reveal writes appendLabAudit. */
 
-const breadcrumb = ['งานชันสูตรโรค (Lab)', 'ผลตรวจย้อนหลัง / เปรียบเทียบ'];
+const breadcrumb = ['ห้องปฏิบัติการ', 'ผลตรวจย้อนหลัง / เปรียบเทียบ'];
 const CURRENT_ACTOR = 'เจ้าหน้าที่ห้องปฏิบัติการ';
 const ALL = '__all__';
 
@@ -267,7 +267,7 @@ const LabPatientHistoryPage = () => {
         breadcrumb={breadcrumb}
         title='ผลตรวจย้อนหลัง / เปรียบเทียบ (Cumulative report)'
         onBack={() => historyNav.push('/lab/queue')}
-        backLabel='กลับไปยังงานชันสูตรโรค (Lab)'
+        backLabel='กลับไปยังห้องปฏิบัติการ'
         summaryCards={summaryCards}
         summaryFlushUnderSubHeader={false}
       >

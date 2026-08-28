@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import { LabPrintLabelsButton, LabOrderCtaButton } from '@/components/lab/LabHeaderActions';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import Table, { EllipsisText } from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
@@ -67,7 +68,7 @@ import QueuePatientAvatar, { resolveQueuePatientAvatarProps } from '@/components
    §1.15.2.4 (ปกปิดผลที่เป็นความลับ), §1.15.4.10 (แถบข้อมูลตามประเภท → the
    group filter), §1.15.5 (สติกเกอร์/บาร์โค้ด → the label + scan actions). */
 
-const breadcrumb = ['งานชันสูตรโรค (Lab)'];
+const breadcrumb = ['ห้องปฏิบัติการ'];
 
 /* The mock's "today", matching LabOrderPage — a real deployment reads the
    clock; pinning it keeps the seeded advance orders reproducible. */
@@ -93,7 +94,12 @@ const buildSummaryCards = (rows) => [
 /* Tabs are the six pipeline stages, in pipeline order, exactly as the
    mockup's tab strip renders them (รอรับคำขอ 4 · รอเก็บ/รับตัวอย่าง 9 ·
    กำลังตรวจ 6 · ส่งตรวจภายนอก 5 · รอรับรองผล 3 · รายงานผลแล้ว 58). */
-const buildTabs = (rows) => [
+const buildTabs = (rows, advanceCount = 0) => [
+  /* คำสั่งล่วงหน้าอยู่ก่อน "รอรับคำขอ" เพราะยังไม่เข้าสายพาน — ยังไม่มี
+     Accession จนกว่าผู้ป่วยจะมาถึงแล้วกด "ดึงมาใช้" */
+  ...(advanceCount > 0
+    ? [{ key: 'advance', label: 'คำสั่งตรวจล่วงหน้า', icon: 'event_upcoming', count: advanceCount }]
+    : []),
   ...LAB_STATUSES.map((s) => ({
     key: s.key,
     label: s.label,
@@ -265,13 +271,20 @@ const buildColumns = (onAction, historyFor) => [
     key: 'accessionNo', label: 'Accession / บาร์โค้ด',
     render: (row) => (
       <div className='flex flex-col min-w-0' style={{ gap: 2 }}>
-        <span
-          className='inline-flex items-center'
-          style={{ gap: 'var(--dim-space-150)', fontFamily: 'var(--type-family-mono, monospace)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}
-        >
-          <Icon name='barcode' size={14} />
-          {row.accessionNo}
-        </span>
+        {/* คำสั่งล่วงหน้ายังไม่ออก Accession — ออกตอนกด "ดึงมาใช้" (§1.15.4.7) */}
+        {row.status === 'advance' ? (
+          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+            ยังไม่ออก Accession
+          </span>
+        ) : (
+          <span
+            className='inline-flex items-center'
+            style={{ gap: 'var(--dim-space-150)', fontFamily: 'var(--type-family-mono, monospace)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}
+          >
+            <Icon name='barcode' size={14} />
+            {row.accessionNo}
+          </span>
+        )}
       </div>
     ),
   },
@@ -392,6 +405,19 @@ const buildColumns = (onAction, historyFor) => [
   {
     key: 'status', label: 'สถานะ',
     render: (row) => {
+      /* คำสั่งล่วงหน้า — ป้ายบอกว่าเป็นคำสั่งล่วงหน้า พร้อมวันที่ต้องทำ
+         (มติผู้ใช้ 28 ส.ค. 69) วันนัดคือสิ่งที่ห้องแล็บต้องเห็นคู่กับป้ายเสมอ
+         ไม่งั้นแยกไม่ออกว่าเลยกำหนดมาแล้วกี่วัน */
+      if (row.status === 'advance') {
+        return (
+          <div className='flex flex-col' style={{ gap: 2 }}>
+            <Badge style='warning' size='small'>คำสั่งตรวจล่วงหน้า</Badge>
+            <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
+              นัดตรวจ {row.scheduledFor}
+            </span>
+          </div>
+        );
+      }
       if (row.exception === 'rejected') {
         return <Badge style='error' size='small' title={row.rejectReason}>ปฏิเสธตัวอย่าง</Badge>;
       }
@@ -450,6 +476,30 @@ const buildColumns = (onAction, historyFor) => [
   {
     key: 'actions', label: 'การจัดการ', sortable: false, align: 'center',
     render: (row) => {
+      /* คำสั่งล่วงหน้ายังทำอะไรกับสิ่งส่งตรวจไม่ได้ (ยังไม่มีตัวอย่าง) — มีแค่
+         ดึงมาใช้เมื่อผู้ป่วยมาถึง กับยกเลิกคำสั่ง */
+      if (row.status === 'advance') {
+        return (
+          <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-100)' }}>
+            <NeutralSubdueButton
+              variant='outline'
+              size='sm'
+              leadingIcon='download'
+              onClick={(e) => { e.stopPropagation(); onAction('activateAdvance', row); }}
+            >
+              ดึงมาใช้
+            </NeutralSubdueButton>
+            <NeutralSubdueIconButton
+              icon='delete'
+              variant='outline'
+              size='sm'
+              aria-label={`ยกเลิกคำสั่งล่วงหน้า ${row.orderId}`}
+              title='ยกเลิกคำสั่งล่วงหน้า'
+              onClick={(e) => { e.stopPropagation(); onAction('cancelAdvance', row); }}
+            />
+          </div>
+        );
+      }
       const canCollect = row.status === 'requested' || row.status === 'collect';
       const canReject = row.status !== 'requested' && row.status !== 'reported';
       /* Result entry opens once the specimen is actually in the lab. A
@@ -643,6 +693,37 @@ const LabQueuePage = () => {
     [orderVersion],
   );
 
+  /* คำสั่งตรวจล่วงหน้าที่ถึงกำหนดแล้ว เดิมอยู่ในแถบแจ้งเตือนเหนือตาราง แต่ถูก
+     ย้ายลงมาเป็นแถวในตารางเอง (มติผู้ใช้ 28 ส.ค. 69) — งานที่ห้องแล็บต้องทำ
+     ควรอยู่ที่เดียวกับงานอื่น ไม่ใช่กล่องแยกที่มองข้ามได้ แถวเหล่านี้ยัง
+     "ไม่ใช่" รายการขอตรวจจริง: ยังไม่มี Accession จนกว่าจะกด "ดึงมาใช้"
+     (§1.15.4.7) จึงถือสถานะ `advance` ของตัวเอง ไม่ปนกับ requested */
+  const advanceRows = useMemo(
+    () => dueAdvance.flatMap((adv) => adv.testIds.map((testId, i) => withTestLabel({
+      id: `${adv.id}-${i + 1}`,
+      orderId: adv.id,
+      accessionNo: '',
+      testId,
+      patient: adv.patient,
+      doctor: adv.doctor,
+      location: adv.location,
+      urgency: adv.urgency,
+      orderedAt: adv.createdAt,
+      status: 'advance',
+      statusLabel: 'คำสั่งตรวจล่วงหน้า',
+      /* ข้อมูลที่แถวปกติมีแต่คำสั่งล่วงหน้ายังไม่มี */
+      labeled: false, critical: false, abnormal: false, exception: undefined,
+      /* พาตัวคำสั่งจริงติดไปด้วย เพื่อให้ปุ่มยกเลิก/ดึงมาใช้ทำงานกับ ADV-### ได้ */
+      advance: adv,
+      scheduledFor: adv.scheduledFor,
+      advanceNote: adv.note,
+    }))),
+    [dueAdvance],
+  );
+
+  /* คำสั่งล่วงหน้าขึ้นก่อนเสมอ — ถึงกำหนดแล้วแต่ยังไม่มีใครดึงมาใช้ */
+  const allRows = useMemo(() => [...advanceRows, ...liveRows], [advanceRows, liveRows]);
+
   /* Barcode scan — the deck's primary action. There's no scanner hardware
      behind this frontend, so the button focuses the search box and puts it
      in scan mode; a real HID barcode wedge types into the focused field and
@@ -671,7 +752,7 @@ const LabQueuePage = () => {
   };
 
   const summaryCards = useMemo(() => buildSummaryCards(liveRows), [liveRows]);
-  const tabs = useMemo(() => buildTabs(liveRows), [liveRows]);
+  const tabs = useMemo(() => buildTabs(liveRows, advanceRows.length), [liveRows, advanceRows.length]);
 
   /* Row-action confirmation — one dialog reused for every destructive-ish
      action, holding the pending row + action so the copy stays correct
@@ -710,6 +791,19 @@ const LabQueuePage = () => {
   const rowLabel = (row) => `${row.testLabel} · ${row.accessionNo} — ${row.confidential ? 'ผู้ป่วยปกปิด' : row.patient.shortName}`;
 
   const handleAction = (kind, row) => {
+    if (kind === 'activateAdvance') {
+      /* §1.15.4.7 — ขยายคำสั่งล่วงหน้าเป็นรายการขอตรวจจริงและออก Accession */
+      const adv = row.advance;
+      const created = activateAdvanceOrder(adv.id);
+      logAudit('ดึงคำสั่งตรวจล่วงหน้ามาใช้', `${adv.patient.shortName} · ${created.length} รายการ (${adv.id})`);
+      return;
+    }
+    if (kind === 'cancelAdvance') {
+      /* ยืนยันด้วยกล่องเดิม แต่ส่ง "ตัวคำสั่งล่วงหน้า" ไม่ใช่แถวในตาราง เพราะ
+         cancelAdvanceOrder ทำงานกับ ADV-### และข้อความยืนยันอ่านจาก testIds */
+      setPendingAction({ kind: 'cancelAdvance', row: row.advance });
+      return;
+    }
     if (kind === 'label') {
       /* Sticker printing (TOR §1.15.5.1) needs no confirmation — it is
          additive and re-printable. Every row sharing this accession prints
@@ -833,14 +927,14 @@ const LabQueuePage = () => {
     clear: clearHistory,
   } = useSearchHistory(SEARCH_HISTORY_KEY);
 
-  const filtered = useMemo(() => liveRows
+  const filtered = useMemo(() => allRows
     .filter((r) => activeTab === 'all' || r.status === activeTab)
     .filter((r) => group === 'all' || r.group === group)
     .filter((r) => urgency === 'all' || r.urgency === urgency)
     .filter((r) => location === 'all' || r.location === location)
     .filter((r) => tube === 'all' || r.test?.tubeKey === tube)
     .filter((r) => matchesQuery(r, query)),
-  [liveRows, activeTab, group, urgency, location, tube, query]);
+  [allRows, activeTab, group, urgency, location, tube, query]);
 
   /* Queue numbers are assigned over the CURRENT view, so "คิว" always reads
      1..n down the visible list rather than showing gaps after a filter. */
@@ -1091,9 +1185,18 @@ const LabQueuePage = () => {
       <QueuePageShell
         activeKey='lab'
         breadcrumb={breadcrumb}
-        title='งานชันสูตรโรค (Lab)'
+        title='ห้องปฏิบัติการ'
         summaryFlushUnderSubHeader={false}
         belowSummary={<LabSubNav />}
+        /* ปุ่มประจำโมดูล — ดูคำอธิบายใน LabHeaderActions.jsx
+           ส่งมุมมองปัจจุบันไปเป็นขอบเขตการพิมพ์ ตัวกรองบนหน้าจึงมีผลจริง */
+        leadingActions={(
+          <LabPrintLabelsButton
+            rows={sorted}
+            onPrint={(printed) => logAudit('พิมพ์สติกเกอร์ติดหลอด (ทั้งชุด)', `${printed.length} รายการจากมุมมองปัจจุบัน`)}
+          />
+        )}
+        actions={<LabOrderCtaButton />}
       >
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -1105,96 +1208,6 @@ const LabQueuePage = () => {
             gap: 'var(--dim-space-600)',
           }}
         >
-          {/* TOR §1.15.4.8 — "แจ้งเตือนรายการที่สั่งล่วงหน้าได้". Sits above
-              the table because it is work the lab does not yet know about:
-              these orders are invisible in every tab and count until someone
-              activates them, which is exactly why they need announcing.
-              §1.15.4.7's "ดึงข้อมูลมาใช้ได้เลยในวันที่ผู้รับบริการมา" is the
-              button — activation expands the advance order into real rows. */}
-          {dueAdvance.length > 0 && (
-            <div
-              className='w-full flex flex-col'
-              style={{
-                background: 'var(--surface-card-100)',
-                borderRadius: 'var(--dim-radius-500)',
-                border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
-                boxShadow: 'var(--shadow-card)',
-                paddingTop: 'var(--dim-space-400)',
-                paddingRight: 'var(--dim-space-600)',
-                paddingBottom: 'var(--dim-space-400)',
-                paddingLeft: 'var(--dim-space-600)',
-                gap: 'var(--dim-space-300)',
-              }}
-            >
-              <div className='flex items-center' style={{ gap: 'var(--dim-space-200)', color: 'var(--text-statusbadge-warning, #C2410C)' }}>
-                <Icon name='event_upcoming' size={18} />
-                <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-sm)' }}>
-                  มีคำสั่งตรวจล่วงหน้าถึงกำหนดแล้ว {dueAdvance.length} รายการ
-                </span>
-                <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
-                  — กด "ดึงมาใช้" เมื่อผู้ป่วยมาถึง เพื่อสร้างรายการขอตรวจและออก Accession
-                </span>
-              </div>
-              {dueAdvance.map((a) => (
-                <div
-                  key={a.id}
-                  className='flex flex-wrap items-center w-full'
-                  style={{
-                    gap: 'var(--dim-space-300)',
-                    background: 'var(--surface-card-200)',
-                    borderRadius: 'var(--dim-radius-200)',
-                    border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
-                    paddingTop: 'var(--dim-space-300)',
-                    paddingRight: 'var(--dim-space-400)',
-                    paddingBottom: 'var(--dim-space-300)',
-                    paddingLeft: 'var(--dim-space-400)',
-                  }}
-                >
-                  <span className='flex items-center' style={{ gap: 'var(--dim-space-300)', minWidth: 150 }}>
-                    <QueuePatientAvatar
-                      size={32}
-                      {...resolveQueuePatientAvatarProps({ hn: a.patient.hn, displayName: a.patient.shortName })}
-                    />
-                    <span style={{ fontFamily: 'var(--type-family-body)', fontWeight: 'var(--type-weight-medium)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>
-                      {a.patient.shortName}
-                    </span>
-                  </span>
-                  <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)', minWidth: 110 }}>
-                    HN {a.patient.hn}
-                  </span>
-                  <span className='flex-1 min-w-0 flex flex-col'>
-                    <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
-                      {a.testIds.map((t) => LAB_TEST_BY_ID[t]?.nameEn ?? t).join(' · ')}
-                    </span>
-                    <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>
-                      นัด {a.scheduledFor} · {a.location} · {a.doctor}
-                      {a.note ? ` · ${a.note}` : ''}
-                    </span>
-                  </span>
-                  <NeutralSubdueButton
-                    variant='outline'
-                    size='sm'
-                    leadingIcon='download'
-                    onClick={() => {
-                      const created = activateAdvanceOrder(a.id);
-                      logAudit('ดึงคำสั่งตรวจล่วงหน้ามาใช้', `${a.patient.shortName} · ${created.length} รายการ (${a.id})`);
-                    }}
-                  >
-                    ดึงมาใช้
-                  </NeutralSubdueButton>
-                  <NeutralSubdueIconButton
-                    icon='delete'
-                    variant='outline'
-                    size='sm'
-                    aria-label={`ยกเลิกคำสั่งล่วงหน้า ${a.id}`}
-                    title='ยกเลิกคำสั่งล่วงหน้า'
-                    onClick={() => setPendingAction({ kind: 'cancelAdvance', row: a })}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-
           <div className='w-full flex' style={{ gap: 'var(--dim-space-400)' }}>
             <div
               className='flex flex-col flex-1 min-w-0'
@@ -1359,7 +1372,7 @@ const LabQueuePage = () => {
               onClick={() => setAuditLogOpen((v) => !v)}
               className='self-start'
             >
-              ประวัติการดำเนินการทั้งงานชันสูตรโรค{auditLog.length > 0 ? ` (${auditLog.length})` : ''}
+              ประวัติการดำเนินการทั้งห้องปฏิบัติการ{auditLog.length > 0 ? ` (${auditLog.length})` : ''}
             </NeutralSubdueButton>
             {auditLogOpen && (
               <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>

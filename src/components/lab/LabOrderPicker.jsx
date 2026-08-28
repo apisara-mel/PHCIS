@@ -278,7 +278,12 @@ const LabOrderPicker = ({
       {/* Fix #2 — the impact summary. Sticks to the bottom of the scroll
           area so it stays visible while the clinician works down a long
           catalog; it is the one place that answers "what does this order
-          actually mean for the patient in front of me". */}
+          actually mean for the patient in front of me".
+
+          ยังไม่เลือกอะไร = ไม่มีอะไรจะสรุป กล่องจึงไม่ขึ้นเลย (มติผู้ใช้
+          28 ส.ค. 69) — เดิมค้างเป็นแถบว่างคาดกลางรายการ อ่านเหมือนตัวคั่นที่
+          ไม่มีความหมาย */}
+      {summary.testCount > 0 && (
       <div
         className='flex flex-col w-full'
         style={{
@@ -295,12 +300,7 @@ const LabOrderPicker = ({
           gap: 'var(--dim-space-250, 10px)',
         }}
       >
-        {summary.testCount === 0 ? (
-          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>
-            ยังไม่ได้เลือกรายการตรวจ
-          </span>
-        ) : (
-          <>
+        <>
             {/* The exact sentence the team wrote out as the target:
                 "เลือก 2 รายการ · เจาะ 2 หลอด (EDTA, Fluoride) · ต้องงดอาหาร 8 ชม." */}
             <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
@@ -387,9 +387,9 @@ const LabOrderPicker = ({
                 showDetail={false}
               />
             )}
-          </>
-        )}
+        </>
       </div>
+      )}
     </div>
   );
 };

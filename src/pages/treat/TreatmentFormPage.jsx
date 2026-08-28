@@ -5,7 +5,9 @@ import { Redirect, useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import QueueSubMenu from '@/components/layout/QueueSubMenu';
 import Popover from '@/components/popup/Popover';
+import Popup from '@/components/popup/Popup';
 import ActionList from '@/components/list/ActionList';
+import { LabOrderBody } from '@/pages/lab/LabOrderPage';
 import QueueCallActions from '@/components/queue/QueueCallActions';
 import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
 import Header from '@/components/layout/Header';
@@ -330,6 +332,13 @@ const TreatmentFormPage = () => {
   /* เมนู "ส่งตรวจ" บนแถวปุ่มหัวการ์ด */
   const orderMenuRef = useRef(null);
   const [orderMenuOpen, setOrderMenuOpen] = useState(false);
+  /* "ส่งตรวจแล็บ" เปิดฟอร์มเดียวกับหน้า /lab/order เป็นป๊อปอัปบนหน้าเดิม
+     (มติผู้ใช้ 28 ส.ค. 69) — หมอไม่ต้องออกจาก visit แล้วค้น HN ใหม่
+     `LabOrderBody` ถูก export ไว้พร้อม `defaultPatientHn` อยู่แล้ว */
+  const [labOrderOpen, setLabOrderOpen] = useState(false);
+  /* ปุ่มของป๊อปอัปเรียก submit ของฟอร์มผ่าน ref — ฟอร์มจึงไม่ต้องมีแถบปุ่มของ
+     ตัวเองซ้อนอีกแถบ */
+  const labOrderActions = useRef(null);
 
   const queueBuckets = useMemo(() => {
     /* หมวด "คิวที่เหลือวันนี้" แสดงครบทุกคิว ไม่ตัดเหลือ preview 2 แถว —
@@ -684,6 +693,10 @@ const TreatmentFormPage = () => {
                         showChevronRight={false}
                         onClick={() => {
                           setOrderMenuOpen(false);
+                          if (item.key === 'lab') {
+                            setLabOrderOpen(true);
+                            return;
+                          }
                           setForm((s2) => ({ ...s2, orderCategory: item.key }));
                           requestStepChange(CPOE_STEP_ORDERS);
                         }}
@@ -692,6 +705,26 @@ const TreatmentFormPage = () => {
                   </div>
                 </Popover>
               </div>
+
+              <Popup
+                open={labOrderOpen}
+                onClose={() => setLabOrderOpen(false)}
+                title='ส่งตรวจแล็บ'
+                subtitle='ฟอร์มเดียวกับหน้าบันทึกส่งตรวจของห้องปฏิบัติการ — ผู้รับบริการถูกเลือกไว้ให้แล้ว'
+                size='extraLarge'
+                primaryAction={{
+                  label: 'ส่งคำขอตรวจ',
+                  onClick: () => labOrderActions.current?.submit?.(),
+                }}
+                secondaryAction={{ label: 'ยกเลิก', onClick: () => setLabOrderOpen(false) }}
+              >
+                <LabOrderBody
+                  hideActions
+                  actionsRef={labOrderActions}
+                  defaultPatientHn={patient?.hn}
+                  onDone={() => setLabOrderOpen(false)}
+                />
+              </Popup>
               {/* CPOE §1.5.10.1 — เดิมปุ่มนี้ยังไม่ผูก sheet จริง ตอนนี้พาไป
                   ศูนย์พิมพ์เอกสาร (step 8) ที่ต่อ PharmacyPrescriptionPrint
                   ไว้แล้ว พร้อม preview ก่อนพิมพ์ */}

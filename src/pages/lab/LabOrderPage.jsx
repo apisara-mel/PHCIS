@@ -3,6 +3,9 @@ import { useHistory } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import Icon from '@/components/icons/Icon';
+import Select from '@/components/forms/Select';
+import InputField from '@/components/forms/InputField';
+import Textarea from '@/components/forms/Textarea';
 import Badge from '@/components/badge/Badge';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -43,7 +46,7 @@ const TODAY = '2026-07-31';
    mount the same control against its `labs[]` slice without duplicating any
    of the grouping/summary/duplicate-warning logic. */
 
-const breadcrumb = ['งานชันสูตรโรค (Lab)', 'สั่งตรวจทางห้องปฏิบัติการ'];
+const breadcrumb = ['ห้องปฏิบัติการ', 'สั่งตรวจทางห้องปฏิบัติการ'];
 
 const SectionCard = ({ icon, title, subtitle, children, action }) => (
   <section
@@ -103,32 +106,17 @@ const RadioCard = ({ label, sublabel, icon = 'category', selected, onSelect, ton
   </button>
 );
 
+/* ช่องกรอกทุกช่องในฟอร์มนี้ใช้คอมโพเนนต์ของดีไซน์ซิสเทม ไม่ใช่ <select>/<input>
+   ที่เขียนสไตล์เอง — ฟอร์มนี้ถูกเปิดเป็นป๊อปอัปบนหน้าตรวจรักษาด้วย ช่องที่หน้าตา
+   ไม่ตรงกับที่อื่นจึงเห็นชัด (มติผู้ใช้ 28 ส.ค. 69) */
 const SelectField = ({ label, value, onChange, options, required }) => (
-  <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-    <span className='text-xs text-ink-secondary'>
-      {label} {required && <span style={{ color: 'var(--text-input-require)' }}>*</span>}
-    </span>
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      style={{
-        width: '100%',
-        paddingTop: 'var(--dim-space-150)',
-        paddingRight: 'var(--dim-space-300)',
-        paddingBottom: 'var(--dim-space-150)',
-        paddingLeft: 'var(--dim-space-300)',
-        background: 'var(--surface-input-default)',
-        border: 'var(--dim-stroke-100) solid var(--border-input-default)',
-        borderRadius: 'var(--dim-radius-200)',
-        fontSize: 'var(--type-size-sm)',
-        outline: 'none',
-      }}
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>{o.label}</option>
-      ))}
-    </select>
-  </label>
+  <Select
+    label={label}
+    required={required}
+    value={value}
+    onChange={onChange}
+    options={options}
+  />
 );
 
 /* Accession preview — the team's "Barcode ตาม Tube" rule made visible before
@@ -141,7 +129,10 @@ const nextAccession = (i) => `L69-${String(800 + i).padStart(4, '0')}`;
    treatment screen opens the same body in a popup, because ordering a test is
    something the clinician does mid-consultation, not a trip to the lab
    module (TOR CPOE §"การสั่งตรวจทางห้องปฏิบัติการ"). */
-export const LabOrderBody = ({ onDone, defaultPatientHn }) => {
+/* `hideActions` = ผู้เรียกวางปุ่มเอง (เช่นป๊อปอัปที่ใช้ footer ของตัวเอง) —
+   ส่ง `actionsRef` มาด้วยเพื่อให้เรียก submit/canSubmit จากข้างนอกได้
+   (มติผู้ใช้ 28 ส.ค. 69) */
+export const LabOrderBody = ({ onDone, defaultPatientHn, hideActions = false, actionsRef = null }) => {
 
   /* Seeded from the caller when there is one — opening this from a patient's
      treatment screen and then having to pick that same patient out of a
@@ -203,6 +194,11 @@ export const LabOrderBody = ({ onDone, defaultPatientHn }) => {
     setSelected([]);
   };
 
+  /* ผู้เรียกภายนอกอ่าน canSubmit / เรียก submit ผ่าน ref นี้ */
+  if (actionsRef) {
+    actionsRef.current = { canSubmit, isAdvance, submit: handleSubmit };
+  }
+
   return (
     <>
       <div className='flex-1 flex flex-col min-w-0' style={{ gap: 'var(--dim-space-500)' }}>
@@ -229,27 +225,14 @@ export const LabOrderBody = ({ onDone, defaultPatientHn }) => {
                 onChange={setLocation}
                 options={LAB_LOCATIONS.map((l) => ({ value: l, label: l }))}
               />
-              <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                <span className='text-xs text-ink-secondary'>แพทย์ผู้สั่ง</span>
-                <input
-                  type='text'
-                  value={patient.doctor}
-                  readOnly
-                  style={{
-                    width: '100%',
-                    paddingTop: 'var(--dim-space-150)',
-                    paddingRight: 'var(--dim-space-300)',
-                    paddingBottom: 'var(--dim-space-150)',
-                    paddingLeft: 'var(--dim-space-300)',
-                    background: 'var(--surface-card-200)',
-                    border: 'var(--dim-stroke-100) solid var(--border-input-default)',
-                    borderRadius: 'var(--dim-radius-200)',
-                    fontSize: 'var(--type-size-sm)',
-                    color: 'var(--text-content-secondary)',
-                    outline: 'none',
-                  }}
-                />
-              </label>
+              <InputField
+                label='แพทย์ผู้สั่ง'
+                value={patient.doctor}
+                onChange={() => {}}
+                disabled
+                showHelperText={false}
+                showLeadingIcon={false}
+              />
             </div>
 
             {/* The two identifiers, restated as a confirmation strip — this
@@ -357,29 +340,18 @@ export const LabOrderBody = ({ onDone, defaultPatientHn }) => {
               />
             </div>
             {isAdvance && (
-              <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)', maxWidth: 260 }}>
-                <span className='text-xs text-ink-secondary'>
-                  วันที่นัดตรวจ <span style={{ color: 'var(--text-input-require)' }}>*</span>
-                </span>
-                <input
+              <div style={{ maxWidth: 260 }}>
+                <InputField
+                  label='วันที่นัดตรวจ'
+                  required
                   type='date'
                   value={scheduledFor}
+                  onChange={setScheduledFor}
+                  showHelperText={false}
+                  showLeadingIcon={false}
                   min={TODAY}
-                  onChange={(e) => setScheduledFor(e.target.value)}
-                  style={{
-                    width: '100%',
-                    paddingTop: 'var(--dim-space-150)',
-                    paddingRight: 'var(--dim-space-300)',
-                    paddingBottom: 'var(--dim-space-150)',
-                    paddingLeft: 'var(--dim-space-300)',
-                    background: 'var(--surface-input-default)',
-                    border: 'var(--dim-stroke-100) solid var(--border-input-default)',
-                    borderRadius: 'var(--dim-radius-200)',
-                    fontSize: 'var(--type-size-sm)',
-                    outline: 'none',
-                  }}
                 />
-              </label>
+              </div>
             )}
             {pendingAdvance.length > 0 && (
               <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
@@ -483,31 +455,22 @@ export const LabOrderBody = ({ onDone, defaultPatientHn }) => {
           )}
 
           <SectionCard icon='edit_note' title='หมายเหตุถึงห้องปฏิบัติการ' subtitle='ไม่บังคับ — เช่น ข้อควรระวังในการเจาะ หรือบริบททางคลินิก'>
-            <textarea
+            <Textarea
               value={note}
-              onChange={(e) => setNote(e.target.value)}
+              onChange={setNote}
               rows={3}
+              showLabel={false}
+              showHelperText={false}
               placeholder='เช่น ผู้ป่วยมีภาวะเลือดออกง่าย ต้องกดห้ามเลือดนานกว่าปกติ'
-              style={{
-                width: '100%',
-                paddingTop: 'var(--dim-space-300)',
-                paddingRight: 'var(--dim-space-300)',
-                paddingBottom: 'var(--dim-space-300)',
-                paddingLeft: 'var(--dim-space-300)',
-                background: 'var(--surface-input-default)',
-                border: 'var(--dim-stroke-100) solid var(--border-input-default)',
-                borderRadius: 'var(--dim-radius-200)',
-                fontFamily: 'var(--type-family-body)',
-                fontSize: 'var(--type-size-sm)',
-                outline: 'none',
-                resize: 'vertical',
-              }}
             />
           </SectionCard>
 
           {/* Sticky submit bar — same shape as PharmacyRegistryEditPage's
               save footer, restating the order's cost and tube count so the
-              last thing read before submitting is its real-world impact. */}
+              last thing read before submitting is its real-world impact.
+              ป๊อปอัปที่ใช้ footer ของตัวเองส่ง `hideActions` มาเพื่อไม่ให้มี
+              สองแถบปุ่มซ้อนกัน */}
+          {hideActions ? null : (
           <section
             className='bg-surface-card rounded-card shadow-card flex flex-wrap items-center w-full sticky bottom-0'
             style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-500)' }}
@@ -529,6 +492,7 @@ export const LabOrderBody = ({ onDone, defaultPatientHn }) => {
               {isAdvance ? 'บันทึกคำสั่งล่วงหน้า' : 'ส่งคำขอตรวจ'}
             </BrandButton>
         </section>
+          )}
       </div>
       <SuccessToast open={saved} message={savedMsg} onClose={() => setSaved(false)} />
     </>

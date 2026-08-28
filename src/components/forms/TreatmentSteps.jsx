@@ -1331,13 +1331,10 @@ export const MedicalHistoryReadOnlyLayout = ({
         </div>
 
         <SummaryPanel title='ประวัติการแพ้ยา / สารเคมี'>
-          <div
-            className='grid w-full'
-            style={{
-              gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-              gap: 'var(--dim-space-300)',
-            }}
-          >
+          {/* คอลัมน์เดียว — สองใบต่อแถวทำให้ป้าย "ระดับความรุนแรง (Severity)" กับ
+              "ระดับความน่าจะเป็น (Probability)" ทับกันจนอ่านไม่ออก
+              (มติผู้ใช้ 28 ส.ค. 69) */}
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
             {selected.allergies.map((entry, i) => (
               <AllergyCard key={`allergy-${i}`} index={i} entry={entry} />
             ))}
@@ -1345,13 +1342,10 @@ export const MedicalHistoryReadOnlyLayout = ({
         </SummaryPanel>
 
         <SummaryPanel title='ประวัติโรคประจำตัว (Underlying Disease / Congenital Disease)'>
-          <div
-            className='grid w-full'
-            style={{
-              gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-              gap: 'var(--dim-space-300)',
-            }}
-          >
+          {/* คอลัมน์เดียว — สองใบต่อแถวทำให้ป้าย "ระดับความรุนแรง (Severity)" กับ
+              "ระดับความน่าจะเป็น (Probability)" ทับกันจนอ่านไม่ออก
+              (มติผู้ใช้ 28 ส.ค. 69) */}
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
             {selected.chronicDiseases.map((entry, i) => (
               <ChronicDiseaseCard key={`chronic-${i}`} index={i} entry={entry} />
             ))}

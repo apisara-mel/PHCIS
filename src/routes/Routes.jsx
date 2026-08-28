@@ -132,7 +132,6 @@ import LabResultEntryPage from '@/pages/lab/LabResultEntryPage';
 import LabReportPage from '@/pages/lab/LabReportPage';
 import LabReceivePage from '@/pages/lab/LabReceivePage';
 import LabSendOutPage from '@/pages/lab/LabSendOutPage';
-import LabInterfacePage from '@/pages/lab/LabInterfacePage';
 import LabPatientHistoryPage from '@/pages/lab/LabPatientHistoryPage';
 import ObservationQueuePage from '@/pages/observation/ObservationQueuePage';
 import ObservationDetailPage from '@/pages/observation/ObservationDetailPage';
@@ -641,7 +640,6 @@ export default function Routes() {
               /lab/queue       — Worklist ของห้องปฏิบัติการ 6 ขั้นตอน (1.15.2)
               /lab/receive     — สถานีรับสิ่งส่งตรวจ 3 ขั้น (1.15.4.5)
               /lab/send-out    — ส่งตรวจภายนอก + รับผลกลับ (1.15.6.2)
-              /lab/interface   — เชื่อมต่อ LIS + เครื่องตรวจวิเคราะห์ (1.15.1, partial)
               /lab/result/:id  — บันทึกผล + ค่าวิกฤต (1.15.6)
               /lab/report/:orderId — ใบผลตรวจรายครั้ง (1.15.6.3)
               /lab/history/:hn — ใบสรุปผลย้อนหลังข้ามครั้ง (1.15.4.3 / 1.15.6.3)
@@ -656,7 +654,6 @@ export default function Routes() {
         <Route exact path='/lab/order'        component={LabOrderPage} />
         <Route exact path='/lab/receive'      component={LabReceivePage} />
         <Route exact path='/lab/send-out'     component={LabSendOutPage} />
-        <Route exact path='/lab/interface'    component={LabInterfacePage} />
         <Route exact path='/lab/result/:id'   component={LabResultEntryPage} />
         <Route exact path='/lab/report/:orderId' component={LabReportPage} />
         <Route exact path='/lab/history/:hn'  component={LabPatientHistoryPage} />

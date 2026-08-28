@@ -112,7 +112,7 @@ const LabReportPage = () => {
     <div className='min-h-screen flex' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
       <Sidebar activeKey='lab' />
       <main className='flex-1 flex flex-col min-w-0'>
-        <Header breadcrumb={['งานชันสูตรโรค (Lab)', 'ใบรายงานผลสำหรับผู้ป่วย', orderId]} />
+        <Header breadcrumb={['ห้องปฏิบัติการ', 'ใบรายงานผลสำหรับผู้ป่วย', orderId]} />
         <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
           <div>
             <button
@@ -122,7 +122,7 @@ const LabReportPage = () => {
               style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 'var(--dim-space-0)' }}
             >
               <Icon name='chevron-left' size={16} />
-              กลับไปยังงานชันสูตรโรค (Lab)
+              กลับไปยังห้องปฏิบัติการ
             </button>
           </div>
           <LabReportBody orderId={orderId} onDone={() => history.push('/lab/queue')} />

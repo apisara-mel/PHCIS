@@ -22,6 +22,7 @@ import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import { Icon } from '@/components/icons/Icon';
 import LabSubNav from '@/components/lab/LabSubNav';
+import { LabPrintLabelsButton, LabOrderCtaButton } from '@/components/lab/LabHeaderActions';
 import StickyStatusTabBar, { QUEUE_STICKY_UNDER_STATUS_TABS } from '@/components/tab/StickyStatusTabBar';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
 import LabReceiptFormPopup from '@/components/lab/LabReceiptFormPopup';
@@ -63,7 +64,7 @@ import {
    change what four other screens branch on. A receipt is a RECORD attached
    to an order; the order's pipeline status is orthogonal. */
 
-const breadcrumb = ['งานชันสูตรโรค (Lab)', 'สถานีรับสิ่งส่งตรวจ'];
+const breadcrumb = ['ห้องปฏิบัติการ', 'สถานีรับสิ่งส่งตรวจ'];
 const PAGE_SIZE = 20;
 
 /* Monospace for accession numbers — a rendering requirement for aligned
@@ -301,7 +302,9 @@ const LabReceivePage = () => {
   const tabs = useMemo(
     () => LAB_RECEIVE_STAGES.map((s) => ({
       key: s.key,
-      label: `${s.short} ${s.manual}`,
+      /* ป้ายแท็บไม่ต้องมีเลขข้อคู่มือ (§2.1.2/§2.1.4/§2.1.5) — เป็นการอ้างอิง
+         ของคนเขียนสเปก ไม่ใช่สิ่งที่คนหน้างานต้องอ่าน (มติผู้ใช้ 28 ส.ค. 69) */
+      label: s.short,
       icon: s.icon,
       count: rowsWaitingAt(liveRows, s.key).length,
     })),
@@ -618,6 +621,9 @@ const LabReceivePage = () => {
         title='สถานีรับสิ่งส่งตรวจ'
         summaryFlushUnderSubHeader={false}
         belowSummary={<LabSubNav />}
+        /* ปุ่มประจำโมดูลห้องปฏิบัติการ — เหมือนหน้าอื่นในโมดูล */
+        leadingActions={<LabPrintLabelsButton />}
+        actions={<LabOrderCtaButton />}
       >
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -680,7 +686,7 @@ const LabReceivePage = () => {
                 <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200)', fontFamily: 'var(--type-family-heading-content)', fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))', fontSize: 'var(--type-size-base)', color: 'var(--text-content-default)' }}>
                   <Icon name={stageDef?.icon ?? 'inventory_2'} size={20} style={{ color: 'var(--text-brandPrimary-default)' }} />
                   {stageDef?.label}
-                  <Badge style='neutral' size='small'>{stageDef?.manual}</Badge>
+                  {/* ป้ายเลขข้อคู่มือ (§2.1.x) ถูกเอาออก 28 ส.ค. 69 */}
                 </span>
                 <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>
                   {stageDef?.hint}

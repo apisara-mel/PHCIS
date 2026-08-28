@@ -31,6 +31,9 @@ import { ButtonSizeAliasProvider } from '@/components/button/ButtonSizeAliasCont
      onBack   — when provided, renders the Figma back button before the title
      backLabel — label of the back button (default 'กลับ')
      children — right-aligned action slot (gap-12 between siblings)
+     leadingActions — action slot rendered BEFORE the consent action, for the
+       rare page whose own action has to read first (LabQueuePage's
+       "พิมพ์ฉลากตรวจแล็บ")
      flushSummaryCardsBelow — when true, removes bottom border + drop-shadow so
        SummaryCardsBar can sit flush with no visible “top stroke” on the panel.
      hideBottomBorder — when true, omits only the 1px bottom border (keeps shadow). */
@@ -40,10 +43,10 @@ import { ButtonSizeAliasProvider } from '@/components/button/ButtonSizeAliasCont
    reaches buttons nested inside compound header actions without page-by-page
    overrides. */
 
-const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', children, flushSummaryCardsBelow = false, hideBottomBorder = false }) => {
+const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', children, leadingActions = null, flushSummaryCardsBelow = false, hideBottomBorder = false }) => {
   const { pathname } = useLocation();
   const showConsentAction = canCreateConsentRequest() && shouldShowCreateConsentRequestAction(pathname);
-  const hasActions = children || showConsentAction;
+  const hasActions = children || leadingActions || showConsentAction;
 
   return (
   <ButtonSizeAliasProvider size='sm'>
@@ -109,6 +112,7 @@ const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', chil
     <div className='flex-1 min-w-0' style={{ minHeight: 'var(--dim-size-700, 36px)' }} />
     {hasActions && (
       <div className='flex items-center shrink-0 flex-wrap justify-end' style={{ gap: 'var(--dim-space-200)' }}>
+        {leadingActions}
         {showConsentAction && <CreateConsentRequestHeaderAction />}
         {children}
       </div>

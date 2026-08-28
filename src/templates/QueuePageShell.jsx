@@ -34,6 +34,7 @@ import { MIH_CHROME_MORPH_STEP_BAND } from '@/components/layout/wizardChromeMorp
      onBack           — when set, SubHeader renders a "← back" button
      backLabel        — back button label (default 'กลับ')
      actions          — right-side button group inside the SubHeader
+     leadingActions   — button group rendered before the consent action
      summaryCards     — when set, renders <SummaryCardsBar cards={...} />
      summaryTitle     — optional h1 above the summary cards (Figma Topic tertiary)
      summaryFlushUnderSubHeader — when false, summary band uses Figma
@@ -103,6 +104,7 @@ const QueuePageShell = ({
   onBack,
   backLabel,
   actions,
+  leadingActions,
   summaryCards,
   summaryTitle,
   summaryFlushUnderSubHeader,
@@ -123,7 +125,7 @@ const QueuePageShell = ({
   const effectiveTitle =
     title
     || (isOpdScreeningMenuPath(pathname) && summaryTitle ? summaryTitle : null);
-  const hasSubHeader = !!(effectiveTitle || onBack || actions);
+  const hasSubHeader = !!(effectiveTitle || onBack || actions || leadingActions);
   /** summaryTitle ถูกยกไป SubHeader แล้ว — ไม่แสดง h1 ซ้ำบน SummaryCardsBar */
   const summaryBarTitle =
     !title && summaryTitle && effectiveTitle === summaryTitle ? undefined : summaryTitle;
@@ -180,7 +182,7 @@ const QueuePageShell = ({
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
     ro?.observe(el);
     return () => ro?.disconnect();
-  }, [hasSubHeader, effectiveTitle, actions, onBack]);
+  }, [hasSubHeader, effectiveTitle, actions, leadingActions, onBack]);
 
   useLayoutEffect(() => {
     if (!hasBelowSummary) {
@@ -277,7 +279,7 @@ const QueuePageShell = ({
         showClinicFilter={!CLINIC_CHIP_HIDDEN_SYSTEMS.includes(brandTitle)}
       />
       <main className='flex-1 min-w-0 flex flex-col'>
-        {(effectiveTitle || onBack || actions) ? (
+        {(effectiveTitle || onBack || actions || leadingActions) ? (
           <div
             ref={subHeaderRef}
             className='w-full sticky'
@@ -294,6 +296,7 @@ const QueuePageShell = ({
               backLabel={backLabel}
               /* แถบ sticky ถัดไป (tabs / belowSummary) เป็นตัวทิ้งเงา — SubHeader ไม่ซ้อนเส้น */
               flushSummaryCardsBelow={subHeaderFlushBelow || hasTabs || hasBelowSummary}
+              leadingActions={leadingActions}
             >
               {actions}
             </SubHeader>

@@ -57,7 +57,7 @@ import { useLabPermissions } from '@/data/labPermissions';
    daily control is out of range must not have its results imported, and
    that gate is enforced here. */
 
-const breadcrumb = ['งานชันสูตรโรค (Lab)', 'เชื่อมต่อ LIS'];
+const breadcrumb = ['ห้องปฏิบัติการ', 'เชื่อมต่อ LIS'];
 const TODAY = '2026-07-31';
 const CURRENT_ACTOR = 'ทนพ.ญ. อารีย์ วงศ์สุข';
 

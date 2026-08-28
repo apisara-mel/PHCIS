@@ -12,10 +12,11 @@ import TabUnderline from '@/components/tab/TabUnderline';
 
 const LINKS = [
   { key: 'queue',     label: 'คิวห้องปฏิบัติการ',                   path: '/lab/queue'     },
-  { key: 'order',     label: 'บันทึกส่งตรวจ',                       path: '/lab/order'     },
-  { key: 'receive',   label: 'สถานีรับสิ่งส่งตรวจ',                  path: '/lab/receive'   },
+  /* "บันทึกส่งตรวจ" ถูกซ่อนจากเมนู 28 ส.ค. 69 — ฟอร์มเดียวกันเปิดเป็นป๊อปอัป
+     จากเมนู "ส่งตรวจ" บนหน้าตรวจรักษาแล้ว · route /lab/order ยังอยู่ */
+  /* "สถานีรับสิ่งส่งตรวจ" ถูกซ่อนจากเมนู 28 ส.ค. 69 — route /lab/receive
+     ยังอยู่ เข้าได้ด้วยการพิมพ์ URL ตรง ๆ */
   { key: 'send-out',  label: 'ส่งตรวจภายนอก (Lab-out)',             path: '/lab/send-out'  },
-  { key: 'interface', label: 'เชื่อมต่อ LIS และเครื่องตรวจวิเคราะห์', path: '/lab/interface' },
 ];
 
 const TABS = LINKS.map(({ key, label }) => ({ key, label }));
@@ -24,7 +25,6 @@ const resolveActiveKey = (pathname) => {
   if (pathname.startsWith('/lab/order')) return 'order';
   if (pathname.startsWith('/lab/receive')) return 'receive';
   if (pathname.startsWith('/lab/send-out')) return 'send-out';
-  if (pathname.startsWith('/lab/interface')) return 'interface';
   if (pathname.startsWith('/lab/queue') || pathname === '/lab' || pathname === '/lab/') return 'queue';
   /* Secondary screens (report / history) — keep queue highlighted. */
   if (pathname.startsWith('/lab/')) return 'queue';

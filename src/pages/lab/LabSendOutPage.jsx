@@ -22,6 +22,7 @@ import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import { Icon } from '@/components/icons/Icon';
 import LabSubNav from '@/components/lab/LabSubNav';
+import { LabPrintLabelsButton, LabOrderCtaButton } from '@/components/lab/LabHeaderActions';
 import StickyStatusTabBar, { QUEUE_STICKY_UNDER_STATUS_TABS } from '@/components/tab/StickyStatusTabBar';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
 import LabSendOutFormPopup from '@/components/lab/LabSendOutFormPopup';
@@ -57,7 +58,7 @@ import { useLabPermissions } from '@/data/labPermissions';
    silence is its default — so an overdue consignment sorts to the top and
    carries a destructive badge with its day count. */
 
-const breadcrumb = ['งานชันสูตรโรค (Lab)', 'ส่งตรวจภายนอก'];
+const breadcrumb = ['ห้องปฏิบัติการ', 'ส่งตรวจภายนอก'];
 const PAGE_SIZE = 20;
 
 /* Monospace for accession numbers — a rendering requirement for aligned
@@ -551,6 +552,11 @@ const LabSendOutPage = () => {
         title='ส่งตรวจภายนอก (Lab-out)'
         summaryFlushUnderSubHeader={false}
         belowSummary={<LabSubNav />}
+        /* ปุ่มประจำโมดูลห้องปฏิบัติการ ต้องอยู่ทุกหน้าในโมดูล (มติผู้ใช้ 28 ส.ค. 69)
+           หน้านี้ไม่มีตารางสิ่งส่งตรวจของตัวเอง จึงไม่ส่ง `rows` — ปุ่มพิมพ์ฉลาก
+           จะครอบทุกรายการใน Worklist ที่ยังไม่เคยพิมพ์ */
+        leadingActions={<LabPrintLabelsButton />}
+        actions={<LabOrderCtaButton />}
       >
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -620,7 +626,10 @@ const LabSendOutPage = () => {
               {summaryCards.map((c) => <SummaryCard key={c.key} card={c} />)}
             </div>
 
-            <div className='w-full flex flex-wrap items-center' style={{ gap: 'var(--dim-space-300)' }}>
+            {/* ช่องค้นหาอยู่กลาง (มติผู้ใช้ 28 ส.ค. 69) — ปุ่ม "ส่งตรวจภายนอก"
+                ที่เคยอยู่ข้าง ๆ ถูกลบแล้ว เหลือช่องเดียวจึงจัดกึ่งกลางแทนชิดซ้าย
+                การส่งออกยังทำได้ที่แถบ "เลือกไว้ n รายการ" และปุ่มในแต่ละแถว */}
+            <div className='w-full flex flex-wrap items-center justify-center' style={{ gap: 'var(--dim-space-300)' }}>
               <PrimarySearch
                 value={query}
                 onChange={setQuery}
@@ -636,17 +645,6 @@ const LabSendOutPage = () => {
                 suggestions={searchSuggestions}
                 avatars={searchAvatars}
               />
-              {tab === 'pending' && (
-                <BrandPrimaryButton
-                  size='md'
-                  leadingIcon='send'
-                  disabled={!canEdit || selectedRows.length === 0}
-                  title={canEdit ? undefined : denyReason}
-                  onClick={() => setFormOpen(true)}
-                >
-                  ส่งตรวจภายนอก {selectedRows.length > 0 ? `(${selectedRows.length})` : ''}
-                </BrandPrimaryButton>
-              )}
             </div>
 
             <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>
@@ -681,8 +679,9 @@ const LabSendOutPage = () => {
                 className='flex flex-wrap items-center w-full'
                 style={{
                   gap: 'var(--dim-space-300)',
+                  /* ไม่ใส่กรอบ (มติผู้ใช้ 28 ส.ค. 69) — พื้นหลังเขียวอ่อนบอกขอบเขต
+                     ของแถบอยู่แล้ว เส้นขอบเข้มซ้อนอีกชั้นทำให้แข่งกับตารางข้างล่าง */
                   background: 'var(--surface-brandPrimary-quaternary)',
-                  border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-default)',
                   borderRadius: 'var(--dim-radius-300)',
                   paddingTop: 'var(--dim-space-300)',
                   paddingRight: 'var(--dim-space-400)',
