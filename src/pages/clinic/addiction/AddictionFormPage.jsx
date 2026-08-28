@@ -43,7 +43,7 @@ import { AddictionAccessGate, NoticeBand } from '@/pages/clinic/addiction/addict
    program badge (1.10.5.1); draft auto-save resumes at the last step;
    completed visits reopen read-only with an audited แก้ไข action. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานบำบัดสารเสพติด'];
+const breadcrumb = ['บันทึกการรักษา', 'งานบำบัดสารเสพติด'];
 
 const ADDICTION_STEPS = [
   { title: 'ซักประวัติ/แรกรับ', subtitle: 'Intake History' },

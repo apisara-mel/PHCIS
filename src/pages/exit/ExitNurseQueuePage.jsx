@@ -11,14 +11,14 @@ import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import QueueCallActions from '@/components/queue/QueueCallActions';
 import SuccessToast from '@/components/toast/SuccessToast';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
-import DutyRosterAction from '@/components/patient/DutyRosterAction';
-import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 import { getPatientByHN } from '@/data/patientProfiles';
 import {
   EXIT_STATUS, EXIT_TASKS, getExitRows, subscribeExitQueue,
   taskProgress, toggleExitTask, closeExitVisit, reopenExitVisit, updateExitRow,
+  toggleExitPause, cancelExitVisit,
   compareExitRows,
 } from '@/data/exitNurseQueue';
 
@@ -36,12 +36,16 @@ import {
 const breadcrumb = ['Exist Nurse'];
 const SUMMARY_TITLE = 'Exist Nurse';
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:exit-nurse';
+/* รอนานเกินนี้ถือว่าผิดปกติ — 2 ชั่วโมง */
+const LONG_WAIT_MINUTES = 120;
 
+/* แท็บตามมติผู้ใช้ 29 ส.ค. 69 — "คิววันนี้" รวมรอส่งกลับกับกำลังส่งกลับเข้า
+   ด้วยกัน เพราะสองสถานะนั้นคืองานที่ยังไม่จบเหมือนกัน แยกแท็บแล้วพยาบาลต้อง
+   สลับไปมาเพื่อเห็นคิวทั้งหมดที่ยังค้าง ส่วนสถานะย่อยยังบอกได้ที่ป้ายในแถว */
 const TABS = [
-  { key: 'waiting', label: 'รอส่งกลับ',    icon: 'hourglass_top' },
-  { key: 'doing',   label: 'กำลังส่งกลับ', icon: 'pending_actions' },
-  { key: 'done',    label: 'ส่งกลับแล้ว',  icon: 'check_circle' },
-  { key: 'all',     label: 'ทั้งหมด',      icon: 'group' },
+  { key: 'today', label: 'คิววันนี้',                  icon: 'hourglass_top' },
+  { key: 'done',  label: 'ส่งต่อแล้ว',                 icon: 'check_circle' },
+  { key: 'all',   label: 'รายชื่อผู้รับบริการทั้งหมด', icon: 'group' },
 ];
 
 const PatientAvatar = ({ row }) => {
@@ -74,7 +78,7 @@ const PatientAvatar = ({ row }) => {
 };
 
 const ExitNurseQueuePage = () => {
-  const [activeTab, setActiveTab] = useState('waiting');
+  const [activeTab, setActiveTab] = useState('today');
   const [searchQ, setSearchQ] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [openId, setOpenId] = useState(null);
@@ -100,6 +104,7 @@ const ExitNurseQueuePage = () => {
     waiting: allRows.filter((r) => r.status === 'waiting').length,
     doing: allRows.filter((r) => r.status === 'doing').length,
     done: allRows.filter((r) => r.status === 'done').length,
+    today: allRows.filter((r) => r.status !== 'done' && r.status !== 'cancelled').length,
     all: allRows.length,
   }), [allRows]);
 
@@ -126,7 +131,9 @@ const ExitNurseQueuePage = () => {
 
   const tabRows = activeTab === 'all'
     ? allRows
-    : allRows.filter((r) => r.status === activeTab);
+    : activeTab === 'today'
+      ? allRows.filter((r) => r.status !== 'done' && r.status !== 'cancelled')
+      : allRows.filter((r) => r.status === activeTab);
 
   const filtered = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
@@ -186,27 +193,33 @@ const ExitNurseQueuePage = () => {
     );
   };
 
-  const renderActions = (row) => (
-    row.status === 'done' ? (
-      <NeutralSubdueButton
-        variant='outline'
-        size='sm'
-        leadingIcon='undo'
-        onClick={(e) => { e.stopPropagation(); reopenExitVisit(row.id); setToast(`เปิด ${row.name} กลับมาแก้ไขแล้ว`); }}
-      >
-        เปิดกลับมาแก้
-      </NeutralSubdueButton>
-    ) : (
-      <BrandSubdueButton
-        variant='fill'
-        size='sm'
-        leadingIcon='logout'
-        onClick={(e) => { e.stopPropagation(); setOpenId(row.id); }}
-      >
-        {row.status === 'doing' ? 'ทำต่อ' : 'เริ่มส่งกลับ'}
-      </BrandSubdueButton>
-    )
-  );
+  /* ปุ่มสามตัวเดียวกับคิวลงทะเบียน/คัดกรอง — เรียกคิว · พักคิว · ยกเลิกคิว
+     (มติผู้ใช้ 29 ส.ค. 69) เรียกคิว = เรียกผู้รับบริการมาที่โต๊ะแล้วเปิดรายการ
+     สิ่งที่ต้องทำก่อนกลับ ปุ่มเรียกเป็น fill เมื่อยังรอ และจางลงเมื่อเริ่มทำแล้ว
+     ทรงเดียวกับที่คิวอื่นแยก "รอ" กับ "กำลังทำ" */
+  const renderActions = (row) => {
+    if (row.status === 'done' || row.status === 'cancelled') {
+      return (
+        <NeutralSubdueButton
+          variant='outline'
+          size='sm'
+          leadingIcon='undo'
+          onClick={(e) => { e.stopPropagation(); reopenExitVisit(row.id); setToast(`เปิด ${row.name} กลับมาแก้ไขแล้ว`); }}
+        >
+          เปิดกลับมาแก้
+        </NeutralSubdueButton>
+      );
+    }
+    return (
+      <QueueCallActions
+        paused={!!row.paused}
+        callVariant={row.status === 'waiting' ? 'fill' : 'quaternary'}
+        onCall={() => setOpenId(row.id)}
+        onPause={() => { toggleExitPause(row.id); setToast(row.paused ? `เรียก ${row.name} ต่อ` : `พักคิว ${row.name}`); }}
+        onCancel={() => { cancelExitVisit(row.id); setToast(`ยกเลิกคิว ${row.name}`); }}
+      />
+    );
+  };
 
   const columns = useMemo(() => ([
     {
@@ -230,7 +243,20 @@ const ExitNurseQueuePage = () => {
     { key: 'diagnosis', label: 'การวินิจฉัย', flex: true, minWidth: 180, render: (row) => <TableEllipsisText text={row.diagnosis} /> },
     { key: 'tasks', label: 'สิ่งที่ต้องทำก่อนกลับ', flex: true, minWidth: 220, sortable: false, render: renderTasks },
     { key: 'examDoneAt', label: 'ตรวจเสร็จเมื่อ' },
-    { key: 'waitMinutes', label: 'รอนาน', render: (row) => `${row.waitMinutes} นาที` },
+    {
+      key: 'waitMinutes', label: 'รอนาน',
+      /* เกิน 2 ชั่วโมงขึ้นตัวบ่งชี้ (มติผู้ใช้ 29 ส.ค. 69) — คนที่ตรวจเสร็จแล้ว
+         แต่ยังไม่ได้กลับบ้านนานขนาดนั้นคือคนที่ถูกลืม ตัวเลขเฉย ๆ ในคอลัมน์
+         ไม่เตะตาพอ แสดงเฉพาะแถวที่ยังไม่ปิด แถวที่ส่งกลับแล้วไม่ได้รออยู่ */
+      render: (row) => {
+        const over = row.status !== 'done' && (row.waitMinutes ?? 0) > LONG_WAIT_MINUTES;
+        return over ? (
+          <ColorfulBadge style='red' size='small' hierarchy='secondary' width='hug' icon='schedule'>
+            {`${row.waitMinutes} นาที`}
+          </ColorfulBadge>
+        ) : `${row.waitMinutes} นาที`;
+      },
+    },
     {
       key: 'status', label: 'สถานะ',
       render: (row) => {
@@ -254,7 +280,9 @@ const ExitNurseQueuePage = () => {
     },
     {
       key: 'actions', label: 'การดำเนินการ', sortable: false, align: 'center',
-      render: withEmrRowAction(renderActions),
+      /* ไม่มีปุ่ม EMR ที่นี่ (มติผู้ใช้ 29 ส.ค. 69) — Exist Nurse ทำงานจากรายการ
+         สิ่งที่ต้องทำก่อนกลับ ไม่ได้อ่านประวัติการรักษาย้อนหลัง */
+      render: renderActions,
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), []);
@@ -353,7 +381,9 @@ const ExitNurseQueuePage = () => {
         tabs={tabs}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        leadingActions={<DutyRosterAction />}
+        /* ไม่มีปุ่มดูตารางเวรที่นี่ (มติผู้ใช้ 29 ส.ค. 69) — ตารางเวรตอบว่า
+           "แพทย์คนไหนว่างกี่โมง" ซึ่งเป็นคำถามตอนจะส่งคนเข้าห้องตรวจ ส่วนหน้านี้
+           ทำงานหลังการตรวจจบแล้ว ไม่มีจังหวะที่ต้องรู้เวรแพทย์ */
       >
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -366,7 +396,9 @@ const ExitNurseQueuePage = () => {
               borderRadius: 'var(--dim-radius-500)',
               boxShadow: 'var(--shadow-card-strong)',
               padding: 'var(--dim-space-600)',
-              gap: 'var(--dim-space-600)',
+              /* 16px ไม่ใช่ 24px (มติผู้ใช้ 29 ส.ค. 69) — หน้าอื่นมีแถวตัวกรองคั่น
+                 ระหว่างช่องค้นหากับตาราง ที่นี่ไม่มี 24px จึงกลายเป็นช่องว่างเปล่า */
+              gap: 'var(--dim-space-400)',
             }}
           >
             <div className='w-full flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
@@ -391,11 +423,11 @@ const ExitNurseQueuePage = () => {
               rowKey={(row) => row.id}
               sortConfig={sortConfig}
               onSort={handleSort}
-              onRowClick={(row) => (row.status === 'done' ? null : setOpenId(row.id))}
+              onRowClick={(row) => (row.status === 'done' || row.status === 'cancelled' ? null : setOpenId(row.id))}
               stickyColCount={3}
               stickyRightColCount={1}
               stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
-              emptyMessage={activeTab === 'waiting'
+              emptyMessage={activeTab === 'today'
                 ? 'ไม่มีผู้รับบริการรอส่งกลับ — ทุกคนที่ตรวจเสร็จถูกปิดเยี่ยมแล้ว'
                 : 'ไม่พบรายการ'}
             />

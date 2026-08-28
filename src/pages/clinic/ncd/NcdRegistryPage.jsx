@@ -51,7 +51,7 @@ import {
    user's role is view-only (canEditNcd() === false) the page renders
    read-only: action buttons hidden + "สิทธิ์ของคุณดูได้อย่างเดียว" banner. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานกลุ่มโรคเฉพาะ NCD'];
+const breadcrumb = ['บันทึกการรักษา', 'งานกลุ่มโรคเฉพาะ NCD'];
 
 /* The registry's filter-bar search is a wrapper-owned-border control: the
    surrounding div draws the border/background, so the native <input> inside

@@ -47,7 +47,7 @@ import { SW_NUTRI_GROUPS } from '@/data/socialWorkNutrition';
    drill-down ใช้รหัสนิรนามเท่านั้น และไฟล์ export ถูก sanitize ซ้ำอีกชั้นด้วย
    sanitizeExportReportMeta ก่อนส่งเข้า ExportFormatPopup. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานสังคมสงเคราะห์', 'รายงาน'];
+const breadcrumb = ['บันทึกการรักษา', 'งานสังคมสงเคราะห์', 'รายงาน'];
 
 const EXPORT_FOOTER =
   'ออกเอกสารโดยงานสังคมสงเคราะห์ ศูนย์บริการสาธารณสุข สำนักอนามัย กรุงเทพมหานคร (PHCIS)';

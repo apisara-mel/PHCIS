@@ -44,7 +44,7 @@ import { withEmrRowAction } from '@/components/patient/EmrRowAction';
    pattern เดียวกับ ReferralRegisterPage — คัดลอกโครง ไม่แก้ไฟล์เดิม.
    คำศัพท์ตารางและ legend "ข้อมูลไม่สมบูรณ์" ตามคู่มือ HCIS §2.10. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'ทะเบียนการส่งปรึกษาแพทย์'];
+const breadcrumb = ['บันทึกการรักษา', 'ทะเบียนการส่งปรึกษาแพทย์'];
 
 const DIRECTION_TABS = [
   { key: 'out', label: 'คำขอที่ส่งออก' },

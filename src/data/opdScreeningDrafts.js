@@ -147,6 +147,20 @@ export const getStationTimes = (hn) => {
 };
 
 /** Stamp a station visit — updates the open entry's `end` or appends one. */
+/* ป้ายสถานีสำหรับ "รับผู้ป่วยเข้า" — แถวแรกของตารางเวลาต่อสถานี (TOR 1.2.3.4)
+   นับตั้งแต่พยาบาลกดยืนยันรับจากคิว ไม่ใช่ตั้งแต่เปิดฟอร์มขั้นแรก */
+export const STATION_ACCEPT = 'จุดคัดกรอง — รับผู้ป่วยเข้า';
+
+/** ประทับเวลารับผู้ป่วยเข้าจุดคัดกรอง — เปิดและปิดในจังหวะเดียว เพราะเป็นเหตุการณ์
+    ไม่ใช่ช่วงเวลา ถ้ามีแถวรับเข้าของ HN นี้อยู่แล้ว (กดยืนยันซ้ำ) ไม่เพิ่มซ้ำ */
+export const stampScreeningAccept = (hn, provider) => {
+  if (!hn) return;
+  const has = (getStationTimes(hn) || []).some((s) => s.station === STATION_ACCEPT);
+  if (has) return;
+  stampStationTime(hn, STATION_ACCEPT, provider);
+  stampStationTime(hn, STATION_ACCEPT, provider);
+};
+
 export const stampStationTime = (hn, station, provider) => {
   if (!hn || !station) return;
   const map = readStations();

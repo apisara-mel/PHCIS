@@ -60,7 +60,7 @@ import {
    เป็น DEFAULT_PATIENT ซึ่งเป็นคนละคน การ key ด้วย cardPatient.hn จะเขียน
    ทับบันทึกของ HN 67-00001 (บั๊กที่ AncFormPage เตือนไว้). */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานทันตกรรม', 'บันทึกทันตกรรม'];
+const breadcrumb = ['บันทึกการรักษา', 'งานทันตกรรม', 'บันทึกทันตกรรม'];
 
 const DENTAL_STEPS = [
   { title: 'ประวัติและข้อมูลประกอบ', subtitle: 'Medical History' },

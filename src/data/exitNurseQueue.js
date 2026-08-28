@@ -14,9 +14,12 @@
 import { PATIENT_PROFILES } from '@/data/patientProfiles';
 
 export const EXIT_STATUS = {
-  waiting:  { key: 'waiting',  label: 'รอส่งกลับ',      badge: 'orange', rank: 0 },
-  doing:    { key: 'doing',    label: 'กำลังส่งกลับ',   badge: 'blue',   rank: 1 },
-  done:     { key: 'done',     label: 'ส่งกลับแล้ว',    badge: 'teal',   rank: 2 },
+  waiting:   { key: 'waiting',   label: 'รอส่งกลับ',      badge: 'orange', rank: 0 },
+  doing:     { key: 'doing',     label: 'กำลังส่งกลับ',   badge: 'blue',   rank: 1 },
+  done:      { key: 'done',      label: 'ส่งกลับแล้ว',    badge: 'teal',   rank: 2 },
+  /* ยกเลิกคิว — ผู้รับบริการกลับไปเองก่อนปิดเยี่ยม แถวคงไว้ให้ตรวจสอบย้อนหลัง
+     ไม่ลบทิ้ง (ทรงเดียวกับ walk-in request) */
+  cancelled: { key: 'cancelled', label: 'ยกเลิกคิว',      badge: 'grey',   rank: 3 },
 };
 
 /* งานที่ต้องปิดก่อนผู้รับบริการกลับบ้าน — คำอธิบายคือสิ่งที่พยาบาลต้องพูดจริง
@@ -56,7 +59,9 @@ export const EXIT_TASKS = {
 
 export const EXIT_TASK_LIST = Object.values(EXIT_TASKS);
 
-const STORAGE_KEY = 'mih:exit-nurse-queue:v1';
+/* v2: ชุดตัวอย่างมีเคสรอเกิน 2 ชม. เพื่อให้เห็นตัวบ่งชี้ — คีย์เดิมจะทำให้
+   session ที่เคยเปิดหน้านี้ค้างชุดเก่าอยู่ */
+const STORAGE_KEY = 'mih:exit-nurse-queue:v2';
 
 const canUseSessionStorage = () =>
   typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined';
@@ -77,7 +82,8 @@ const SEED_PLAN = [
   { i: 8,  clinic: 'คลินิกทันตกรรม',  doctor: 'ทพญ.วรางคณา ฟันสวย', at: '10:07', wait: 3,
     dx: 'ฟันผุถึงโพรงประสาทฟัน (K04.0)',
     tasks: ['medication', 'appointment', 'payment'] },
-  { i: 6,  clinic: 'คลินิกสุขภาพจิต', doctor: 'นพ.ณัฐวุฒิ บุญมี',   at: '09:30', wait: 26,
+  /* รอเกิน 2 ชม. โดยตั้งใจ — พิสูจน์ตัวบ่งชี้รอนานบนคอลัมน์รอนาน */
+  { i: 6,  clinic: 'คลินิกสุขภาพจิต', doctor: 'นพ.ณัฐวุฒิ บุญมี',   at: '07:52', wait: 134,
     dx: 'ภาวะซึมเศร้า (F32.1)',
     tasks: ['medication', 'appointment', 'advice'], status: 'doing' },
   { i: 9,  clinic: 'คลินิกวัณโรค',   doctor: 'นพ.ประวิทย์ ชาญเวชกิจ', at: '09:12', wait: 44,
@@ -112,6 +118,8 @@ const buildSeed = () => SEED_PLAN.map((plan, idx) => {
       : {},
     note: '',
     status,
+    /* พักคิว — เรียกแล้วยังไม่มา ขอข้ามไปเรียกคนถัดไปก่อน */
+    paused: false,
     closedBy: plan.closedBy ?? null,
     closedAt: plan.closedAt ?? null,
   };
@@ -193,6 +201,22 @@ export const closeExitVisit = (id, { by = 'พว.กานดา ศรีว�
     closedBy: by,
     closedAt: at ?? nowHHMM(),
   });
+};
+
+/** พักคิว / ยกเลิกพัก — เรียกแล้วไม่มาจึงข้ามไปก่อน ค่าไม่แตะสถานะงาน */
+export const toggleExitPause = (id) => {
+  const rows = read();
+  const target = rows.find((r) => r.id === id);
+  if (!target || target.status === 'done' || target.status === 'cancelled') return null;
+  return updateExitRow(id, { paused: !target.paused });
+};
+
+/** ยกเลิกคิว — ผู้รับบริการกลับไปเองก่อนปิดเยี่ยม เก็บแถวไว้ ไม่ลบ */
+export const cancelExitVisit = (id, { by = 'พว.กานดา ศรีวิไล', at = null } = {}) => {
+  const rows = read();
+  const target = rows.find((r) => r.id === id);
+  if (!target || target.status === 'done') return null;
+  return updateExitRow(id, { status: 'cancelled', paused: false, closedBy: by, closedAt: at ?? nowHHMM() });
 };
 
 /** เปิดกลับมาแก้ — ปิดผิดคนหรือลืมบอกอะไรไปต้องย้อนได้ */

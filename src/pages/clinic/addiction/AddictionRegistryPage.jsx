@@ -83,7 +83,7 @@ import {
    case into /clinic/addiction/follow-up and starts the 30-day overdue
    clock (getFollowUpOverdue). */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานบำบัดสารเสพติด', 'ทะเบียนผู้ติดสารเสพติด'];
+const breadcrumb = ['บันทึกการรักษา', 'งานบำบัดสารเสพติด', 'ทะเบียนผู้ติดสารเสพติด'];
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:addiction-registry';
 const PAGE_SIZE = 10;
 

@@ -46,7 +46,7 @@ import { withEmrRowAction } from '@/components/patient/EmrRowAction';
    ตรวจเสร็จแล้ว (done). ยกเลิกคิว keeps its audit line (ผู้ยกเลิก + เวลา
    + เหตุผล) and stays restorable, per playbook §5. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานสุขภาพจิต'];
+const breadcrumb = ['บันทึกการรักษา', 'งานสุขภาพจิต'];
 const SUMMARY_TITLE = 'คิวคลินิกสุขภาพจิต';
 
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:mental-health-queue';

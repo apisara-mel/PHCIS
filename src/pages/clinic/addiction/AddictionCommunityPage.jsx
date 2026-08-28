@@ -69,7 +69,7 @@ import {
    household's pin read-only. A multi-pin overview would need a NEW
    component, which this wave does not introduce (see manifest notes). */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานบำบัดสารเสพติด', 'CBTx & HR ชุมชน'];
+const breadcrumb = ['บันทึกการรักษา', 'งานบำบัดสารเสพติด', 'CBTx & HR ชุมชน'];
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:addiction-community';
 const PAGE_SIZE = 10;
 

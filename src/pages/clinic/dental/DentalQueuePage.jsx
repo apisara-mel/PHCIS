@@ -49,7 +49,7 @@ import { withEmrRowAction } from '@/components/patient/EmrRowAction';
    แสดง/บันทึก/ยกเลิก/แก้ไข quartet (แสดง = this table, บันทึก/แก้ไข =
    the DentalFormPage each row opens). */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานทันตกรรม'];
+const breadcrumb = ['บันทึกการรักษา', 'งานทันตกรรม'];
 const SUMMARY_TITLE = 'คิวทันตกรรม (Dental Clinic)';
 
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:dental-queue';

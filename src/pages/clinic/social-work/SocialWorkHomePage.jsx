@@ -48,7 +48,7 @@ import DutyRosterAction from '@/components/patient/DutyRosterAction';
    หรือ checksum ผิด → validation ก่อนยิงค้นหา · รหัสปัญหาหลักที่เป็นข้อมูลลับ
    §1.4.2 ถูกปกปิดเมื่อผู้ใช้ไม่มีสิทธิงานสังคมสงเคราะห์. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานสังคมสงเคราะห์'];
+const breadcrumb = ['บันทึกการรักษา', 'งานสังคมสงเคราะห์'];
 
 const CARD_GAP = { gap: 'var(--dim-space-400, 16px)' };
 

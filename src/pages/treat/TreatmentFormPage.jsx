@@ -67,7 +67,7 @@ import {
    MR_PATIENTS so the doctor sees the same identity that ลงทะเบียน
    produced and in PATIENT_PROFILES for PatientCard's display shape. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'ตรวจรักษาทั่วไป (OPD)'];
+const breadcrumb = ['บันทึกการรักษา', 'ตรวจรักษาทั่วไป (OPD)'];
 
 const buildInitialForm = (p) => ({
   // Step 2 — screening summary (read-only)

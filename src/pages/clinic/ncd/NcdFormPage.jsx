@@ -64,7 +64,7 @@ import {
    room is TelemedConsultPage's overlay, reported in the manifest as a mock
    integration), and leaving never touches the form state. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานกลุ่มโรคเฉพาะ NCD'];
+const breadcrumb = ['บันทึกการรักษา', 'งานกลุ่มโรคเฉพาะ NCD'];
 
 const NCD_STEPS = [
   { title: 'ผลการซักประวัติ', subtitle: 'Medical History' },

@@ -36,7 +36,7 @@ import { withEmrRowAction } from '@/components/patient/EmrRowAction';
    no-rights edge). Header actions cross-link ทะเบียนวัณโรค + คัดกรอง
    กลุ่มเสี่ยง (module-internal routes only — integrator wires nav). */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'คลินิกวัณโรค'];
+const breadcrumb = ['บันทึกการรักษา', 'คลินิกวัณโรค'];
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:tb-queue';
 const PAGE_SIZE = 20;
 

@@ -46,7 +46,7 @@ import { withEmrRowAction } from '@/components/patient/EmrRowAction';
    row — not hidden — so front-desk staff see cancelled registrations before
    routing the patient (spec edge case). */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานกลุ่มโรคเฉพาะ NCD'];
+const breadcrumb = ['บันทึกการรักษา', 'งานกลุ่มโรคเฉพาะ NCD'];
 const SUMMARY_TITLE = 'คิวกลุ่มโรคเฉพาะ NCD';
 
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:ncd-queue';

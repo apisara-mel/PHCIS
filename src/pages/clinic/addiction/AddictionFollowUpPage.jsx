@@ -75,7 +75,7 @@ import {
      5. ผล X-ray
    Deep-linked from the registry as /clinic/addiction/follow-up?hn=… */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานบำบัดสารเสพติด', 'ติดตามการดูแล'];
+const breadcrumb = ['บันทึกการรักษา', 'งานบำบัดสารเสพติด', 'ติดตามการดูแล'];
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:addiction-followup';
 const FOLLOWUP_PAGE_SIZE = 8;
 

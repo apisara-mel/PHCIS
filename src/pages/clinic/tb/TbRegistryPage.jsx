@@ -89,7 +89,7 @@ import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 
    store เป็น module state → ทุก mutation ต้อง bump `tick`. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'คลินิกวัณโรค', 'ทะเบียนวัณโรค'];
+const breadcrumb = ['บันทึกการรักษา', 'คลินิกวัณโรค', 'ทะเบียนวัณโรค'];
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:tb-registry';
 const PAGE_SIZE = 10;
 

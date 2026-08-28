@@ -47,7 +47,7 @@ import {
 
    แท็บ "ที่ร่างไว้" กลับมาทำต่อที่ขั้นตอนเดิม (getFpDraft) */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานวางแผนครอบครัว', 'บันทึกวางแผนครอบครัว'];
+const breadcrumb = ['บันทึกการรักษา', 'งานวางแผนครอบครัว', 'บันทึกวางแผนครอบครัว'];
 const QUEUE_PATH = '/clinic/family-planning';
 const REGISTRY_PATH = '/clinic/family-planning/registry';
 

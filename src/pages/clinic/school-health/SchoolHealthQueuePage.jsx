@@ -43,7 +43,7 @@ import {
    การ์ดสรุปบนสุดจึงมีทั้งจำนวนนักเรียนในความดูแลทั้งหมด (ไม่ใช่แค่คิววันนี้)
    และจำนวนที่ตรวจเสร็จแล้ว */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานอนามัยโรงเรียน', 'คิวให้บริการ'];
+const breadcrumb = ['บันทึกการรักษา', 'งานอนามัยโรงเรียน', 'คิวให้บริการ'];
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:school-health-queue';
 const PAGE_SIZE = 20;
 

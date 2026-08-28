@@ -55,7 +55,7 @@ import {
    (เพิ่ม/แก้ไข/ยกเลิกครบ) · ผู้สัมผัสโรค · ผลตรวจที่เกี่ยวข้องพร้อมลิงก์ออก
    ไประบบชันสูตร (/lab) และรังสีวินิจฉัย (/xray). */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'คลินิกวัณโรค', 'ติดตามการดูแล'];
+const breadcrumb = ['บันทึกการรักษา', 'คลินิกวัณโรค', 'ติดตามการดูแล'];
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:tb-followup';
 const FOLLOWUP_PAGE_SIZE = 8;
 

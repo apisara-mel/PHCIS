@@ -110,7 +110,11 @@ export const PHCIS_SIDE_MENU = [
      Exist Nurse เป็นคู่ตรงข้ามของ "คัดกรอง" จึงอยู่ระดับ rail เหมือนกัน ไม่ใช่
      คลินิกใต้บันทึกการรักษา · ชื่อเมนูใช้คำว่า "Exist Nurse" ตามที่ผู้ใช้กำหนด
      (มติผู้ใช้ 28 ส.ค. 69) */
-  { key: 'exit',      label: 'Exist Nurse',               icon: 'logout',    path: '/exit' },
+  /* ไอคอน door_open ไม่ใช่ logout (มติผู้ใช้ 29 ส.ค. 69) — ลูกศรออกจากกรอบ
+     อ่านเป็น "ออกจากระบบ" ทั้งที่เมนูนี้คือจุดที่ผู้รับบริการออกจากศูนย์หลัง
+     รับบริการ ประตูเปิดคือ "ทางออก" โดยไม่ยืมสัญลักษณ์ของการล็อกเอาต์
+     (ไม่ใช้ home_health เพราะซ้ำกับ "เยี่ยมบ้าน" ในรางเดียวกัน) */
+  { key: 'exit',      label: 'Exist Nurse',               icon: 'door_open', path: '/exit' },
   { key: 'radiology', label: 'รังสีวินิจฉัย',              icon: 'radiology', iconSize: 18, path: '/xray/queue' },
   /* Lab module pages cross-link via LabSubNav (TabUnderline) — same flat
      pattern as pharmacy. */

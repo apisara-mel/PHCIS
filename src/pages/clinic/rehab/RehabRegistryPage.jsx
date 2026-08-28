@@ -63,7 +63,7 @@ import {
    re-render via the `tick` bump (ANC contract). เมื่อสิทธิ์ผู้ใช้เป็นดูอย่างเดียว
    (canEditRehab() === false) ปุ่มทั้งหมดถูกซ่อนพร้อมแบนเนอร์แจ้งเตือน. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานเวชศาสตร์ฟื้นฟูและกายภาพบำบัด'];
+const breadcrumb = ['บันทึกการรักษา', 'งานเวชศาสตร์ฟื้นฟูและกายภาพบำบัด'];
 
 const PAGE_SIZE = 10;
 

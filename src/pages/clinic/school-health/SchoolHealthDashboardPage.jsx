@@ -36,7 +36,7 @@ import {
    · worklist "เก็บตก" — นักเรียนที่ยังไม่ได้รับบริการตามรอบ คลิกส่งเข้า Batch entry
    · แถบแจ้งเตือนกำหนดออกให้บริการล่วงหน้า 1 สัปดาห์ */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานอนามัยโรงเรียน', 'Dashboard'];
+const breadcrumb = ['บันทึกการรักษา', 'งานอนามัยโรงเรียน', 'Dashboard'];
 const PAGE_SIZE = 10;
 
 const PASS_COLORS = { pass: PHCIS_CHART.teal, fail: PHCIS_CHART.pink, none: PHCIS_CHART.yellow };

@@ -58,7 +58,7 @@ import {
 
 /* หน้าแรกของโมดูลย้ายไปเป็น SocialWorkHomePage (มติ คทง.10 ครั้งที่ 3) —
    หน้าคิวจึงอยู่ใต้ /clinic/social-work/queue และมีปุ่มกลับหน้าแรก */
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานสังคมสงเคราะห์', 'คิวงานสังคมสงเคราะห์'];
+const breadcrumb = ['บันทึกการรักษา', 'งานสังคมสงเคราะห์', 'คิวงานสังคมสงเคราะห์'];
 const SUMMARY_TITLE = 'คิวงานสังคมสงเคราะห์';
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:social-work-queue';
 const PAGE_SIZE = 20;

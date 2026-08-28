@@ -27,7 +27,8 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import {
   acknowledgeResult, getResultsInbox, subscribeResultsInbox,
 } from '@/data/resultsInbox';
-import { CURRENT_CLINICIAN } from '@/data/treatmentAudit';
+import { CURRENT_CLINICIAN, appendAudit } from '@/data/treatmentAudit';
+import ScreeningConfirmPopup from '@/components/popup/ScreeningConfirmPopup';
 import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 import DutyRosterAction from '@/components/patient/DutyRosterAction';
 import { withEmrRowAction } from '@/components/patient/EmrRowAction';
@@ -39,7 +40,7 @@ import { withEmrRowAction } from '@/components/patient/EmrRowAction';
    BrandIconButton + ยกเลิก actions. All colours alias design.md tokens. */
 
 /* Figma PHCIS-ALL 2624:122782 — Level-3 breadcrumb in Header. */
-const breadcrumb = ['ระบบบันทึกการรักษา', 'ตรวจรักษาทั่วไป (OPD)'];
+const breadcrumb = ['บันทึกการรักษา', 'ตรวจรักษาทั่วไป (OPD)'];
 const SUMMARY_TITLE = 'คิวตรวจรักษาทั่วไป (OPD)';
 
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:treatment-queue';
@@ -220,19 +221,21 @@ const renderQueue = (row) => (
   </ColorfulBadge>
 );
 
-const renderName = (row, idx, { editMode } = {}) => (
-  <div className='flex items-center gap-2 min-w-0'>
-    <Avatar name={row.name} seed={idx} />
-    <MaskedWorklistName
-      name={row.name}
-      recordKey={row.hn || row.queue}
-      linkTo={editMode ? null : {
-        pathname: '/treat/record',
-        state: { hn: row.hn, queue: row.queue, name: row.name },
-      }}
-    />
-  </div>
-);
+/* ชื่อในแถววิ่งผ่าน `onOpen` ของหน้า ไม่ลิงก์ตรงไป /treat/record — ป๊อปอัป
+   ยืนยันรับผู้ป่วยต้องคั่นทุกทางเข้า ไม่งั้นลิงก์ชื่อจะเป็นทางข้ามและเวลาที่แพทย์
+   รับผู้ป่วยจะไม่ถูกบันทึก (ดู handleRowClick) */
+const makeRenderName = (onOpen) => function NameCell(row, idx, { editMode } = {}) {
+  return (
+    <div className='flex items-center gap-2 min-w-0'>
+      <Avatar name={row.name} seed={idx} />
+      <MaskedWorklistName
+        name={row.name}
+        recordKey={row.hn || row.queue}
+        onRevealedClick={editMode ? null : () => onOpen(row)}
+      />
+    </div>
+  );
+};
 
 const renderType = (row) => {
   const badge = TYPE_BADGE[row.typeKey] || TYPE_BADGE.walkin;
@@ -321,7 +324,7 @@ const makeRenderActions = ({ onCall }) => function ActionsCell(row) {
 const BASE_COLUMNS = [
   { key: 'queue',        label: 'คิว',  render: renderQueue },
   { key: 'hn',           label: 'HN'  },
-  { key: 'name',         label: 'ชื่อ-นามสกุล',      flex: true, minWidth: 160, render: renderName },
+  { key: 'name',         label: 'ชื่อ-นามสกุล',      flex: true, minWidth: 160 },
   { key: 'type',         label: 'ประเภท',  render: renderType },
   { key: 'telemedicine', label: 'Telemedicine', align: 'center', render: renderTelemedicine },
   { key: 'cc',           label: 'อาการสำคัญ (CC)', render: (row) => <TableEllipsisText text={row.cc} /> },
@@ -429,10 +432,34 @@ const TreatmentQueuePage = () => {
     },
   );
 
-  const handleRowClick = (row) => history.push({
+  const goRecord = (row) => history.push({
     pathname: '/treat/record',
     state: { hn: row.hn, queue: row.queue, name: row.name },
   });
+
+  /* ป๊อปอัป "ยืนยันรับผู้ป่วย" (Figma MIH DS · Popup 145:6101) คั่นก่อนเปิดห้องตรวจ
+     (มติผู้ใช้ 29 ส.ค. 69) — จุดประสงค์คือเวลาที่แพทย์รับผู้ป่วยเข้าตรวจจริง ซึ่ง
+     ประทับลง audit ของการตรวจตอนกดยืนยัน การเปิดฟอร์มเฉย ๆ บอกไม่ได้ (เปิดดู
+     แล้วปิดก็ได้) ถามเฉพาะแถวที่ยังรอตรวจ — แถวที่ตรวจอยู่/เสร็จแล้ว/ร่างไว้
+     ผ่านจุดนี้มาแล้ว เข้าไปทำต่อได้เลย */
+  const [acceptTarget, setAcceptTarget] = useState(null);
+  const handleRowClick = (row) => {
+    if (row.statusKey !== 'waiting') { goRecord(row); return; }
+    setAcceptTarget(row);
+  };
+  const confirmAccept = () => {
+    const row = acceptTarget;
+    if (!row) return;
+    appendAudit({
+      hn: row.hn,
+      category: 'note',
+      field: 'รับผู้ป่วยเข้าตรวจ',
+      oldValue: `คิว ${row.queue} · รอตรวจ`,
+      newValue: 'รับเข้าห้องตรวจ',
+    });
+    setAcceptTarget(null);
+    goRecord(row);
+  };
 
   const handleTabChange = (key) => {
     setActiveTab(key);
@@ -619,7 +646,9 @@ const TreatmentQueuePage = () => {
 
   const columns = useMemo(
     () => [
-      ...BASE_COLUMNS,
+      /* ช่องชื่อผูก handler ของหน้า (ป๊อปอัปยืนยันรับผู้ป่วย) จึงแทนที่ตรงนี้
+         แทนการฝังใน BASE_COLUMNS ที่เป็นค่าคงที่ระดับโมดูล */
+      ...BASE_COLUMNS.map((c) => (c.key === 'name' ? { ...c, render: makeRenderName(handleRowClick) } : c)),
       {
         key: 'actions',
         label: 'การดำเนินการ',
@@ -627,10 +656,23 @@ const TreatmentQueuePage = () => {
         render: withEmrRowAction(makeRenderActions({ onCall: () => {} })),
       },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
   return (
+    <>
+    <ScreeningConfirmPopup
+      open={!!acceptTarget}
+      patient={acceptTarget ? {
+        ...(getPatientByHN(acceptTarget.hn) || {}),
+        fullName: getPatientByHN(acceptTarget.hn)?.fullName || acceptTarget.name,
+        hn: acceptTarget.hn,
+      } : undefined}
+      description='ยืนยันการรับผู้ป่วยเข้าห้องตรวจ — ระบบจะบันทึกเวลารับเข้าลงประวัติการตรวจ'
+      onConfirm={confirmAccept}
+      onCancel={() => setAcceptTarget(null)}
+    />
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
@@ -775,6 +817,7 @@ const TreatmentQueuePage = () => {
         </div>
       </div>
     </QueuePageShell>
+    </>
   );
 };
 

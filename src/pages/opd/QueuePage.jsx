@@ -18,7 +18,8 @@ import Badge from '@/components/badge/Badge';
 import ColorfulIconBadge from '@/components/badge/ColorfulIconBadge';
 import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
 import { PATIENT_PROFILES, getPatientByHN } from '@/data/patientProfiles';
-import { applyOpdScreeningDrafts, isScreeningCompleted } from '@/data/opdScreeningDrafts';
+import { applyOpdScreeningDrafts, isScreeningCompleted, stampScreeningAccept } from '@/data/opdScreeningDrafts';
+import ScreeningConfirmPopup from '@/components/popup/ScreeningConfirmPopup';
 import OpdDischargePopup from '@/pages/opd/OpdDischargePopup';
 /* READ-ONLY import from the appointment system (TOR 1.2.1.2) — never
    modified here; consumed defensively (see TODAY_MASTER_APPOINTMENTS). */
@@ -137,19 +138,21 @@ const DATE_CHIP_LABELS = {
 const renderQueue = (row) =>
   <Pill pill={{ label: row.queue, ...QUEUE_BADGE }} />;
 
-const renderName = (row, idx, { editMode }) => (
-  <>
-    <Avatar name={row.name} seed={idx} />
-    <MaskedWorklistName
-      name={row.name}
-      recordKey={row.hn || row.queue}
-      linkTo={editMode ? null : {
-        pathname: '/opd/screening',
-        state: { hn: row.hn, queue: row.queue, name: row.name, statusKey: row.statusKey },
-      }}
-    />
-  </>
-);
+/* ชื่อในแถวไม่ลิงก์ตรงไป /opd/screening แล้ว — วิ่งผ่าน `onOpen` ของหน้า ซึ่ง
+   จะเปิดป๊อปอัปยืนยันรับผู้ป่วยก่อน (ดู handleRowClick) ถ้าลิงก์ตรงจะมีทาง
+   ข้ามการยืนยันได้ทางหนึ่ง แล้วเวลารับเข้าจะไม่ถูกบันทึก */
+const makeRenderName = (onOpen) => function NameCell(row, idx, { editMode }) {
+  return (
+    <>
+      <Avatar name={row.name} seed={idx} />
+      <MaskedWorklistName
+        name={row.name}
+        recordKey={row.hn || row.queue}
+        onRevealedClick={editMode ? null : () => onOpen(row)}
+      />
+    </>
+  );
+};
 
 /* Telemedicine indicator — Figma PHCIS | OPD 115:35757 → 124:34721 (DataCell).
    Design uses "Colorful icon Badge" + **Video** glyph (Material `videocam`,
@@ -235,12 +238,13 @@ const renderConsent = (row) => {
   return <Pill pill={{ style: 'neutral', label: 'ยังไม่มี' }} />;
 };
 
-const BASE_COLUMNS = [
+/* สร้างต่อครั้งเพราะช่องชื่อต้องการ `onOpen` ของหน้า (ป๊อปอัปยืนยันรับผู้ป่วย) */
+const buildBaseColumns = (onOpen) => [
   { key: 'queue',        label: 'คิว',  render: renderQueue },
   { key: 'hn',           label: 'HN'  },
   /* VN (Visit Number) — Figma 3185:144272 cell rhythm sits next to HN. */
   { key: 'vn',           label: 'VN' },
-  { key: 'name',         label: 'ชื่อ-นามสกุล', flex: true, minWidth: 160, render: renderName },
+  { key: 'name',         label: 'ชื่อ-นามสกุล', flex: true, minWidth: 160, render: makeRenderName(onOpen) },
   { key: 'doctor',       label: 'แพทย์รักษา',   flex: true, minWidth: 160 },
   { key: 'type',         label: 'ประเภท',  render: (row) => <Pill pill={TYPE_PILL[row.typeKey]} /> },
   { key: 'telemedicine', label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
@@ -536,12 +540,31 @@ const OPD_SEARCH_HISTORY_SEED = buildOpdSearchHistorySeed(
 const QueuePage = () => {
   const history = useHistory();
   const { state: navState } = useLocation();
-  const handleRowClick = (row) => history.push({
+  const goScreening = (row) => history.push({
     pathname: '/opd/screening',
     /* statusKey rides along so ScreeningPage can offer อ่านอย่างเดียว vs
        คัดกรองซ้ำ on a คัดกรองแล้ว row (TOR 1.2.2.2). */
     state: { hn: row.hn, queue: row.queue, name: row.name, statusKey: row.statusKey },
   });
+
+  /* ป๊อปอัป "ยืนยันรับผู้ป่วย" (Figma MIH DS · Popup 145:6101) คั่นก่อนเข้า
+     คัดกรอง (มติผู้ใช้ 29 ส.ค. 69) — จุดประสงค์คือ "เวลารับเข้า" ที่ประทับตอน
+     กดยืนยัน ซึ่งเป็นจุดเริ่มนับเวลารอของแต่ละสถานีตาม TOR 1.2.3.4 การเปิด
+     ฟอร์มเฉย ๆ บอกไม่ได้ว่าพยาบาลรับคนนี้เข้าจริงเมื่อไหร่ (เปิดดูแล้วปิดก็ได้)
+     เคยถอดออกเมื่อ 27 ส.ค. เพราะมองว่าเป็นคลิกเปล่า — กลับมาเพราะต้องการเวลานี้
+     แถวที่คัดกรองแล้ว/ปิดแล้วไม่ต้องยืนยันซ้ำ เข้าไปอ่านหรือคัดกรองซ้ำได้เลย */
+  const [acceptTarget, setAcceptTarget] = useState(null);
+  const handleRowClick = (row) => {
+    if (isScreeningCompleted(row.statusKey)) { goScreening(row); return; }
+    setAcceptTarget(row);
+  };
+  const confirmAccept = () => {
+    const row = acceptTarget;
+    if (!row) return;
+    stampScreeningAccept(row.hn, 'พว.กานดา ศรีวิไล');
+    setAcceptTarget(null);
+    goScreening(row);
+  };
 
   /* เปิดหน้ามาที่ "คิววันนี้" — งานของวันนี้คือสิ่งที่ต้องทำ ส่วนรายชื่อทั้งหมด
      เป็นมุมมองค้นย้อนหลังที่ย้ายไปท้ายแถบแท็บแล้ว */
@@ -692,7 +715,7 @@ const QueuePage = () => {
      right row. นัดหมาย sits after เวลา so slot vs arrival read together. */
   const columns = useMemo(
     () => {
-      const base = [...BASE_COLUMNS];
+      const base = buildBaseColumns(handleRowClick);
       const timeIdx = base.findIndex((c) => c.key === 'time');
       base.splice(timeIdx + 1, 0, {
         key: 'appt',
@@ -866,6 +889,16 @@ const QueuePage = () => {
 
   return (
     <>
+    <ScreeningConfirmPopup
+      open={!!acceptTarget}
+      patient={acceptTarget ? {
+        ...(getPatientByHN(acceptTarget.hn) || {}),
+        fullName: getPatientByHN(acceptTarget.hn)?.fullName || acceptTarget.name,
+        hn: acceptTarget.hn,
+      } : undefined}
+      onConfirm={confirmAccept}
+      onCancel={() => setAcceptTarget(null)}
+    />
     <DeleteQueueConfirmPopup
       open={!!deleteCandidate}
       onClose={handleCancelDelete}

@@ -48,7 +48,7 @@ import DutyRosterAction from '@/components/patient/DutyRosterAction';
    /admin/order-sets เพื่อไม่ให้สิทธิ์ของโมดูลการรักษากลายเป็นทางลัดข้าม
    system.settings. หน้านี้จึงเหลือเฉพาะทะเบียนรายการ, CDSS และ Role. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'ตั้งค่ารายการสั่งการรักษาและ CDSS'];
+const breadcrumb = ['บันทึกการรักษา', 'ตั้งค่ารายการสั่งการรักษาและ CDSS'];
 
 const TABS = [
   { key: 'drugs',  label: 'รายการยาและเวชภัณฑ์' },

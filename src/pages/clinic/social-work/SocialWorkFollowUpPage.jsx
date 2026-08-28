@@ -60,7 +60,7 @@ import {
      (ง) เงินสนับสนุนที่ได้รับ — สรุปตามประเภทเงิน
    หน้านี้อ่านอย่างเดียว มีปุ่มพิมพ์สรุปพร้อม audit ผู้พิมพ์ + เวลา. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานสังคมสงเคราะห์', 'ติดตามการบริการ'];
+const breadcrumb = ['บันทึกการรักษา', 'งานสังคมสงเคราะห์', 'ติดตามการบริการ'];
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:social-work-followup';
 const PAGE_SIZE = 8;
 

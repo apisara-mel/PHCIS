@@ -46,7 +46,7 @@ import {
    (ตรวจ / บำบัด / นัด / ส่งต่อ). Assessment-derived content is ข้อมูลลับ
    (§1.4.2) and masked without the mental-health-clinic right. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานสุขภาพจิต', 'ติดตามผลการดูแล'];
+const breadcrumb = ['บันทึกการรักษา', 'งานสุขภาพจิต', 'ติดตามผลการดูแล'];
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:mental-health-followup';
 const ASSESSMENT_PAGE_SIZE = 8;
 

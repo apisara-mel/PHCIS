@@ -59,7 +59,7 @@ import {
    when never examined (dental rows are static mocks — NOT imported from the
    sibling dental module, playbook §4 file-scope rule). */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานกลุ่มโรคเฉพาะ NCD'];
+const breadcrumb = ['บันทึกการรักษา', 'งานกลุ่มโรคเฉพาะ NCD'];
 
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:ncd-followup';
 const PAGE_SIZE = 8;

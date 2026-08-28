@@ -53,7 +53,7 @@ import {
    via PrivacyRevealPopup. Every save/cancel/edit stamps ผู้บันทึก+เวลา
    (shown through ConsentAuditBar in the edit popup + the cancel badge). */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'คลินิก HIV/STI', 'ทะเบียนผู้รับบริการ'];
+const breadcrumb = ['บันทึกการรักษา', 'คลินิก HIV/STI', 'ทะเบียนผู้รับบริการ'];
 const PAGE_SIZE = 20;
 
 const CANCEL_REASON_SUGGESTIONS = [

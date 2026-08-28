@@ -55,7 +55,7 @@ import {
    แสดง "—" เมื่อไม่ได้ตรวจ (Lab/X-ray เป็น mock ภายในโมดูล ไม่ import จาก
    โมดูล lab/xray — กติกาขอบเขตไฟล์ playbook §4). */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานเวชศาสตร์ฟื้นฟูและกายภาพบำบัด'];
+const breadcrumb = ['บันทึกการรักษา', 'งานเวชศาสตร์ฟื้นฟูและกายภาพบำบัด'];
 
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:rehab-followup';
 const PAGE_SIZE = 8;

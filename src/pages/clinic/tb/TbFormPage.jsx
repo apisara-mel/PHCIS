@@ -55,7 +55,7 @@ import { getDotConfig, setDotConfig, getDotLog, setDotDay } from '@/data/tbDotLo
    `tick` หลังทุกครั้ง ไม่งั้นหน้าจอไม่อัปเดต (playbook — สัญญาเดียวกับ
    AncQueuePage / NcdRegistryPage). */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'คลินิกวัณโรค', 'บันทึกการตรวจรักษา'];
+const breadcrumb = ['บันทึกการรักษา', 'คลินิกวัณโรค', 'บันทึกการตรวจรักษา'];
 
 const TB_STEPS = [
   { title: 'ผลการซักประวัติ', subtitle: 'History & Symptoms' },

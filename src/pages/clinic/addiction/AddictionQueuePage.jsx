@@ -42,7 +42,7 @@ import { withEmrRowAction } from '@/components/patient/EmrRowAction';
    Patient identity shows per row; the row links to the record page whose
    sticky PatientCard completes ข้อมูลทั่วไปผู้รับบริการ (1.10.5.1). */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานบำบัดสารเสพติด'];
+const breadcrumb = ['บันทึกการรักษา', 'งานบำบัดสารเสพติด'];
 const SUMMARY_TITLE = 'คิวการรักษา — งานบำบัดสารเสพติด';
 
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:addiction-queue';

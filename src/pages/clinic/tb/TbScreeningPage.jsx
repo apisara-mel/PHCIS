@@ -56,7 +56,7 @@ import {
    /clinic/tb/registry พร้อม prefill) และ "รอผลตรวจ" ไม่ถูกนับเป็นปกติ
    ในการ์ดสรุป. ผู้สัมผัสโรคจากแท็บผู้สัมผัสของทะเบียนถูกส่งมาแบบ prefill. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'คลินิกวัณโรค', 'คัดกรองกลุ่มเสี่ยง'];
+const breadcrumb = ['บันทึกการรักษา', 'คลินิกวัณโรค', 'คัดกรองกลุ่มเสี่ยง'];
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:tb-screening';
 const PAGE_SIZE = 10;
 

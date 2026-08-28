@@ -48,7 +48,7 @@ import { withEmrRowAction } from '@/components/patient/EmrRowAction';
         already passed the gate may look up by HN / ชื่อ / เลขบัตร) but
         suggestions render the masked identity only. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'คลินิก HIV/STI'];
+const breadcrumb = ['บันทึกการรักษา', 'คลินิก HIV/STI'];
 const SUMMARY_TITLE = 'คิวการรักษา — งาน HIV และโรคติดต่อทางเพศสัมพันธ์';
 
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:hiv-sti-queue';

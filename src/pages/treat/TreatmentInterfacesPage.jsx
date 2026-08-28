@@ -49,7 +49,7 @@ import DutyRosterAction from '@/components/patient/DutyRosterAction';
    (ห้าม auto-merge เมื่อ HN ไม่ตรง / ต้องรับทราบค่าวิกฤตก่อนนำเข้า /
    ต้องยืนยันก่อนเขียนทับค่าที่กรอกมือ) และบันทึกทุกอย่างลง audit. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'สถานะการเชื่อมต่อระบบภายนอก'];
+const breadcrumb = ['บันทึกการรักษา', 'สถานะการเชื่อมต่อระบบภายนอก'];
 
 const TABS = [
   { key: 'status',   label: 'สถานะการเชื่อมต่อ' },

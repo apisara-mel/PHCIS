@@ -44,7 +44,7 @@ import {
    ทั้งสองใช้ชุดคอลัมน์เดียวกัน ต่างกันแค่คอลัมน์คลินิกที่ในมุมมองกลุ่มย้ายขึ้นไป
    เป็นหัวกลุ่มแล้ว จึงไม่ต้องซ้ำในทุกแถว */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'คิวรวมรอรับเคส'];
+const breadcrumb = ['บันทึกการรักษา', 'คิวรวมรอรับเคส'];
 const SUMMARY_TITLE = 'คิวรวมรอรับเคส';
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:treat-unassigned';
 

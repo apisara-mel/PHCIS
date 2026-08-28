@@ -49,7 +49,7 @@ import {
    action (บันทึก / แก้ไข / ยกเลิก / เปิดใช้งาน) is disabled. Same gate
    (hasMentalHealthRights) the queue, record and follow-up pages use. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานสุขภาพจิต', 'ทะเบียนสุขภาพจิต'];
+const breadcrumb = ['บันทึกการรักษา', 'งานสุขภาพจิต', 'ทะเบียนสุขภาพจิต'];
 const PAGE_SIZE = 10;
 const MASKED = '••••••••';
 

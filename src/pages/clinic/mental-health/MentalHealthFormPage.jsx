@@ -46,7 +46,7 @@ import {
               before discarding the draft (playbook §5 unsaved warning)
    ที่ร่างไว้ resumes at the step the draft was left on (getMhDraft). */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานสุขภาพจิต', 'บันทึกสุขภาพจิต'];
+const breadcrumb = ['บันทึกการรักษา', 'งานสุขภาพจิต', 'บันทึกสุขภาพจิต'];
 const QUEUE_PATH = '/clinic/mental-health';
 
 const MH_STEPS = [

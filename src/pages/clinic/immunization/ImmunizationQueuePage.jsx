@@ -49,7 +49,7 @@ import { withEmrRowAction } from '@/components/patient/EmrRowAction';
    วัคซีนที่ถึงกำหนดวันนี้ · สถานะ — บวกข้อมูลทั่วไปผู้รับบริการ (สิทธิ,
    เลขบัตร) ที่ TOR 1.10.9.1 บังคับให้เห็นตั้งแต่ระดับ worklist. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานสร้างเสริมภูมิคุ้มกัน'];
+const breadcrumb = ['บันทึกการรักษา', 'งานสร้างเสริมภูมิคุ้มกัน'];
 const SUMMARY_TITLE = 'คิวคลินิกสุขภาพเด็กดี';
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:immunization-queue';
 const PAGE_SIZE = 20;

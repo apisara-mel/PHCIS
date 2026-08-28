@@ -52,7 +52,7 @@ import {
    ข้อมูลทั่วไปผู้รับบริการเป็น read-only บนคิว (TOR 1.10.10.1) — แก้ไข
    ทะเบียนราษฎร์จากที่นี่ไม่ได้; PatientCard เต็มรูปแบบอยู่บนหน้าบันทึก. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานเวชศาสตร์ฟื้นฟูและกายภาพบำบัด'];
+const breadcrumb = ['บันทึกการรักษา', 'งานเวชศาสตร์ฟื้นฟูและกายภาพบำบัด'];
 const SUMMARY_TITLE = 'คิวกายภาพบำบัดและเวชศาสตร์ฟื้นฟู';
 
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:rehab-queue';

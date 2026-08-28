@@ -54,7 +54,7 @@ import {
    คอลัมน์ "วิธีคุมกำเนิด/บริการที่ได้รับ" จะถูกปิดเมื่อผู้ใช้ไม่มีสิทธิ
    คลินิกวางแผนครอบครัว (รายการยังเห็นได้ แต่รายละเอียดวิธีคุมกำเนิดไม่เห็น) */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'งานวางแผนครอบครัว'];
+const breadcrumb = ['บันทึกการรักษา', 'งานวางแผนครอบครัว'];
 const SUMMARY_TITLE = 'คิวคลินิกวางแผนครอบครัว';
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:family-planning-queue';
 const PAGE_SIZE = 20;

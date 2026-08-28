@@ -48,7 +48,7 @@ import {
      • Read-only — a closed encounter (queue's ตรวจเสร็จแล้ว row) or a
        role without clinic rights renders the same steps inert + banner. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'คลินิก HIV/STI', 'บันทึกการรักษา'];
+const breadcrumb = ['บันทึกการรักษา', 'คลินิก HIV/STI', 'บันทึกการรักษา'];
 
 const HIV_STI_STEPS = [
   { title: 'ซักประวัติ', subtitle: 'History & Vital Signs' },

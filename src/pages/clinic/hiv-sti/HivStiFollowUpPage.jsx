@@ -98,7 +98,7 @@ import {
 
    Persistence is sessionStorage only (prototype) — see manifest notes. */
 
-const breadcrumb = ['ระบบบันทึกการรักษา', 'คลินิก HIV/STI', 'ติดตามการดูแล'];
+const breadcrumb = ['บันทึกการรักษา', 'คลินิก HIV/STI', 'ติดตามการดูแล'];
 const QUEUE_PATH = '/clinic/hiv-sti';
 const REGISTRY_PATH = '/clinic/hiv-sti/registry';
 const RECORD_PATH = '/clinic/hiv-sti/record';

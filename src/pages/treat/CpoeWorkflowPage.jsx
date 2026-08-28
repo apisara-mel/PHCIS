@@ -1115,7 +1115,7 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
     <div className='mih-cpoe-workflow flex w-full min-h-screen' style={{ background: 'var(--background-screen-brand-100)' }}>
       <Sidebar activeKey='treat' />
       <div className='flex-1 min-w-0 flex flex-col'>
-        <Header breadcrumb={['ระบบบันทึกการรักษา', 'CPOE', STEPS[step].title]} />
+        <Header breadcrumb={['บันทึกการรักษา', 'CPOE', STEPS[step].title]} />
         <main
           className='flex-1 flex flex-col w-full min-w-0'
           style={{

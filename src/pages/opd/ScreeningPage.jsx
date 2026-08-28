@@ -800,8 +800,10 @@ const ScreeningPage = () => {
     (navState && (getPatientByHN(navState.hn) || getPatientByShortName(navState.name))) ||
     DEFAULT_PATIENT;
 
-  /* ไม่มีป๊อปอัป "ยืนยันรับผู้ป่วย" คั่นหน้าแล้ว (มติผู้ใช้ 27 ส.ค. 69) — การกด
-     รับผู้ป่วยจากคิวคือการยืนยันอยู่ในตัว ถามซ้ำอีกหน้าเป็นคลิกเปล่า */
+  /* ป๊อปอัป "ยืนยันรับผู้ป่วย" อยู่ที่หน้าคิว (QueuePage) ก่อนมาถึงหน้านี้ —
+     ถอดออก 27 ส.ค. 69 เพราะมองเป็นคลิกเปล่า และกลับมา 29 ส.ค. 69 เพราะต้องการ
+     "เวลารับเข้า" ที่ประทับตอนกดยืนยัน (stampScreeningAccept) เป็นจุดเริ่มนับ
+     เวลาต่อสถานีตาม TOR 1.2.3.4 หน้านี้จึงไม่ถามซ้ำ */
 
   /* ── TOR 1.2.2.2 — re-screen (คัดกรองซ้ำ) vs read-only ────────────────
      Opening a คัดกรองแล้ว row (QueuePage passes statusKey in Link state)

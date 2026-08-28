@@ -1122,14 +1122,39 @@ export const MedicalHistoryReadOnlyLayout = ({
       className='flex flex-col w-full min-w-0'
       style={{
         gap: 'var(--dim-space-400)',
+        /* ตัวเลื่อนมีตัวเดียวคือชั้นนอกนี้ (มติผู้ใช้ 29 ส.ค. 69) — เดิมแผงขวา
+           เลื่อนเอง ตัวสลับแกนที่อยู่ในแผงจึงถูกจัดกึ่งกลางของแผงขวา ซึ่งกว้าง
+           ไม่เท่ากันเมื่อรางวันที่โผล่/หาย ปุ่มเลยกระโดดซ้าย-ขวาทุกครั้งที่สลับ
+           พอชั้นนอกเป็นตัวเลื่อน ตัวสลับแกนอยู่บนความกว้างเต็มของป๊อปอัปเสมอ
+           รางวันที่ใช้ sticky แทนการเลื่อนเอง แถบหัวข้อ sticky ในแผงขวาก็ยัง
+           ทำงานเพราะ sticky ยึดกับตัวเลื่อนที่ใกล้ที่สุดคือชั้นนอก */
         ...(independentScroll
-          ? { flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }
+          ? { flex: 1, minHeight: 0, height: '100%', overflowY: 'auto', overflowX: 'hidden' }
           : null),
       }}
     >
 
+    {/* ตัวสลับแกนบนความกว้างเต็ม เหนือทั้งสองแผง — จุดกึ่งกลางจึงนิ่งไม่ว่า
+        รางวันที่จะมีหรือไม่ และยังเลื่อนหายขึ้นไปพร้อมเนื้อหาตามเดิม */}
+    {viewModes && (
+      <div className='flex w-full justify-center shrink-0'>
+        <TabBar aria-label='มุมมองประวัติการรักษา'>
+          {HISTORY_VIEW_MODES.map((m) => (
+            <TabPill
+              key={m.key}
+              size='small'
+              selected={viewMode === m.key}
+              onClick={() => setViewMode(m.key)}
+            >
+              {m.label}
+            </TabPill>
+          ))}
+        </TabBar>
+      </div>
+    )}
+
     <div
-      className='flex w-full min-w-0'
+      className='flex w-full min-w-0 items-start'
       style={{
         gap: 'var(--dim-space-0)',
         alignItems: 'stretch',
@@ -1137,21 +1162,16 @@ export const MedicalHistoryReadOnlyLayout = ({
            the layout fills the body and each pane owns its own scroll.
            `min-height: 0` is required for the children's `overflow-y:
            auto` to actually trigger inside a flex container. */
-        ...(independentScroll
-          ? { flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }
-          : null),
+        ...(independentScroll ? { flex: 1, minHeight: 0 } : null),
       }}
     >
-      {/* Left rail — independent scroll so the date list can scroll
-          past the right pane's content. The ServiceDateList aside
-          already has `shrink-0 + flex flex-col`; wrapping it in this
-          fixed-width scroll container keeps its width while letting
-          the rows scroll within the popup viewport. */}
+      {/* Left rail — sticky ที่ขอบบนของตัวเลื่อนชั้นนอก และเลื่อนในตัวเองได้เมื่อ
+          รายการวันยาวกว่าจอ รางจึงติดตาอยู่ขณะไล่อ่านแผงขวาลงไป */}
       {!byOrder && (
         <div
           style={
             independentScroll
-              ? { flexShrink: 0, height: '100%', overflowY: 'auto', overflowX: 'hidden' }
+              ? { flexShrink: 0, position: 'sticky', top: 0, maxHeight: '100%', overflowY: 'auto', overflowX: 'hidden' }
               : undefined
           }
         >
@@ -1175,15 +1195,10 @@ export const MedicalHistoryReadOnlyLayout = ({
                 paddingLeft: 24,
               }
             : { padding: 'var(--dim-space-600)' }),
-          /* Right pane owns its own scroll when independentScroll is
-             on, so reading down through diagnoses / vitals / etc.
-             doesn't move the date-list rail. */
+          /* แผงขวาไม่เลื่อนเองแล้ว — ชั้นนอกเป็นตัวเลื่อน (ดูคำอธิบายที่ชั้นนอก) */
           ...(independentScroll
             ? {
-                height: '100%',
                 minHeight: 0,
-                overflowY: 'auto',
-                overflowX: 'hidden',
                 paddingTop: 'var(--dim-space-200)',
                 paddingRight: 'var(--dim-space-400)',
                 paddingBottom: 'var(--dim-space-600)',
@@ -1194,26 +1209,6 @@ export const MedicalHistoryReadOnlyLayout = ({
       >
         {!hideSectionTitle && (
           <SectionTitle icon='description'>ประวัติการรักษา (Medical History)</SectionTitle>
-        )}
-
-            {/* ตัวสลับแกนอยู่ในแผงที่เลื่อนได้ จึงเลื่อนหายขึ้นไปพร้อมเนื้อหา — ส่วน
-                แถบหัวข้อด้านล่างเป็นตัว sticky แทน (มติผู้ใช้ 29 ส.ค. 69) ตัวสลับแกน
-                ใช้ครั้งเดียวตอนเริ่มอ่าน แต่หัวข้อต้องสลับไปมาตลอดขณะไล่อ่านลงไป */}
-        {viewModes && (
-          <div className='flex w-full justify-center shrink-0'>
-            <TabBar aria-label='มุมมองประวัติการรักษา'>
-              {HISTORY_VIEW_MODES.map((m) => (
-                <TabPill
-                  key={m.key}
-                  size='small'
-                  selected={viewMode === m.key}
-                  onClick={() => setViewMode(m.key)}
-                >
-                  {m.label}
-                </TabPill>
-              ))}
-            </TabBar>
-          </div>
         )}
 
         {/* แถบหัวข้อ sticky ที่ขอบบนของแผงที่เลื่อน — ไล่อ่านไทม์ไลน์ยาวแล้วยังสลับ
