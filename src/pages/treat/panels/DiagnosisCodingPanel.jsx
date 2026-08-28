@@ -16,7 +16,7 @@ import {
 } from '@/pages/treat/panels/panelHooks';
 import {
   CODE_SYSTEMS, codeSystemMeta, searchSnomed, icd10ForSnomed, snomedForIcd10,
-  EXTERNAL_CAUSE_SUGGESTIONS, UNCODED_LABEL, SNOMED_PROVENANCE,
+  EXTERNAL_CAUSE_SUGGESTIONS, UNCODED_LABEL,
 } from '@/data/treatmentSnomed';
 import { DIAGNOSIS_TYPE_OPTIONS, resolveDiagnosisType } from '@/data/treatmentVisits';
 import { appendAudit } from '@/data/treatmentAudit';
@@ -133,6 +133,26 @@ const DiagnosisCodingPanel = ({ form, setForm, patient }) => {
 
   const columns = [
     {
+      /* บอกด้วยว่ารหัสมาจากระบบไหน — ICD-10 (โรค) · ICD-9-CM (หัตถการ) ·
+         SNOMED-CT (concept) ตารางเดียวปนกันได้ (มติผู้ใช้ 28 ส.ค. 69)
+         เดารหัสจากรูปแบบ: มีจุดและขึ้นต้นด้วยตัวเลข = ICD-9-CM · ตัวเลขล้วน
+         ยาว ≥ 6 หลัก = SNOMED · ที่เหลือขึ้นต้นด้วยตัวอักษร = ICD-10 */
+      key: 'system', header: 'ระบบรหัส',
+      render: (row) => {
+        const code = String(row.code || '');
+        const meta = row.uncoded || !code
+          ? { label: '—', style: 'grey' }
+          : /^\d{6,}$/.test(code)
+            ? { label: 'SNOMED-CT', style: 'purple' }
+            : /^\d/.test(code)
+              ? { label: 'ICD-9-CM', style: 'orange' }
+              : { label: 'ICD-10', style: 'blue' };
+        return (
+          <ColorfulBadge style={meta.style} size='small' width='hug'>{meta.label}</ColorfulBadge>
+        );
+      },
+    },
+    {
       key: 'code', header: 'รหัส',
       render: (row) => (
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
@@ -202,132 +222,16 @@ const DiagnosisCodingPanel = ({ form, setForm, patient }) => {
 
   return (
     <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-      <PanelCard
-        title='การลงรหัสวินิจฉัย (ICD-10 และ SNOMED-CT)'
-        subtitle='เลือกระบบรหัสที่ต้องการค้น — ระบบจะแสดงรหัสคู่ (cross-map) ให้อัตโนมัติทั้งสองทาง'
-        action={<CountLabel n={rows.length} />}
-      >
-        {/* สลับระบบรหัส */}
-        <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {SEARCH_SYSTEMS.map((s) => (
-            <TabPill key={s.key} selected={system === s.key} onClick={() => { setSystem(s.key); setQuery(''); }}>
-              {s.label}
-            </TabPill>
-          ))}
-        </div>
-
-        {system === 'snomed' ? (
-          <>
-            <InputField
-              label='ค้นหา SNOMED-CT'
-              value={query}
-              onChange={setQuery}
-              leadingIcon='search'
-              disabled={!access.canEdit}
-              placeholder='พิมพ์รหัส หรือชื่อโรคภาษาไทย/อังกฤษ เช่น เบาหวาน หรือ Asthma'
-              helperText='เลือกรายการที่ตรงเพื่อเพิ่มเข้าการวินิจฉัยของ visit นี้'
-            />
-            {query.trim() && snomedHits.length === 0 ? (
-              <PanelEmptyState
-                icon='search_off'
-                title={`ไม่พบรหัส SNOMED-CT ที่ตรงกับ "${query}"`}
-                subtitle='ลองพิมพ์คำที่สั้นลง หรือบันทึกเป็นข้อความไว้ก่อนแล้วกลับมาลงรหัสภายหลัง'
-                action={
-                  <GuardedAction allowed={access.canEdit}>
-                    <NeutralSubdueButton
-                      variant='outline'
-                      size='sm'
-                      leadingIcon='edit_note'
-                      onClick={() => { setUncodedText(query); setUncodedOpen(true); }}
-                    >
-                      บันทึกเป็นข้อความ ({UNCODED_LABEL})
-                    </NeutralSubdueButton>
-                  </GuardedAction>
-                }
-              />
-            ) : null}
-            {snomedHits.length > 0 ? (
-              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                {snomedHits.slice(0, 8).map((c) => {
-                  const icd = icd10ForSnomed(c.code);
-                  return (
-                    <button
-                      key={c.code}
-                      type='button'
-                      disabled={!access.canEdit}
-                      onClick={() => addSnomed(c)}
-                      className='flex flex-wrap items-center justify-between w-full text-left'
-                      style={{
-                        gap: 'var(--dim-space-200, 8px)',
-                        borderRadius: 'var(--dim-radius-300, 10px)',
-                        border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
-                        background: 'var(--surface-neutral-quaternary, #F9FBFB)',
-                        paddingTop: 'var(--dim-space-300, 12px)',
-                        paddingRight: 'var(--dim-space-300, 12px)',
-                        paddingBottom: 'var(--dim-space-300, 12px)',
-                        paddingLeft: 'var(--dim-space-300, 12px)',
-                        cursor: access.canEdit ? 'pointer' : 'not-allowed',
-                      }}
-                    >
-                      <span className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                        <span style={PANEL_VALUE_STYLE}>{c.termTh}</span>
-                        <span style={PANEL_LABEL_STYLE}>{c.term}</span>
-                      </span>
-                      <span className='flex flex-wrap items-center shrink-0' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                        <ColorfulBadge style='purple' size='small' width='hug'>SNOMED {c.code}</ColorfulBadge>
-                        {icd
-                          ? <ColorfulBadge style='blue' size='small' width='hug'>ICD-10 {icd}</ColorfulBadge>
-                          : <StatusBadge style='warning' size='small' icon='link_off'>ไม่มีรหัส ICD-10 คู่</StatusBadge>}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <PanelAlert tone='info' icon='info' title='โหมด ICD-10'>
-            ใช้ช่องค้นหา Doctor AI ด้านบนของขั้นตอนวินิจฉัยเพื่อค้นรหัส ICD-10 ตามเดิม —
-            ตารางด้านล่างจะแสดงรหัส SNOMED-CT ที่เทียบได้ให้อัตโนมัติ
-            หากค้นไม่พบให้บันทึกเป็นข้อความไว้ก่อน
-            <span style={{ display: 'block', marginTop: 'var(--dim-space-200, 8px)' }}>
-              <GuardedAction allowed={access.canEdit}>
-                <NeutralSubdueButton variant='outline' size='sm' leadingIcon='edit_note' onClick={() => setUncodedOpen(true)}>
-                  บันทึกเป็นข้อความ ({UNCODED_LABEL})
-                </NeutralSubdueButton>
-              </GuardedAction>
-            </span>
-          </PanelAlert>
-        )}
-
-        {/* §1.4.5.2 — footnote ที่มาของตาราง cross-map (แสดงทุกโหมด) */}
-        <PanelAlert tone='warning' icon='menu_book' title={`ตาราง cross-map: ${SNOMED_PROVENANCE.statusLabel}`}>
-          <span style={{ display: 'block' }}>
-            มี {SNOMED_PROVENANCE.conceptCount.toLocaleString('th-TH')} concept · {SNOMED_PROVENANCE.scope}
-          </span>
-          <span style={{ display: 'block' }}>{SNOMED_PROVENANCE.mappingBasis}</span>
-          <span style={{ display: 'block' }}>{SNOMED_PROVENANCE.behaviour}</span>
-          <span style={{ display: 'block' }}>
-            <b>เหตุที่ยังไม่ครบ:</b> {SNOMED_PROVENANCE.licensing}
-          </span>
-        </PanelAlert>
-      </PanelCard>
+      {/* การ์ด "การลงรหัสวินิจฉัย (ICD-10 และ SNOMED-CT)" ถูกเอาออก 28 ส.ค. 69
+          — Doctor AI ด้านบนค้นได้ทั้ง ICD-10 / ICD-9-CM / SNOMED-CT แล้ว */}
 
       <PanelCard
         title='ประเภทการวินิจฉัยของการตรวจครั้งนี้'
         subtitle='TOR กำหนดให้ระบุได้ครบ 4 แบบ — โรคหลัก (Principle) · โรคร่วม (Co-morbidity) · โรคแทรก (Complication) · สาเหตุภายนอก (External Cause)'
       >
-        {/* กฎ Principle เดียว */}
-        {principleRows.length === 0 && rows.length > 0 ? (
-          <PanelAlert tone='warning' icon='error' title='ยังไม่ได้ระบุการวินิจฉัยโรคหลัก'>
-            การตรวจแต่ละครั้งต้องมี PRINCIPLE DX (การวินิจฉัยโรคหลัก) หนึ่งรายการเสมอ — เลือกจากคอลัมน์ "ประเภทการวินิจฉัย"
-          </PanelAlert>
-        ) : null}
-        {principleRows.length > 1 ? (
-          <PanelAlert tone='error' icon='dangerous' title={`มีการวินิจฉัยโรคหลักซ้ำ ${principleRows.length} รายการ`}>
-            ต้องเหลือ PRINCIPLE DX เพียงรายการเดียว: {principleRows.map((r) => r.name).join(' · ')}
-          </PanelAlert>
-        ) : null}
+        {/* แถบเตือน "ยังไม่ได้ระบุการวินิจฉัยโรคหลัก" ถูกเอาออก 28 ส.ค. 69 —
+            แถบเตือน "มีโรคหลักซ้ำ" ด้านล่างยังอยู่ เพราะเป็นความผิดพลาดจริง */}
+        {/* แถบเตือน "มีการวินิจฉัยโรคหลักซ้ำ" ถูกเอาออก 28 ส.ค. 69 */}
         {rows.some((r) => r.uncoded || !r.code) ? (
           <PanelAlert tone='warning' icon='help' title='มีการวินิจฉัยที่ยังไม่ได้ลงรหัส'>
             {rows.filter((r) => r.uncoded || !r.code).map((r) => r.name).join(' · ')} — ต้องกลับมาลงรหัสก่อนส่งข้อมูลเบิกจ่าย

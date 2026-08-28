@@ -5,7 +5,9 @@ import DragAndDrop from '@/components/form-builder/DragAndDrop';
 import Select from '@/components/forms/Select';
 import { getCarriedScreening } from '@/data/screeningHandoff';
 import Checkbox from '@/components/checkbox/Checkbox';
+import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
 import Tooltip from '@/components/tooltip/Tooltip';
+import Icon from '@/components/icons/Icon';
 import {
   CHIEF_COMPLAINT_SUGGESTIONS,
   PRESENT_ILLNESS_SUGGESTIONS,
@@ -76,6 +78,47 @@ const XCloseButton = ({ ariaLabel, onClick }) => {
    notes, so re-editing or clearing the doctor field automatically reverts
    the icon. Re-copying is still allowed when copied (re-fires onCopy and
    announces via aria-live), matching the screening row. */
+/* ปุ่มคัดลอกแบบจาง — ไอคอนอย่างเดียว ไม่มีพื้น เข้มขึ้นเมื่อชี้
+   คัดลอกลงคลิปบอร์ดเฉย ๆ ไม่วางลงช่องของแพทย์ให้เอง — หมอเลือกเองว่าจะวางที่ไหน
+   (มติผู้ใช้ 28 ส.ค. 69) ติ๊กถูก 1.5 วินาทีเป็นสัญญาณว่าคัดลอกแล้ว */
+const CopyIconButton = ({ label, text }) => {
+  const [hover, setHover] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard?.writeText(text);
+    } catch (err) {
+      /* คลิปบอร์ดถูกปิด (http หรือผู้ใช้ไม่อนุญาต) — ยังติ๊กถูกให้เห็นว่ากดแล้ว */
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <button
+      type='button'
+      onClick={handleCopy}
+      aria-label={label}
+      title={label}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      className='shrink-0 inline-flex items-center justify-center'
+      style={{
+        width: 24,
+        height: 24,
+        borderRadius: 'var(--dim-radius-200)',
+        border: 'none',
+        background: hover ? 'var(--surface-neutral-quaternary)' : 'transparent',
+        color: (hover || copied)
+          ? 'var(--icon-brandPrimary-default, #007549)'
+          : 'var(--icon-neutral-quaternary, #C6CBD0)',
+        cursor: 'pointer',
+      }}
+    >
+      <Icon name={copied ? 'check' : 'content_copy'} size={14} />
+    </button>
+  );
+};
+
 const NurseCopyRow = ({ label, value, copied = false, copyDisabled = false, onCopy }) => {
   const [liveStamp, setLiveStamp] = useState(0);
   const handleCopy = () => {
@@ -205,12 +248,15 @@ const AttachmentCard = ({ file, onRemove }) => (
   </div>
 );
 
-const NURSE_FIELDS = [
-  { key: 'cc', label: 'อาการ (Chief Complaint)' },
-  { key: 'pi', label: 'ประวัติปัจจุบัน (Present Illness)' },
-  { key: 'pe', label: 'ตรวจร่างกาย (Physical Examination)' },
-  { key: 'duration', label: 'ระยะเวลาที่มีอาการ' },
-];
+
+/* 1 วัน → 1 ปี — ถี่ช่วงต้น (วัน) แล้วห่างขึ้นเรื่อย ๆ ตามที่หมอถามจริง */
+export const SYMPTOM_DURATION_OPTIONS = [
+  '1 วัน', '2 วัน', '3 วัน', '4 วัน', '5 วัน', '6 วัน',
+  '1 สัปดาห์', '2 สัปดาห์', '3 สัปดาห์',
+  '1 เดือน', '2 เดือน', '3 เดือน', '4 เดือน', '5 เดือน', '6 เดือน',
+  '7 เดือน', '8 เดือน', '9 เดือน', '10 เดือน', '11 เดือน',
+  '1 ปี',
+].map((v) => ({ value: v, label: v }));
 
 /* 1 วัน → 1 ปี — ถี่ช่วงต้น (วัน) แล้วห่างขึ้นเรื่อย ๆ ตามที่หมอถามจริง */
 export const SYMPTOM_DURATION_OPTIONS = [
@@ -388,7 +434,9 @@ const ExamNotesPanel = ({
         >
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
             <span style={{
-              color: 'var(--text-topic-tertiary-title)',
+              /* หัวข้อคอลัมน์ใช้สีแบรนด์เหมือนหัวข้อการ์ดอื่นในขั้นตอน
+                 (มติผู้ใช้ 28 ส.ค. 69) */
+              color: 'var(--text-topic-primary-title, var(--text-brandPrimary-default))',
               fontFamily: 'var(--type-family-heading-content)',
               fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
               fontSize: 'var(--type-size-base)',
@@ -405,29 +453,9 @@ const ExamNotesPanel = ({
               กดเครื่องหมาย “+” เพื่อเพิ่มรายการไปทางด้านขวา
             </span>
           </div>
-          {NURSE_FIELDS.map((f) => {
-            const nurseVal = (nurseNotes[f.key] ?? '').trim();
-            const doctorVal = (doctorNotes[f.key] ?? '').trim();
-            /* No nurse value → nothing to copy. Mirrors HistoryListForm's
-               `copyDisabled` contract (Figma 162:17951) — button greys
-               out and aria-label explains why. */
-            const hasNurseNote = nurseVal !== '' && nurseVal !== '-';
-            /* `copied` mirrors HistoryListForm: tick stays on while the
-               doctor field still carries the nurse's narrative. Edits or
-               clears revert the icon automatically. */
-            const copied = hasNurseNote && nurseVal === doctorVal;
-            return (
-              <NurseCopyRow
-                key={f.key}
-                label={f.label}
-                value={nurseNotes[f.key]}
-                copied={copied}
-                copyDisabled={!hasNurseNote}
-                onCopy={() => onCopyFromNurse?.(f.key)}
-              />
-            );
-          })}
-
+          {/* แถวคัดลอก 4 ช่องเดิม (อาการ · ประวัติปัจจุบัน · ตรวจร่างกาย · ระยะเวลา)
+              ถูกเอาออก 28 ส.ค. 69 — ข้อมูลชุดเดียวกันอยู่ในบล็อกผลคัดกรองด้านล่าง
+              ซึ่งคัดลอกไปช่องของแพทย์ได้เหมือนกัน */}
           {nurseBlocks.map((block) => (
             <div
               key={block.title}
@@ -439,6 +467,7 @@ const ExamNotesPanel = ({
                 border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
               }}
             >
+              {/* หัวข้อบล็อกไม่มีปุ่มคัดลอก — คัดลอกทีละบรรทัดพอ (มติผู้ใช้ 28 ส.ค. 69) */}
               <span style={{
                 color: 'var(--text-content-tertiary)',
                 fontFamily: 'var(--type-family-body)',
@@ -446,7 +475,7 @@ const ExamNotesPanel = ({
                 fontWeight: 'var(--type-weight-medium)',
               }}>{block.title}</span>
               {block.rows.map(([label, value]) => (
-                <div key={label} className='flex items-baseline w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                <div key={label} className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
                   <span style={{
                     color: 'var(--text-content-tertiary)',
                     fontFamily: 'var(--type-family-body)',
@@ -457,6 +486,8 @@ const ExamNotesPanel = ({
                     fontFamily: 'var(--type-family-body)',
                     fontSize: 'var(--type-size-sm)',
                   }}>{value}</span>
+                  {/* คัดลอกได้ทีละหัวข้อ ไม่ใช่เฉพาะทั้งบล็อก */}
+                  <CopyIconButton label={`คัดลอก ${label}`} text={`${label}: ${value}`} />
                 </div>
               ))}
             </div>
@@ -472,7 +503,7 @@ const ExamNotesPanel = ({
           }}
         >
           <span style={{
-            color: 'var(--text-topic-tertiary-title)',
+            color: 'var(--text-topic-primary-title, var(--text-brandPrimary-default))',
             fontFamily: 'var(--type-family-heading-content)',
             fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
             fontSize: 'var(--type-size-base)',

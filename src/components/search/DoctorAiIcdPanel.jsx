@@ -1,8 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import AISearch from '@/components/search/AISearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
 import LottieIllustration from '@/components/illustrations/LottieIllustration';
 import { DEFAULT_ICD_SUGGESTIONS, commonTermsForIcd } from '@/data/treatmentVisits';
+import { SNOMED_CONCEPTS } from '@/data/treatmentSnomed';
+import { ICD9_PROCEDURES } from '@/pages/treat/panels/ProcedureOrderPanel';
+import TabPill, { TabBar } from '@/components/tab/TabPill';
 import doctorAiAnim from '@/assets/illustrations/Aijson.json';
 
 /* Doctor AI ICD-10 search panel — Figma PHCIS|Medical-examination 156:27359.
@@ -48,6 +51,27 @@ export const icdToRow = (c, query = '') => {
  * @param {number} [props.width] — AISearch width (default 640)
  * @param {boolean} [props.dropdownInFlow] — keep suggestion list in flow (for Popup)
  */
+/* ค้นได้สามระบบรหัส (มติผู้ใช้ 28 ส.ค. 69) — ICD-10 โรค · ICD-9-CM หัตถการ ·
+   SNOMED-CT concept · แต่ละระบบมีชุดข้อมูลของตัวเองอยู่แล้วในระบบ */
+const CODE_TABS = [
+  { key: 'icd10',  label: 'ICD-10',    hint: 'รหัสโรค' },
+  { key: 'icd9',   label: 'ICD-9-CM',  hint: 'รหัสหัตถการ' },
+  { key: 'snomed', label: 'SNOMED-CT', hint: 'concept' },
+];
+
+const ICD9_INDEX = ICD9_PROCEDURES.map((p) => ({
+  code: p.code,
+  name: `${p.nameTh} (${p.nameEn})`,
+  haystack: `${p.code} ${p.nameTh} ${p.nameEn}`.toLowerCase(),
+}));
+
+const SNOMED_INDEX = SNOMED_CONCEPTS.map((c) => ({
+  code: c.code,
+  name: `${c.term} (${c.termTh})`,
+  icd10: c.icd10,
+  haystack: `${c.code} ${c.term} ${c.termTh} ${c.icd10}`.toLowerCase(),
+}));
+
 export default function DoctorAiIcdPanel({
   value,
   onChange,
@@ -56,14 +80,27 @@ export default function DoctorAiIcdPanel({
   dropdownInFlow = false,
 }) {
   const search = useSearchHistory('mih:doctor-ai-icd', { limit: 8 });
+  const [system, setSystem] = useState('icd10');
   const suggestions = useMemo(() => {
     const q = (value || '').trim().toLowerCase();
     if (!q) return undefined;
+    if (system === 'icd9') {
+      return ICD9_INDEX.filter((c) => c.haystack.includes(q)).slice(0, 8).map((c) => ({
+        id: c.code, label: c.name, badge: c.code, badgeStyle: 'orange', value: c.name,
+      }));
+    }
+    if (system === 'snomed') {
+      return SNOMED_INDEX.filter((c) => c.haystack.includes(q)).slice(0, 8).map((c) => ({
+        id: c.code, label: c.name, badge: c.code, badgeStyle: 'purple', value: c.name,
+        subLabel: c.icd10 ? `เทียบ ICD-10: ${c.icd10}` : undefined,
+      }));
+    }
     return ICD_SEARCH_INDEX
       .filter((c) => c.haystack.includes(q))
       .slice(0, 8)
       .map((c) => icdToRow(c, q));
-  }, [value]);
+  }, [value, system]);
+  const activeTab = CODE_TABS.find((t) => t.key === system) || CODE_TABS[0];
 
   return (
     <div
@@ -111,8 +148,21 @@ export default function DoctorAiIcdPanel({
           lineHeight: 1.5,
         }}
       >
-        ตัวช่วยค้นหารหัสการวินิจฉัย (ICD10)
+        ตัวช่วยค้นหารหัสการวินิจฉัย ({activeTab.label} — {activeTab.hint})
       </span>
+
+      <TabBar aria-label='ระบบรหัสที่ต้องการค้น'>
+        {CODE_TABS.map((t) => (
+          <TabPill
+            key={t.key}
+            size='small'
+            selected={system === t.key}
+            onClick={() => setSystem(t.key)}
+          >
+            {t.label}
+          </TabPill>
+        ))}
+      </TabBar>
 
       <AISearch
         value={value || ''}
@@ -124,9 +174,9 @@ export default function DoctorAiIcdPanel({
         history={search.history}
         onClearHistory={search.history.length > 0 ? search.clear : undefined}
         suggestions={suggestions}
-        historyEmptyMessage='ยังไม่มีประวัติการค้นหารหัส ICD-10'
-        emptyMessage='ไม่พบรหัสที่ตรงกับคำค้น'
-        aria-label='ค้นหารหัส ICD-10'
+        historyEmptyMessage={`ยังไม่มีประวัติการค้นหารหัส ${activeTab.label}`}
+        emptyMessage={`ไม่พบรหัส ${activeTab.label} ที่ตรงกับคำค้น`}
+        aria-label={`ค้นหารหัส ${activeTab.label}`}
         placeholder='ค้นหาด้วยคำที่ใช้พูดได้เลย เช่น ปวดหัว · ความดัน · flu · A90'
         width={width}
         dropdownInFlow={dropdownInFlow}

@@ -47,12 +47,12 @@ import medicalCheckupAnim from '@/assets/illustrations/Medical checkup.json';
    empty state; the other in-form empty states (Steps 3 / 4) keep the
    "Medical checkup" doctor-with-patient scene imported above. */
 import firstaidKitAnim from '@/assets/illustrations/Firstaid Kit.json';
-import ExamSupportList from '@/components/examination/ExamSupportList';
 import DoctorAiIcdPanel from '@/components/search/DoctorAiIcdPanel';
 import ExamNotesPanel from '@/components/examination/ExamNotesPanel';
 /* EMR §1.4 panels — แต่ละอันเป็นไฟล์ของตัวเองใน src/pages/treat/panels/
    เพื่อไม่ให้ไฟล์นี้ (ใหญ่อยู่แล้ว) โตต่อและกัน conflict ระหว่าง agent */
 import LabRadiologyResultsPanel from '@/pages/treat/panels/LabRadiologyResultsPanel';
+import Popup from '@/components/popup/Popup';
 import VaccineGrowthPanel from '@/pages/treat/panels/VaccineGrowthPanel';
 import ReferralHistoryPanel from '@/pages/treat/panels/ReferralHistoryPanel';
 import { VisitJourneyStagePanel } from '@/pages/treat/panels/VisitJourneyPanel';
@@ -62,9 +62,7 @@ import { consultsForPatient, clinicMeta, consultStatusMeta } from '@/data/treatm
 import {
   imagingHistoryForPatient, FILM_ASSETS, RESULT_CLASS_META,
 } from '@/data/treatmentImagingHistory';
-import ProblemListPanel from '@/pages/treat/panels/ProblemListPanel';
 import DiagnosisCodingPanel from '@/pages/treat/panels/DiagnosisCodingPanel';
-import ClinicalNotesPanel from '@/pages/treat/panels/ClinicalNotesPanel';
 import MedRecPanel from '@/pages/treat/panels/MedRecPanel';
 /* CPOE §1.5 — panel ของหมวดสั่งการรักษาแยกเป็นไฟล์ละหมวดใน
    src/pages/treat/panels/ (pattern เดียวกับ MedRecPanel) เพื่อไม่ให้
@@ -1898,6 +1896,10 @@ export const Step3Examination = ({ form, setForm, patient }) => {
      "บันทึกการตรวจ" คือพิมพ์สิ่งที่ตรวจพบ · "ตรวจร่างกาย" คือชี้ตำแหน่งบนภาพ
      (มติผู้ใช้ 28 ส.ค. 69) */
   const [examTab, setExamTab] = useState(0);
+  /* ผลตรวจชันสูตร / ผลตรวจรังสี ย้ายจากรางข้างแผนภาพร่างกายมาอยู่แถวเดียวกับแท็บ
+     แล้วเปิดเป็นป๊อปอัป — รางเดิมอยู่ลึกในแท็บ "ตรวจร่างกาย" หมอที่กำลังพิมพ์
+     บันทึกอยู่จึงมองไม่เห็น (มติผู้ใช้ 28 ส.ค. 69) */
+  const [supportPopup, setSupportPopup] = useState('');
 
   const handleCopyFromNurse = (key) => {
     const fromNurse = form.nurseExam?.[key];
@@ -1928,20 +1930,69 @@ export const Step3Examination = ({ form, setForm, patient }) => {
     <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
       {/* การ์ดสัญญาณชีพเดี่ยว ๆ ถูกเอาออก 28 ส.ค. 69 — ค่าทั้งชุดย้ายไปอยู่ใน
           คอลัมน์ "บันทึกจากพยาบาล" ของการ์ดถัดไป พร้อมหัวข้ออื่นของจุดคัดกรอง */}
-      <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-        {EXAM_SUBTABS.map((label, i) => (
-          <TabCapsule
-            key={label}
-            variant='filter'
-            label={label}
-            selected={i === examTab}
-            onClick={() => setExamTab(i)}
-          />
-        ))}
-      </div>
+      {/* แท็บกับเนื้อหาอยู่ในการ์ดขาวใบเดียวกัน — แท็บลอยอยู่นอกการ์ดทำให้ดูเหมือน
+          คุมทั้งหน้า ทั้งที่คุมเฉพาะเนื้อหาในการ์ดนี้ (มติผู้ใช้ 28 ส.ค. 69) */}
+      <ExamStepCard>
+        {/* จัดกึ่งกลาง — แท็บคุมทั้งการ์ด ไม่ใช่ของคอลัมน์ซ้าย (มติผู้ใช้ 28 ส.ค. 69) */}
+        <div className='flex w-full items-center' style={{ gap: 'var(--dim-space-300)' }}>
+          <div className='flex-1 flex justify-center'>
+            <TabBar aria-label='ส่วนของขั้นตรวจร่างกาย'>
+              {EXAM_SUBTABS.map((label, i) => (
+                <TabPill
+                  key={label}
+                  size='small'
+                  selected={i === examTab}
+                  onClick={() => setExamTab(i)}
+                >
+                  {label}
+                </TabPill>
+              ))}
+            </TabBar>
+          </div>
+          <div className='flex shrink-0 items-center' style={{ gap: 'var(--dim-space-200)' }}>
+            <BrandSubdueButton
+              variant='outline'
+              size='sm'
+              leadingIcon='biotech'
+              onClick={() => setSupportPopup('lab')}
+            >
+              ผลตรวจชันสูตร
+            </BrandSubdueButton>
+            <BrandSubdueButton
+              variant='outline'
+              size='sm'
+              leadingIcon='radiology'
+              onClick={() => setSupportPopup('imaging')}
+            >
+              ผลตรวจรังสี
+            </BrandSubdueButton>
+          </div>
+        </div>
+
+        <Popup
+          open={supportPopup === 'lab'}
+          onClose={() => setSupportPopup('')}
+          title='ผลตรวจชันสูตร'
+          subtitle='ผลตรวจทางห้องปฏิบัติการและรังสีวิทยาของผู้รับบริการรายนี้'
+          size='extraLarge'
+          primaryAction={{ label: 'ปิด', onClick: () => setSupportPopup('') }}
+        >
+          <LabRadiologyResultsPanel patient={patient} />
+        </Popup>
+
+        <Popup
+          open={supportPopup === 'imaging'}
+          onClose={() => setSupportPopup('')}
+          title='ผลตรวจรังสี'
+          subtitle='ไล่ตามครั้งที่ตรวจ พร้อมภาพฟิล์มและผลอ่านของรังสีแพทย์'
+          size='extraLarge'
+          primaryAction={{ label: 'ปิด', onClick: () => setSupportPopup('') }}
+        >
+          <ImagingTimeline patient={patient} />
+        </Popup>
 
       {examTab === 0 ? (
-      <ExamStepCard>
+      <>
         <ExamNotesPanel
           embedded
           patient={patient}
@@ -1958,9 +2009,9 @@ export const Step3Examination = ({ form, setForm, patient }) => {
             examAttachments: (s.examAttachments || []).filter((f) => f.id !== id),
           }))}
         />
-      </ExamStepCard>
+      </>
       ) : (
-      <ExamStepCard>
+      <>
         {/* Per-tab marker + drawing isolation. Both `form.bodyMarkers`
             and `form.bodyDrawings` are keyed by exam system (HEENT /
             Heart / Lungs / …). The panel only sees the active
@@ -1982,10 +2033,10 @@ export const Step3Examination = ({ form, setForm, patient }) => {
           }))}
           onSystemChange={set('examSystem')}
           onViewChange={set('examView')}
-          sidebar={<ExamSupportList width={320} patientHn={patient?.hn} />}
         />
-      </ExamStepCard>
+      </>
       )}
+      </ExamStepCard>
 
       {/* การ์ด "ไฟล์แนบของการตรวจครั้งนี้" (VisitAttachmentsPanel) ถูกเอาออก
           28 ส.ค. 69 — การ์ด "บันทึกของแพทย์" มีโซนแนบไฟล์ของตัวเองอยู่แล้ว
@@ -2001,7 +2052,7 @@ export const Step3Examination = ({ form, setForm, patient }) => {
 /* ─────────────────────────────────────────────────────────────
    Step 4 — วินิจฉัย / Diagnosis (Figma PHCIS | Medical-examination
    317:29773). Two-column "Diagnosis" card (voice textareas + ordering
-   doctor + ExamSupportList sidebar) followed by a full "รหัสการวินิจฉัย
+   doctor) followed by a full "รหัสการวินิจฉัย
    (ICD10)" panel — Doctor AI search, suggestion capsules, and the
    ICD-10 table. All chrome aliased from existing components.
    ───────────────────────────────────────────────────────────── */
@@ -2334,15 +2385,7 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIn
 
   return (
     <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-      <Topic
-        hierarchy='primary'
-        title='วินิจฉัย'
-        leadingIcon='diagnosis'
-        showSubText={false}
-        showBadge={false}
-        showChevron={false}
-        showSuccess={false}
-      />
+      {/* หัวข้อ "วินิจฉัย" ถูกเอาออก — แถบขั้นตอนด้านบนบอกอยู่แล้ว (28 ส.ค. 69) */}
 
       {/* แถบสัญญาณชีพในขั้นวินิจฉัยถูกเอาออก 28 ส.ค. 69 — ค่าชุดเดียวกันอยู่ใน
           คอลัมน์ "บันทึกจากพยาบาล" ของขั้นตรวจร่างกายแล้ว */}
@@ -2528,7 +2571,9 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIn
               />
             </Field>
           </div>
-          <ExamSupportList width={320} className='self-stretch' patientHn={patient?.hn} />
+          {/* รางข้อมูลประกอบการตรวจร่างกาย (ผลตรวจชันสูตร / ผลตรวจรังสี) ถูกเอาออก
+              28 ส.ค. 69 — ทั้งสองอย่างเป็นปุ่มเปิดป๊อปอัปอยู่บนแถวแท็บของขั้น
+              ตรวจร่างกายแล้ว */}
         </div>
 
         <div
@@ -2632,14 +2677,14 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIn
 
         {/* EMR §1.4 — บล็อกที่เพิ่มใต้ตาราง ICD เดิม (ไฟล์แยกทั้งหมด):
               • DiagnosisCodingPanel — SNOMED-CT + cross-map + 4 ประเภทวินิจฉัย
-              • ProblemListPanel     — รายการโรคที่รักษาอยู่ (§1.4.3.8/9)
-              • ClinicalNotesPanel   — Note 5 ประเภท (§1.4.4.1/2)
             ช่อง Doctor Note เดิมด้านบนยังอยู่ครบและเป็นค่าเริ่มต้นของ
             note ประเภท "แพทย์" */}
         <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
           <DiagnosisCodingPanel form={form} setForm={setForm} patient={patient} />
-          <ProblemListPanel form={form} patient={patient} />
-          <ClinicalNotesPanel form={form} setForm={setForm} patient={patient} />
+          {/* ProblemListPanel (รายการโรคที่รักษาอยู่ปัจจุบัน §1.4.3.8/9) ถูกเอาออก
+              28 ส.ค. 69 — ไฟล์พาเนลยังอยู่ */}
+          {/* ClinicalNotesPanel (บันทึกทางคลินิก 5 ประเภท §1.4.4.1/2 +
+              ประวัติบันทึก) ถูกเอาออกจากขั้นวินิจฉัย 28 ส.ค. 69 — ไฟล์พาเนลยังอยู่ */}
         </div>
       </div>
 
@@ -3827,7 +3872,8 @@ export const Step5Orders = ({
   if (!hasAnyTreatmentOrder) {
     return (
       <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-        <Topic hierarchy='primary' title='สั่งการรักษา (Treatment Order)' leadingIcon='description' showSubText={false} showBadge={false} showChevron={false} showSuccess={false} />
+        {/* หัวข้อ "สั่งการรักษา (Treatment Order)" ถูกเอาออก — แถบขั้นตอน
+            ด้านบนบอกอยู่แล้ว (28 ส.ค. 69) */}
         <CpoeWorkflowPanel embedded patient={patient} form={form} setForm={setForm} />
         {/* TOR §1.18.6 — แถบเดียวกับ branch ที่มีคำสั่งแล้ว: เคสเยี่ยมบ้าน
             ส่วนใหญ่มาถึงตอน Visit ยังไม่มีคำสั่งเลย จึงต้องแสดงที่ empty

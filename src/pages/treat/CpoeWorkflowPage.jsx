@@ -646,38 +646,9 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
 
   const renderCreateOrder = () => (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-      <PanelCard title='ข้อมูลคำสั่งร่วม' subtitle='ข้อมูลชุดนี้จะใช้กับรายการ Lab, Radiology และ Procedure ทุกใบ'>
-        <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3' style={{ gap: 'var(--dim-space-400)' }}>
-          <Select
-            label='หน่วยงานที่ส่งตรวจ'
-            required
-            searchable={false}
-            value={header.requestingUnit}
-            onChange={(value) => setHeaderField('requestingUnit', value)}
-            options={[
-              { value: 'opd-2', label: 'ห้องตรวจ OPD 2 · อายุรกรรม' },
-              { value: 'opd-1', label: 'ห้องตรวจ OPD 1 · เวชปฏิบัติทั่วไป' },
-              { value: 'er', label: 'ห้องฉุกเฉิน' },
-            ]}
-          />
-          <InputField label='วันและเวลาที่สั่ง' required type='datetime-local' value={header.orderedAt} onChange={(value) => setHeaderField('orderedAt', value)} />
-          <InputField label='วันที่ต้องการตรวจ/ทำ' required type='datetime-local' value={header.requestedAt} onChange={(value) => setHeaderField('requestedAt', value)} />
-          <Select label='ความเร่งด่วน' required searchable={false} value={header.urgency} onChange={(value) => setHeaderField('urgency', value)} options={URGENCY_OPTIONS} />
-          <InputField label='ข้อบ่งชี้ทางคลินิก' required value={header.indication} onChange={(value) => setHeaderField('indication', value)} />
-          <InputField label='Provisional diagnosis / ICD-10' required leadingIcon='diagnosis' value={header.diagnosis} onChange={(value) => setHeaderField('diagnosis', value)} />
-          <div className='md:col-span-2 xl:col-span-3'>
-            <InputField label='คำถามถึงปลายทาง / Physician note' value={header.physicianQuestion} onChange={(value) => setHeaderField('physicianQuestion', value)} />
-          </div>
-        </div>
-      </PanelCard>
+      {/* การ์ด "ข้อมูลคำสั่งร่วม" ถูกเอาออก 28 ส.ค. 69 */}
 
-      <PanelCard
-        title={`รายการที่เลือก (${selectedOrders.length})`}
-        subtitle='ตรวจรหัส ปลายทาง ความเร่งด่วน และสิทธิ ก่อนประเมินความปลอดภัย'
-        action={<BrandSubdueButton size='sm' leadingIcon='add' onClick={() => setStep(1)}>เพิ่มรายการ</BrandSubdueButton>}
-      >
-        <Table columns={selectedColumns} rows={selectedOrders} pagination={false} emptyMessage='ยังไม่มีรายการสั่งตรวจหรือหัตถการ' />
-      </PanelCard>
+      {/* การ์ด "รายการที่เลือก" ถูกเอาออก 28 ส.ค. 69 */}
 
       <PanelCard title='แบบประเมินความปลอดภัยก่อนส่งคำสั่ง' subtitle='ระบบใช้ข้อมูลนี้ตรวจ warning และ hard stop ตามรายการที่เลือก'>
         <div className='grid grid-cols-1 xl:grid-cols-2' style={{ gap: 'var(--dim-space-500)' }}>
@@ -1095,28 +1066,8 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
           />
         ) : null}
 
-        <PanelCard
-          title='รายละเอียดกระบวนการ CPOE'
-          subtitle='สร้าง เลือก ตรวจสอบ ลงนาม ส่ง และติดตามคำสั่ง Lab, Radiology และ Procedure ภายใน Step 6 เดียวกัน'
-          action={(
-            <StatusBadge style={dirty ? 'warning' : 'success'} size='small' icon={dirty ? 'sync' : 'cloud_done'}>
-              {dirty ? 'กำลังบันทึกร่าง…' : lastSaved}
-            </StatusBadge>
-          )}
-        >
-          <div className='w-full overflow-x-auto' style={{ paddingTop: 'var(--dim-space-200)', paddingBottom: 'var(--dim-space-200)' }}>
-            <StepProgress
-              steps={STEPS}
-              current={step}
-              completedSteps={STEPS.map((_, index) => index < step || (index === 2 && routingComplete))}
-              onStepClick={(index) => {
-                if (index <= step || (index === 3 && routingComplete)) setStep(index);
-              }}
-              compact
-              labelNoWrap
-            />
-          </div>
-        </PanelCard>
+        {/* การ์ด "รายละเอียดกระบวนการ CPOE" (แถบ 4 ขั้นย่อย) ถูกเอาออก
+            28 ส.ค. 69 — ปุ่มท้ายฟอร์มพาไปขั้นถัดไปอยู่แล้ว */}
 
         {screen}
 
