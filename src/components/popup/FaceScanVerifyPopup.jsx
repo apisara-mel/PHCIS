@@ -268,10 +268,13 @@ const FaceScanVerifyPopup = ({
   /* เกณฑ์ผ่านของ mock — ต่ำกว่านี้ให้เจ้าหน้าที่ดูเองว่าจะใช้รูปหรือถ่ายใหม่ */
   const matchTone = matchScore >= 80 ? 'success' : matchScore >= 60 ? 'warning' : 'error';
 
+  /* ก่อนติ๊กยืนยันไม่มีข้อความบอกสถานะ (มติผู้ใช้ 28 ส.ค. 69) — ประโยคเดิมบอก
+     สิ่งที่หน้าจอแสดงอยู่แล้ว (คะแนนความตรง สองรูปเทียบกัน ปุ่มถ่ายใหม่) และไป
+     แย่งความสนใจจากช่องติ๊กยืนยันที่อยู่ถัดลงมา ซึ่งเป็นสิ่งที่ต้องทำจริง */
   const statusText = shot
     ? (comparisonConfirmed
         ? 'ตรวจสอบเรียบร้อย — รูปทั้งสองเป็นบุคคลเดียวกัน'
-        : 'ระบบเปรียบเทียบให้แล้ว — เจ้าหน้าที่ตรวจสอบอีกครั้งก่อนยืนยัน ถ่ายใหม่ได้หากไม่ชัด')
+        : '')
     : cameraError
       ? 'ไม่สามารถเข้าถึงกล้องได้ — ระบบกำลังเดินขั้นตอนให้แทน'
       : !cameraReady
@@ -431,7 +434,7 @@ const FaceScanVerifyPopup = ({
               <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300)' }}>
                 {[
                   { src: shot, alt: 'รูปที่ถ่ายเพื่อยืนยันตัวตน', caption: 'รูปถ่ายปัจจุบัน', position: 'center' },
-                  { src: avatarSrc, alt: 'รูปถ่ายจากบัตรประชาชน', caption: 'รูปจากบัตรประชาชน\nมีตัวเลขส่วนสูงด้านหลัง', position: 'center 12%' },
+                  { src: avatarSrc, alt: 'รูปถ่ายจากบัตรประชาชน', caption: 'รูปจากบัตรประชาชน', position: 'center 12%' },
                 ].map((item) => (
                   <div key={item.caption} className='flex flex-col items-center min-w-0' style={{ gap: 'var(--dim-space-100)', flex: '1 1 0' }}>
                     <img

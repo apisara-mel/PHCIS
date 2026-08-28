@@ -609,6 +609,9 @@ const TreatmentFormPage = () => {
         avatarSrc={queueCancelCandidate?.avatarUrl}
       />
       <QueueSubMenu
+        /* แถวเรียบคั่นด้วยเส้น ไม่ใช่การ์ดซ้อนการ์ด (มติผู้ใช้ 28 ส.ค. 69) —
+           กรอบรอบทุกแถวในพาเนลแคบทำให้ดูเป็นกล่องเล็ก ๆ เรียงกันแทนที่จะเป็นคิว */
+        rowVariant='divider'
         queue={queueBuckets}
         sectionLabels={TREATMENT_QUEUE_SUBMENU_LABELS}
         /* เห็นแค่ "คิวที่เหลือวันนี้" พร้อมรูปผู้ป่วยและปุ่มจัดการคิว · ไม่มีจุดสี

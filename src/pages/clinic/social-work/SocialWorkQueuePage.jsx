@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
+import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
@@ -458,7 +460,7 @@ const SocialWorkQueuePage = () => {
     { key: 'flags', label: 'Flag', sortable: false, render: renderFlags },
     { key: 'wait', label: 'รอนาน', render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status', label: 'สถานะ', render: renderStatus },
-    { key: 'actions', label: 'การดำเนินการ', sortable: false, render: renderActions },
+    { key: 'actions', label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick, canWrite]);
 
@@ -494,6 +496,8 @@ const SocialWorkQueuePage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุก worklist ของบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       title='คิวงานสังคมสงเคราะห์'
       onBack={() => history.push('/clinic/social-work')}
       backLabel='กลับหน้าแรก'

@@ -1,17 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import PrivacyRevealPopup from '@/components/popup/PrivacyRevealPopup';
 import { EllipsisText } from '@/components/table/Table';
-import { maskWorklistName } from '@/utils/piiMasking';
-import {
-  getWorklistNameRevealExpiresAt,
-  isWorklistNameRevealed,
-  logWorklistNameReveal,
-  markWorklistNameRevealed,
-} from '@/data/worklistPiiReveal';
 
-/* MaskedWorklistName — ชื่อใน worklist ทุกโมดูล
-   แสดง 3 ตัวแรก + 3 ตัวท้าย · คลิกชื่อ → PrivacyRevealPopup → แสดงชื่อเต็ม 30 นาที */
+/* MaskedWorklistName — ชื่อผู้รับบริการใน worklist ทุกโมดูล
+
+   ⚠️ ไม่ปิดบังชื่ออีกแล้ว (มติผู้ใช้ 28 ส.ค. 69) — ชื่อ-นามสกุลแสดงเต็มทุกหน้า
+   เจ้าหน้าที่ที่เข้าถึง worklist ได้คือคนที่ต้องเห็นชื่ออยู่แล้ว การกดเปิดทีละชื่อ
+   จึงไม่ได้กันใครจริง แต่ทำให้กวาดสายตาหาคนในตารางช้าลงทุกครั้ง
+
+   ชื่อ component และ prop เดิมถูกคงไว้ เพราะมีจอเรียกใช้กว่า 40 หน้า การเปลี่ยน
+   ชื่อทั้งหมดเป็น diff ใหญ่ที่ไม่ได้ทำให้อะไรทำงานต่างไป และถ้าศูนย์ไหนต้องเปิด
+   การปิดบังกลับมา จุดแก้ยังอยู่ที่นี่ที่เดียว (กลไกเดิม PrivacyRevealPopup +
+   src/data/worklistPiiReveal.js ยังอยู่ในโค้ดเบส) */
 
 const LINK_STYLE = {
   color: 'var(--text-neutral-default)',
@@ -32,6 +32,8 @@ const BUTTON_STYLE = {
 
 export default function MaskedWorklistName({
   name,
+  /* recordKey / fieldLabel / onReveal — ไม่ใช้แล้ว แต่ยังรับไว้เพื่อไม่ให้ผู้เรียก
+     เดิมทั้งหมดต้องแก้พร้อมกัน */
   recordKey = '',
   fieldLabel = 'ชื่อ-นามสกุล ของผู้รับบริการ',
   linkTo = null,
@@ -44,58 +46,17 @@ export default function MaskedWorklistName({
   onReveal,
 }) {
   const full = String(name ?? '').trim();
-  const revealKey = recordKey || full;
-  const [revealed, setRevealed] = useState(() => isWorklistNameRevealed(revealKey));
-  const [popupOpen, setPopupOpen] = useState(false);
-
-  /* หมดเวลา 30 นาที → กลับมา masking อัตโนมัติ */
-  useEffect(() => {
-    if (!revealed || !revealKey) return undefined;
-    const sync = () => setRevealed(isWorklistNameRevealed(revealKey));
-    sync();
-    const expiresAt = getWorklistNameRevealExpiresAt(revealKey);
-    if (!expiresAt) {
-      setRevealed(false);
-      return undefined;
-    }
-    const ms = expiresAt - Date.now();
-    if (ms <= 0) {
-      setRevealed(false);
-      return undefined;
-    }
-    const timer = setTimeout(() => setRevealed(false), ms);
-    return () => clearTimeout(timer);
-  }, [revealed, revealKey]);
 
   if (!full) {
     return <span className={className} style={style}>{emptyLabel}</span>;
   }
 
-  const masked = maskWorklistName(full);
-  const text = revealed ? full : masked;
-
-  const handleRevealRequest = (e) => {
-    if (stopPropagation) e.stopPropagation();
-    if (revealed) return;
-    e.preventDefault?.();
-    setPopupOpen(true);
-  };
-
-  const handleConfirmReveal = () => {
-    markWorklistNameRevealed(revealKey);
-    logWorklistNameReveal(revealKey, fieldLabel);
-    onReveal?.();
-    setRevealed(true);
-    setPopupOpen(false);
-  };
-
   const textNode = truncate
-    ? <EllipsisText text={text} className={className} fill={false} />
-    : <span className={className} style={style}>{text}</span>;
+    ? <EllipsisText text={full} className={className} fill={false} />
+    : <span className={className} style={style}>{full}</span>;
 
-  let control = null;
-  if (revealed && linkTo) {
-    control = (
+  if (linkTo) {
+    return (
       <Link
         to={linkTo}
         className={`${className} hover:underline`.trim()}
@@ -105,8 +66,10 @@ export default function MaskedWorklistName({
         {textNode}
       </Link>
     );
-  } else if (revealed && onRevealedClick) {
-    control = (
+  }
+
+  if (onRevealedClick) {
+    return (
       <button
         type='button'
         className={`${className} hover:underline`.trim()}
@@ -119,33 +82,7 @@ export default function MaskedWorklistName({
         {textNode}
       </button>
     );
-  } else if (revealed) {
-    control = (
-      <span className={className} style={style}>{textNode}</span>
-    );
-  } else {
-    control = (
-      <button
-        type='button'
-        className={`${className} hover:underline`.trim()}
-        style={{ ...BUTTON_STYLE, ...style }}
-        aria-label={`แสดง${fieldLabel}`}
-        onClick={handleRevealRequest}
-      >
-        {textNode}
-      </button>
-    );
   }
 
-  return (
-    <>
-      {control}
-      <PrivacyRevealPopup
-        open={popupOpen}
-        fieldLabel={fieldLabel}
-        onClose={() => setPopupOpen(false)}
-        onConfirm={handleConfirmReveal}
-      />
-    </>
-  );
+  return <span className={className} style={style}>{textNode}</span>;
 }

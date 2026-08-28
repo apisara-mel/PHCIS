@@ -11,6 +11,12 @@
 
 
 /* คลินิกย่อยในระบบบันทึกการรักษา — เมนู "คัดกรอง" ไม่ใช้แล้ว (จุดคัดกรองเดียว) */
+/* กองกลางของทุกคลินิก — รายการแรกสุดของเมนู "บันทึกการรักษา" (มติผู้ใช้
+   28 ส.ค. 69) ในศูนย์ที่ไม่ระบุแพทย์ตั้งแต่จุดคัดกรอง นี่คือหน้าที่แพทย์เปิด
+   เป็นอันแรกของวัน คลินิกต่าง ๆ จะมีงานก็ต่อเมื่อมีคนหยิบเคสจากกองนี้ไปแล้ว */
+const TREAT_UNASSIGNED_SUBITEM =
+  { key: 'unassigned', label: 'คิวรวมรอรับเคส', path: '/treat/unassigned' };
+
 const TREAT_MODULE_SUBITEMS = [
   { key: 'consult',    label: 'ทะเบียนการส่งปรึกษาแพทย์',             path: '/treat/consult' },
   { key: 'order-settings', label: 'ตั้งค่ารายการสั่งการรักษาและ CDSS', path: '/treat/order-sets' },
@@ -21,7 +27,9 @@ const TREAT_MODULE_SUBITEMS = [
   { key: 'interfaces', label: 'สถานะการเชื่อมต่อระบบภายนอก',         path: '/treat/interfaces' },
 ];
 
-const TREAT_DEPARTMENT_SUBITEMS = [
+/* export เพื่อให้ "คิวรวมรอรับเคส" ใช้รายชื่อคลินิกชุดเดียวกับเมนู — ถ้าเพิ่ม
+   คลินิกใหม่ในเมนู หน้าคิวรวมจะเห็นทันทีโดยไม่ต้องแก้สองที่ให้ตรงกัน */
+export const TREAT_DEPARTMENT_SUBITEMS = [
   /* ชื่อคลินิกยึดตามคู่มือระบบงานของสำนักอนามัย กทม. (S003–S023) และนำหน้าด้วยคำว่า
      "คลินิก" ให้เหมือนกันทั้งชุด (มติผู้ใช้ 28 ส.ค. 69) — เดิมขึ้นต้นด้วย "แผนก"
      และบางรายการใช้ชื่อที่ไม่ตรงคู่มือ (เช่น "อายุรกรรม" ซึ่งเป็นชื่อแผนกแบบ
@@ -91,11 +99,18 @@ export const PHCIS_SIDE_MENU = [
   {
     key: 'treat', label: 'บันทึกการรักษา', icon: 'stethoscope',
     subItems: [
+      TREAT_UNASSIGNED_SUBITEM,
       TREAT_DEPARTMENT_SUBITEMS[0],
       ...TREAT_MODULE_SUBITEMS,
       ...TREAT_DEPARTMENT_SUBITEMS.slice(1),
     ],
   },
+  /* Exist Nurse — จุดที่พยาบาลปิดเยี่ยมก่อนผู้รับบริการกลับบ้าน วางถัดจาก
+     "บันทึกการรักษา" ตามลำดับที่ผู้รับบริการเดินจริง: คัดกรอง → ตรวจรักษา →
+     Exist Nurse เป็นคู่ตรงข้ามของ "คัดกรอง" จึงอยู่ระดับ rail เหมือนกัน ไม่ใช่
+     คลินิกใต้บันทึกการรักษา · ชื่อเมนูใช้คำว่า "Exist Nurse" ตามที่ผู้ใช้กำหนด
+     (มติผู้ใช้ 28 ส.ค. 69) */
+  { key: 'exit',      label: 'Exist Nurse',               icon: 'logout',    path: '/exit' },
   { key: 'radiology', label: 'รังสีวินิจฉัย',              icon: 'radiology', iconSize: 18, path: '/xray/queue' },
   /* Lab module pages cross-link via LabSubNav (TabUnderline) — same flat
      pattern as pharmacy. */

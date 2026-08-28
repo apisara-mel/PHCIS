@@ -38,6 +38,7 @@ import {
 } from '@/data/treatmentInterfaces';
 import { TREATMENT_QUEUE_ROWS } from '@/data/treatmentQueue';
 import { NO_EDIT_RIGHT_TOOLTIP } from '@/data/treatmentAccess';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
 
 /* PHCIS | EMR §1.4.7.2 – §1.4.7.5 / §1.4.3.23 — สถานะการเชื่อมต่อระบบภายนอก.
 
@@ -337,6 +338,8 @@ const TreatmentInterfacesPage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุกหน้าของเมนูบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       title='สถานะการเชื่อมต่อระบบภายนอก'
       onBack={() => history.push('/treat/queue')}
       backLabel='กลับไปหน้าคิว'

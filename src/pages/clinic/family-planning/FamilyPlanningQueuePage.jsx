@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
+import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
@@ -429,7 +431,7 @@ const FamilyPlanningQueuePage = () => {
     { key: 'wait',       label: 'รอนาน',      render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'appointmentNote', label: 'การนัดหมาย', flex: true, minWidth: 160 },
     { key: 'status',     label: 'สถานะ',      render: renderStatus },
-    { key: 'actions',    label: 'การดำเนินการ', sortable: false, render: renderActions },
+    { key: 'actions',    label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick, canRead]);
 
@@ -473,6 +475,8 @@ const FamilyPlanningQueuePage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุก worklist ของบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       title='คลินิกวางแผนครอบครัว'
       summaryTitle={SUMMARY_TITLE}
       summaryCards={summaryCards}

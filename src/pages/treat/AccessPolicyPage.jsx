@@ -31,6 +31,7 @@ import {
   defaultConfidentialCategories,
 } from '@/data/treatmentAccess';
 import { getTreatmentAudit, subscribeTreatmentAudit } from '@/data/treatmentAudit';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
 
 /* PHCIS | EMR §1.4.8.1 — นโยบายการเข้าถึงข้อมูล (ABAC).
 
@@ -515,6 +516,8 @@ const AccessPolicyPage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุกหน้าของเมนูบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       title='นโยบายการเข้าถึงข้อมูล (ABAC)'
       onBack={() => history.push('/treat/queue')}
       backLabel='กลับไปหน้าคิว'

@@ -245,8 +245,10 @@ const PatientStatusSection = ({
         <div
           className='flex flex-col w-full'
           style={{
+            /* ไม่มีเส้นคั่นกับ "สถานะผู้รับบริการ" ด้านบน (มติผู้ใช้ 28 ส.ค. 69)
+               — สองหัวข้อนี้อยู่ในการ์ดเดียวกันและอ่านต่อเนื่องกันอยู่แล้ว
+               เส้นคั่นทำให้ดูเป็นคนละเรื่อง */
             gap: 'var(--dim-space-300)',
-            borderTop: 'var(--dim-stroke-100) solid var(--border-content-quaternary, #E4E7EC)',
             paddingTop: 'var(--dim-space-300)',
           }}
         >
@@ -558,8 +560,11 @@ const PhotoCluster = ({
   const [compareOpen, setCompareOpen] = useState(false);
 
   const verified = faceMatchScore != null && faceMatchScore > 0;
-  /* Verified tile shows รูปบัตรประชาชน (chip / Figma mock). */
   const idPhoto = idCardPhoto || FACE_VERIFIED_ID_FALLBACK;
+  /* ช่องรูปหลังยืนยันแล้วแสดง "รูปถ่ายปัจจุบัน" ไม่ใช่รูปบัตรประชาชน (มติผู้ใช้
+     28 ส.ค. 69) — รูปที่เพิ่งถ่ายคือหน้าของคนที่ยืนอยู่ตรงหน้าวันนี้ ส่วนรูปบัตร
+     เป็นภาพอ้างอิงที่อาจเก่าหลายปี ยังดูคู่กันได้ที่ปุ่ม "ดูภาพเปรียบเทียบ"
+     ถ้ายังไม่เคยถ่าย (ระเบียนเก่าที่มีแต่คะแนน) ค่อยถอยไปใช้รูปบัตร */
   const livePhoto = hospitalPhoto || idPhoto;
   const updatedLabel = faceVerifiedAt
     || (verified ? formatThaiBuddhistDate(new Date()) : '-');
@@ -616,8 +621,8 @@ const PhotoCluster = ({
             }}
           >
             <img
-              src={idPhoto}
-              alt='รูปบัตรประชาชน'
+              src={livePhoto}
+              alt='รูปถ่ายปัจจุบันของผู้รับบริการ'
               width={PHOTO_ZONE_SIZE}
               height={PHOTO_ZONE_SIZE}
               style={{
@@ -663,23 +668,53 @@ const PhotoCluster = ({
             </span>
           </div>
 
-          <BrandSubdueButton
-            type='button'
-            variant='outline'
-            size='md'
-            leadingIconElement={(
-              <img
-                src={ICON_COMPARE_PHOTOS}
-                alt=''
-                width={20}
-                height={20}
-                style={{ width: 20, height: 20, display: 'block' }}
-              />
-            )}
-            onClick={() => setCompareOpen(true)}
+          {/* สองปุ่มอยู่แถวเดียวกัน (มติผู้ใช้ 28 ส.ค. 69) — เป็นทางเลือกคู่กัน
+              (ดูของเดิม / ถ่ายใหม่) การวางซ้อนกันทำให้อ่านเป็นลำดับขั้นตอน
+              ซึ่งไม่ใช่ · ห่อ flex-wrap ไว้ให้ตกบรรทัดเองเมื่อการ์ดแคบ */}
+          <div
+            className='flex flex-wrap items-center justify-center w-full'
+            style={{ gap: 'var(--dim-space-200)' }}
           >
-            ดูภาพเปรียบเทียบ
-          </BrandSubdueButton>
+            <BrandSubdueButton
+              type='button'
+              variant='outline'
+              size='md'
+              leadingIconElement={(
+                <img
+                  src={ICON_COMPARE_PHOTOS}
+                  alt=''
+                  width={20}
+                  height={20}
+                  style={{ width: 20, height: 20, display: 'block' }}
+                />
+              )}
+              onClick={() => setCompareOpen(true)}
+            >
+              ดูภาพเปรียบเทียบ
+            </BrandSubdueButton>
+
+            {/* ถ่ายใหม่ได้แม้ยืนยันตัวตนไปแล้ว (มติผู้ใช้ 28 ส.ค. 69) — รูปเก่าขึ้น
+                คนละคนกับที่มาวันนี้ได้เสมอ (เปลี่ยนทรงผม อายุมากขึ้น หรือรูปในระบบ
+                ผิดคนมาแต่ต้น) ถ้าไม่มีทางถ่ายใหม่ ต้องล้างระเบียนแล้วเริ่มใหม่ทั้งชุด
+                เปิดป๊อปอัปตัวเดียวกับตอนถ่ายครั้งแรก ผลลัพธ์จึงทับของเดิม */}
+            <BrandSubdueButton
+              type='button'
+              variant='outline'
+              size='md'
+              leadingIconElement={(
+                <img
+                  src={ICON_CAMERA}
+                  alt=''
+                  width={20}
+                  height={20}
+                  style={{ width: 20, height: 20, display: 'block' }}
+                />
+              )}
+              onClick={openScan}
+            >
+              ถ่ายรูปเพื่ออัปเดท
+            </BrandSubdueButton>
+          </div>
         </>
       ) : (
         <button
@@ -1150,44 +1185,9 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
           />
           </div>
 
-          {/* TOR 1.1.1.14 — ข้อมูลการเกิด (ใบรับรองการเกิด) */}
-          <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
-            <Field label='แพทย์ผู้ออกใบรับรองการเกิด'>
-              <InputField
-                value={form.birthCertDoctor}
-                onChange={set('birthCertDoctor')}
-                placeholder='เช่น นพ.ประวิทย์ ชาญเวชกิจ'
-              />
-            </Field>
-            <Field label='เวลาเกิด'>
-              {/* คลิกแล้วเลือกชั่วโมง/นาทีจากคอลัมน์ — ตัวเดียวกับหน้าจัดการระบบ
-                  (มติผู้ใช้ 27 ส.ค. 69) ค่าที่เก็บเป็นรูปแบบ HH:MM */}
-              <TimePicker
-                size='lg'
-                value={form.birthTime}
-                onChange={set('birthTime')}
-                placeholder='--:--'
-                showLabel={false}
-                showHelperText={false}
-              />
-            </Field>
-            {/* เดิมเป็นข้อความพิมพ์อิสระ คนกรอกคนละแบบ ("รพ.กลาง" / "โรงพยาบาลกลาง")
-                จนนับสถิติไม่ได้ — เปลี่ยนเป็นทะเบียนสถานพยาบาลที่พิมพ์ค้นได้
-                พร้อมตัวเลือก "อื่นๆ" สำหรับที่ไม่มีในทะเบียน (มติผู้ใช้ 27 ส.ค. 69) */}
-            <Field label='สถานที่เกิด'>
-              <SelectWithOther
-                value={form.birthPlace}
-                onChange={set('birthPlace')}
-                otherValue={form.birthPlaceOther}
-                onOtherChange={set('birthPlaceOther')}
-                options={HOSPITAL_OPTIONS}
-                otherOption={HOSPITAL_OTHER_VALUE}
-                placeholder='ค้นหาชื่อโรงพยาบาล'
-                otherPlaceholder='ระบุสถานที่เกิด เช่น เกิดที่บ้าน / คลินิก'
-                otherLabel='ระบุสถานที่เกิด'
-              />
-            </Field>
-          </FieldGrid>
+          {/* ข้อมูลการเกิด (แพทย์ผู้ออกใบรับรองการเกิด / เวลาเกิด / สถานที่เกิด)
+              ถูกลบออกจากฟอร์ม 28 ส.ค. 69 (มติผู้ใช้) — ฟิลด์ยังอยู่ใน form state
+              และตัวจัดการข้อมูล จึงไม่กระทบระเบียนที่เคยบันทึกไว้แล้ว */}
 
           <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
             <Field label='การศึกษา' required>
@@ -1210,9 +1210,9 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
                 otherLabel='ระบุอาชีพ'
               />
             </Field>
-          </FieldGrid>
-
-          <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
+            {/* สถานภาพขึ้นมาเป็นช่องที่สามของแถวเดียวกัน (มติผู้ใช้ 28 ส.ค. 69)
+                — เดิมอยู่ FieldGrid ของตัวเองข้างล่าง เหลือช่องว่างสองช่องและ
+                ทำให้แถวข้อมูลส่วนตัวขาดเป็นสองท่อนโดยไม่มีเหตุผล */}
             <Field label='สถานภาพ'>
               <Select
                 value={form.marital}
@@ -1222,6 +1222,7 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
               />
             </Field>
           </FieldGrid>
+
 
           {showSpouseFields && (
             <FieldGrid cols={2} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>

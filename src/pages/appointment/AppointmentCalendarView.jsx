@@ -506,9 +506,17 @@ const AppointmentCalendarView = ({
   staff,
   layoutMode = 'calendar',
   onLayoutModeChange,
+  /* เดือนที่เปิดมาเจอเป็นอันแรก — ค่าเดิมคือ มิ.ย. 2569 ซึ่งเป็นเดือนที่ข้อมูล
+     ตัวอย่างของหน้านัดหมายกระจุกอยู่ ผู้เรียกที่ต้องการ "เดือนนี้" (เช่น
+     ป๊อปอัปดูตารางเวร) ส่ง `initialCursor` มาเองได้ */
+  initialCursor = null,
+  /* หัวข้อของตาราง — ค่าเดิมพูดกับคนที่กำลังจะลงนัด ผู้เรียกที่เปิดดูอย่างเดียว
+     ต้องเปลี่ยนคำได้ ไม่งั้นจะชวนให้กดช่องว่างแล้วไม่มีอะไรเกิดขึ้น */
+  sectionTitle = 'เลือก Slot',
+  sectionSubText = 'คลิกเพื่อเลือก Slot ที่ว่างเพื่อทำการนัดหมาย',
 }) => {
   const [calView, setCalView] = useState('month');
-  const [cursor, setCursor] = useState(() => new Date(2026, 5, 1));
+  const [cursor, setCursor] = useState(() => initialCursor ?? new Date(2026, 5, 1));
   const [slideDirection, setSlideDirection] = useState('forward');
 
   const staffAppts = useMemo(
@@ -717,8 +725,8 @@ const AppointmentCalendarView = ({
             >
             <Topic
               hierarchy='secondary'
-              title='เลือก Slot'
-              subText='คลิกเพื่อเลือก Slot ที่ว่างเพื่อทำการนัดหมาย'
+              title={sectionTitle}
+              subText={sectionSubText}
               showBadge={false}
               showSuccess={false}
             />

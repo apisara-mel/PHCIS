@@ -36,6 +36,8 @@ import {
   formatImmDateTime,
 } from '@/data/immunizationClinic';
 import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
+import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 
 /* ImmunizationQueuePage — คิวคลินิกสุขภาพเด็กดี (TOR 1.10.9.1 / 1.10.9.2).
    โครงเดียวกับ MentalHealthQueuePage / AncQueuePage (search + filter row +
@@ -438,7 +440,7 @@ const ImmunizationQueuePage = () => {
     { key: 'telemed',   label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
     { key: 'wait',      label: 'รอนาน', render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',    label: 'สถานะ', render: renderStatus },
-    { key: 'actions',   label: 'การดำเนินการ', sortable: false, render: renderActions },
+    { key: 'actions',   label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick, canWrite]);
 
@@ -485,6 +487,8 @@ const ImmunizationQueuePage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุก worklist ของบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       title='คลินิกสุขภาพเด็กดี — งานสร้างเสริมภูมิคุ้มกัน'
       actions={(
         <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>

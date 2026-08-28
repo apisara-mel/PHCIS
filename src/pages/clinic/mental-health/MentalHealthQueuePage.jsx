@@ -34,6 +34,8 @@ import {
 } from '@/data/mentalHealthClinic';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
+import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 
 /* MentalHealthQueuePage — คิวคลินิกสุขภาพจิต (TOR 1.10.3.1 / 1.10.3.2).
    Mechanics mirror AncQueuePage verbatim (search + filter row + sort +
@@ -414,7 +416,7 @@ const MentalHealthQueuePage = () => {
     { key: 'telemed',  label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
     { key: 'wait',     label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',   label: 'สถานะ', render: renderStatus },
-    { key: 'actions',  label: 'การดำเนินการ', sortable: false, render: renderActions },
+    { key: 'actions',  label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick]);
 
@@ -457,6 +459,8 @@ const MentalHealthQueuePage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุก worklist ของบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       title='คลินิกสุขภาพจิต'
       actions={(
         <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>

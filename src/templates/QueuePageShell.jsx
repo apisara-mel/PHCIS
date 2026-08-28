@@ -121,10 +121,19 @@ const QueuePageShell = ({
   children,
 }) => {
   const { pathname } = useLocation();
-  /* เมนู คัดกรองและซักประวัติ — บางหน้าใช้ summaryTitle แทน title แต่ยังต้องมี SubHeader + ปุ่มสร้างคำขอ */
+  /* หน้าที่ใช้ `summaryTitle` แทน `title` จะไม่มีชื่อเรื่องใน SubHeader — เดิม
+     ไม่เป็นปัญหาเพราะไม่มี SubHeader แต่พอหน้านั้นมีปุ่ม (actions /
+     leadingActions) SubHeader จะโผล่ขึ้นมาโดยมีแต่ปุ่มลอยอยู่แถวบน แล้วชื่อเรื่อง
+     ไปอยู่แถวล่างเหนือการ์ดสรุป ซึ่งอ่านเป็นคนละหน้ากับจออื่นในระบบ
+     จึงยกชื่อขึ้น SubHeader ทุกครั้งที่มีปุ่ม — ชื่อเรื่องซ้ายและปุ่มขวาในแถวเดียวกัน
+     เหมือนหน้าอื่น ๆ (มติผู้ใช้ 28 ส.ค. 69)
+     เงื่อนไข `isOpdScreeningMenuPath` เดิมยังอยู่ เพราะหน้าคัดกรองต้องมีชื่อเรื่อง
+     แม้ไม่ได้ส่งปุ่มมาเอง (ปุ่มคำขอเข้าถึงข้อมูลมาจาก SubHeader เอง) */
   const effectiveTitle =
     title
-    || (isOpdScreeningMenuPath(pathname) && summaryTitle ? summaryTitle : null);
+    || (summaryTitle && (isOpdScreeningMenuPath(pathname) || actions || leadingActions)
+      ? summaryTitle
+      : null);
   const hasSubHeader = !!(effectiveTitle || onBack || actions || leadingActions);
   /** summaryTitle ถูกยกไป SubHeader แล้ว — ไม่แสดง h1 ซ้ำบน SummaryCardsBar */
   const summaryBarTitle =

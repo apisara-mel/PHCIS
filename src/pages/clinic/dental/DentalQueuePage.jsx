@@ -32,6 +32,8 @@ import {
   cancelDentalCheckRequest,
 } from '@/data/dentalVisits';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
+import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 
 /* DentalQueuePage — คิวทันตกรรม (TOR 1.10.1.1), /clinic/dental.
    Mirrors the ANC queue page (AncQueuePage.jsx) near-verbatim — same
@@ -408,7 +410,7 @@ const DentalQueuePage = () => {
     { key: 'clinic',    label: 'คลินิก/ห้องตรวจ' },
     { key: 'wait',      label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',    label: 'สถานะ', render: renderStatus },
-    { key: 'actions',   label: 'การจัดการ', sortable: false, render: renderActions },
+    { key: 'actions',   label: 'การจัดการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick]);
 
@@ -472,6 +474,8 @@ const DentalQueuePage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุก worklist ของบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       summaryTitle={SUMMARY_TITLE}
       summaryCards={summaryCards}
       tabs={tabs}

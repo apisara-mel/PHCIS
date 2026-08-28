@@ -30,6 +30,8 @@ import {
   PageBody, PageCard, PagerRow, EmptyState, NoticeBar, StepTrackerRow,
 } from '@/pages/checkup/CheckupUi';
 import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
+import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 
 /* CheckupQueuePage — คิวตรวจสุขภาพ + ติดตามขั้นตอน/สิ่งส่งตรวจ.
    TOR 1.19.10 (รับบริการมากกว่า 1 ครั้งใน 1 โปรแกรม — the "ครั้งที่" column)
@@ -343,7 +345,7 @@ const CheckupQueuePage = () => {
     { key: 'orderNo', label: 'เลขที่ใบสั่งตรวจ' },
     { key: 'doctor', label: 'แพทย์', flex: true, minWidth: 170 },
     { key: 'status', label: 'สถานะ', render: renderStatus },
-    { key: 'actions', label: 'การดำเนินการ', sortable: false, render: renderActions },
+    { key: 'actions', label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   ]), [tick]);
 
@@ -409,6 +411,8 @@ const CheckupQueuePage = () => {
     <QueuePageShell
       activeKey='checkup'
       breadcrumb={breadcrumb}
+      /* ทุก worklist ของบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       summaryTitle={SUMMARY_TITLE}
       summaryCards={summaryCards}
       actions={actions}

@@ -32,6 +32,7 @@ import { resolveSwProblemCodeLabel, isSwProblemCodeSensitive } from '@/data/soci
 import { getSwReferrals } from '@/data/socialWorkReferrals';
 import { getSwActivities } from '@/data/socialWorkActivities';
 import { getSwNutritionCases } from '@/data/socialWorkNutrition';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
 
 /* SocialWorkHomePage — หน้าต่างแรกของงานสังคมสงเคราะห์ (TOR §1.10.11.2)
    ตามมติ คทง.10 ครั้งที่ 3 ข้อ 1:
@@ -260,6 +261,8 @@ const SocialWorkHomePage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุกหน้าของเมนูบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       title='งานสังคมสงเคราะห์'
       summaryCards={summaryCards}
       actions={(

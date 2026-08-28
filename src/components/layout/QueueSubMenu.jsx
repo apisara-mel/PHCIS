@@ -104,7 +104,10 @@ const QueueRow = ({
       gap: 'var(--dim-space-300, 12px)',
       paddingTop: 'var(--dim-space-200, 8px)',
       paddingBottom: 'var(--dim-space-200, 8px)',
-      borderBottom: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
+      /* สีเส้นเดียวกับเส้นคั่นแถวของตาราง worklist (--border-table-line)
+         ไม่ใช่เทากลาง — พาเนลกับตารางอยู่จอเดียวกัน เส้นสองสีอ่านเป็นคนละระบบ
+         (มติผู้ใช้ 28 ส.ค. 69) */
+      borderBottom: 'var(--dim-stroke-100, 1px) solid var(--border-table-line, var(--brand-p50, #F4FBF8))',
     } : {
       gap: 'var(--dim-space-200, 8px)',
       padding: 'var(--dim-space-300, 12px)',

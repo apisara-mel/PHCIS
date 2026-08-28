@@ -31,6 +31,8 @@ import {
 import { CANCEL_REASON_SUGGESTIONS } from '@/data/addictionRegistry';
 import { AddictionAccessGate, AccessDemoToggle, ProgramBadge } from '@/pages/clinic/addiction/addictionShared';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
+import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 
 /* AddictionQueuePage — คิวการรักษางานบำบัดสารเสพติด (TOR 1.10.5.1/1.10.5.2).
    Mirror of AncQueuePage: same QueuePageShell chrome, search + tag-filter
@@ -360,7 +362,7 @@ const AddictionQueuePage = () => {
     { key: 'therapist', label: 'ผู้บำบัด',       flex: true, minWidth: 150 },
     { key: 'wait',      label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',    label: 'สถานะ', render: renderStatus },
-    { key: 'actions',   label: 'การดำเนินการ', sortable: false, render: renderActions },
+    { key: 'actions',   label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick]);
 
@@ -388,6 +390,8 @@ const AddictionQueuePage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุก worklist ของบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       title='คลินิกบำบัดสารเสพติด'
       /* Sidebar only carries /clinic/addiction — these three actions are the
          ONLY way into the registry / follow-up / community screens. */

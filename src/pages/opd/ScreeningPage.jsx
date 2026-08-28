@@ -10,11 +10,14 @@ import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup'
 import { useStepDirection } from '@/components/step/stepTransition';
 import ScreeningStep1 from '@/pages/opd/ScreeningStep1';
 import ScreeningStep3 from '@/pages/opd/ScreeningStep3';
-import { setScreeningSection } from '@/data/opdScreeningReview';
+import { setScreeningSection, getScreeningReview } from '@/data/opdScreeningReview';
 import ScreeningStep4 from '@/pages/opd/ScreeningStep4';
 import ScreeningStep5 from '@/pages/opd/ScreeningStep5';
+import ScreeningStepDoctor from '@/pages/opd/ScreeningStepDoctor';
 import AlertDialog from '@/components/popup/AlertDialog';
 import Select from '@/components/forms/Select';
+import { VISIT_DOCTORS } from '@/data/registrationVisits';
+import { UNASSIGNED_DOCTOR, addToUnassignedPool, TREAT_CLINICS } from '@/data/unassignedWorklist';
 import Textarea from '@/components/forms/Textarea';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Icon from '@/components/icons/Icon';
@@ -56,6 +59,10 @@ const STEPS = [
      only one DiseaseForm instance exists in the flow. */
   'ประวัติการแพ้ / โรคประจำตัว',
   'พฤติกรรมสุขภาพ',
+  /* เลือกแพทย์ + ลงช่วงเวลา — อยู่ก่อนขั้นตรวจสอบข้อมูล เพราะเป็นการตัดสินใจ
+     สุดท้ายของจุดคัดกรอง และขั้นตรวจสอบต้องอ่านค่านี้ไปสรุปด้วย
+     (มติผู้ใช้ 28 ส.ค. 69) */
+  'เลือกแพทย์',
   'ตรวจสอบข้อมูล',
 ];
 
@@ -728,6 +735,7 @@ const SymptomStep = ({ onValidityChange, patient = {} }) => {
           ))}
         </div>
       </div>
+
     </section>
   );
 };
@@ -740,8 +748,32 @@ const STEP_COMPONENTS = [
   SymptomStep,
   ScreeningStep3,
   ScreeningStep4,
+  ScreeningStepDoctor,
   ScreeningStep5,
 ];
+
+/* ปลายทางจากป๊อปอัปส่งต่อเป็น "ชื่อแผนก" ส่วนคิวรวมรอรับเคสพูดภาษา "คลินิก"
+   ตามเมนู จับคู่ด้วยชื่อที่ตรงกันก่อน แล้วค่อยจับคำที่ซ้อนกัน ถ้าไม่เข้าเลยให้
+   ลงคลินิกตรวจรักษาซึ่งเป็นปลายทางกลางของศูนย์ — ดีกว่าปล่อยเคสค้างไร้คลินิก */
+const clinicKeyForDepartment = (departmentLabel = '') => {
+  const label = String(departmentLabel).trim();
+  if (!label) return 'opd-treat';
+  const exact = TREAT_CLINICS.find((c) => c.label === label);
+  if (exact) return exact.key;
+  const loose = TREAT_CLINICS.find((c) => {
+    const bare = c.label.replace(/^คลินิก/, '');
+    return label.includes(bare) || bare.includes(label);
+  });
+  return loose?.key ?? 'opd-treat';
+};
+
+/* Vitals ที่พยาบาลวัดไว้ ส่งไปแสดงในคิวรวมด้วย — แพทย์ใช้ตัดสินว่าจะหยิบเคสไหน
+   ก่อน ถ้าไม่มีค่าให้ปล่อยขีดไว้ ไม่ต้องเดา */
+const vitalsFromReview = (review = {}) => {
+  const v = review.vitals || {};
+  const bp = v.pressureSys && v.pressureDia ? `${v.pressureSys}/${v.pressureDia}` : '—';
+  return { bp, pr: v.pulse || '—', spo2: v.oxygen ? `${v.oxygen}%` : '—' };
+};
 
 const ScreeningPage = () => {
   const [current, setCurrent] = useState(0);
@@ -845,6 +877,24 @@ const ScreeningPage = () => {
       dept: refer.departmentLabel,
       requestedBy: 'พว.กานดา ศรีวิไล',
     });
+    /* ถ้าพยาบาลไม่ได้ระบุแพทย์ เคสต้องไปกองรวมให้แพทย์หยิบเอง — ทำที่นี่ที่เดียว
+       เพราะเป็นจุดที่ "คัดกรองเสร็จ" จริง ไม่ใช่ตอนพิมพ์แต่ละตัวอักษรในฟอร์ม */
+    const review = getScreeningReview(patient.hn) || {};
+    const symptom = review.symptom || {};
+    const chosenDoctor = review.doctor?.assignedDoctor ?? UNASSIGNED_DOCTOR;
+    if (chosenDoctor === UNASSIGNED_DOCTOR) {
+      addToUnassignedPool({
+        hn: patient.hn,
+        name: patient.shortName || navState?.name || patient.name,
+        avatarUrl: patient.avatarUrl,
+        clinicKey: clinicKeyForDepartment(refer.departmentLabel),
+        cc: symptom.complaint || refer.servicePointLabel,
+        esi: Number(forwardEsi),
+        vitals: vitalsFromReview(review),
+        screenedBy: 'พว.กานดา ศรีวิไล',
+        queue: navState?.queue,
+      });
+    }
     setForwardOpen(false);
     setForwardDone(created);
   };
@@ -1128,6 +1178,9 @@ const ScreeningPage = () => {
         patientName={queueCancelCandidate?.name || '—'}
       />
       <QueueSubMenu
+        /* แถวเรียบคั่นด้วยเส้น ไม่ใช่การ์ดซ้อนการ์ด (มติผู้ใช้ 28 ส.ค. 69) —
+           กรอบรอบทุกแถวในพาเนลแคบทำให้ดูเป็นกล่องเล็ก ๆ เรียงกันแทนที่จะเป็นคิว */
+        rowVariant='divider'
         queue={queueBuckets}
         sectionLabels={OPD_QUEUE_SUBMENU_LABELS}
         /* เห็นแค่ "คิวที่รออยู่" พร้อมเลขคิวและปุ่มจัดการคิว · ไม่มีจุดสีนำหน้า

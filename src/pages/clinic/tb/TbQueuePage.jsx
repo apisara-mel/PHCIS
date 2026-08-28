@@ -24,6 +24,8 @@ import {
 } from '@/data/tbQueue';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
+import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 
 /* TbQueuePage — คิวการรักษาคลินิกวัณโรค (TOR §1.10.4.1–.2).
    Mirrors AncQueuePage mechanics verbatim (search + filter chips +
@@ -301,13 +303,15 @@ const TbQueuePage = () => {
     { key: 'doctor',   label: 'แพทย์',            flex: true, minWidth: 150 },
     { key: 'wait',     label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',   label: 'สถานะ', render: renderStatus },
-    { key: 'actions',  label: 'การดำเนินการ', sortable: false, render: renderActions },
+    { key: 'actions',  label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
   ]), []);
 
   return (
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุก worklist ของบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       title='คิวการรักษาคลินิกวัณโรค'
       actions={(
         <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>

@@ -39,6 +39,7 @@ import {
   subscribeCatalog as subscribeXrayCatalog, repeatWindowDays as xrayRepeatWindow,
 } from '@/data/xrayCatalog';
 import { NO_EDIT_RIGHT_TOOLTIP } from '@/data/treatmentAccess';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
 
 /* PHCIS | CPOE §1.5.9 (ตั้งค่ารายการสั่งการรักษา) + เกณฑ์การแจ้งเตือน
    CDSS ที่ §1.5.4.18–.21 บังคับให้ตั้งเองได้.
@@ -174,6 +175,8 @@ const OrderSetSettingsPage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุกหน้าของเมนูบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       title='ตั้งค่ารายการสั่งการรักษาและ CDSS'
       onBack={() => history.push('/treat/queue')}
       backLabel='กลับไปหน้าคิว'

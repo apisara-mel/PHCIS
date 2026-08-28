@@ -11,7 +11,6 @@ import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
-import AppointmentMenuButton from '@/components/layout/AppointmentMenuButton';
 import BrandIconButton from '@/components/button/BrandIconButton';
 import Table, { EllipsisText } from '@/components/table/Table';
 import Pagination from '@/components/pagination/Pagination';
@@ -351,12 +350,13 @@ const buildColumns = ({ renderPrivacyCell, isDirectory = false, onCall, onPause,
   return cols.filter(Boolean);
 };
 
-/* SubHeader action group — Figma Registration Dashboard:
-   การนัดหมาย → เพิ่มคิว → อ่านบัตรสมาร์ทการ์ด.
+/* SubHeader action group — เพิ่มคิว → อ่านบัตรสมาร์ทการ์ด
+   ปุ่ม "สร้างการนัดหมาย" ถูกลบออก 28 ส.ค. 69 (มติผู้ใช้) — งานนัดหมายไม่ใช่งาน
+   ของเคาน์เตอร์เวชระเบียนในทางเดินงานจริง AppointmentMenuButton ยังใช้อยู่ที่จอ
+   อื่น จึงคงคอมโพเนนต์ไว้ ตัดเฉพาะการเรียกจากหน้านี้
    เพิ่มคิว lands on ข้อมูลผู้รับบริการ (/registration/register). */
 const buildMrActions = ({ onAddQueue }) => (
   <>
-    <AppointmentMenuButton />
     <BrandPrimaryButton leadingIcon='add' onClick={onAddQueue}>เพิ่มคิว</BrandPrimaryButton>
     <BrandPrimaryButton leadingIcon='credit_card'>อ่านบัตรสมาร์ทการ์ด</BrandPrimaryButton>
   </>

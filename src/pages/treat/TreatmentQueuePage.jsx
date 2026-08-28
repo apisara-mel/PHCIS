@@ -29,6 +29,8 @@ import {
 } from '@/data/resultsInbox';
 import { CURRENT_CLINICIAN } from '@/data/treatmentAudit';
 import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
+import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 
 /* MIH TreatmentQueuePage — Figma PHCIS-ALL node 2760:140031.
    ระบบบันทึกการรักษา · คิวตรวจรักษาทั่วไป (OPD).
@@ -622,7 +624,7 @@ const TreatmentQueuePage = () => {
         key: 'actions',
         label: 'การดำเนินการ',
         sortable: false,
-        render: makeRenderActions({ onCall: () => {} }),
+        render: withEmrRowAction(makeRenderActions({ onCall: () => {} })),
       },
     ],
     [],
@@ -632,6 +634,9 @@ const TreatmentQueuePage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุก worklist ของบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69)
+         ส่งคนในคิววันนี้ไปเป็นตัวเลือกตั้งต้น — นั่นคือคนที่แพทย์กำลังมองอยู่ */
+      leadingActions={<DutyRosterAction />}
       summaryTitle={SUMMARY_TITLE}
       summaryCards={SUMMARY_CARDS}
       tabs={tabsWithResults}

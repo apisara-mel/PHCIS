@@ -31,6 +31,8 @@ import {
 } from '@/data/ncdVisits';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
+import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 
 /* NcdQueuePage — คิวการรักษากลุ่มโรคเฉพาะ NCD (เบาหวาน/ความดัน/หอบหืด/
    ถุงลมโป่งพอง), TOR 1.10.2.1 + 1.10.2.2. Mirrors AncQueuePage (the §1.10.x
@@ -373,7 +375,7 @@ const NcdQueuePage = () => {
     { key: 'doctor',  label: 'แพทย์ผู้ดูแล',   flex: true, minWidth: 140 },
     { key: 'wait',    label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',  label: 'สถานะ', render: renderStatus },
-    { key: 'actions', label: 'การดำเนินการ', sortable: false, render: renderActions },
+    { key: 'actions', label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick]);
 
@@ -406,6 +408,8 @@ const NcdQueuePage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุก worklist ของบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       title='งานกลุ่มโรคเฉพาะ NCD'
       actions={
         /* Cross-nav to the module's sibling pages — the registry and the

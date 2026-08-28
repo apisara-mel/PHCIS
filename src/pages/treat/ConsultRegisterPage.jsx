@@ -36,6 +36,8 @@ import {
 import { CURRENT_CLINICIAN, appendAudit } from '@/data/treatmentAudit';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import { NO_EDIT_RIGHT_TOOLTIP, NO_CONFIDENTIAL_RIGHT_TOOLTIP } from '@/data/treatmentAccess';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
+import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 
 /* PHCIS | CPOE §1.5.6 — ทะเบียนการส่งปรึกษา (Consult worklist).
    หน้าเดียวครอบคลุมสองทิศทาง (ส่งออก / ส่งมาถึงฉัน) list + form
@@ -289,12 +291,21 @@ const ConsultRegisterPage = () => {
         </div>
       ),
     },
+    /* ตารางนี้ไม่เคยมีคอลัมน์การดำเนินการ (แถวเปิดรายละเอียดด้วยการคลิกทั้งแถว)
+       แต่ปุ่ม EMR ต้องอยู่ในคอลัมน์นี้เหมือน worklist อื่น จึงเพิ่มคอลัมน์ขึ้นมา
+       โดยมีเฉพาะปุ่มเดียว (มติผู้ใช้ 28 ส.ค. 69) */
+    {
+      key: 'actions', header: 'การดำเนินการ', sortable: false,
+      render: withEmrRowAction(null),
+    },
   ];
 
   return (
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุก worklist ของบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       title={mode === 'list' ? 'ทะเบียนการส่งปรึกษาแพทย์' : `คำขอปรึกษา ${draft?.consultNo || ''}`}
       onBack={mode === 'list' ? () => history.push('/treat/queue') : backToList}
       backLabel={mode === 'list' ? 'กลับไปหน้าคิว' : 'กลับไปทะเบียน'}

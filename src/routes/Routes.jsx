@@ -31,6 +31,8 @@ import RegistrationFormPage from '@/pages/registration/RegistrationFormPage';
 import RegistrationVisitOpenPage from '@/pages/registration/RegistrationVisitOpenPage';
 import RegistrationConsentFillPage from '@/pages/registration/RegistrationConsentFillPage';
 import TreatmentQueuePage from '@/pages/treat/TreatmentQueuePage';
+import UnassignedWorklistPage from '@/pages/treat/UnassignedWorklistPage';
+import ExitNurseQueuePage from '@/pages/exit/ExitNurseQueuePage';
 import TreatmentFormPage from '@/pages/treat/TreatmentFormPage';
 import ReferralRegisterPage from '@/pages/treat/ReferralRegisterPage';
 import TreatmentInterfacesPage from '@/pages/treat/TreatmentInterfacesPage';
@@ -473,6 +475,12 @@ export default function Routes() {
         <Route exact path='/registration/consent/:formId' component={RegistrationConsentFillPage} />
         <Route exact path='/treat'           component={TreatmentQueuePage} />
         <Route exact path='/treat/queue'     component={TreatmentQueuePage} />
+        {/* คิวรวมรอรับเคส — ศูนย์ที่พยาบาลไม่ระบุแพทย์ที่จุดคัดกรอง เคสมากอง
+            รวมที่นี่ให้แพทย์หยิบเอง ไม่แยกตามคลินิก (มติผู้ใช้ 28 ส.ค. 69) */}
+        <Route exact path='/treat/unassigned' component={UnassignedWorklistPage} />
+        {/* Exist Nurse — คู่ตรงข้ามของจุดคัดกรอง อยู่ระดับ rail ของตัวเอง
+            ไม่ใช่คลินิกใต้บันทึกการรักษา (มติผู้ใช้ 28 ส.ค. 69) */}
+        <Route exact path='/exit' component={ExitNurseQueuePage} />
         {/* Key by encounter identity so selecting another queue patient
             remounts every form hook; clinical state can never leak across HN. */}
         <Route

@@ -32,6 +32,8 @@ import {
 } from '@/data/ancVisits';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
+import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 
 /* AncQueuePage — คิวฝากครรภ์ (ANC queue), TOR 1.10.7.1/1.10.7.2/1.10.7.6.
    Search box + filter row + column-header sort + pagination all mirror
@@ -399,7 +401,7 @@ const AncQueuePage = () => {
     { key: 'doctor',   label: 'แพทย์/พยาบาล ANC', flex: true, minWidth: 140 },
     { key: 'wait',     label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',   label: 'สถานะ', render: renderStatus },
-    { key: 'actions',  label: 'การดำเนินการ', sortable: false, render: renderActions },
+    { key: 'actions',  label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick]);
 
@@ -430,6 +432,8 @@ const AncQueuePage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุก worklist ของบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       summaryTitle={SUMMARY_TITLE}
       summaryCards={summaryCards}
       tabs={tabs}

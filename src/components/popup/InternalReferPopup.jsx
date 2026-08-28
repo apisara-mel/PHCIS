@@ -25,6 +25,17 @@ const INTERNAL_REFER_NOTE_HINTS = [
 const REFER_DEPARTMENT_PLACEHOLDER = '-- เลือกแผนกปลายทาง --';
 const REFER_SERVICE_POINT_PLACEHOLDER = '-- เลือกจุดบริการปลายทาง --';
 
+/* หน่วยงานสนับสนุน — ไม่ใช่ปลายทางที่ "ส่งผู้ป่วยไปพบแพทย์" แต่เป็นที่ที่ผู้ป่วย
+   ไปทำอย่างอื่นต่อ (รับยา เจาะเลือด ถ่ายภาพ จ่ายเงิน) ยังส่งต่อไปได้ แต่ไม่ใช่
+   ตัวเลือกที่คนกำลังส่งต่อมองหาเป็นอันแรก */
+const SUPPORT_UNIT_HINTS = [
+  'เภสัช', 'ห้องปฏิบัติการ', 'ชันสูตร', 'รังสี', 'เวชระเบียน',
+  'การเงิน', 'คลังยา', 'ธุรการ', 'บริหาร', 'สารสนเทศ', 'เทคโนโลยี',
+];
+
+const isSupportUnit = (label = '') =>
+  SUPPORT_UNIT_HINTS.some((hint) => String(label).includes(hint));
+
 export const listInternalReferDepartments = (centerId = DEFAULT_CLINIC_VALUE) => {
   const seen = new Set();
   const options = [];
@@ -38,7 +49,14 @@ export const listInternalReferDepartments = (centerId = DEFAULT_CLINIC_VALUE) =>
     .filter((d) => d.active !== false)
     .forEach((d) => add(d.id, d.name));
   DEPARTMENTS.forEach((d) => add(d.key, d.label));
-  return options;
+  /* คลินิก/แผนกตรวจรักษาขึ้นก่อน หน่วยงานสนับสนุนไปท้ายรายการ (มติผู้ใช้
+     28 ส.ค. 69) — เดิมเรียงตามลำดับของ catalog ทำให้เภสัชกรรมและห้องปฏิบัติการ
+     แทรกอยู่กลางกลุ่มคลินิก คนที่กำลังส่งต่อผู้ป่วยไปพบแพทย์ต้องกวาดผ่านมันทุกครั้ง
+     ใช้ sort ที่เสถียร ลำดับภายในแต่ละกลุ่มจึงยังเป็นลำดับเดิมของ catalog */
+  return options
+    .map((o, i) => ({ o, i, rank: isSupportUnit(o.label) ? 1 : 0 }))
+    .sort((a, b) => (a.rank - b.rank) || (a.i - b.i))
+    .map(({ o }) => o);
 };
 
 export const listInternalReferServicePoints = () => (

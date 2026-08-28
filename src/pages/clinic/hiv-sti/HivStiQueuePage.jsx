@@ -32,6 +32,8 @@ import {
   canEditHivSti,
 } from '@/data/hivStiVisits';
 import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
+import DutyRosterAction from '@/components/patient/DutyRosterAction';
+import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 
 /* HivStiQueuePage — คิวการรักษาคลินิก HIV/STI (TOR 1.10.6.2 + .1).
    Mirrors AncQueuePage's queue mechanics (tabs / search / filters /
@@ -370,7 +372,7 @@ const HivStiQueuePage = () => {
     { key: 'doctor',     label: 'แพทย์ผู้ตรวจ',    flex: true, minWidth: 140 },
     { key: 'wait',       label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',     label: 'สถานะ', render: renderStatus },
-    { key: 'actions',    label: 'การดำเนินการ', sortable: false, render: renderActions },
+    { key: 'actions',    label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [tick]);
 
@@ -402,6 +404,8 @@ const HivStiQueuePage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
+      /* ทุก worklist ของบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
+      leadingActions={<DutyRosterAction />}
       summaryTitle={SUMMARY_TITLE}
       summaryCards={summaryCards}
       tabs={tabs}
