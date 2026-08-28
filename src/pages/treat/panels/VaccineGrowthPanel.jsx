@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import Table from '@/components/table/Table';
-import TabPill, { TabBar } from '@/components/tab/TabPill';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import { resolveMilestoneLabel } from '@/data/immunizationVaccines';
 import StatusBadge from '@/components/badge/StatusBadge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import InputField from '@/components/forms/InputField';
@@ -195,8 +196,8 @@ export const GrowthChart = ({ bands, points, unit, metric, xMode = 'months' }) =
           style={{
             minWidth: CHART_W,
             display: 'block',
-            borderRadius: 'var(--dim-radius-300, 10px)',
-            border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
+            /* ไม่มีกรอบรอบกราฟ (มติผู้ใช้ 29 ส.ค. 69) — กราฟอยู่ใน PanelCard
+               ที่มีขอบของตัวเองแล้ว กรอบอีกชั้นเป็นการ์ดซ้อนการ์ด */
             background: 'var(--surface-neutral-primary, #FFFFFF)',
           }}
         >
@@ -393,6 +394,32 @@ const VaccineGrowthPanel = ({ form, patient, section = 'all' }) => {
     };
   }), [active, ageYears]);
 
+  /* จัดกลุ่ม EPI ตามช่วงอายุที่ถึงกำหนด — ป้ายช่วงอายุใช้ EPI_AGE_MILESTONES
+     ชุดเดียวกับ matrix ของคลินิกวัคซีน จะได้พูดภาษาเดียวกันทั้งระบบ
+     เข็มที่ไม่มี dueMonths (เช่น วัคซีนตามฤดูกาล / กระตุ้นผู้ใหญ่) ไปอยู่กลุ่ม
+     ท้ายสุด "ตามความเสี่ยง / ผู้ใหญ่" ไม่ทิ้งหาย */
+  const epiByAge = useMemo(() => {
+    const groups = new Map();
+    epiStatus.forEach((s) => {
+      const key = s.dueMonths == null ? 'adult' : s.dueMonths;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(s);
+    });
+    return [...groups.entries()]
+      .sort(([a], [b]) => (a === 'adult' ? 1 : b === 'adult' ? -1 : a - b))
+      .map(([months, items]) => ({
+        months,
+        label: months === 'adult' ? 'ตามความเสี่ยง / ผู้ใหญ่' : resolveMilestoneLabel(months),
+        items,
+        /* หนึ่งรายการใน EPI_SCHEDULE = หนึ่งเข็มที่ถึงกำหนดในช่วงอายุนี้ — ตัวเลข
+           `dose` บนการ์ดเป็นลำดับสะสม (เข็มที่ 3 = 3) ใช้รวมไม่ได้ ไม่งั้นแถบ
+           "4 เดือน" ที่มีเข็มเดียวจะขึ้น 0/2 */
+        total: items.length,
+        done: items.filter((i) => i.status === 'complete').length,
+        overdue: items.filter((i) => i.status === 'overdue').length,
+      }));
+  }, [epiStatus]);
+
   const growthCtx = useMemo(() => growthDisplayForPatient(hn, ageYears), [hn, ageYears]);
   const isDemo = growthCtx.mode === 'demo';
   const chartGender = isDemo ? (growthCtx.gender || gender) : gender;
@@ -549,34 +576,53 @@ const VaccineGrowthPanel = ({ form, patient, section = 'all' }) => {
         title='ตารางวัคซีนพื้นฐาน (EPI) ตามช่วงอายุ'
         subtitle='สถานะเทียบกับกำหนดการสร้างเสริมภูมิคุ้มกันโรคของกระทรวงสาธารณสุข'
       >
-        <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {epiStatus.map((s) => (
-            <div
-              key={s.key}
-              className='flex flex-col min-w-0'
-              style={{
-                gap: 'var(--dim-space-100, 4px)',
-                minWidth: 200,
-                borderRadius: 'var(--dim-radius-300, 10px)',
-                border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
-                paddingTop: 'var(--dim-space-200, 8px)',
-                paddingRight: 'var(--dim-space-300, 12px)',
-                paddingBottom: 'var(--dim-space-200, 8px)',
-                paddingLeft: 'var(--dim-space-300, 12px)',
-              }}
-            >
-              <span style={PANEL_VALUE_STYLE}>{s.vaccine}</span>
-              <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                {/* ป้าย "ถึงกำหนด" ถูกเอาออก 28 ส.ค. 69 — เหลือครบแล้ว/ค้างรับ
-                    ส่วนที่ยังไม่ถึงคิวบอกด้วยตัวเลข n/N เข็มพอ */}
-                {s.status === 'complete' ? (
+        {/* แบ่งตามช่วงอายุ (มติผู้ใช้ 29 ส.ค. 69) — ตาราง EPI ของกระทรวงเป็น
+            "อายุเท่านี้ ต้องได้เข็มไหนบ้าง" ไม่ใช่รายการเข็มเรียงกัน 13 ใบ
+            กลุ่มตาม dueMonths ของ EPI_SCHEDULE เรียงจากแรกเกิดขึ้นไป แต่ละกลุ่ม
+            ติดป้ายรวมว่าครบ/ค้าง กี่เข็ม ทำให้กวาดตาเจอทันทีว่าช่วงอายุไหนตกหล่น */}
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+          {epiByAge.map((g) => (
+            <div key={g.months} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-medium)' }}>
+                  {g.label}
+                </span>
+                {g.overdue > 0 ? (
+                  <StatusBadge style='error' size='small' icon='schedule'>{`ค้างรับ ${g.overdue} เข็ม`}</StatusBadge>
+                ) : g.done === g.total ? (
                   <StatusBadge style='success' size='small' icon='check_circle'>ครบแล้ว</StatusBadge>
-                ) : s.status === 'overdue' ? (
-                  <StatusBadge style='error' size='small' icon='schedule'>ค้างรับ</StatusBadge>
                 ) : null}
-                <span style={PANEL_LABEL_STYLE}>{s.doneCount}/{s.dose} เข็ม</span>
+                <span style={PANEL_LABEL_STYLE}>{`${g.done}/${g.total} เข็ม`}</span>
               </div>
-              {s.lastDate ? <span style={PANEL_LABEL_STYLE}>ล่าสุด {s.lastDate}</span> : null}
+              <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                {g.items.map((s) => (
+                  <div
+                    key={s.key}
+                    className='flex flex-col min-w-0'
+                    style={{
+                      gap: 'var(--dim-space-100, 4px)',
+                      minWidth: 200,
+                      borderRadius: 'var(--dim-radius-300, 10px)',
+                      border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
+                      paddingTop: 'var(--dim-space-200, 8px)',
+                      paddingRight: 'var(--dim-space-300, 12px)',
+                      paddingBottom: 'var(--dim-space-200, 8px)',
+                      paddingLeft: 'var(--dim-space-300, 12px)',
+                    }}
+                  >
+                    <span style={PANEL_VALUE_STYLE}>{s.vaccine}</span>
+                    <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                      {s.status === 'complete' ? (
+                        <StatusBadge style='success' size='small' icon='check_circle'>ครบแล้ว</StatusBadge>
+                      ) : s.status === 'overdue' ? (
+                        <StatusBadge style='error' size='small' icon='schedule'>ค้างรับ</StatusBadge>
+                      ) : null}
+                      <span style={PANEL_LABEL_STYLE}>{s.doneCount}/{s.dose} เข็ม</span>
+                    </div>
+                    {s.lastDate ? <span style={PANEL_LABEL_STYLE}>ล่าสุด {s.lastDate}</span> : null}
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
@@ -665,19 +711,17 @@ const VaccineGrowthPanel = ({ form, patient, section = 'all' }) => {
         {/* แถบอธิบายที่มาของแถบ percentile และแถบกราฟตัวอย่าง ถูกเอาออก 28 ส.ค. 69 */}
 
 
-        {/* TabPill ต้องอยู่ใน TabBar ถึงจะเป็นแคปซูลเต็มรูปพร้อมตัวบอกตำแหน่ง
-            เดิมวางลอยใน div ธรรมดา ตัวที่ไม่ถูกเลือกจึงเป็นข้อความเปล่า ๆ
-            (มติผู้ใช้ 28 ส.ค. 69) */}
-        {/* กว้างเท่าตัวอักษร ไม่ยืดเต็มแถว — ห่อด้วย flex row ให้ TabBar เป็น
-            flex item ที่ขนาดตามเนื้อหา (มติผู้ใช้ 28 ส.ค. 69) */}
+        {/* หน่วยวัดเป็น FilterTag แบบ dropdown (มติผู้ใช้ 29 ส.ค. 69) — เป็นตัวกรอง
+            ว่ากราฟแสดงค่าอะไร ไม่ใช่แท็บที่สลับหน้า ทรงเดียวกับตัวกรองบน worklist
+            ทุกหน้า และกินที่แค่ชิปเดียวแทนแถบแคปซูลยาว */}
         <div className='flex w-full shrink-0'>
-        <TabBar aria-label='หน่วยวัดของกราฟการเจริญเติบโต'>
-          {[...GROWTH_METRICS, { key: 'bmi', label: 'ดัชนีมวลกาย (BMI)', unit: 'kg/m²' }].map((m) => (
-            <TabPill key={m.key} selected={metric === m.key} onClick={() => setMetric(m.key)}>
-              {m.label}
-            </TabPill>
-          ))}
-        </TabBar>
+          <FilterDropdown
+            prefix='หน่วยวัด:'
+            options={[...GROWTH_METRICS, { key: 'bmi', label: 'ดัชนีมวลกาย (BMI)' }]
+              .map((m) => ({ value: m.key, label: m.label }))}
+            value={metric}
+            onChange={setMetric}
+          />
         </div>
 
         {!showGrowthChart ? (

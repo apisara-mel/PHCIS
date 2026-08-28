@@ -1159,6 +1159,15 @@ const Row = ({
   );
 };
 
+/* คอลัมน์ "การดำเนินการ" ดูจาก key หรือหัวคอลัมน์ — สองแบบที่หน้าทั้งระบบใช้จริง */
+const ACTIONS_HEADERS = ['การดำเนินการ', 'การจัดการ', 'ดำเนินการ', 'จัดการ'];
+const isActionsColumn = (col) => {
+  if (!col) return false;
+  if (String(col.key || '') === 'actions') return true;
+  const header = String(col.label || col.header || '').trim();
+  return ACTIONS_HEADERS.includes(header);
+};
+
 const Table = ({
   columns,
   rows,
@@ -1171,10 +1180,13 @@ const Table = ({
   /* Sticky-left columns */
   stickyColCount = 0,
 
-  /* Sticky-RIGHT columns — จำนวนคอลัมน์ท้ายสุดที่ตรึงไว้ขอบขวา (ปกติ 1 =
-     คอลัมน์ "การดำเนินการ") ค่าเริ่มต้น 0 → ตารางอื่นทุกใบพฤติกรรมเดิมเป๊ะ
-     ใช้เมื่อคอลัมน์ปุ่มอยู่ท้ายตารางกว้างที่ต้องเลื่อนแนวนอนจึงจะเห็น */
-  stickyRightColCount = 0,
+  /* Sticky-RIGHT columns — จำนวนคอลัมน์ท้ายสุดที่ตรึงไว้ขอบขวา
+     ค่าเริ่มต้น `null` = ตัดสินเอง: ถ้าคอลัมน์สุดท้ายเป็นคอลัมน์การดำเนินการ
+     (key 'actions' หรือหัวคอลัมน์ "การดำเนินการ"/"การจัดการ") จะตรึงให้ 1 คอลัมน์
+     ทุกตารางในระบบโดยไม่ต้องไล่แก้ทีละหน้า (มติผู้ใช้ 29 ส.ค. 69) — ปุ่มของแถว
+     ต้องอยู่ในสายตาเสมอ ไม่ใช่หลุดขอบขวาไปเมื่อตารางกว้างกว่าจอ
+     ส่ง 0 มาเองเพื่อปิด หรือส่งตัวเลขเพื่อตรึงตามที่ต้องการ */
+  stickyRightColCount: stickyRightColCountProp = null,
 
   /* Row interactions */
   onRowClick,
@@ -1366,6 +1378,9 @@ const Table = ({
     }
     return right;
   };
+  const stickyRightColCount = stickyRightColCountProp != null
+    ? stickyRightColCountProp
+    : (isActionsColumn(columns[columns.length - 1]) ? 1 : 0);
   const firstStickyRightIdx = stickyRightColCount > 0
     ? columns.length - stickyRightColCount
     : -1;

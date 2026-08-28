@@ -381,6 +381,29 @@
     }
   }
 
+  /* พาเนลช่วงเวลาของแพทย์ (ขั้น "เลือกคลินิกและแพทย์" ของจุดคัดกรอง) —
+     เลื่อนเข้ามาจากด้านขวา ใช้ easing/ระยะเวลาชุดเดียวกับสไลด์ปฏิทิน เพื่อให้
+     จังหวะการเคลื่อนไหวทั้งระบบเป็นตัวเดียวกัน */
+  @keyframes mih-slot-panel-in {
+    from {
+      opacity: 0;
+      transform: translate3d(var(--dim-space-600, 24px), 0, 0);
+    }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  .mih-slot-panel-enter {
+    animation-name: mih-slot-panel-in;
+    animation-duration: var(--motion-duration-calendar, 320ms);
+    animation-timing-function: var(--motion-easing-enter, cubic-bezier(0.16, 1, 0.3, 1));
+    animation-fill-mode: both;
+    will-change: opacity, transform;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mih-slot-panel-enter {
+      animation: none !important;
+    }
+  }
+
   /* SecondarySearch inner field: no native focus ring — wrapper shows DS ring. */
   .mih-secondary-search__input:focus,
   .mih-secondary-search__input:focus-visible {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { DEFAULT_PATIENT_AVATAR } from '@/pages/appointment/appointmentShared';
+import Icon from '@/components/icons/Icon';
 
 /* MIH AppointmentCalendarSlot — Figma Appointment 6:11075 calendar slot / cta.
    Aliases design.md calendar slot tokens (index.css --*-calendar-slot-*). */
@@ -50,15 +51,27 @@ const AppointmentCalendarSlot = ({
   disabled = false,
   size = 'compact',
   onClick,
+  /* ช่องที่ผู้ใช้เลือกไว้ — ต่างจาก `booked` ซึ่งแปลว่ามีคนอื่นจองแล้ว
+     ใช้ทรง outline เดียวกับ Timeslot ของ design system: พื้นขาว เส้นและตัวอักษร
+     สีแบรนด์ เพิ่มมาเพื่อรายการช่วงเวลาในขั้น "เลือกแพทย์" ของจุดคัดกรอง
+     ค่าเริ่มต้น false ผู้เรียกเดิมจึงไม่เปลี่ยนพฤติกรรม */
+  selected = false,
+  /* ข้อความยืนยันท้ายแถวเมื่อช่องนั้นถูกเลือก — เส้นขอบสีแบรนด์อย่างเดียวบอกได้
+     แค่ "ต่างจากแถวอื่น" ไม่ได้บอกว่าต่างเพราะอะไร โดยเฉพาะในรายการยาวที่มีทั้ง
+     แถวว่างและแถวที่มีคนจองปนกัน (มติผู้ใช้ 28 ส.ค. 69) */
+  selectedLabel = 'เลือกเวลานี้',
 }) => {
   const [hover, setHover] = useState(false);
   const interactive = !disabled && onClick;
   const slotHeight = SLOT_HEIGHTS[size] ?? SLOT_HEIGHTS.compact;
-  const timeAlignStart = size === 'medium' && !booked;
+  /* แถวที่ถูกเลือกมีข้อความท้ายแถว เวลาจึงต้องชิดซ้ายเพื่อไม่ให้สองก้อนชนกันกลางแถว */
+  const timeAlignStart = (size === 'medium' && !booked) || selected;
 
   const bg = booked
     ? 'var(--surface-calendar-slot-slot-selected)'
-    : disabled
+    : selected
+      ? 'var(--surface-timeslot-selected, #FFFFFF)'
+      : disabled
       ? 'var(--surface-calendar-slot-slot-disabled)'
       : hover && interactive
         ? 'var(--surface-calendar-slot-slot-hover)'
@@ -66,7 +79,9 @@ const AppointmentCalendarSlot = ({
 
   const border = booked
     ? 'var(--border-calendar-slot-slot-selected)'
-    : disabled
+    : selected
+      ? 'var(--border-timeslot-selected, var(--brand-p600))'
+      : disabled
       ? 'var(--border-calendar-slot-slot-disabled)'
       : hover && interactive
         ? 'var(--border-calendar-slot-slot-hover)'
@@ -74,7 +89,9 @@ const AppointmentCalendarSlot = ({
 
   const color = booked
     ? 'var(--text-calendar-slot-date-selected)'
-    : disabled
+    : selected
+      ? 'var(--text-timeslot-selected, var(--brand-p600))'
+      : disabled
       ? 'var(--text-calendar-slot-date-disabled)'
       : hover && interactive
         ? 'var(--text-calendar-slot-slot-hover)'
@@ -99,7 +116,7 @@ const AppointmentCalendarSlot = ({
         height: slotHeight,
         padding: 'var(--dim-space-100) var(--dim-space-200)',
         borderRadius: 'var(--dim-radius-100)',
-        border: `var(--dim-stroke-100) solid ${border}`,
+        border: `${selected ? 'var(--dim-stroke-200)' : 'var(--dim-stroke-100)'} solid ${border}`,
         background: bg,
         color,
         fontFamily: 'var(--type-family-body)',
@@ -127,6 +144,19 @@ const AppointmentCalendarSlot = ({
       >
         {booked ? patient : time}
       </span>
+      {selected && !booked && selectedLabel && (
+        <span
+          className='inline-flex items-center shrink-0'
+          style={{
+            gap: 'var(--dim-space-100)',
+            fontWeight: 'var(--type-weight-medium)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <Icon name='check_circle' size={14} />
+          {selectedLabel}
+        </span>
+      )}
     </button>
   );
 };

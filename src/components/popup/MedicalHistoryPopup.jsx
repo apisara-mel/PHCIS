@@ -10,7 +10,7 @@ const MedicalHistoryPopup = ({ open, onClose, patient }) => (
   <Popup
     open={open}
     onClose={onClose}
-    title='ประวัติการรักษา'
+    title='ดูข้อมูลทางการแพทย์'
     subtitle='แสดงรายละเอียดประวัติการรักษาของผู้ป่วย รวมถึงการวินิจฉัย การสั่งยา และบันทึกทางการแพทย์'
     size='extraLarge'
     bodyScrollable={false}

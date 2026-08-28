@@ -14,9 +14,10 @@ import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
-import AlertDialog from '@/components/popup/AlertDialog';
+import Popup from '@/components/popup/Popup';
+import PatientSummaryCard from '@/components/card/PatientSummaryCard';
 import DutyRosterAction from '@/components/patient/DutyRosterAction';
-import { withEmrRowAction } from '@/components/patient/EmrRowAction';
+import { withEmrRowAction, EmrRowAction } from '@/components/patient/EmrRowAction';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import { getPatientByHN } from '@/data/patientProfiles';
 import { CURRENT_CLINICIAN } from '@/data/treatmentAudit';
@@ -270,7 +271,14 @@ const CaseCard = ({ row, renderActions }) => {
           </div>
         )}
 
-        <div className='flex w-full'>{renderActions(row)}</div>
+        {/* ปุ่ม EMR อยู่ในการ์ดของบอร์ดด้วย (มติผู้ใช้ 29 ส.ค. 69) — มุมมอง
+            worklist มีปุ่มนี้ในคอลัมน์การดำเนินการอยู่แล้ว การ์ดในบอร์ดคือ
+            แถวเดียวกันในอีกรูปทรง จึงต้องทำได้เท่ากัน ไม่งั้นสลับมุมมองแล้ว
+            ความสามารถหาย */}
+        <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-150)' }}>
+          <EmrRowAction hn={row.hn} name={row.name} />
+          {renderActions(row)}
+        </div>
       </div>
     </div>
   );
@@ -645,21 +653,39 @@ const UnassignedWorklistPage = () => {
       {/* ยืนยันก่อนรับเคส (มติผู้ใช้ 28 ส.ค. 69) — การรับเคสทำให้แพทย์กลายเป็น
           เจ้าของผู้ป่วยรายนั้นและพาเข้าห้องตรวจทันที กดพลาดบนกระดานที่การ์ดชิดกัน
           จึงต้องทวนก่อนว่ากำลังรับใคร คลินิกไหน */}
-      <AlertDialog
+      {/* ยืนยันรับเคส — ทรงเดียวกับ ScreeningConfirmPopup ("Popup Large" +
+          PatientSummaryCard) ที่จุดคัดกรองใช้ตอนรับผู้ป่วย (มติผู้ใช้ 29 ส.ค. 69)
+          การรับเคสคือการ "รับผู้ป่วย" ในอีกจุดของทางเดินงาน จึงต้องหน้าตาเดียวกัน
+          และการ์ดผู้ป่วยอ่านทวนชื่อ/HN/คลินิก/ESI ได้เร็วกว่าประโยคยาวใน AlertDialog */}
+      <Popup
         open={!!claimTarget}
         onClose={() => setClaimTarget(null)}
-        onCancel={() => setClaimTarget(null)}
-        onConfirm={confirmClaim}
-        type='info'
         title='รับเคสนี้เป็นของคุณ?'
-        description={claimTarget
-          ? `${claimTarget.name} (HN ${claimTarget.hn}) · ${clinicLabel(claimTarget.clinicKey)}`
-            + ` · ${TRIAGE_LEVELS[claimTarget.esi]?.label ?? ''}`
-            + ` — ${CURRENT_CLINICIAN.name} จะเป็นแพทย์เจ้าของเคส และระบบจะเปิดหน้าตรวจรักษาให้ทันที`
-          : ''}
-        cancelLabel='ยกเลิก'
-        confirmLabel='รับเคสและเปิดตรวจ'
-      />
+        subtitle={`${CURRENT_CLINICIAN.name} จะเป็นแพทย์เจ้าของเคส และระบบจะเปิดหน้าตรวจรักษาให้ทันที`}
+        size='large'
+        secondaryAction={{ label: 'ยกเลิก', onClick: () => setClaimTarget(null) }}
+        primaryAction={{ label: 'รับเคสและเปิดตรวจ', onClick: confirmClaim }}
+      >
+        {claimTarget && (
+          <PatientSummaryCard
+            avatarUrl={claimTarget.avatarUrl || getPatientByHN(claimTarget.hn)?.avatarUrl}
+            avatarAlt={claimTarget.name}
+            cells={[
+              { label: 'ชื่อ-นามสกุล ผู้ป่วย', value: claimTarget.name || '—' },
+              { label: 'HN (Hospital Number)', value: claimTarget.hn || '—' },
+              { label: 'คลินิกที่ต้องการรักษา', value: clinicLabel(claimTarget.clinicKey) },
+              {
+                label: 'ระดับคัดแยก (ESI)',
+                children: TRIAGE_LEVELS[claimTarget.esi] ? (
+                  <ColorfulBadge style={TRIAGE_LEVELS[claimTarget.esi].badge} size='small' hierarchy='secondary' width='hug'>
+                    {TRIAGE_LEVELS[claimTarget.esi].label}
+                  </ColorfulBadge>
+                ) : null,
+              },
+            ]}
+          />
+        )}
+      </Popup>
 
       <QueuePageShell
         activeKey='treat'

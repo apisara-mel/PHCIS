@@ -1127,25 +1127,6 @@ export const MedicalHistoryReadOnlyLayout = ({
           : null),
       }}
     >
-    {/* ตัวสลับแกนอยู่บนสุดของป๊อปอัป เหนือทั้งรางวันที่และแผงขวา กว้างเท่า
-        ตัวอักษรและจัดกึ่งกลาง — มันคุมทั้งจอ ไม่ใช่ของคอลัมน์ใดคอลัมน์หนึ่ง
-        (มติผู้ใช้ 28 ส.ค. 69) */}
-    {viewModes && (
-      <div className='flex w-full justify-center shrink-0'>
-        <TabBar aria-label='มุมมองประวัติการรักษา'>
-          {HISTORY_VIEW_MODES.map((m) => (
-            <TabPill
-              key={m.key}
-              size='small'
-              selected={viewMode === m.key}
-              onClick={() => setViewMode(m.key)}
-            >
-              {m.label}
-            </TabPill>
-          ))}
-        </TabBar>
-      </div>
-    )}
 
     <div
       className='flex w-full min-w-0'
@@ -1215,6 +1196,40 @@ export const MedicalHistoryReadOnlyLayout = ({
           <SectionTitle icon='description'>ประวัติการรักษา (Medical History)</SectionTitle>
         )}
 
+            {/* ตัวสลับแกนอยู่ในแผงที่เลื่อนได้ จึงเลื่อนหายขึ้นไปพร้อมเนื้อหา — ส่วน
+                แถบหัวข้อด้านล่างเป็นตัว sticky แทน (มติผู้ใช้ 29 ส.ค. 69) ตัวสลับแกน
+                ใช้ครั้งเดียวตอนเริ่มอ่าน แต่หัวข้อต้องสลับไปมาตลอดขณะไล่อ่านลงไป */}
+        {viewModes && (
+          <div className='flex w-full justify-center shrink-0'>
+            <TabBar aria-label='มุมมองประวัติการรักษา'>
+              {HISTORY_VIEW_MODES.map((m) => (
+                <TabPill
+                  key={m.key}
+                  size='small'
+                  selected={viewMode === m.key}
+                  onClick={() => setViewMode(m.key)}
+                >
+                  {m.label}
+                </TabPill>
+              ))}
+            </TabBar>
+          </div>
+        )}
+
+        {/* แถบหัวข้อ sticky ที่ขอบบนของแผงที่เลื่อน — ไล่อ่านไทม์ไลน์ยาวแล้วยังสลับ
+            หัวข้อได้โดยไม่ต้องเลื่อนกลับขึ้นไป พื้นทึบกันเนื้อหาลอดใต้แถบ */}
+        <div
+          className='w-full'
+          style={independentScroll ? {
+            position: 'sticky',
+            top: 0,
+            zIndex: 2,
+            background: 'var(--surface-card-100)',
+            paddingTop: 'var(--dim-space-200)',
+            paddingBottom: 'var(--dim-space-200)',
+            marginTop: 'calc(-1 * var(--dim-space-200))',
+          } : undefined}
+        >
         <ChipScroller>
           {HISTORY_TABS.map((label, i) => (
             <span key={label} className='shrink-0'>
@@ -1227,6 +1242,7 @@ export const MedicalHistoryReadOnlyLayout = ({
             </span>
           ))}
         </ChipScroller>
+        </div>
 
 
 

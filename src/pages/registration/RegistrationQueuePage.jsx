@@ -294,7 +294,7 @@ const actionModeForStatus = (status) => {
   return 'disabled';
 };
 
-const makeRenderActions = ({ onCall, onPause, onCancel, onMore }) => function ActionsCell(row) {
+const makeRenderActions = ({ onCall, onPause, onCancel, onMore, showMore = true }) => function ActionsCell(row) {
   const mode = actionModeForStatus(row.status);
   /* TOR 1.1.1.2 — แถวผู้เสียชีวิต: ปิดเรียกคิว/พักคิว (และเปิด Visit ผ่านเมนู) */
   const deceased = row.lifeStatus === 'deceased';
@@ -312,7 +312,11 @@ const makeRenderActions = ({ onCall, onPause, onCancel, onMore }) => function Ac
       onPause={() => onPause?.(row)}
       onCancel={() => onCancel?.(row)}
     >
-      {/* Row overflow — ส่งตรวจ (เปิด Visit) · พิมพ์บัตรผู้รับบริการ (OPD Card) */}
+      {/* Row overflow — ส่งตรวจ (เปิด Visit) · พิมพ์บัตรผู้รับบริการ (OPD Card)
+          ถูกเอาออกจาก worklist ของวัน (มติผู้ใช้ 28 ส.ค. 69) — คิววันนี้เป็นงาน
+          เรียก/พัก/ยกเลิกคิวล้วน ๆ เมนูสามจุดยังอยู่ที่แท็บทะเบียนผู้ป่วย ซึ่งเป็น
+          ที่ของงานรายบุคคลอย่างการเปิด Visit และพิมพ์บัตร */}
+      {showMore && (
       <Tooltip content='ตัวเลือกเพิ่มเติม' position='top'>
         <BrandIconButton
           icon='more_vert'
@@ -325,6 +329,7 @@ const makeRenderActions = ({ onCall, onPause, onCancel, onMore }) => function Ac
           }}
         />
       </Tooltip>
+      )}
     </QueueCallActions>
   );
 };
@@ -343,9 +348,13 @@ const buildColumns = ({ renderPrivacyCell, isDirectory = false, onCall, onPause,
     { key: 'age',          header: 'อายุ (ปี)',  sortable: true, render: renderAge },
     { key: 'nationalId',   header: 'เลขบัตรประชาชน', sortable: true, render: renderPrivacyCell('nationalId') },
     { key: 'phone',        header: 'โทรศัพท์', sortable: true, render: renderPrivacyCell('phone') },
-    { key: 'lifeStatus',   header: 'สถานะชีวิต', sortable: true, render: renderLifeStatus },
+    /* สถานะชีวิตอยู่เฉพาะแท็บทะเบียนผู้ป่วย ไม่อยู่ใน worklist ของวัน
+       (มติผู้ใช้ 28 ส.ค. 69) — คิววันนี้ทุกแถวคือคนที่เดินมารับบริการ คอลัมน์นี้
+       จึงขึ้น "มีชีวิตอยู่" ทั้งแถวโดยไม่บอกอะไร ส่วนทะเบียนผู้ป่วยที่รวมคนที่ไม่ได้
+       มาวันนี้ยังต้องใช้ · ผู้เสียชีวิตยังมีป้ายกำกับในช่องชื่ออยู่แล้ว */
+    isDirectory && { key: 'lifeStatus',   header: 'สถานะชีวิต', sortable: true, render: renderLifeStatus },
     !isDirectory && { key: 'status',       header: 'สถานะการเข้าใช้บริการ', sortable: true, render: renderStatus },
-    { key: 'actions',      header: 'การดำเนินการ', render: makeRenderActions({ onCall, onPause, onCancel, onMore }) },
+    { key: 'actions',      header: 'การดำเนินการ', render: makeRenderActions({ onCall, onPause, onCancel, onMore, showMore: isDirectory }) },
   ];
   return cols.filter(Boolean);
 };

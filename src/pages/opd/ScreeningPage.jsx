@@ -62,7 +62,7 @@ const STEPS = [
   /* เลือกแพทย์ + ลงช่วงเวลา — อยู่ก่อนขั้นตรวจสอบข้อมูล เพราะเป็นการตัดสินใจ
      สุดท้ายของจุดคัดกรอง และขั้นตรวจสอบต้องอ่านค่านี้ไปสรุปด้วย
      (มติผู้ใช้ 28 ส.ค. 69) */
-  'เลือกแพทย์',
+  'เลือกคลินิกและแพทย์',
   'ตรวจสอบข้อมูล',
 ];
 
@@ -777,6 +777,9 @@ const vitalsFromReview = (review = {}) => {
 
 const ScreeningPage = () => {
   const [current, setCurrent] = useState(0);
+  /* ขั้นที่วางการ์ดของตัวเองมาแล้ว จึงไม่ต้องการการ์ดครอบจาก fieldset */
+  const stepHasOwnCards = STEPS[current] === 'เลือกคลินิกและแพทย์'
+    || STEPS[current] === 'ตรวจสอบข้อมูล';
   const StepBody = STEP_COMPONENTS[current];
   const isLast = current === STEPS.length - 1;
   /* Step-content slide animation (forward / backward). Shared with
@@ -887,7 +890,11 @@ const ScreeningPage = () => {
         hn: patient.hn,
         name: patient.shortName || navState?.name || patient.name,
         avatarUrl: patient.avatarUrl,
-        clinicKey: clinicKeyForDepartment(refer.departmentLabel),
+        /* คลินิกที่พยาบาลเลือกไว้ในขั้น "เลือกคลินิกและแพทย์" ชนะเสมอ — เป็นการ
+           ระบุตรง ๆ ส่วน clinicKeyForDepartment เป็นการเดาจากชื่อแผนกปลายทาง
+           ซึ่งใช้เฉพาะระเบียนเก่าที่คัดกรองก่อนจะมีขั้นนี้ */
+        clinicKey: review.doctor?.assignedClinicKey
+          || clinicKeyForDepartment(refer.departmentLabel),
         cc: symptom.complaint || refer.servicePointLabel,
         esi: Number(forwardEsi),
         vitals: vitalsFromReview(review),
@@ -1299,9 +1306,15 @@ const ScreeningPage = () => {
               AND blocks input everywhere; React 17 has no `inert`. The
               pointer-events/opacity pair stays for the visual cue and to stop
               non-form affordances (chips, step clicks) from reacting. */}
+          {/* ขั้น "เลือกแพทย์" มีการ์ดของตัวเองสองใบอยู่แล้ว (รายชื่อแพทย์ +
+              ช่วงเวลา) การ์ดขาวของ fieldset จึงกลายเป็นชั้นที่สามที่ไม่ได้ทำอะไร
+              นอกจากวางพื้นขาวซ้อนพื้นขาว — ตัดออกเฉพาะขั้นนี้ ขั้นอื่นยังเป็น
+              ฟอร์มยาวใบเดียวที่ต้องมีการ์ดครอบ (มติผู้ใช้ 28 ส.ค. 69) */}
           <fieldset
             disabled={readOnlyMode}
-            className='bg-surface-card rounded-card shadow-card overflow-hidden'
+            className={stepHasOwnCards
+              ? 'overflow-hidden'
+              : 'bg-surface-card rounded-card shadow-card overflow-hidden'}
             style={{
               borderWidth: 0,
               borderStyle: 'none',
@@ -1354,6 +1367,8 @@ const ScreeningPage = () => {
                 <StepBody
                   onValidityChange={(v) => setStepValid(current, v)}
                   patient={patient}
+                  /* ขั้น "ตรวจสอบข้อมูล" ใช้กระโดดกลับไปแก้ที่ขั้นต้นทาง */
+                  onJumpToStep={setCurrent}
                 />
               </div>
             </div>
