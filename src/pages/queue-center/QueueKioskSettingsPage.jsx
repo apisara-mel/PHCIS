@@ -6,6 +6,7 @@ import Table from '@/components/table/Table';
 import InputField from '@/components/forms/InputField';
 import Dropdown from '@/components/forms/Dropdown';
 import Switch from '@/components/switch/Switch';
+import Checkbox from '@/components/checkbox/Checkbox';
 import Popup from '@/components/popup/Popup';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -26,15 +27,15 @@ const PURPOSES = [
   { value: 'payment', label: 'กดเพื่อชำระเงิน' },
 ];
 
+const TICKET_KIOSK_TYPES = [
+  { value: 'queue', label: 'ตู้กดคิว' },
+  { value: 'payment', label: 'ตู้ชำระเงิน' },
+];
+
 const TICKET_SIZES = [
   { value: '58mm', label: '58 มม.' },
   { value: '80mm', label: '80 มม.' },
   { value: 'a4', label: 'A4' },
-];
-
-const TICKET_FORMATS = [
-  { value: 'standard', label: 'มาตรฐาน' },
-  { value: 'compact', label: 'กะทัดรัด' },
 ];
 
 const ORGANIZATION_UNITS = [
@@ -52,19 +53,26 @@ const stationsForUnit = (unitId) => {
 
 const organizationLabel = (unitId) => ORGANIZATION_UNITS.find((item) => item.value === unitId)?.label || '—';
 const stationLabel = (stationId) => QUEUE_STATIONS.find((station) => station.id === stationId)?.label || '—';
+const kioskStationLabel = (stationId) => ({
+  'st-screening': 'ซักประวัติ',
+  'st-finance': 'การเงิน',
+}[stationId] || stationLabel(stationId));
 
 const DISPLAY_FIELDS = [
-  { key: 'queueNumber', label: 'หมายเลขคิวเดียวตลอด Visit', required: true },
+  { key: 'queueNumber', label: 'เลขคิว', required: true },
+  { key: 'waitingAhead', label: 'ผู้รอคิวก่อนหน้า' },
+  { key: 'issuedDate', label: 'วันที่' },
+  { key: 'issuedTime', label: 'เวลา' },
   { key: 'patientName', label: 'ชื่อ–นามสกุลผู้รับบริการ', required: true },
+  { key: 'contact', label: 'ติดต่อ' },
   { key: 'hn', label: 'เลข HN', required: true },
   { key: 'hnBarcode', label: 'Barcode HN', required: true },
-  { key: 'servicePoint', label: 'จุดบริการ/คลินิก', required: true },
+  { key: 'servicePoint', label: 'จุดให้บริการ', required: true },
   { key: 'serviceStep', label: 'ขั้นตอนรับบริการ/จุดที่ต้องไปต่อ', required: true },
   { key: 'statusQr', label: 'QR Code สำหรับดูสถานะคิวออนไลน์', required: true },
   { key: 'callOrderNote', label: 'ข้อความ “ลำดับการเรียกคิวไม่เรียงตามหมายเลข”', required: true },
   { key: 'kioskNumber', label: 'หมายเลขตู้' },
   { key: 'kioskName', label: 'ชื่อตู้' },
-  { key: 'kioskId', label: 'รหัสตู้ (Kiosk ID)' },
   { key: 'location', label: 'ตำแหน่งที่ตั้ง' },
   { key: 'floor', label: 'ชั้น' },
 ];
@@ -73,6 +81,19 @@ const TOR_DISPLAY_DEFAULTS = {
   queueNumber: true, patientName: true, hn: true, hnBarcode: true,
   servicePoint: true, serviceStep: true, statusQr: true, callOrderNote: true,
 };
+
+const TICKET_DISPLAY_DEFAULTS = {
+  ...TOR_DISPLAY_DEFAULTS,
+  waitingAhead: true,
+  issuedDate: true,
+  issuedTime: true,
+  contact: true,
+};
+
+const createTicketSettings = () => ({
+  ticketSize: '80mm',
+  displayFields: { ...TICKET_DISPLAY_DEFAULTS, kioskNumber: true, kioskName: true, kioskId: false, location: true, floor: true },
+});
 
 const INITIAL_MONITORS = [
   { id: 'monitor-1', number: 1, name: 'จอที่ 1', location: 'โถงชั้น 1', stationIds: ['st-screening', 'st-opd', 'st-lab', 'st-finance', 'st-pharmacy'] },
@@ -84,18 +105,18 @@ const INITIAL_KIOSKS = [
   {
     id: 'kiosk-01', kioskNumber: 'K-01', kioskName: 'ตู้รับคิว อาคาร A', kioskId: 'KIOSK-A-01',
     organizationUnit: 'registration', stationId: 'st-screening', floor: 'ชั้น 1', purpose: 'queue',
-    ticketFormat: 'standard', ticketSize: '80mm', displayFields: { ...TOR_DISPLAY_DEFAULTS, kioskNumber: true, kioskName: true, kioskId: false, location: true, floor: true }, active: true,
+    ticketSize: '80mm', displayFields: { ...TICKET_DISPLAY_DEFAULTS, kioskNumber: true, kioskName: true, kioskId: false, location: true, floor: true }, active: true,
   },
   {
     id: 'kiosk-02', kioskNumber: 'P-01', kioskName: 'ตู้ชำระเงิน อาคาร A', kioskId: 'KIOSK-A-P01',
     organizationUnit: 'finance', stationId: 'st-finance', floor: 'ชั้น 1', purpose: 'payment',
-    ticketFormat: 'compact', ticketSize: '58mm', displayFields: { ...TOR_DISPLAY_DEFAULTS, kioskNumber: true, kioskName: true, kioskId: true, location: false, floor: false }, active: true,
+    ticketSize: '58mm', displayFields: { ...TICKET_DISPLAY_DEFAULTS, kioskNumber: true, kioskName: true, kioskId: true, location: false, floor: false }, active: true,
   },
 ];
 
 const blankKiosk = () => ({
-  id: `kiosk-${Date.now()}`, kioskNumber: '', kioskName: '', kioskId: '', organizationUnit: '', stationId: '', floor: '', purpose: 'queue',
-  ticketFormat: 'standard', ticketSize: '80mm', displayFields: { ...TOR_DISPLAY_DEFAULTS, kioskNumber: true, kioskName: true, kioskId: false, location: true, floor: true }, active: true,
+  id: `kiosk-${Date.now()}`, kioskNumber: '', kioskName: '', kioskId: '', organizationUnit: '', stationId: '', floor: '', purpose: '',
+  ticketSize: '80mm', displayFields: { ...TICKET_DISPLAY_DEFAULTS, kioskNumber: true, kioskName: true, kioskId: false, location: true, floor: true }, active: true,
 });
 
 const QueueKioskSettingsPage = () => {
@@ -108,36 +129,64 @@ const QueueKioskSettingsPage = () => {
   const [monitors, setMonitors] = useState(INITIAL_MONITORS);
   const [monitorSaved, setMonitorSaved] = useState(false);
   const [activeChange, setActiveChange] = useState(null);
-  const [ticketSettings, setTicketSettings] = useState({
-    ticketFormat: 'standard',
-    ticketSize: '80mm',
-    displayFields: { ...TOR_DISPLAY_DEFAULTS, kioskNumber: true, kioskName: true, kioskId: false, location: true, floor: true },
+  const [ticketKioskType, setTicketKioskType] = useState('queue');
+  const [ticketSettingsByKioskType, setTicketSettingsByKioskType] = useState({
+    queue: createTicketSettings(),
+    payment: createTicketSettings(),
   });
+  const ticketSettings = ticketSettingsByKioskType[ticketKioskType];
+  const ticketPreviewSettings = draft?.purpose ? ticketSettingsByKioskType[draft.purpose] : null;
+  const ticketPreviewFields = ticketPreviewSettings?.displayFields || {};
   const [ticketSaved, setTicketSaved] = useState(false);
   const purposeLabel = useMemo(() => Object.fromEntries(PURPOSES.map((item) => [item.value, item.label])), []);
+  const isNewDraft = !!draft && !kiosks.some((item) => item.id === draft.id);
 
   const update = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
-  const selectOrganizationUnit = (organizationUnit) => setDraft((current) => ({
-    ...current,
+  const generateKioskIdentity = (purpose, stationId) => {
+    const station = QUEUE_STATIONS.find((item) => item.id === stationId);
+    if (!purpose || !station) return { kioskName: '', kioskNumber: '', kioskId: '' };
+    const prefix = purpose === 'payment' ? 'P' : 'K';
+    const number = kiosks.reduce((highest, item) => {
+      const match = String(item.kioskNumber || '').match(new RegExp(`^${prefix}-(\\d+)$`));
+      return match ? Math.max(highest, Number(match[1])) : highest;
+    }, 0) + 1;
+    const serial = String(number).padStart(2, '0');
+    return {
+      kioskName: `${purpose === 'payment' ? 'ตู้ชำระเงิน' : 'ตู้รับคิว'} ${station.label}`,
+      kioskNumber: `${prefix}-${serial}`,
+      kioskId: `KIOSK-${station.code}-${serial}`,
+    };
+  };
+  const applyGeneratedIdentity = (current, patch) => {
+    const next = { ...current, ...patch };
+    return kiosks.some((item) => item.id === current.id)
+      ? next
+      : { ...next, ...generateKioskIdentity(next.purpose, next.stationId) };
+  };
+  const selectOrganizationUnit = (organizationUnit) => setDraft((current) => applyGeneratedIdentity(current, {
     organizationUnit,
     stationId: '',
     floor: '',
   }));
   const selectStation = (stationId) => {
     const station = QUEUE_STATIONS.find((item) => item.id === stationId);
-    setDraft((current) => ({ ...current, stationId, floor: station?.floor || '' }));
+    setDraft((current) => applyGeneratedIdentity(current, { stationId, floor: station?.floor || '' }));
   };
+  const selectPurpose = (purpose) => setDraft((current) => applyGeneratedIdentity(current, { purpose }));
   const updateDisplayField = (key, value) => setDraft((current) => ({
     ...current,
     displayFields: { ...current.displayFields, [key]: value },
   }));
-  const updateTicketDisplayField = (key, value) => setTicketSettings((current) => ({
+  const updateTicketDisplayField = (key, value) => setTicketSettingsByKioskType((current) => ({
     ...current,
-    displayFields: { ...current.displayFields, [key]: value },
+    [ticketKioskType]: {
+      ...current[ticketKioskType],
+      displayFields: { ...current[ticketKioskType].displayFields, [key]: value },
+    },
   }));
 
   const save = () => {
-    if (!draft.kioskNumber.trim() || !draft.kioskName.trim() || !draft.kioskId.trim() || !draft.organizationUnit || !draft.stationId || !draft.floor) return;
+    if (!draft.kioskNumber.trim() || !draft.kioskName.trim() || !draft.kioskId.trim() || !draft.organizationUnit || !draft.stationId || !draft.floor || !draft.purpose) return;
     setKiosks((current) => current.some((item) => item.id === draft.id)
       ? current.map((item) => (item.id === draft.id ? draft : item))
       : [...current, draft]);
@@ -170,9 +219,9 @@ const QueueKioskSettingsPage = () => {
     { key: 'kioskName', label: 'ชื่อตู้', flex: true, minWidth: 220 },
     { key: 'purpose', label: 'จุดประสงค์', render: (row) => purposeLabel[row.purpose] },
     { key: 'organizationUnit', label: 'คลินิก / แผนก', render: (row) => organizationLabel(row.organizationUnit) },
-    { key: 'stationId', label: 'จุดรับบริการ / ห้องตรวจ', render: (row) => stationLabel(row.stationId) },
+    { key: 'stationId', label: 'จุดบริการ / ห้องตรวจ', render: (row) => kioskStationLabel(row.stationId) },
     { key: 'floor', label: 'ชั้น', render: (row) => row.floor || '—' },
-    { key: 'ticketSize', label: 'ขนาดใบคิว', render: (row) => TICKET_SIZES.find((item) => item.value === row.ticketSize)?.label },
+    { key: 'ticketSize', label: 'ความกว้างกระดาษที่พิมพ์ออกจากตู้', render: (row) => TICKET_SIZES.find((item) => item.value === row.ticketSize)?.label },
     { key: 'active', label: 'สถานะ', render: (row) => <Switch checked={row.active} onChange={(value) => requestActiveChange(row, typeof value === 'boolean' ? value : !row.active)} aria-label={`เปลี่ยนสถานะ ${row.kioskName}`} /> },
     { key: 'action', label: 'การดำเนินการ', sortable: false, render: (row) => <NeutralSubdueButton size='sm' variant='outline' leadingIcon='edit' onClick={() => setDraft({ ...row, displayFields: { ...row.displayFields } })}>แก้ไข</NeutralSubdueButton> },
   ];
@@ -182,23 +231,14 @@ const QueueKioskSettingsPage = () => {
       activeKey='queue-center'
       sidebarItems={SYSTEM_NAV}
       sidebarFallbackKey='system-overview'
-      breadcrumb={['ระบบบริหารจัดการคิว', isDisplaySettings ? 'ตั้งค่าจอแสดงผลการเรียกคิว' : isTicketSettings ? 'ตั้งค่าใบคิว' : 'ตั้งค่าตู้บริการ']}
-      title={isDisplaySettings ? 'ตั้งค่าจอแสดงผลการเรียกคิว' : isTicketSettings ? 'ตั้งค่าใบคิว' : 'ตั้งค่าตู้บริการ'}
-      summaryTitle={isDisplaySettings ? 'กำหนดจอและจุดบริการที่จะแสดงคิว' : isTicketSettings ? 'กำหนดรูปแบบ ขนาด และข้อมูลที่แสดงบนใบคิว' : 'จัดการข้อมูลตู้บริการและตำแหน่งตามโครงสร้างองค์กร'}
-      summaryCards={isDisplaySettings
-        ? [
-          { key: 'monitors', label: 'จอแสดงผล', value: monitors.length, indicator: 'จอที่ตั้งค่าไว้', color: 'info', icon: 'tv' },
-          { key: 'stations', label: 'จุดบริการที่ผูก', value: new Set(monitors.flatMap((monitor) => monitor.stationIds)).size, indicator: 'แสดงบนจอ', color: 'positive', icon: 'apartment' },
-        ]
-        : isTicketSettings
-          ? [
-            { key: 'format', label: 'รูปแบบใบคิว', value: TICKET_FORMATS.find((item) => item.value === ticketSettings.ticketFormat)?.label || '—', indicator: 'ค่าเริ่มต้น', color: 'info', icon: 'receipt_long' },
-            { key: 'size', label: 'ขนาดใบคิว', value: TICKET_SIZES.find((item) => item.value === ticketSettings.ticketSize)?.label || '—', indicator: 'ค่าเริ่มต้น', color: 'positive', icon: 'straighten' },
-          ]
-          : [
-            { key: 'all', label: 'ตู้บริการทั้งหมด', value: kiosks.length, indicator: 'รายการ', color: 'info', icon: 'print' },
-            { key: 'active', label: 'เปิดใช้งาน', value: kiosks.filter((item) => item.active).length, indicator: 'พร้อมใช้งาน', color: 'positive', icon: 'check_circle' },
-          ]}
+      sidebarHideActiveChevron
+      breadcrumb={['ระบบบริหารจัดการคิว', isDisplaySettings ? 'ตั้งค่าจอแสดงผลการเรียกคิว' : isTicketSettings ? 'ตั้งค่าใบคิว' : 'ตั้งค่าตู้บริการ(Kiosk)']}
+      title={isDisplaySettings ? 'ตั้งค่าจอแสดงผลการเรียกคิว' : isTicketSettings ? 'ตั้งค่าใบคิว' : 'ตั้งค่าตู้บริการ(Kiosk)'}
+      summaryCards={[
+        { key: 'all', label: 'ตู้บริการทั้งหมด', value: kiosks.length, indicator: 'รายการ', color: 'info', icon: 'print' },
+        { key: 'active', label: 'เปิดใช้งาน', value: kiosks.filter((item) => item.active).length, indicator: 'พร้อมใช้งาน', color: 'positive', icon: 'check_circle' },
+        { key: 'monitors', label: 'จอแสดงผล', value: monitors.length, indicator: 'จอที่ตั้งค่าไว้', color: 'info', icon: 'tv' },
+      ]}
       belowSummary={<QueueCenterSubNav />}
     >
       <div className='flex flex-col flex-1 min-w-0' style={PAGE_BODY_STYLE}>
@@ -207,7 +247,7 @@ const QueueKioskSettingsPage = () => {
             {saved ? <div role='status' style={{ ...CARD_STYLE, padding: 'var(--dim-space-300)', color: 'var(--text-positive-default)' }}>บันทึกการตั้งค่าเรียบร้อยแล้ว</div> : null}
 
             <SectionCard
-              icon='print'
+              icon='kiosk'
               title='รายการตู้บริการ'
               subtitle='กำหนดข้อมูลประจำตู้ จุดประสงค์ และตำแหน่งตามโครงสร้างองค์กร'
               action={<BrandPrimaryButton leadingIcon='add' onClick={() => setDraft(blankKiosk())}>เพิ่มตู้บริการ</BrandPrimaryButton>}
@@ -221,42 +261,63 @@ const QueueKioskSettingsPage = () => {
             onClose={() => setDraft(null)}
             title={kiosks.some((item) => item.id === draft.id) ? 'แก้ไขตู้บริการ' : 'เพิ่มตู้บริการ'}
             subtitle='ข้อมูลที่มีเครื่องหมาย * จำเป็นต้องระบุ'
-            size='large'
+            size='extraLarge'
             tertiaryAction={{ label: 'ยกเลิก', onClick: () => setDraft(null) }}
-            primaryAction={{ label: 'บันทึกการตั้งค่า', onClick: save, disabled: !draft.kioskNumber.trim() || !draft.kioskName.trim() || !draft.kioskId.trim() || !draft.organizationUnit || !draft.stationId || !draft.floor }}
+            primaryAction={{ label: 'บันทึกการตั้งค่า', onClick: save, disabled: !draft.kioskNumber.trim() || !draft.kioskName.trim() || !draft.kioskId.trim() || !draft.organizationUnit || !draft.stationId || !draft.floor || !draft.purpose }}
           >
-            <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-400)' }}>
-              <InputField label='หมายเลขตู้ที่แสดงบนใบคิว' required value={draft.kioskNumber} onChange={(value) => update('kioskNumber', value)} placeholder='เช่น K-01' />
-              <InputField label='ชื่อตู้' required value={draft.kioskName} onChange={(value) => update('kioskName', value)} placeholder='เช่น ตู้รับคิว อาคาร A' />
-              <InputField label='รหัสตู้ (Kiosk ID)' required value={draft.kioskId} onChange={(value) => update('kioskId', value)} placeholder='เช่น KIOSK-A-01' />
-              <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                <FieldLabel required>คลินิก / แผนก</FieldLabel>
-                <Dropdown value={draft.organizationUnit} onChange={selectOrganizationUnit} options={ORGANIZATION_UNITS} placeholder='เลือกคลินิก / แผนก' />
-              </div>
-              <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                <FieldLabel required>จุดรับบริการ / ห้องตรวจ</FieldLabel>
-                <Dropdown value={draft.stationId} onChange={selectStation} options={stationsForUnit(draft.organizationUnit).map((station) => ({ value: station.id, label: station.label }))} placeholder='เลือกจุดรับบริการ / ห้องตรวจ' state={draft.organizationUnit ? 'default' : 'disabled'} />
-              </div>
-              <InputField label='ชั้น' required value={draft.floor} disabled placeholder='เลือกจากจุดรับบริการ / ห้องตรวจ' />
-              <Dropdown value={draft.purpose} onChange={(value) => update('purpose', value)} options={PURPOSES} placeholder='เลือกจุดประสงค์' />
-              <Dropdown value={draft.ticketFormat} onChange={(value) => update('ticketFormat', value)} options={TICKET_FORMATS} placeholder='เลือกรูปแบบใบคิว' />
-              <Dropdown value={draft.ticketSize} onChange={(value) => update('ticketSize', value)} options={TICKET_SIZES} placeholder='เลือกขนาดใบคิว' />
-            </div>
+            <div className='grid grid-cols-1 xl:grid-cols-2' style={{ gap: 'var(--dim-space-800)' }}>
+              <section className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
+                <div>
+                  <FieldLabel>ข้อมูลตู้บริการ</FieldLabel>
+                  <HelperText>ระบุตัวตนและตำแหน่งของตู้ตามโครงสร้างองค์กร</HelperText>
+                </div>
+                <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                  <FieldLabel required>คลินิก / แผนก</FieldLabel>
+                  <Dropdown value={draft.organizationUnit} onChange={selectOrganizationUnit} options={ORGANIZATION_UNITS} placeholder='เลือกคลินิก / แผนก' />
+                </div>
+                <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                  <FieldLabel required>จุดรับบริการ / ห้องตรวจ</FieldLabel>
+                  <Dropdown value={draft.stationId} onChange={selectStation} options={stationsForUnit(draft.organizationUnit).map((station) => ({ value: station.id, label: station.label }))} placeholder='เลือกจุดบริการ / ห้องตรวจ' state={draft.organizationUnit ? 'default' : 'disabled'} />
+                </div>
+                <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                  <FieldLabel required>จุดประสงค์</FieldLabel>
+                  <Dropdown value={draft.purpose} onChange={selectPurpose} options={PURPOSES} placeholder='เลือกจุดประสงค์' />
+                </div>
+                <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                  <FieldLabel required>ชั้น</FieldLabel>
+                  <Dropdown
+                    value={draft.floor}
+                    onChange={(floor) => update('floor', floor)}
+                    options={draft.stationId ? [{ value: QUEUE_STATIONS.find((station) => station.id === draft.stationId)?.floor || '', label: QUEUE_STATIONS.find((station) => station.id === draft.stationId)?.floor || '—' }] : []}
+                    placeholder='เลือกชั้น'
+                    state={draft.stationId ? 'default' : 'disabled'}
+                  />
+                </div>
+                <InputField label='ชื่อตู้' required value={draft.kioskName} onChange={(value) => update('kioskName', value)} placeholder='ระบบจะสร้างให้อัตโนมัติ' disabled={isNewDraft} />
+                <InputField label='หมายเลขตู้ (แสดงบนใบคิว)' required value={draft.kioskNumber} onChange={(value) => update('kioskNumber', value)} placeholder='ระบบจะสร้างให้อัตโนมัติ' disabled={isNewDraft} />
+                <InputField label='รหัสตู้ (Kiosk ID)' required value={draft.kioskId} onChange={(value) => update('kioskId', value)} placeholder='ระบบจะสร้างให้อัตโนมัติ' disabled={isNewDraft} />
+              </section>
 
-            <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)', marginTop: 'var(--dim-space-500)' }}>
-              <div>
-                <FieldLabel>ข้อมูลที่ต้องการแสดงบนใบคิว</FieldLabel>
-                <HelperText>รายการที่ระบุว่า “ตาม TOR” เป็นข้อมูลบังคับและไม่สามารถปิดการแสดงผลได้</HelperText>
-              </div>
-              <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-200)' }}>
-                {DISPLAY_FIELDS.map((field) => (
-                  <label key={field.key} className='flex items-center' style={{ gap: 'var(--dim-space-200)', color: 'var(--text-content-primary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
-                    <Switch checked={field.required || !!draft.displayFields[field.key]} disabled={field.required} onChange={(value) => updateDisplayField(field.key, value)} aria-label={`แสดง ${field.label}`} />
-                    <span>{field.label}</span>
-                    {field.required ? <ColorfulBadge style='green' size='small' hierarchy='secondary'>ตาม TOR</ColorfulBadge> : null}
-                  </label>
-                ))}
-              </div>
+              <section className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
+                <div>
+                  <FieldLabel>ตัวอย่างใบคิว</FieldLabel>
+                  <HelperText>{draft.purpose ? `อ้างอิงการตั้งค่าของ${TICKET_KIOSK_TYPES.find((item) => item.value === draft.purpose)?.label}` : 'เลือกจุดประสงค์เพื่อดูตัวอย่างใบคิว'}</HelperText>
+                </div>
+                {ticketPreviewSettings ? (
+                  <div className='mx-auto w-full' style={{ ...CARD_STYLE, maxWidth: 360, padding: 'var(--dim-space-500)', textAlign: 'center', borderStyle: 'dashed' }}>
+                    <Icon name='confirmation_number' size={28} style={{ color: 'var(--text-brandPrimary-default)' }} />
+                    {ticketPreviewFields.queueNumber ? <div style={{ marginTop: 'var(--dim-space-200)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-lg)', color: 'var(--text-content-primary)' }}>A-042</div> : null}
+                    {ticketPreviewFields.patientName ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>นายสมชาย มีสุข</div> : null}
+                    {(ticketPreviewFields.hn || ticketPreviewFields.hnBarcode) ? <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{ticketPreviewFields.hn ? 'HN: 67-00001' : ''}{ticketPreviewFields.hn && ticketPreviewFields.hnBarcode ? ' · ' : ''}{ticketPreviewFields.hnBarcode ? '|||||| ||| ||||' : ''}</div> : null}
+                    {(ticketPreviewFields.issuedDate || ticketPreviewFields.issuedTime) ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{ticketPreviewFields.issuedDate ? 'วันที่: 29 สิงหาคม 2569' : ''}{ticketPreviewFields.issuedDate && ticketPreviewFields.issuedTime ? ' · ' : ''}{ticketPreviewFields.issuedTime ? 'เวลา: 09:30 น.' : ''}</div> : null}
+                    {(ticketPreviewFields.waitingAhead || ticketPreviewFields.contact) ? <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{ticketPreviewFields.waitingAhead ? 'ผู้รอคิวก่อนหน้า: 3 ราย' : ''}{ticketPreviewFields.waitingAhead && ticketPreviewFields.contact ? ' · ' : ''}{ticketPreviewFields.contact ? 'ติดต่อ: 0 2245 1000' : ''}</div> : null}
+                    {ticketPreviewFields.servicePoint ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>จุดให้บริการ: {draft.stationId ? kioskStationLabel(draft.stationId) : '—'}</div> : null}
+                    {ticketPreviewFields.serviceStep ? <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>ขั้นตอนถัดไป: จุดคัดกรอง</div> : null}
+                    {(ticketPreviewFields.kioskName || ticketPreviewFields.kioskNumber || ticketPreviewFields.location || ticketPreviewFields.floor) ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{ticketPreviewFields.kioskName ? draft.kioskName || 'ชื่อตู้บริการ' : ''}{ticketPreviewFields.kioskName && ticketPreviewFields.kioskNumber ? ' · ' : ''}{ticketPreviewFields.kioskNumber ? draft.kioskNumber || 'หมายเลขตู้' : ''}{ticketPreviewFields.location ? ` · ${organizationLabel(draft.organizationUnit)}` : ''}{ticketPreviewFields.floor ? ` · ${draft.floor || 'ชั้น'}` : ''}</div> : null}
+                    {(ticketPreviewFields.statusQr || ticketPreviewFields.callOrderNote) ? <div style={{ marginTop: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-300)', borderTop: '1px dashed var(--border-neutral-tertiary)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{ticketPreviewFields.statusQr ? 'QR ดูสถานะคิว' : ''}{ticketPreviewFields.statusQr && ticketPreviewFields.callOrderNote ? ' · ' : ''}{ticketPreviewFields.callOrderNote ? 'ลำดับการเรียกคิวไม่เรียงตามหมายเลข' : ''}</div> : null}
+                  </div>
+                ) : <div style={{ ...CARD_STYLE, padding: 'var(--dim-space-500)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', textAlign: 'center' }}>ยังไม่ได้เลือกประเภทตู้</div>}
+              </section>
             </div>
 
               </Popup>
@@ -267,19 +328,22 @@ const QueueKioskSettingsPage = () => {
         {isTicketSettings ? (
           <SectionCard
             icon='receipt_long'
-            title='รูปแบบและข้อมูลบนใบคิว'
-            subtitle='กำหนดค่าเริ่มต้นของใบคิว โดยรายการตาม TOR ไม่สามารถปิดได้'
+            title='ข้อมูลบนใบคิว'
+            subtitle='กำหนดค่าเริ่มต้น ขนาดกระดาษ และข้อมูลที่ต้องการแสดงบนใบคิว'
             action={<BrandPrimaryButton leadingIcon='save' onClick={() => { setTicketSaved(true); window.setTimeout(() => setTicketSaved(false), 2400); }}>บันทึกการตั้งค่าใบคิว</BrandPrimaryButton>}
           >
             {ticketSaved ? <div role='status' style={{ marginBottom: 'var(--dim-space-400)', color: 'var(--text-positive-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>บันทึกการตั้งค่าใบคิวเรียบร้อยแล้ว</div> : null}
             <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-400)' }}>
               <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                <FieldLabel>รูปแบบใบคิว</FieldLabel>
-                <Dropdown value={ticketSettings.ticketFormat} onChange={(ticketFormat) => setTicketSettings((current) => ({ ...current, ticketFormat }))} options={TICKET_FORMATS} />
+                <FieldLabel required>ประเภทตู้</FieldLabel>
+                <Dropdown value={ticketKioskType} onChange={setTicketKioskType} options={TICKET_KIOSK_TYPES} placeholder='เลือกประเภทตู้' />
               </div>
               <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                <FieldLabel>ขนาดใบคิว</FieldLabel>
-                <Dropdown value={ticketSettings.ticketSize} onChange={(ticketSize) => setTicketSettings((current) => ({ ...current, ticketSize }))} options={TICKET_SIZES} />
+                <FieldLabel>ความกว้างกระดาษที่พิมพ์ออกจากตู้</FieldLabel>
+                <Dropdown value={ticketSettings.ticketSize} onChange={(ticketSize) => setTicketSettingsByKioskType((current) => ({
+                  ...current,
+                  [ticketKioskType]: { ...current[ticketKioskType], ticketSize },
+                }))} options={TICKET_SIZES} />
               </div>
             </div>
             <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)', marginTop: 'var(--dim-space-500)' }}>
@@ -289,25 +353,28 @@ const QueueKioskSettingsPage = () => {
               </div>
               <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-200)' }}>
                 {DISPLAY_FIELDS.map((field) => (
-                  <label key={field.key} className='flex items-center' style={{ gap: 'var(--dim-space-200)', color: 'var(--text-content-primary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
-                    <Switch checked={field.required || !!ticketSettings.displayFields[field.key]} disabled={field.required} onChange={(value) => updateTicketDisplayField(field.key, value)} aria-label={`แสดง ${field.label}`} />
-                    <span>{field.label}</span>
-                    {field.required ? <ColorfulBadge style='green' size='small' hierarchy='secondary'>ตาม TOR</ColorfulBadge> : null}
-                  </label>
+                  <Checkbox
+                    key={field.key}
+                    checked={!!ticketSettings.displayFields[field.key]}
+                    onChange={(value) => updateTicketDisplayField(field.key, value)}
+                    label={field.label}
+                  />
                 ))}
               </div>
             </div>
           </SectionCard>
         ) : null}
 
-        {!isDisplaySettings ? (
+        {isTicketSettings ? (
           <SectionCard icon='receipt_long' title='ตัวอย่างข้อมูลบนใบคิว' subtitle='รายละเอียดบังคับตาม TOR: หมายเลขคิว ชื่อ–นามสกุล HN/Barcode จุดบริการ ขั้นตอน QR สถานะ และข้อความกำกับลำดับคิว'>
           <div style={{ ...CARD_STYLE, maxWidth: 360, padding: 'var(--dim-space-500)', textAlign: 'center', borderStyle: 'dashed' }}>
             <Icon name='confirmation_number' size={28} style={{ color: 'var(--text-brandPrimary-default)' }} />
             <div style={{ marginTop: 'var(--dim-space-200)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-lg)', color: 'var(--text-content-primary)' }}>A-042</div>
             <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>นายสมชาย มีสุข</div>
             <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>HN: 67-00001 · |||||| ||| ||||</div>
-            <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>จุดบริการ: คลินิกตรวจรักษาทั่วไป</div>
+            <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>วันที่: 29 สิงหาคม 2569 · เวลา: 09:30 น.</div>
+            <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>ผู้รอคิวก่อนหน้า: 3 ราย · ติดต่อ: 0 2245 1000</div>
+            <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>จุดให้บริการ: คลินิกตรวจรักษาทั่วไป</div>
             <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>ขั้นตอนถัดไป: จุดคัดกรอง · QR ดูสถานะคิว</div>
             <div style={{ marginTop: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-300)', borderTop: '1px dashed var(--border-neutral-tertiary)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>ลำดับการเรียกคิวไม่เรียงตามหมายเลข</div>
           </div>

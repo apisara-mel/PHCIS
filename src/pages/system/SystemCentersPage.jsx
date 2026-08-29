@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
+import OrgStructureSubNav from '@/components/system/OrgStructureSubNav';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
@@ -38,7 +39,7 @@ import {
    Empty: Figma 4D3nTx53 · 1:2558
    List:  Figma 4D3nTx53 · 4:21032 */
 
-const breadcrumb = ['จัดการระบบ', 'ศูนย์บริการ'];
+const breadcrumb = ['จัดการระบบ', 'โครงสร้างองค์กรและสิทธิ์', 'ศูนย์บริการ'];
 
 const CARD = {
   background: 'var(--surface-card-100)',
@@ -550,11 +551,13 @@ export default function SystemCentersPage() {
   return (
     <>
       <QueuePageShell
-        activeKey='system-centers'
+        activeKey='system-org'
         sidebarItems={SYSTEM_NAV}
-        sidebarFallbackKey='system-centers'
+        sidebarFallbackKey='system-org'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
+        /* แถบแท็บของเมนู "โครงสร้างองค์กรและสิทธิ์" — สลับไปหน้าอื่นในกลุ่มเดียวกัน */
+        belowSummary={<OrgStructureSubNav />}
         title='ศูนย์บริการ'
         headerInfo={hasCenters ? (
           /* ชื่อหน้า + ปุ่มเพิ่มศูนย์อยู่ใน SubHeader มาตรฐานแล้ว ตรงนี้เหลือเฉพาะ
@@ -584,6 +587,13 @@ export default function SystemCentersPage() {
             </BrandButton>
           </span>
         ) : undefined}
+        /* แท็บสถานะเป็น pill ไม่ใช่ underline — แถบ underline ด้านบนเป็น nav ระดับ
+           เมนู (โครงสร้างองค์กรและสิทธิ์) สองแถวขีดเส้นใต้ซ้อนกันอ่านเป็นระดับ
+           เดียวกันหมด แยกด้วย variant ที่ design system มีให้ (29 ส.ค. 69 มติผู้ใช้) */
+        tabVariant='pill'
+        pillTabAlign='start'
+        pillTabsFitContent
+        pillTabSize='small'
         tabs={hasCenters ? tabDefs : undefined}
         activeTab={activeTab}
         onTabChange={setActiveTab}

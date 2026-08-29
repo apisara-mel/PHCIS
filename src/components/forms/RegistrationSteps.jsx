@@ -2457,6 +2457,17 @@ const MobilityCircleIcon = ({ icon }) => (
   </span>
 );
 
+/* ไอคอนของ Flag แต่ละใบ — ใช้ชุดเดียวกับ MOBILITY ที่อยู่การ์ดบน เพื่อให้
+   สองแถวนี้อ่านเป็นระบบเดียวกัน (มติผู้ใช้ 29 ส.ค. 69) */
+const FLAG_ICONS = {
+  vip:          'star',
+  allergyOther: 'restaurant',
+  allergyDrug:  'medication',
+  skinReaction: 'science',
+  chronic:      'monitor_heart',
+  flagOther:    'more_horiz',
+};
+
 const MOBILITY = [
   { key: 'walk',  label: 'เดิน',         icon: 'directions_walk'   },
   { key: 'wheel', label: 'นั่งรถเข็น',    icon: 'accessible'         },
@@ -2917,22 +2928,86 @@ export const Step5Flags = ({ form, setForm }) => {
 
       {/* Figma 210:21275 — topic + choices in one column, 24px (space/600) between rows */}
       <SubCard titleTone='brand' titleIcon='flag' title='หมายเหตุและ Flag'>
-          <Checkbox checked={form.flags.vip} onChange={(v) => setFlag('vip', v)} label='VIP / ผู้ป่วยพิเศษ' />
+          {/* ปุ่ม Flag ทั้งหกอยู่แถวเดียวกัน ทรงเดียวกับแถว "สภาพของผู้รับบริการ"
+              ในการ์ดด้านบน (มติผู้ใช้ 29 ส.ค. 69) — เดิมเป็นการ์ดเต็มความกว้าง
+              เรียงลงมาหกแถว กินความสูงจนต้องเลื่อนกว่าจะเห็นครบ และมองไม่ออก
+              ว่าเป็นชุดตัวเลือกชุดเดียวกัน · ส่วนที่กางออกของแต่ละ Flag ยังอยู่
+              ใต้แถวนี้ตามลำดับเดิม */}
+          <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
+            <CheckboxButton
+              checked={form.flags.vip}
+              onChange={(v) => setFlag('vip', v)}
+              label='VIP / ผู้ป่วยพิเศษ'
+              showCircleIcon
+              circleIcon={<MobilityCircleIcon icon={FLAG_ICONS.vip} />}
+            />
+            <CheckboxButton
+              checked={form.flags.allergyOther}
+              onChange={(v) => setForm((s) => {
+                const next = { ...s, flags: { ...s.flags, allergyOther: v } };
+                if (v && (next.foodAllergies ?? []).length === 0) {
+                  next.foodAllergies = [createFoodAllergyEntry()];
+                }
+                return next;
+              })}
+              label='แพ้อาหาร'
+              showCircleIcon
+              circleIcon={<MobilityCircleIcon icon={FLAG_ICONS.allergyOther} />}
+            />
+            <CheckboxButton
+              checked={form.flags.allergyDrug}
+              onChange={(v) => setForm((s) => {
+                const next = { ...s, flags: { ...s.flags, allergyDrug: v } };
+                if (v && (next.drugAllergies ?? []).length === 0) {
+                  next.drugAllergies = [createDrugAllergyEntry()];
+                }
+                return next;
+              })}
+              label='แพ้ยา'
+              showCircleIcon
+              circleIcon={<MobilityCircleIcon icon={FLAG_ICONS.allergyDrug} />}
+            />
+            <CheckboxButton
+              checked={form.flags.skinReaction}
+              onChange={(v) => setForm((s) => {
+                const next = { ...s, flags: { ...s.flags, skinReaction: v } };
+                if (v && (next.chemicalAllergies ?? []).length === 0) {
+                  next.chemicalAllergies = [createChemicalAllergyEntry()];
+                }
+                return next;
+              })}
+              label='แพ้สารเคมี'
+              showCircleIcon
+              circleIcon={<MobilityCircleIcon icon={FLAG_ICONS.skinReaction} />}
+            />
+            <CheckboxButton
+              checked={form.flags.chronic}
+              onChange={(v) => setForm((s) => {
+                const next = { ...s, flags: { ...s.flags, chronic: v } };
+                if (v && (next.chronicConditions ?? []).length === 0) {
+                  next.chronicConditions = [createChronicConditionEntry()];
+                }
+                return next;
+              })}
+              label='โรคประจำตัว'
+              showCircleIcon
+              circleIcon={<MobilityCircleIcon icon={FLAG_ICONS.chronic} />}
+            />
+            <CheckboxButton
+              checked={form.flags.flagOther}
+              onChange={(v) => setFlag('flagOther', v)}
+              label='อื่นๆ'
+              showCircleIcon
+              circleIcon={<MobilityCircleIcon icon={FLAG_ICONS.flagOther} />}
+            />
+          </div>
+          {/* Flag เป็นปุ่มการ์ด ไม่ใช่ checkbox บรรทัดเล็ก ๆ (มติผู้ใช้ 29 ส.ค. 69)
+              — เป้าหมายที่กดใหญ่ขึ้นมาก และอ่านเป็นระบบเดียวกับแถว "สภาพของ
+              ผู้รับบริการ" ในการ์ดด้านบนที่เป็นปุ่มการ์ดอยู่แล้ว */}
           {/* Toggling "แพ้อาหาร" ON seeds the first food card so the
               receptionist sees input fields immediately, mirroring the
               "แพ้ยา" pattern below. Toggling OFF only flips the flag —
               typed entries stay so a wrong tick doesn't wipe data. */}
-          <Checkbox
-            checked={form.flags.allergyOther}
-            onChange={(v) => setForm((s) => {
-              const next = { ...s, flags: { ...s.flags, allergyOther: v } };
-              if (v && (next.foodAllergies ?? []).length === 0) {
-                next.foodAllergies = [createFoodAllergyEntry()];
-              }
-              return next;
-            })}
-            label='แพ้อาหาร'
-          />
 
           {form.flags.allergyOther && (
             <>
@@ -3027,17 +3102,6 @@ export const Step5Flags = ({ form, setForm }) => {
               211:19873). Toggling OFF only flips the flag — the typed
               data stays so the user doesn't lose work if they uncheck
               by accident. */}
-          <Checkbox
-            checked={form.flags.allergyDrug}
-            onChange={(v) => setForm((s) => {
-              const next = { ...s, flags: { ...s.flags, allergyDrug: v } };
-              if (v && (next.drugAllergies ?? []).length === 0) {
-                next.drugAllergies = [createDrugAllergyEntry()];
-              }
-              return next;
-            })}
-            label='แพ้ยา'
-          />
 
           {form.flags.allergyDrug && (
             <>
@@ -3138,17 +3202,6 @@ export const Step5Flags = ({ form, setForm }) => {
           {/* Toggling "แพ้สารเคมี" ON seeds the first chemical card so the
               receptionist sees the input fields immediately, same pattern
               as the drug + food allergy checkboxes above. */}
-          <Checkbox
-            checked={form.flags.skinReaction}
-            onChange={(v) => setForm((s) => {
-              const next = { ...s, flags: { ...s.flags, skinReaction: v } };
-              if (v && (next.chemicalAllergies ?? []).length === 0) {
-                next.chemicalAllergies = [createChemicalAllergyEntry()];
-              }
-              return next;
-            })}
-            label='แพ้สารเคมี'
-          />
 
           {form.flags.skinReaction && (
             <>
@@ -3240,17 +3293,6 @@ export const Step5Flags = ({ form, setForm }) => {
           )}
 
           {/* Toggling "โรคประจำตัว" ON seeds the first chronic card. */}
-          <Checkbox
-            checked={form.flags.chronic}
-            onChange={(v) => setForm((s) => {
-              const next = { ...s, flags: { ...s.flags, chronic: v } };
-              if (v && (next.chronicConditions ?? []).length === 0) {
-                next.chronicConditions = [createChronicConditionEntry()];
-              }
-              return next;
-            })}
-            label='โรคประจำตัว'
-          />
 
           {form.flags.chronic && (
             <>
@@ -3324,7 +3366,6 @@ export const Step5Flags = ({ form, setForm }) => {
               </div>
             </>
           )}
-          <Checkbox checked={form.flags.flagOther} onChange={(v) => setFlag('flagOther', v)} label='อื่นๆ' />
           {/* ติ๊ก "อื่นๆ" แล้วต้องระบุได้ว่าอื่นๆ คืออะไร — ลำพัง flag เปล่า ๆ
               ไม่บอกอะไรกับคนที่เปิดเวชระเบียนต่อ ใช้แผงและ Voice Textarea
               ชุดเดียวกับ "อื่นๆ" ของสภาพผู้รับบริการ (มติผู้ใช้ 29 ส.ค. 69) */}

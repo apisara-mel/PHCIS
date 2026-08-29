@@ -215,7 +215,6 @@ import SystemConsentAccessRightsPage from '@/pages/assess/SystemConsentAccessRig
 import AssessUserPage from '@/pages/assess/AssessUserPage';
 import AssessUserCreatePage from '@/pages/assess/AssessUserCreatePage';
 import AssessUserDetailPage from '@/pages/assess/AssessUserDetailPage';
-import QueueCenterConsolePage from '@/pages/queue-center/QueueCenterConsolePage';
 import QueueIssuePage from '@/pages/queue-center/QueueIssuePage';
 import QueueIntegrationPage from '@/pages/queue-center/QueueIntegrationPage';
 import QueueSettingsPage from '@/pages/queue-center/QueueSettingsPage';
@@ -456,7 +455,7 @@ export default function Routes() {
               /queue-center/display/finance  = TV3 จอการเงิน + ห้องยา
               /queue-center/display/console  = คอนโซลผู้ประกาศ (เรียกซ้ำ / มาแล้ว / ไม่มา / undo)
               /queue-center/display/online   = หน้าติดตามคิวบนมือถือของผู้รับบริการ (?q=A-042) */}
-        <Route exact path='/queue-center'                  component={QueueCenterConsolePage} />
+        <Redirect exact from='/queue-center' to='/queue-center/kiosk-settings' />
         <Route exact path='/queue-center/issue'            component={QueueIssuePage} />
         <Route exact path='/queue-center/integration'      component={QueueIntegrationPage} />
         <Route exact path='/queue-center/settings'         component={QueueSettingsPage} />

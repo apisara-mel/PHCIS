@@ -69,7 +69,7 @@ export const SYSTEM_NAV = [
   /* เทมเพลตแดชบอร์ด — ตัวสร้างย้ายมาจากหน้าแดชบอร์ดมาเป็นงานผู้ดูแลระบบ
      (มติผู้ใช้ 27 ส.ค. 69) หน้าแดชบอร์ดเหลือแค่ "เลือกใช้" */
   { key: 'system-dashboard-templates', label: 'เทมเพลตแดชบอร์ด', icon: 'dashboard_customize', path: '/admin/dashboard-templates' },
-  { key: 'queue-center', label: 'ระบบบริหารจัดการคิว', icon: 'campaign', path: '/queue-center' },
+  { key: 'queue-center', label: 'ระบบบริหารจัดการคิว', icon: 'campaign', path: '/queue-center/kiosk-settings' },
 ];
 
 export default SYSTEM_NAV;

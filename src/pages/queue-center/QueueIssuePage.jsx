@@ -291,7 +291,7 @@ const QueueIssuePage = () => {
   /* นับเฉพาะ "พิมพ์ครั้งแรก" ของบัตรที่เพิ่งออกเท่านั้น — การพิมพ์ซ้ำถูกนับไปแล้ว
      ใน reprintTicket() ถ้าเรียก markPrinted ทับอีก โควตา "พิมพ์ซ้ำได้ 3 ครั้ง"
      จะหมดตั้งแต่ reprint จริงครั้งที่ 1–2 และท้ายบัตรจะโชว์ "พิมพ์ซ้ำครั้งที่ N"
-     ผิด (QueueCenterConsolePage.handlePrint ไม่เรียก markPrinted จึงนับคนละแบบ) */
+     ผิด (หน้าจัดการคิวเดิมไม่เรียก markPrinted จึงนับคนละแบบ) */
   const handlePrint = () => {
     const res = printQueueTicket('ticket');
     if (!res.ok) { setPrintError(res.message); return; }

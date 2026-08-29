@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import OrgStructureSubNav from '@/components/system/OrgStructureSubNav';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -31,7 +32,7 @@ import {
    หน้านี้เป็นทะเบียนอย่างเดียว — ตัวแก้ไขจริงอยู่ที่ CenterStructureEditor
    ซึ่งใช้ร่วมกับหน้าเพิ่มศูนย์บริการ จะได้ไม่มี UI แก้โครงสร้างสองชุด. */
 
-const breadcrumb = ['จัดการระบบ', 'รูปแบบโครงสร้างศูนย์'];
+const breadcrumb = ['จัดการระบบ', 'โครงสร้างองค์กรและสิทธิ์', 'รูปแบบโครงสร้างศูนย์'];
 
 const CARD = {
   background: 'var(--surface-card-100)',
@@ -201,11 +202,13 @@ export default function CenterStructurePage() {
 
   return (
     <QueuePageShell
-      activeKey='system-structures'
+      activeKey='system-org'
       sidebarItems={SYSTEM_NAV}
-      sidebarFallbackKey='system-structures'
+      sidebarFallbackKey='system-org'
       brandTitle='จัดการระบบ'
       breadcrumb={breadcrumb}
+      /* แถบแท็บของเมนู "โครงสร้างองค์กรและสิทธิ์" — สลับไปหน้าอื่นในกลุ่มเดียวกัน */
+      belowSummary={<OrgStructureSubNav />}
       title='รูปแบบโครงสร้างศูนย์'
       /* การ์ดสรุปอยู่ใน headerInfo เพื่อให้ใช้พื้นหลังเดียวกับแถบหัวข้อ+ปุ่ม
          เหมือนหน้าอื่น (ศูนย์บริการ · วันหยุดประจำปี · สิทธิการเข้าถึง) —
@@ -224,6 +227,12 @@ export default function CenterStructurePage() {
           สร้างรูปแบบโครงสร้างศูนย์ใหม่
         </BrandButton>
       ) : null}
+      /* ใช้ status pill แบบเดียวกับหน้า "ศูนย์บริการ" เพื่อให้สองทะเบียน
+         ในกลุ่มโครงสร้างองค์กรมีการนำทางระดับย่อยที่สอดคล้องกัน */
+      tabVariant='pill'
+      pillTabAlign='start'
+      pillTabsFitContent
+      pillTabSize='small'
       tabs={hasRows ? tabDefs : undefined}
       activeTab={tab}
       onTabChange={setTab}

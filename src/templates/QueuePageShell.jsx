@@ -130,6 +130,12 @@ const QueuePageShell = ({
   tabs,
   upcoming = null,
   tabVariant = 'underline',
+  /** Pill-tab alignment; default stays centered for existing worklists. */
+  pillTabAlign = 'center',
+  /** Keep the pill bar as wide as its labels instead of spanning the header. */
+  pillTabsFitContent = false,
+  /** Optional fixed pill size; omit to retain the scroll-responsive default. */
+  pillTabSize,
   activeTab,
   onTabChange,
   stickyTopOffset = QUEUE_TOPBAR_HEIGHT,
@@ -316,7 +322,7 @@ const QueuePageShell = ({
       fallbackKey={sidebarFallbackKey}
       openWidth={resolvedSidebarOpenWidth}
       wrapLabels={resolvedSidebarWrapLabels}
-      hideActiveChevron={sidebarHideActiveChevron}
+      hideActiveChevron={sidebarHideActiveChevron || brandTitle === 'จัดการระบบ'}
     />
     <div className='flex-1 min-w-0 flex flex-col'>
       <Header
@@ -425,16 +431,17 @@ const QueuePageShell = ({
             {tabVariant === 'pill' ? (
               <TabBar
                 aria-label='กรองตามสถานะ'
-                align='center'
-                className='w-full max-w-full'
+                align={pillTabAlign}
+                className='max-w-full'
                 style={{
+                  width: pillTabsFitContent ? 'fit-content' : '100%',
                   transition: 'padding 180ms cubic-bezier(0.32, 0.72, 0, 1)',
                 }}
               >
                 {tabsWithUpcoming.map((t) => (
                   <TabPill
                     key={t.key}
-                    size={pillSize}
+                    size={pillTabSize || pillSize}
                     selected={activeTab === t.key}
                     leadingIcon={t.icon || undefined}
                     count={typeof t.count === 'number' ? t.count : undefined}

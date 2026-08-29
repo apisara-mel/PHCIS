@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import Icon from '@/components/icons/Icon';
+import TabUnderline from '@/components/tab/TabUnderline';
 import Dropdown from '@/components/forms/Dropdown';
 import InputField from '@/components/forms/InputField';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -20,10 +21,9 @@ import {
 } from '@/data/queueCenterStore';
 
 /* ────────────────────────────────────────────────────────────────────────
-   queueCenterShared — ชิ้นส่วนที่ทั้ง 4 หน้าของ /queue-center ใช้ร่วมกัน
+   queueCenterShared — ชิ้นส่วนที่หน้าตั้งค่าของ /queue-center ใช้ร่วมกัน
 
    แยกออกมาเป็นไฟล์ย่อยตั้งแต่ต้นตามข้อกังวลเรื่องขนาดไฟล์ในสเปก
-   (QueueCenterConsolePage รวม TOR 1.3.1 / 1.3.3 / 1.3.5 ไว้หน้าเดียว)
 
    ทุกชิ้นเป็น "ประกอบจากคอมโพเนนต์ DS เดิม" ไม่ใช่คอมโพเนนต์ใหม่ของ
    design system — จึงอยู่ในโฟลเดอร์โมดูล ไม่ใช่ src/components/
@@ -380,63 +380,28 @@ export const WaitCell = ({ minutes, overdue, threshold }) => (
 /* ────────────────────────────────────────────────── แถบเมนูย่อยของโมดูล */
 
 const SUB_NAV = [
-  { path: '/queue-center/kiosk-settings', label: 'ตั้งค่าตู้บริการ', icon: 'print', exact: false },
+  { path: '/queue-center/kiosk-settings', label: 'ตั้งค่าตู้บริการ(Kiosk)', icon: 'print', exact: false },
   { path: '/queue-center/ticket-settings', label: 'ตั้งค่าใบคิว',     icon: 'receipt_long', exact: false },
   { path: '/queue-center/display',     label: 'ตั้งค่าจอแสดงผลการเรียกคิว', icon: 'tv',   exact: false },
 ];
 
-export const QueueCenterSubNav = () => (
-  <nav
-    className='w-full flex items-center overflow-x-auto'
-    style={{
-      gap: 'var(--dim-space-100)',
-      paddingTop: 'var(--dim-space-200)',
-      paddingLeft: 'var(--dim-space-300)',
-      paddingRight: 'var(--dim-space-300)',
-      background: 'var(--surface-brandPrimary-quaternary)',
-      border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-tertiary)',
-      borderRadius: 'var(--dim-radius-500, 16px)',
-      boxShadow: 'var(--shadow-card)',
-      whiteSpace: 'nowrap',
-    }}
-    role='tablist'
-    aria-label='เมนูระบบบริหารจัดการคิว'
-  >
-    {SUB_NAV.map((item) => (
-      <NavLink
-        key={item.path}
-        to={item.path}
-        exact={item.exact}
-        className='inline-flex items-center shrink-0'
-        role='tab'
-        style={{
-          gap: 'var(--dim-space-150)',
-          borderBottom: 'var(--dim-stroke-200, 2px) solid transparent',
-          color: 'var(--text-content-secondary)',
-          paddingTop: 'var(--dim-space-300)',
-          paddingRight: 'var(--dim-space-400)',
-          paddingBottom: 'var(--dim-space-300)',
-          paddingLeft: 'var(--dim-space-400)',
-          fontFamily: 'var(--type-family-body)',
-          fontSize: 'var(--type-size-sm, 14px)',
-          fontWeight: 'var(--type-weight-medium, 500)',
-          textDecoration: 'none',
-        }}
-        activeStyle={{
-          background: 'var(--surface-card-100)',
-          borderTopLeftRadius: 'var(--dim-radius-300, 10px)',
-          borderTopRightRadius: 'var(--dim-radius-300, 10px)',
-          borderBottomColor: 'var(--border-brandPrimary-default, var(--brand-p600))',
-          color: 'var(--text-brandPrimary-default)',
-          fontWeight: 'var(--type-weight-bold, 700)',
-        }}
-      >
-        <Icon name={item.icon} size={16} />
-        {item.label}
-      </NavLink>
-    ))}
-  </nav>
-);
+export const QueueCenterSubNav = () => {
+  const history = useHistory();
+  const { pathname } = useLocation();
+  const activePath = SUB_NAV.find((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))?.path
+    || SUB_NAV[0]?.path;
+
+  return (
+    <nav className='w-full overflow-x-auto' aria-label='เมนูระบบบริหารจัดการคิว'>
+      <TabUnderline
+        tabs={SUB_NAV.map(({ path, label }) => ({ key: path, label }))}
+        value={activePath}
+        onChange={(path) => history.push(path)}
+        style={{ minWidth: 'max-content' }}
+      />
+    </nav>
+  );
+};
 
 /* ─────────────────────────────────── ชิปจุดบริการ + จุดเตือน SLA (1.3.7.2) */
 
