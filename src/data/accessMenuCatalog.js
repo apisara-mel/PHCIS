@@ -42,11 +42,14 @@ export const permLabel = (level) => (PERM_META[level] || PERM_META[PERM_NONE]).l
 /* เมนูของแต่ละระบบ → node ระดับ "เมนู" พร้อมลูก (เมนูย่อย)
    คีย์ประกอบเป็น `<system>.<menu>` และ `<system>.<menu>.<submenu>` เพื่อให้
    record เก็บเป็น map แบน ๆ ได้เหมือนเดิม แต่อ่านลำดับชั้นออกจากคีย์ */
+/* `subItems` = เมนูย่อยที่กางเป็น SideSubMenu ข้างราง · `tabItems` = หน้าย่อย
+   ที่สลับกันด้วยแท็บในหน้า (เช่น "โครงสร้างองค์กรและสิทธิ์") — ทั้งสองแบบคือ
+   "เมนูย่อย" ในสายตาของสิทธิ์เท่ากัน จึงแตกเป็นใบเหมือนกัน (29 ส.ค. 69) */
 function menusFromNav(systemKey, nav) {
   return (nav || []).map((item) => ({
     key: `${systemKey}.${item.key}`,
     label: item.label,
-    children: (item.subItems || []).map((sub) => ({
+    children: (item.subItems || item.tabItems || []).map((sub) => ({
       key: `${systemKey}.${item.key}.${sub.key}`,
       label: sub.label,
     })),

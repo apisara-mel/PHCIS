@@ -30,6 +30,32 @@ export const HOLIDAY_TYPE_OPTIONS = [
 export const holidayTypeMeta = (type) => HOLIDAY_TYPE_OPTIONS.find((o) => o.value === type)
   || HOLIDAY_TYPE_OPTIONS[0];
 
+/* ขอบเขตการใช้งาน — วันหยุดส่วนใหญ่เป็นประกาศระดับสำนักอนามัย ใช้ทุกศูนย์
+   แต่วันหยุดเฉพาะหน่วยงาน (HOLIDAY_AGENCY) มักใช้แค่บางศูนย์ เช่น ปิดปรับปรุง
+   อาคาร หรือกิจกรรมประจำเขต จึงต้องระบุศูนย์ได้ (มติผู้ใช้ 29 ส.ค. 69)
+   record เก่าที่ยังไม่มีฟิลด์นี้ = 'all' เท่ากับพฤติกรรมเดิมทุกประการ */
+export const HOLIDAY_SCOPE_ALL = 'all';
+export const HOLIDAY_SCOPE_CENTERS = 'centers';
+
+export const HOLIDAY_SCOPE_OPTIONS = [
+  { value: HOLIDAY_SCOPE_ALL, label: 'ใช้กับทุกศูนย์' },
+  { value: HOLIDAY_SCOPE_CENTERS, label: 'เลือกเฉพาะบางศูนย์' },
+];
+
+/** ป้ายสรุปขอบเขตสำหรับตาราง — 'ทุกศูนย์' หรือ 'N ศูนย์' */
+export function holidayScopeLabel(row) {
+  if (!row || row.scope !== HOLIDAY_SCOPE_CENTERS) return 'ทุกศูนย์';
+  return `${(row.centerIds || []).length} ศูนย์`;
+}
+
+/** วันหยุดแถวนี้มีผลกับศูนย์นี้ไหม — ไม่ส่ง centerId มา = ถามระดับทะเบียน */
+export function appliesToCenter(row, centerId) {
+  if (!row) return false;
+  if (row.scope !== HOLIDAY_SCOPE_CENTERS) return true;
+  if (!centerId) return false;
+  return (row.centerIds || []).includes(String(centerId));
+}
+
 const THAI_MONTHS = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
@@ -104,12 +130,22 @@ export const DEMO_HOLIDAYS = DEMO_ROWS.map(([date, name, type, note], i) => ({
 }));
 
 export function normalizeHoliday(row = {}) {
+  const centerIds = Array.isArray(row.centerIds)
+    ? [...new Set(row.centerIds.filter(Boolean).map(String))]
+    : [];
+  /* เลือก "บางศูนย์" ไว้แต่ไม่ได้เลือกศูนย์เลย = ใช้ทุกศูนย์ — กันทะเบียนที่มี
+     วันหยุดซึ่งไม่มีผลกับศูนย์ไหนเลย ซึ่งอ่านไม่ออกว่าตั้งใจหรือลืม */
+  const scope = row.scope === HOLIDAY_SCOPE_CENTERS && centerIds.length
+    ? HOLIDAY_SCOPE_CENTERS
+    : HOLIDAY_SCOPE_ALL;
   return {
     id: row.id || uid(),
     date: String(row.date || '').slice(0, 10),
     name: String(row.name || '').trim(),
     type: HOLIDAY_TYPE_OPTIONS.some((o) => o.value === row.type) ? row.type : HOLIDAY_OFFICIAL,
     note: String(row.note || '').trim(),
+    scope,
+    centerIds: scope === HOLIDAY_SCOPE_CENTERS ? centerIds : [],
     active: row.active !== false,
   };
 }
@@ -151,8 +187,10 @@ export function computeHolidayStats(rows) {
 }
 
 /** วันนี้เป็นวันหยุดไหม — ให้หน้าอื่น (คิว/นัดหมาย) เรียกใช้ได้ */
-export function findHoliday(rows, iso) {
-  return (rows || []).find((r) => r.active !== false && r.date === iso) || null;
+export function findHoliday(rows, iso, centerId) {
+  return (rows || []).find((r) => r.active !== false
+    && r.date === iso
+    && appliesToCenter(r, centerId)) || null;
 }
 
 export function loadDemoHolidays() {

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import OrgStructureSubNav from '@/components/system/OrgStructureSubNav';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
@@ -55,7 +56,7 @@ import { readPositions, sortPositions } from '@/data/positionStore';
 
 /* PHCIS | Assess-control — สิทธิ์การเข้าถึงระบบ list (Figma 4D3nTx53 · 16:43747). */
 
-const breadcrumb = ['สิทธิ์การเข้าถึงระบบ'];
+const breadcrumb = ['จัดการระบบ', 'โครงสร้างองค์กรและสิทธิ์', 'สิทธิ์การเข้าถึงระบบ'];
 
 const CARD = {
   background: 'var(--surface-card-100)',
@@ -429,11 +430,13 @@ export default function AccessControlPage() {
   return (
     <>
       <QueuePageShell
-        activeKey='assess-access-control'
+        activeKey='system-org'
         sidebarItems={ASSESS_NAV}
-        sidebarFallbackKey='assess-access-control'
+        sidebarFallbackKey='system-org'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
+        /* แถบแท็บของเมนู "โครงสร้างองค์กรและสิทธิ์" — สลับไปหน้าอื่นในกลุ่มเดียวกัน */
+        belowSummary={<OrgStructureSubNav />}
         /* ชื่อหน้า + ปุ่มเพิ่มอยู่ใน SubHeader มาตรฐาน — ระยะบนจึงเท่ากันทุกหน้า
            และปุ่มยัง sticky ตอนเลื่อนตาราง (แก้พร้อมกันทุกหน้า 10 ส.ค. 2569) */
         title='สิทธิ์การเข้าถึงระบบ'

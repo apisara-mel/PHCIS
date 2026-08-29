@@ -476,7 +476,11 @@ const Popup = ({
             gap: 'var(--dim-space-200)',
             paddingTop: 'var(--dim-space-600)',
             paddingRight: 'clamp(var(--dim-space-300), 4vw, var(--dim-space-400))',
-            paddingBottom: 'var(--dim-space-600)',
+            /* หัวข้อกับเนื้อ popup เคยห่างกัน 32px (header 24 + body 8) ซึ่งอ่าน
+               เป็นคนละบล็อกจนฟอร์มดูลอย — ลดเหลือ 12 (รวมเป็น 20px) 29 ส.ค. 69
+               (มติผู้ใช้) ระยะบน/ซ้าย/ขวาคงเดิม popup ที่ต้องการระยะเดิมส่ง
+               `headerStyle={{ paddingBottom: 'var(--dim-space-600)' }}` ทับได้ */
+            paddingBottom: 'var(--dim-space-300)',
             paddingLeft: 'clamp(var(--dim-space-300), 4vw, var(--dim-space-600))',
             background: 'var(--surface-modal-default)',
             /* ให้ headerCenter วางกึ่งกลางจริงด้วย absolute ได้ */

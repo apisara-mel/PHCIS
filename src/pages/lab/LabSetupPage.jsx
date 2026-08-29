@@ -1,15 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import Sidebar from '@/components/layout/Sidebar';
-import Header from '@/components/layout/Header';
+import QueuePageShell from '@/templates/QueuePageShell';
+import { SummaryCard } from '@/components/layout/SummaryCardsBar';
+import PrimarySearch from '@/components/search/PrimarySearch';
+import useSearchHistory from '@/components/search/useSearchHistory';
+import { FilterDropdown } from '@/components/forms/FilterTag';
+import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
+import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Icon from '@/components/icons/Icon';
 import Badge from '@/components/badge/Badge';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
+import InputField from '@/components/forms/InputField';
+import Select from '@/components/forms/Select';
+import Checkbox from '@/components/checkbox/Checkbox';
+import Radio from '@/components/radio/Radio';
+import Popup from '@/components/popup/Popup';
+import Table from '@/components/table/Table';
 import SuccessToast from '@/components/toast/SuccessToast';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
 import { SpecimenSticker, groupRowsByTube } from '@/components/lab/LabSpecimenLabel';
 import { MIH_TOPBAR_OFFSET } from '@/hooks/useHeaderAutoHide';
+import SYSTEM_NAV from '@/pages/system/systemNav';
 import { LAB_ORDERS, withTestLabel } from '@/data/labOrders';
 import {
   LAB_STICKER_FIELDS, getPrintSettings, isStickerFieldOn,
@@ -48,9 +61,9 @@ import {
 
    And one the team asked for on top of the vendor screen:
      • "ต้องเซ็ตเป็นชุดเซ็ตของ Lab ตาม สร้างเป็น column guide ไว้เฉพาะๆ" —
-       hence the TMLT reference strip on each row and the link out to the
-       TMLT Browser, so whoever maintains the catalog can check a code
-       against the national terminology without leaving the screen. */
+       hence the TMLT reference strip on each row and the "ดู TMLT" button on
+       the รหัสมาตรฐาน card of the add/edit form, so whoever keys a code can
+       check it against the national terminology without leaving the screen. */
 
 const breadcrumb = ['จัดการระบบ', 'ทะเบียนรายการตรวจ'];
 
@@ -86,60 +99,50 @@ const SectionCard = ({ icon, title, subtitle, children, action }) => (
   </section>
 );
 
-const FIELD_STYLE = {
-  width: '100%',
-  paddingTop: 'var(--dim-space-150)',
-  paddingRight: 'var(--dim-space-300)',
-  paddingBottom: 'var(--dim-space-150)',
-  paddingLeft: 'var(--dim-space-300)',
-  background: 'var(--surface-input-default)',
-  border: 'var(--dim-stroke-100) solid var(--border-input-default)',
-  borderRadius: 'var(--dim-radius-200)',
-  fontSize: 'var(--type-size-sm)',
-  outline: 'none',
-};
+/* ทุกช่องกรอกในหน้านี้ต้อง alias มาจาก field ของ design system ไม่ใช่ <input>
+   ที่จัดสไตล์เอง (มติผู้ใช้ 29 ส.ค. 69) — ของเดิมเป็น <input>/<select> เปล่า
+   จึงได้ focus ring ฟ้าของเบราว์เซอร์และไม่มี state hover/error/disabled ตาม
+   โทเคน. ตัวห่อสามตัวนี้คงลายเซ็นเดิมไว้ (label/value/onChange/hint/mono)
+   หน้าจึงเรียกใช้เหมือนเดิมทุกจุด เปลี่ยนแค่ของข้างใน */
+
+const MONO_INPUT_STYLE = { fontFamily: 'var(--type-family-mono, monospace)' };
 
 const TextField = ({ label, value, onChange, placeholder, required, hint, mono }) => (
-  <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-    <span className='text-xs text-ink-secondary'>
-      {label} {required && <span style={{ color: 'var(--text-input-require)' }}>*</span>}
-    </span>
-    <input
-      type='text'
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      style={mono ? { ...FIELD_STYLE, fontFamily: 'var(--type-family-mono, monospace)' } : FIELD_STYLE}
-    />
-    {hint && <span className='text-xs text-ink-tertiary'>{hint}</span>}
-  </label>
+  <InputField
+    label={label}
+    required={required}
+    helperText={hint}
+    placeholder={placeholder}
+    size='md'
+    value={value ?? ''}
+    onChange={onChange}
+    inputStyle={mono ? MONO_INPUT_STYLE : undefined}
+  />
 );
 
 const NumberField = ({ label, value, onChange, suffix, required }) => (
-  <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-    <span className='text-xs text-ink-secondary'>
-      {label} {required && <span style={{ color: 'var(--text-input-require)' }}>*</span>}
-      {suffix && <span className='text-ink-tertiary'> ({suffix})</span>}
-    </span>
-    <input
-      type='number'
-      min='0'
-      value={value ?? 0}
-      onChange={(e) => onChange(Number(e.target.value))}
-      style={FIELD_STYLE}
-    />
-  </label>
+  <InputField
+    label={label}
+    required={required}
+    helperText={suffix}
+    type='number'
+    min='0'
+    size='md'
+    placeholder='0'
+    value={String(value ?? 0)}
+    onChange={(v) => onChange(Number(v) || 0)}
+  />
 );
 
 const SelectField = ({ label, value, onChange, options, required }) => (
-  <label className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-    <span className='text-xs text-ink-secondary'>
-      {label} {required && <span style={{ color: 'var(--text-input-require)' }}>*</span>}
-    </span>
-    <select value={value} onChange={(e) => onChange(e.target.value)} style={FIELD_STYLE}>
-      {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
-  </label>
+  <Select
+    label={label}
+    required={required}
+    size='md'
+    value={value}
+    onChange={onChange}
+    options={options}
+  />
 );
 
 /* Radio row — the vendor screen's ◉ ITEM ○ PANEL and its result-type row are
@@ -147,42 +150,18 @@ const SelectField = ({ label, value, onChange, options, required }) => (
 const RadioRow = ({ label, options, value, onChange }) => (
   <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
     <span className='text-xs text-ink-secondary'>{label}</span>
-    <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-      {options.map((o) => {
-        const selected = value === o.value;
-        return (
-          <button
-            key={o.value}
-            type='button'
-            onClick={() => onChange(o.value)}
-            className='inline-flex items-center text-left'
-            style={{
-              gap: 'var(--dim-space-200)',
-              minHeight: 'var(--dim-size-700, 36px)',
-              paddingTop: 'var(--dim-space-200)',
-              paddingRight: 'var(--dim-space-300)',
-              paddingBottom: 'var(--dim-space-200)',
-              paddingLeft: 'var(--dim-space-300)',
-              background: selected ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-card-100)',
-              border: `var(--dim-stroke-100) solid ${selected ? 'var(--border-brandPrimary-default)' : 'var(--border-card-default)'}`,
-              borderRadius: 'var(--dim-radius-200)',
-              cursor: 'pointer',
-            }}
-          >
-            <Icon
-              name={selected ? 'radio_button_checked' : 'radio_button_unchecked'}
-              size={16}
-              style={{ color: selected ? 'var(--text-brandPrimary-default)' : 'var(--text-content-tertiary)' }}
-            />
-            <span className='flex flex-col'>
-              <span className='text-sm' style={{ color: selected ? 'var(--text-brandPrimary-default)' : 'var(--text-content-primary)', fontWeight: selected ? 'var(--type-weight-medium)' : 'var(--type-weight-regular)' }}>
-                {o.label}
-              </span>
-              {o.hint && <span className='text-xs text-ink-tertiary'>{o.hint}</span>}
-            </span>
-          </button>
-        );
-      })}
+    <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-400)' }}>
+      {options.map((o) => (
+        <Radio
+          key={o.value}
+          name={label}
+          value={o.value}
+          label={o.label}
+          description={o.hint}
+          checked={value === o.value}
+          onChange={() => onChange(o.value)}
+        />
+      ))}
     </div>
   </div>
 );
@@ -308,7 +287,13 @@ const LabSetupPage = () => {
   }, []);
 
   const [query, setQuery] = useState('');
-  const [groupFilter, setGroupFilter] = useState('all');
+  /* '' = ไม่กรอง (ชิปตัวกรองใช้ค่าว่างเป็น "ทั้งหมด" เหมือนหน้าอื่นในโมดูล) */
+  const [groupFilter, setGroupFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [tubeFilter, setTubeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const { history: searchHistory, push: pushSearchHistory, clear: clearSearchHistory } =
+    useSearchHistory('mih:primarysearch-history:lab-registry');
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(null);
   const [saved, setSaved] = useState(false);
@@ -318,8 +303,20 @@ const LabSetupPage = () => {
 
   const setField = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
+  /* ตัวกรองเป็นชิป (FilterTag) เท่าที่หัวคอลัมน์ต้องการจริง — กลุ่ม · ชนิด ·
+     สิ่งส่งตรวจ · สถานะ (มติผู้ใช้ 29 ส.ค. 69) รหัสรายการ/TMLT/ราคาไม่ทำเป็นชิป
+     เพราะเป็นค่าเฉพาะรายการ หาได้จากช่องค้นหาอยู่แล้ว */
+  const filtersActive = !!(groupFilter || typeFilter || tubeFilter || statusFilter);
+  const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
+    filtersActive,
+    () => { setGroupFilter(''); setTypeFilter(''); setTubeFilter(''); setStatusFilter(''); },
+  );
+
   const rows = useMemo(() => LAB_TESTS
-    .filter((t) => groupFilter === 'all' || t.group === groupFilter)
+    .filter((t) => !groupFilter || t.group === groupFilter)
+    .filter((t) => !typeFilter || (typeFilter === 'panel' ? t.type === 'panel' : t.type !== 'panel'))
+    .filter((t) => !tubeFilter || t.tubeKey === tubeFilter)
+    .filter((t) => !statusFilter || (statusFilter === 'retired' ? !!t.retired : !t.retired))
     .filter((t) => {
       const q = query.trim().toLowerCase();
       if (!q) return true;
@@ -329,20 +326,11 @@ const LabSetupPage = () => {
   /* `version` is the dependency that matters — LAB_TESTS is mutated in
      place, so its identity never changes. */
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [query, groupFilter, version]);
+  [query, groupFilter, typeFilter, tubeFilter, statusFilter, version]);
 
   /* The edit form renders far below the catalog list, so opening it without
      moving the viewport reads as "nothing happened". Scroll it into view on
      the next frame, once the form has actually rendered. */
-  const editFormRef = React.useRef(null);
-  useEffect(() => {
-    if (!form || !editFormRef.current) return;
-    const id = window.requestAnimationFrame(() => {
-      editFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-    return () => window.cancelAnimationFrame(id);
-  }, [editingId]);
-
   const startEdit = (test) => {
     setEditingId(test.id);
     /* Deep-copy the analytes so editing the draft doesn't mutate the stored
@@ -367,6 +355,127 @@ const LabSetupPage = () => {
     cancelEdit();
   };
 
+  /* การ์ดสรุปหัวหน้า — นับจากทะเบียนทั้งหมด ไม่ใช่ผลค้นหา เพราะเป็นภาพรวม
+     ของทะเบียน ไม่ใช่ของตัวกรองที่เพิ่งพิมพ์ (มติผู้ใช้ 29 ส.ค. 69) */
+  const summaryCards = useMemo(() => {
+    const all = LAB_TESTS;
+    const live = all.filter((t) => !t.retired);
+    return [
+      { key: 'total',   icon: 'biotech',        color: 'info',     value: String(all.length), label: 'รายการตรวจทั้งหมด' },
+      { key: 'item',    icon: 'labs',           color: 'brand',    value: String(live.filter((t) => t.type !== 'panel').length), label: 'รายการเดี่ยว (ITEM)' },
+      { key: 'panel',   icon: 'fact_check',     color: 'positive', value: String(live.filter((t) => t.type === 'panel').length), label: 'ชุดตรวจ (PANEL/PROFILE)' },
+      { key: 'retired', icon: 'block',          color: 'warning',  value: String(all.filter((t) => t.retired).length), label: 'ยกเลิกใช้งาน' },
+    ];
+  /* LAB_TESTS ถูกแก้ในที่ — `version` คือ dependency ที่เปลี่ยนจริง */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
+
+  /* คอลัมน์ทะเบียนรายการตรวจ — ใช้ <Table> กลางของระบบเหมือนทะเบียนยา
+     (มติผู้ใช้ 29 ส.ค. 69) ของเดิมเป็นการ์ดแถวที่จัดสไตล์เอง จึงไม่มีหัวคอลัมน์
+     ให้อ่าน ไม่มีการเรียงลำดับ และไม่มีหน้าแบ่งเมื่อรายการยาว */
+  const catalogColumns = [
+    {
+      key: 'code',
+      label: 'รหัสรายการ',
+      minWidth: 96,
+      /* รหัสรายการอ่านเป็นข้อมูลในตาราง ไม่ใช่โค้ด — ใช้ Sarabun ตัวเดียวกับ
+         ทั้งตาราง (มติผู้ใช้ 29 ส.ค. 69) ของเดิมเป็น monospace เลยหลุดจาก
+         ตัวอักษรของคอลัมน์อื่น */
+      render: (t) => (
+        <span style={{ fontFamily: 'var(--type-family-body)', color: 'var(--text-content-tertiary)' }}>
+          {t.code}
+        </span>
+      ),
+    },
+    {
+      key: 'name',
+      label: 'ชื่อรายการตรวจ',
+      flex: true,
+      minWidth: 240,
+      render: (t) => (
+        <div className='flex flex-col min-w-0'>
+          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+            <span className='truncate' style={{ fontWeight: 'var(--type-weight-bold)' }}>{t.nameEn}</span>
+            {t.retired ? <Badge style='neutral' size='small'>ยกเลิกใช้งาน</Badge> : null}
+            {t.confidential ? (
+              <span title='ผลเป็นความลับ — ปกปิดตาม TOR §1.15.2.4' style={{ color: 'var(--text-content-quaternary)' }}>
+                <Icon name='lock' size={14} />
+              </span>
+            ) : null}
+          </div>
+          <span className='truncate' style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
+            {t.nameTh}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'type',
+      label: 'ชนิด',
+      align: 'center',
+      render: (t) => (
+        <Badge style={t.type === 'panel' ? 'info' : 'neutral'} size='small'>
+          {t.type === 'panel' ? `PANEL · ${t.analytes?.length ?? 0}` : 'ITEM'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'group',
+      label: 'กลุ่ม',
+      render: (t) => LAB_GROUPS.find((g) => g.key === t.group)?.code ?? '—',
+    },
+    {
+      key: 'tube',
+      label: 'สิ่งส่งตรวจ',
+      sortable: false,
+      render: (t) => <LabTubeDot tube={getTube(t)} count={t.tubeCount} size={9} />,
+    },
+    {
+      /* "column guide" ที่ทีมขอ — รหัสมาตรฐานอยู่บนทุกแถว ไม่ต้องเปิดฟอร์มดู */
+      key: 'tmlt',
+      label: 'รหัส TMLT',
+      render: (t) => (
+        <span
+          style={{ fontFamily: 'var(--type-family-mono, monospace)', color: 'var(--text-content-tertiary)' }}
+          title={`TMLT ${t.tmlt}${t.loinc ? ` · LOINC ${t.loinc}` : ''}`}
+        >
+          {t.tmlt || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'price',
+      label: 'ราคา (บาท)',
+      align: 'center',
+      render: (t) => (t.price ?? 0).toLocaleString('th-TH'),
+    },
+    {
+      key: 'actions',
+      label: 'การดำเนินการ',
+      align: 'center',
+      sortable: false,
+      render: (t) => (
+        <div className='inline-flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+          <NeutralSubdueIconButton
+            icon='edit'
+            variant='outline'
+            size='sm'
+            aria-label={`แก้ไข ${t.nameEn}`}
+            onClick={(e) => { e.stopPropagation(); startEdit(t); }}
+          />
+          <NeutralSubdueIconButton
+            icon={t.retired ? 'restart_alt' : 'block'}
+            variant='outline'
+            size='sm'
+            aria-label={t.retired ? `เปิดใช้งาน ${t.nameEn}` : `ยกเลิกใช้งาน ${t.nameEn}`}
+            title={t.retired ? 'เปิดใช้งานอีกครั้ง' : 'ยกเลิกใช้งาน (ไม่ลบ เพื่อให้ผลเดิมยังอ้างอิงได้)'}
+            onClick={(e) => { e.stopPropagation(); setLabTestRetired(t.id, !t.retired); }}
+          />
+        </div>
+      ),
+    },
+  ];
+
   const isPanel = form?.type === 'panel';
 
   /* Analyte list editing — for an ITEM this is the single value it reports;
@@ -386,139 +495,107 @@ const LabSetupPage = () => {
   }));
 
   return (
-    <div className='min-h-screen flex' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
-      <Sidebar activeKey='system-lab-registry' />
-      <main className='flex-1 flex flex-col min-w-0'>
-        <Header breadcrumb={breadcrumb} />
-        <div className='p-3 md:p-6 flex-1 flex flex-col' style={{ gap: 'var(--dim-space-500)' }}>
-          <div className='flex items-center flex-wrap justify-end' style={{ gap: 'var(--dim-space-300)' }}>
-            {/* The TMLT Browser the team nominated as the code reference.
-                Opens in a new tab — this is an external national database,
-                not part of the app. */}
-            <a
-              href={TMLT_BROWSER_URL}
-              target='_blank'
-              rel='noreferrer noopener'
-              className='inline-flex items-center text-sm'
-              style={{ gap: 'var(--dim-space-150)', color: 'var(--text-brandPrimary-default)', textDecoration: 'none' }}
-            >
-              <Icon name='open_in_new' size={16} />
-              เปิด TMLT Browser (ฐานข้อมูลรหัสมาตรฐาน)
-            </a>
+    <>
+    {/* หน้านี้เป็นของ "ระบบจัดการระบบ" — ใช้ QueuePageShell ตัวเดียวกับหน้าอื่น
+        ในโมดูล (มติผู้ใช้ 29 ส.ค. 69) ชื่อหน้าและปุ่มหลักจึงอยู่ที่ SubHeader
+        ตำแหน่งเดียวกับศูนย์บริการ · วันหยุดประจำปี · สิทธิ์การเข้าถึงระบบ
+        ของเดิมประกอบ Sidebar+Header เอง ชื่อหน้าเลยไปโผล่กลางหน้าในการ์ด */}
+    <QueuePageShell
+      activeKey='system-lab-registry'
+      sidebarItems={SYSTEM_NAV}
+      sidebarFallbackKey='system-overview'
+      brandTitle='จัดการระบบ'
+      breadcrumb={breadcrumb}
+      title='ทะเบียนรายการตรวจ'
+      headerInfo={(
+        <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+          <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
+            {summaryCards.map((c) => <SummaryCard key={c.key} card={c} variant='panel' />)}
           </div>
-
+        </section>
+      )}
+      actions={(
+        <BrandButton variant='fill' size='md' leadingIcon='add' onClick={startNew}>
+          เพิ่มรายการตรวจ
+        </BrandButton>
+      )}
+    >
+        <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
           {/* ─── Catalog list ─── */}
           <SectionCard
             icon='biotech'
-            title='ทะเบียนรายการตรวจ'
+            title='รายการตรวจในทะเบียน'
             subtitle={`${LAB_TESTS.length} รายการในระบบ · รหัสมาตรฐานที่ใช้อ้างอิงคือ TMLT`}
-            action={
-              <BrandButton size='sm' leadingIcon='add' onClick={startNew}>
-                เพิ่มรายการตรวจ
-              </BrandButton>
-            }
           >
-            <div className='flex flex-wrap items-end w-full' style={{ gap: 'var(--dim-space-300)' }}>
-              <div style={{ flex: '1 1 280px', minWidth: 200 }}>
-                <TextField
-                  label='ค้นหา'
-                  value={query}
-                  onChange={setQuery}
-                  placeholder='รหัสรายการ · ชื่อ · รหัส TMLT · LOINC'
-                />
-              </div>
-              <div style={{ flex: '0 1 260px', minWidth: 180 }}>
-                <SelectField
-                  label='กลุ่ม'
-                  value={groupFilter}
-                  onChange={setGroupFilter}
-                  options={[
-                    { value: 'all', label: 'ทุกกลุ่ม' },
-                    ...LAB_GROUPS.map((g) => ({ value: g.key, label: `${g.thai} (${g.code})` })),
-                  ]}
-                />
-              </div>
+            {/* กล่องค้นหาเป็น PrimarySearch กึ่งกลางการ์ด ตำแหน่งเดียวกับหน้าอื่น
+                (ตำแหน่ง · เวชระเบียน · ทะเบียนยา) — มติผู้ใช้ 29 ส.ค. 69 */}
+            <div className='w-full flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
+              <div className='flex-1' />
+              <PrimarySearch
+                value={query}
+                onChange={setQuery}
+                onSubmit={(q) => { if (q && q.trim()) pushSearchHistory(q.trim()); }}
+                placeholder='ค้นหารหัสรายการ · ชื่อ · รหัส TMLT · LOINC'
+                width={640}
+                history={searchHistory}
+                onHistoryClear={searchHistory.length > 0 ? clearSearchHistory : undefined}
+              />
+              <div className='flex-1' />
             </div>
 
-            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-              {rows.length === 0 && (
-                <span className='text-sm text-ink-tertiary'>ไม่พบรายการตรวจที่ตรงกับการค้นหา</span>
-              )}
-              {rows.map((t) => {
-                const tube = getTube(t);
-                const group = LAB_GROUPS.find((g) => g.key === t.group);
-                return (
-                  <div
-                    key={t.id}
-                    className='flex items-center flex-wrap w-full'
-                    style={{
-                      gap: 'var(--dim-space-300)',
-                      background: editingId === t.id ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-card-200)',
-                      borderRadius: 'var(--dim-radius-200)',
-                      border: `var(--dim-stroke-100) solid ${editingId === t.id ? 'var(--border-brandPrimary-default)' : 'var(--border-neutral-quaternary)'}`,
-                      paddingTop: 'var(--dim-space-300)',
-                      paddingRight: 'var(--dim-space-400)',
-                      paddingBottom: 'var(--dim-space-300)',
-                      paddingLeft: 'var(--dim-space-400)',
-                      opacity: t.retired ? 0.55 : 1,
-                    }}
-                  >
-                    <span
-                      className='shrink-0'
-                      style={{ fontFamily: 'var(--type-family-mono, monospace)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)', width: 84 }}
-                    >
-                      {t.code}
-                    </span>
-                    <span className='flex flex-col' style={{ flex: '1 1 220px', minWidth: 160 }}>
-                      <span className='text-sm font-bold text-ink'>{t.nameEn}</span>
-                      <span className='text-xs text-ink-tertiary'>{t.nameTh}</span>
-                    </span>
-                    <Badge style={t.type === 'panel' ? 'info' : 'neutral'} size='small'>
-                      {t.type === 'panel' ? `PANEL · ${t.analytes?.length ?? 0}` : 'ITEM'}
-                    </Badge>
-                    <span className='text-xs text-ink-secondary' style={{ width: 132 }}>
-                      {group?.code ?? '—'}
-                    </span>
-                    <LabTubeDot tube={tube} count={t.tubeCount} size={9} />
-                    {/* The "column guide" the team asked for — the standard
-                        code sits on every row, not buried in the edit form. */}
-                    <span
-                      className='text-xs'
-                      style={{ fontFamily: 'var(--type-family-mono, monospace)', color: 'var(--text-content-tertiary)', width: 150 }}
-                      title={`TMLT ${t.tmlt}${t.loinc ? ` · LOINC ${t.loinc}` : ''}`}
-                    >
-                      TMLT {t.tmlt || '—'}
-                    </span>
-                    <span className='text-sm text-ink' style={{ width: 78, textAlign: 'right' }}>
-                      {(t.price ?? 0).toLocaleString('th-TH')}
-                    </span>
-                    {t.confidential && (
-                      <span title='ผลเป็นความลับ — ปกปิดตาม TOR §1.15.2.4' style={{ color: 'var(--text-content-quaternary)' }}>
-                        <Icon name='lock' size={14} />
-                      </span>
-                    )}
-                    {t.retired && <Badge style='neutral' size='small'>ยกเลิกใช้งาน</Badge>}
-                    <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
-                      <NeutralSubdueIconButton
-                        icon='edit'
-                        variant='outline'
-                        size='sm'
-                        aria-label={`แก้ไข ${t.nameEn}`}
-                        onClick={() => startEdit(t)}
-                      />
-                      <NeutralSubdueIconButton
-                        icon={t.retired ? 'restart_alt' : 'block'}
-                        variant='outline'
-                        size='sm'
-                        aria-label={t.retired ? `เปิดใช้งาน ${t.nameEn}` : `ยกเลิกใช้งาน ${t.nameEn}`}
-                        title={t.retired ? 'เปิดใช้งานอีกครั้ง' : 'ยกเลิกใช้งาน (ไม่ลบ เพื่อให้ผลเดิมยังอ้างอิงได้)'}
-                        onClick={() => setLabTestRetired(t.id, !t.retired)}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+            <div className='flex items-center justify-between w-full flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+              <div className='flex items-center min-w-0 flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+                <FilterDropdown
+                  prefix='กลุ่ม:'
+                  options={LAB_GROUPS.map((g) => ({ value: g.key, label: `${g.thai} (${g.code})` }))}
+                  value={groupFilter}
+                  onChange={setGroupFilter}
+                  placeholder='ทุกกลุ่ม'
+                />
+                <FilterDropdown
+                  prefix='ชนิด:'
+                  options={[
+                    { value: 'item', label: 'รายการเดี่ยว (ITEM)' },
+                    { value: 'panel', label: 'ชุดตรวจ (PANEL/PROFILE)' },
+                  ]}
+                  value={typeFilter}
+                  onChange={setTypeFilter}
+                  placeholder='ทุกชนิด'
+                />
+                <FilterDropdown
+                  prefix='สิ่งส่งตรวจ:'
+                  options={LAB_TUBE_LIST.map((t) => ({ value: t.key, label: t.thai }))}
+                  value={tubeFilter}
+                  onChange={setTubeFilter}
+                  placeholder='ทุกสิ่งส่งตรวจ'
+                />
+                <FilterDropdown
+                  prefix='สถานะ:'
+                  options={[
+                    { value: 'active', label: 'ใช้งานอยู่' },
+                    { value: 'retired', label: 'ยกเลิกใช้งาน' },
+                  ]}
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  placeholder='ทุกสถานะ'
+                />
+                <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
+              </div>
+              <Badge style='neutral' size='small'>{`${rows.length} รายการ`}</Badge>
             </div>
+
+            <SmoothFilterResults opaque={resultsOpaque}>
+            <Table
+              columns={catalogColumns}
+              rows={rows}
+              rowKey={(t) => t.id}
+              onRowClick={startEdit}
+              emptyMessage={query || filtersActive
+                ? 'ไม่พบรายการตรวจที่ตรงกับเงื่อนไข'
+                : 'ยังไม่มีรายการในทะเบียน'}
+              emptySubtext={query || filtersActive ? 'ลองล้างตัวกรองหรือแก้คำค้นหา' : null}
+            />
+            </SmoothFilterResults>
           </SectionCard>
 
           {/* ─── Sticker configuration ─── */}
@@ -554,12 +631,10 @@ const LabSetupPage = () => {
                       opacity: f.required ? 0.85 : 1,
                     }}
                   >
-                    <input
-                      type='checkbox'
+                    <Checkbox
                       checked={on}
                       disabled={f.required}
-                      onChange={(e) => setStickerField(f.key, e.target.checked)}
-                      style={{ width: 'var(--dim-size-300, 16px)', height: 'var(--dim-size-300, 16px)', accentColor: 'var(--surface-brandPrimary-default)', marginTop: 2 }}
+                      onChange={(next) => setStickerField(f.key, next)}
                     />
                     <span className='flex flex-col min-w-0'>
                       <span className='text-sm' style={{ fontWeight: 'var(--type-weight-medium)', color: on ? 'var(--text-brandPrimary-default)' : 'var(--text-content-primary)' }}>
@@ -612,11 +687,26 @@ const LabSetupPage = () => {
           </SectionCard>
 
           {/* ─── Edit form ─── */}
-          {form && (
-            <div ref={editFormRef} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+          {/* กด "เพิ่มรายการตรวจ" หรือไอคอนแก้ไขบนแถว → เปิดเป็น popup
+              (มติผู้ใช้ 29 ส.ค. 69) ของเดิมต่อท้ายหน้าแล้วเลื่อนจอลงไปหา
+              ทำให้ทะเบียนกับฟอร์มปนกันในหน้าเดียวและหาที่บันทึกไม่เจอ */}
+          <Popup
+            open={!!form}
+            onClose={cancelEdit}
+            size='extraLarge'
+            title={editingId === 'new' ? 'เพิ่มรายการตรวจใหม่' : `แก้ไข ${form?.nameEn || form?.code || ''}`}
+            secondaryAction={{ label: 'ยกเลิก', onClick: cancelEdit }}
+            primaryAction={{
+              label: 'บันทึกรายการตรวจ',
+              onClick: handleSave,
+              disabled: !form?.code || !form?.nameEn || !form?.nameTh || !form?.tmlt,
+            }}
+          >
+            {form && (
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
               <SectionCard
                 icon='edit'
-                title={editingId === 'new' ? 'เพิ่มรายการตรวจใหม่' : `แก้ไข ${form.nameEn || form.code}`}
+                title='ข้อมูลพื้นฐาน'
                 subtitle='ข้อมูลพื้นฐานและการจัดกลุ่ม — กลุ่มตรวจเป็นตัวกำหนดหลอด/สีจุกที่ระบบจะใช้อัตโนมัติ'
               >
                 <div className='grid grid-cols-1 md:grid-cols-4 gap-3 w-full'>
@@ -653,6 +743,19 @@ const LabSetupPage = () => {
                 icon='qr_code_2'
                 title='รหัสมาตรฐาน'
                 subtitle='ทีมกำหนดให้ใช้รหัส TMLT เป็นรหัสอ้างอิงหลัก — LOINC / ICD10TM / OPBKK เป็นรหัสเทียบเคียง'
+                /* ย้ายจากหัวหน้าทะเบียนมาไว้ตรงนี้ 29 ส.ค. 69 (มติผู้ใช้) — คนเปิด
+                   TMLT Browser คือคนที่กำลังกรอกรหัส ไม่ใช่คนที่มาดูรายการ
+                   ฐานข้อมูลระดับชาติ ไม่ใช่หน้าจอในระบบ จึงเปิดแท็บใหม่ */
+                action={(
+                  <BrandSubdueButton
+                    variant='outline'
+                    size='sm'
+                    trailingIcon='open_in_new'
+                    onClick={() => window.open(TMLT_BROWSER_URL, '_blank', 'noopener,noreferrer')}
+                  >
+                    ดู TMLT (ฐานข้อมูลรหัสมาตรฐาน)
+                  </BrandSubdueButton>
+                )}
               >
                 <div className='grid grid-cols-1 md:grid-cols-4 gap-3 w-full'>
                   <TextField
@@ -688,18 +791,16 @@ const LabSetupPage = () => {
                 <div className='grid grid-cols-1 md:grid-cols-3 gap-3 w-full'>
                   <NumberField label='จำนวนหลอด' value={form.tubeCount} onChange={(v) => setField('tubeCount', v)} />
                   <NumberField label='ต้องงดอาหารก่อนตรวจ' suffix='ชั่วโมง · 0 = ไม่ต้องงด' value={form.fastingHours} onChange={(v) => setField('fastingHours', v)} />
-                  <label className='flex flex-col justify-end' style={{ gap: 'var(--dim-space-150)' }}>
+                  <div className='flex flex-col justify-end' style={{ gap: 'var(--dim-space-150)' }}>
                     <span className='text-xs text-ink-secondary'>การปกปิดผล</span>
-                    <label className='inline-flex items-center cursor-pointer' style={{ gap: 'var(--dim-space-200)', minHeight: 38 }}>
-                      <input
-                        type='checkbox'
+                    <div className='flex items-center' style={{ minHeight: 38 }}>
+                      <Checkbox
+                        label='เป็นผลตรวจที่ต้องปกปิด (เช่น Anti-HIV)'
                         checked={!!form.confidential}
-                        onChange={(e) => setField('confidential', e.target.checked)}
-                        style={{ width: 'var(--dim-size-300, 16px)', height: 'var(--dim-size-300, 16px)', accentColor: 'var(--surface-brandPrimary-default)' }}
+                        onChange={(next) => setField('confidential', next)}
                       />
-                      <span className='text-sm text-ink-secondary'>เป็นผลตรวจที่ต้องปกปิด (เช่น Anti-HIV)</span>
-                    </label>
-                  </label>
+                    </div>
+                  </div>
                 </div>
                 {form.tubeKey && (
                   <span className='text-xs text-ink-tertiary'>
@@ -935,25 +1036,26 @@ const LabSetupPage = () => {
                         <span className='text-sm font-bold text-ink' style={{ flex: '1 1 200px', minWidth: 160 }}>
                           {r.label}
                         </span>
-                        <label className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+                        <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
                           <span className='text-xs text-ink-secondary'>ราคา (บาท)</span>
-                          <input
-                            type='number'
-                            min='0'
-                            value={row.price ?? 0}
-                            onChange={(e) => setRight({ price: Number(e.target.value) })}
-                            style={{ ...FIELD_STYLE, width: 110 }}
-                          />
-                        </label>
-                        <label className='inline-flex items-center cursor-pointer' style={{ gap: 'var(--dim-space-200)' }}>
-                          <input
-                            type='checkbox'
-                            checked={!!row.reimbursable}
-                            onChange={(e) => setRight({ reimbursable: e.target.checked })}
-                            style={{ width: 'var(--dim-size-300, 16px)', height: 'var(--dim-size-300, 16px)', accentColor: 'var(--surface-brandPrimary-default)' }}
-                          />
-                          <span className='text-sm text-ink-secondary'>เบิกได้</span>
-                        </label>
+                          <div style={{ width: 110 }}>
+                            <InputField
+                              showLabel={false}
+                              type='number'
+                              min='0'
+                              size='md'
+                              placeholder='0'
+                              aria-label={`ราคาสำหรับสิทธิ ${r.label}`}
+                              value={String(row.price ?? 0)}
+                              onChange={(v) => setRight({ price: Number(v) || 0 })}
+                            />
+                          </div>
+                        </div>
+                        <Checkbox
+                          label='เบิกได้'
+                          checked={!!row.reimbursable}
+                          onChange={(next) => setRight({ reimbursable: next })}
+                        />
                         {!row.reimbursable && (
                           <span className='text-xs' style={{ color: 'var(--text-statusbadge-warning, #C2410C)' }}>
                             ผู้ป่วยสิทธินี้ต้องชำระเอง
@@ -965,31 +1067,13 @@ const LabSetupPage = () => {
                 </div>
               </SectionCard>
 
-              <section
-                className='bg-surface-card rounded-card shadow-card flex flex-wrap items-center w-full sticky bottom-0'
-                style={{ gap: 'var(--dim-space-300)', padding: 'var(--dim-space-500)' }}
-              >
-                <span className='text-sm text-ink-secondary'>
-                  {form.code || '(ยังไม่ระบุรหัส)'} · {form.nameEn || '(ยังไม่ระบุชื่อ)'} ·
-                  {' '}{form.type === 'panel' ? `ชุดตรวจ ${form.analytes.length} รายการย่อย` : 'รายการเดี่ยว'}
-                </span>
-                <div className='flex-1' />
-                <NeutralSubdueButton variant='outline' size='md' onClick={cancelEdit}>ยกเลิก</NeutralSubdueButton>
-                <BrandButton
-                  size='md'
-                  leadingIcon='save'
-                  disabled={!form.code || !form.nameEn || !form.nameTh || !form.tmlt}
-                  onClick={handleSave}
-                >
-                  บันทึกรายการตรวจ
-                </BrandButton>
-              </section>
             </div>
-          )}
+            )}
+          </Popup>
         </div>
-      </main>
-      <SuccessToast open={saved} message='บันทึกรายการตรวจแล้ว' onClose={() => setSaved(false)} />
-    </div>
+    </QueuePageShell>
+    <SuccessToast open={saved} message='บันทึกรายการตรวจแล้ว' onClose={() => setSaved(false)} />
+    </>
   );
 };
 

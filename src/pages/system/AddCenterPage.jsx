@@ -39,9 +39,9 @@ export default function AddCenterPage() {
 
   return (
     <QueuePageShell
-      activeKey='system-centers'
+      activeKey='system-org'
       sidebarItems={SYSTEM_NAV}
-      sidebarFallbackKey='system-centers'
+      sidebarFallbackKey='system-org'
       brandTitle='ระบบ PHCIS'
       breadcrumb={breadcrumb}
       {...WIZARD_MORPH_SHELL_PROPS}

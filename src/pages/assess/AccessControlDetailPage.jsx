@@ -259,9 +259,9 @@ export default function AccessControlDetailPage() {
   if (!record) {
     return (
       <QueuePageShell
-        activeKey='assess-access-control'
+        activeKey='system-org'
         sidebarItems={ASSESS_NAV}
-        sidebarFallbackKey='assess-access-control'
+        sidebarFallbackKey='system-org'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
         title='สิทธิ์การเข้าถึงระบบ'
@@ -274,9 +274,9 @@ export default function AccessControlDetailPage() {
 
   return (
     <QueuePageShell
-      activeKey='assess-access-control'
+      activeKey='system-org'
       sidebarItems={ASSESS_NAV}
-      sidebarFallbackKey='assess-access-control'
+      sidebarFallbackKey='system-org'
       brandTitle='จัดการระบบ'
       breadcrumb={breadcrumb}
       title='สิทธิ์การเข้าถึงระบบ'

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import OrgStructureSubNav from '@/components/system/OrgStructureSubNav';
 import ActionList from '@/components/list/ActionList';
 import Select from '@/components/forms/Select';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
@@ -46,7 +47,7 @@ import {
    เรียงตามตัวอักษรไทยเสมอ) · หัวข้อบทบาท collapse ได้ · ชื่อบทบาทหลัก
    ฟอนต์ใหญ่ขึ้น · แก้ชื่อบทบาท/บทบาทตรงชื่อผ่าน icon ดินสอ. */
 
-const breadcrumb = ['บทบาท'];
+const breadcrumb = ['จัดการระบบ', 'โครงสร้างองค์กรและสิทธิ์', 'บทบาท'];
 
 const CARD = {
   background: 'var(--surface-card-100)',
@@ -669,11 +670,13 @@ export default function ActivityPage() {
   return (
     <>
       <QueuePageShell
-        activeKey='assess-activity'
+        activeKey='system-org'
         sidebarItems={ASSESS_NAV}
-        sidebarFallbackKey='assess-activity'
+        sidebarFallbackKey='system-org'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
+        /* แถบแท็บของเมนู "โครงสร้างองค์กรและสิทธิ์" — สลับไปหน้าอื่นในกลุ่มเดียวกัน */
+        belowSummary={<OrgStructureSubNav />}
         /* ชื่อหน้า + ปุ่มเพิ่มอยู่ใน SubHeader มาตรฐาน (เหมือนหน้าศูนย์บริการ)
            ระยะบนจึงเท่ากับหน้าอื่น และปุ่มยัง sticky ตอนเลื่อนตาราง */
         title='บทบาท'

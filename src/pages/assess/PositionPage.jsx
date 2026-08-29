@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
+import OrgStructureSubNav from '@/components/system/OrgStructureSubNav';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import useSearchHistory from '@/components/search/useSearchHistory';
@@ -35,7 +36,7 @@ import {
    PHCIS_Header_Summary position · search · filters · position table
    · add/edit popup · reorder · status toggles. */
 
-const breadcrumb = ['ตำแหน่ง'];
+const breadcrumb = ['จัดการระบบ', 'โครงสร้างองค์กรและสิทธิ์', 'ตำแหน่ง'];
 
 const CARD = {
   background: 'var(--surface-card-100)',
@@ -472,11 +473,13 @@ export default function PositionPage() {
   return (
     <>
       <QueuePageShell
-        activeKey='assess-positions'
+        activeKey='system-org'
         sidebarItems={ASSESS_NAV}
-        sidebarFallbackKey='assess-positions'
+        sidebarFallbackKey='system-org'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
+        /* แถบแท็บของเมนู "โครงสร้างองค์กรและสิทธิ์" — สลับไปหน้าอื่นในกลุ่มเดียวกัน */
+        belowSummary={<OrgStructureSubNav />}
         /* ชื่อหน้า + ปุ่มเพิ่มอยู่ใน SubHeader มาตรฐาน — ระยะบนจึงเท่ากันทุกหน้า
            และปุ่มยัง sticky ตอนเลื่อนตาราง (แก้พร้อมกันทุกหน้า 10 ส.ค. 2569) */
         title='ตำแหน่ง'

@@ -38,9 +38,9 @@ export default function CenterStructureCreatePage() {
   if (id && !existing) {
     return (
       <QueuePageShell
-        activeKey='system-structures'
+        activeKey='system-org'
         sidebarItems={SYSTEM_NAV}
-        sidebarFallbackKey='system-structures'
+        sidebarFallbackKey='system-org'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
         title='รูปแบบโครงสร้างศูนย์'
@@ -63,9 +63,9 @@ export default function CenterStructureCreatePage() {
 
   return (
     <QueuePageShell
-      activeKey='system-structures'
+      activeKey='system-org'
       sidebarItems={SYSTEM_NAV}
-      sidebarFallbackKey='system-structures'
+      sidebarFallbackKey='system-org'
       brandTitle='จัดการระบบ'
       breadcrumb={breadcrumb}
       title={isEdit ? 'แก้ไขรูปแบบโครงสร้างศูนย์' : 'สร้างรูปแบบโครงสร้างศูนย์'}

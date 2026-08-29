@@ -452,11 +452,9 @@ export const DEMO_ACCESS_CONTROLS = [
     piiVisibility: PII_VISIBLE,
     permissions: grantMenus({
       'system.system-overview': LEVEL_EDIT,
-      'system.system-centers': LEVEL_EDIT,
-      'system.system-structures': LEVEL_EDIT,
-      'system.assess-positions': LEVEL_EDIT,
-      'system.assess-activity': LEVEL_EDIT,
-      'system.assess-access-control': LEVEL_EDIT,
+      /* เมนูเดียวครอบทั้ง 5 แท็บ (รูปแบบโครงสร้างศูนย์ · ศูนย์บริการ · ตำแหน่ง ·
+         บทบาท · สิทธิ์การเข้าถึงระบบ) — grantMenus แตกให้ครบทุกใบเอง */
+      'system.system-org': LEVEL_EDIT,
       'system.system-staff': LEVEL_EDIT,
       'system.system-holidays': LEVEL_EDIT,
       'audit.audit-overview': LEVEL_VIEW,

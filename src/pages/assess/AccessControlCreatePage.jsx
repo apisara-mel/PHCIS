@@ -597,9 +597,9 @@ export default function AccessControlCreatePage({
   if (isEdit && id && !existing) {
     return (
       <QueuePageShell
-        activeKey='assess-access-control'
+        activeKey='system-org'
         sidebarItems={ASSESS_NAV}
-        sidebarFallbackKey='assess-access-control'
+        sidebarFallbackKey='system-org'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
         title='สิทธิ์การเข้าถึงระบบ'
@@ -979,9 +979,9 @@ export default function AccessControlCreatePage({
   return (
     <>
       <QueuePageShell
-        activeKey='assess-access-control'
+        activeKey='system-org'
         sidebarItems={ASSESS_NAV}
-        sidebarFallbackKey='assess-access-control'
+        sidebarFallbackKey='system-org'
         brandTitle='จัดการระบบ'
         breadcrumb={breadcrumb}
         title='สิทธิ์การเข้าถึงระบบ'

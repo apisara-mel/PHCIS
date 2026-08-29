@@ -31,10 +31,15 @@ import {
   thaiWeekday,
   fallsOnWeekend,
   holidayTypeMeta,
+  holidayScopeLabel,
   HOLIDAY_TYPE_OPTIONS,
+  HOLIDAY_SCOPE_OPTIONS,
   HOLIDAY_OFFICIAL,
   HOLIDAY_SUBSTITUTE,
+  HOLIDAY_SCOPE_ALL,
+  HOLIDAY_SCOPE_CENTERS,
 } from '@/data/holidayStore';
+import { readCenters } from '@/data/centerStore';
 
 /* ระบบจัดการระบบ · วันหยุดประจำปี
    ทะเบียนกลางของวันหยุดสำนักอนามัย — ศูนย์บริการทั้ง 69 แห่งอ้างชุดเดียวกัน
@@ -65,7 +70,42 @@ const SUBTEXT_CELL = {
   lineHeight: 1.5,
 };
 
-const emptyDraft = () => ({ date: '', name: '', type: HOLIDAY_OFFICIAL, note: '' });
+const emptyDraft = () => ({
+  date: '',
+  name: '',
+  type: HOLIDAY_OFFICIAL,
+  note: '',
+  scope: HOLIDAY_SCOPE_ALL,
+  centerIds: [],
+});
+
+/* ฟอร์มใน popup แบ่งเป็นกลุ่มที่มีชื่อ (มติผู้ใช้ 29 ส.ค. 69) — เดิมเป็นช่อง
+   กรอกเรียงกันรวด อ่านไม่ออกว่าอันไหนคือ "วันหยุดนี้คืออะไร" อันไหนคือ
+   "ใช้ที่ไหน" ยิ่งพอเพิ่มขอบเขตศูนย์เข้ามายิ่งต้องแยก */
+const FormGroup = ({ title, description, children }) => (
+  <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+    <div className='flex flex-col'>
+      <span
+        style={{
+          color: 'var(--text-content-primary)',
+          fontFamily: 'var(--type-family-heading-content)',
+          fontSize: 'var(--type-size-sm)',
+          fontWeight: 'var(--type-weight-bold)',
+        }}
+      >
+        {title}
+      </span>
+      {description ? (
+        <span style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
+          {description}
+        </span>
+      ) : null}
+    </div>
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+      {children}
+    </div>
+  </section>
+);
 
 /* ทะเบียนเก็บวันที่เป็น ISO string ส่วน <DatePicker> ของ DS รับ-ส่งเป็น Date
    จึงต้องแปลงตรงขอบ ไม่ให้ Date หลุดลงไปใน store */
@@ -177,7 +217,15 @@ export default function SystemHolidaysPage() {
   ], [stats]);
 
   const openCreate = () => { setDraft(emptyDraft()); setEditing('new'); };
-  const openEdit = (row) => { setDraft({ ...row }); setEditing(row); };
+  const openEdit = (row) => {
+    setDraft({
+      ...emptyDraft(),
+      ...row,
+      scope: row.scope || HOLIDAY_SCOPE_ALL,
+      centerIds: row.centerIds || [],
+    });
+    setEditing(row);
+  };
   const closeForm = () => { setEditing(null); setDraft(emptyDraft()); };
 
   /* วันเดียวกันซ้ำในทะเบียนไม่ได้ ยกเว้นรายการที่กำลังแก้ไขอยู่เอง */
@@ -191,7 +239,14 @@ export default function SystemHolidaysPage() {
   const dateError = dupOwner
     ? `เคยตั้งวันหยุดของวันที่ ${formatThaiDate(dupOwner.date)} ไว้แล้ว — "${dupOwner.name}"`
     : '';
-  const canSave = !!draft.date && !!draft.name.trim() && !!draft.type && !dupOwner;
+  /* ทะเบียนศูนย์บริการเป็นแหล่งความจริงเดียว — เพิ่มศูนย์ที่หน้าศูนย์บริการ
+     แล้วตัวเลือกตรงนี้ตามเอง ไม่ต้องมีรายชื่อศูนย์ซ้ำในไฟล์นี้ */
+  const centerOptions = useMemo(() => readCenters()
+    .filter((c) => !c.draft)
+    .map((c) => ({ value: c.id, label: `ศูนย์ ${c.code} ${c.name}` })), []);
+
+  const scopeIncomplete = draft.scope === HOLIDAY_SCOPE_CENTERS && !draft.centerIds.length;
+  const canSave = !!draft.date && !!draft.name.trim() && !!draft.type && !dupOwner && !scopeIncomplete;
 
   const handleSave = () => {
     if (!canSave) return;
@@ -245,6 +300,24 @@ export default function SystemHolidaysPage() {
       },
     },
     {
+      key: 'scope',
+      header: 'ขอบเขต',
+      sortable: true,
+      minWidth: 150,
+      render: (row) => (
+        <span
+          style={TEXT_CELL}
+          title={row.scope === HOLIDAY_SCOPE_CENTERS
+            ? (row.centerIds || [])
+              .map((id) => centerOptions.find((o) => o.value === id)?.label || id)
+              .join(' · ')
+            : 'ใช้กับศูนย์บริการทุกแห่ง'}
+        >
+          {holidayScopeLabel(row)}
+        </span>
+      ),
+    },
+    {
       key: 'active',
       header: 'สถานะ',
       sortable: true,
@@ -284,7 +357,7 @@ export default function SystemHolidaysPage() {
         </div>
       ),
     },
-  ], [rows]);
+  ], [rows, centerOptions]);
 
   const formOpen = editing !== null;
 
@@ -367,7 +440,11 @@ export default function SystemHolidaysPage() {
         primaryAction={{ label: 'บันทึก', onClick: handleSave, disabled: !canSave }}
         secondaryAction={{ label: 'ยกเลิก', onClick: closeForm }}
       >
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+          <FormGroup
+            title='รายละเอียดวันหยุด'
+            description='วันไหน ชื่ออะไร และเป็นวันหยุดประเภทใด'
+          >
           {/* ปฏิทินของ design system (Figma "Date Picker" 341:6345) —
               ไม่ใช้ <input type='date'> เพราะเบราว์เซอร์วาดปฏิทินของตัวเอง
               ซึ่งไม่ผูกกับ token และเป็นคนละหน้าตาในแต่ละ OS */}
@@ -411,6 +488,46 @@ export default function SystemHolidaysPage() {
             onChange={(v) => setDraft((p) => ({ ...p, note: v }))}
             placeholder='เช่น ชดเชยวันอาทิตย์ที่ 31 พฤษภาคม'
           />
+          </FormGroup>
+
+          <FormGroup
+            title='ขอบเขตการใช้งาน'
+            description='วันหยุดนี้มีผลกับศูนย์บริการแห่งใดบ้าง'
+          >
+            <Select
+              label='ใช้กับ'
+              required
+              searchable={false}
+              options={HOLIDAY_SCOPE_OPTIONS}
+              value={draft.scope}
+              onChange={(v) => setDraft((p) => ({
+                /* สลับกลับมา "ทุกศูนย์" แล้วล้างรายชื่อทิ้ง — ไม่เก็บค่าค้างที่
+                   ผู้ใช้มองไม่เห็นแล้วเด้งกลับมาตอนเปิดแก้ไขครั้งหน้า */
+                ...p,
+                scope: v,
+                centerIds: v === HOLIDAY_SCOPE_CENTERS ? p.centerIds : [],
+              }))}
+              showHelperText
+              helperText='ประกาศสำนักนายกฯ ใช้ทุกศูนย์ · วันหยุดเฉพาะหน่วยงานมักใช้บางศูนย์'
+            />
+            {draft.scope === HOLIDAY_SCOPE_CENTERS ? (
+              <Select
+                label='ศูนย์ที่ใช้วันหยุดนี้'
+                required
+                multiple
+                selectAllLabel='เลือกทุกศูนย์ในรายการ'
+                placeholder='เลือกศูนย์บริการ'
+                options={centerOptions}
+                value={draft.centerIds}
+                onChange={(v) => setDraft((p) => ({ ...p, centerIds: Array.isArray(v) ? v : [v] }))}
+                error={scopeIncomplete ? 'เลือกอย่างน้อย 1 ศูนย์' : undefined}
+                showHelperText
+                helperText={draft.centerIds.length
+                  ? `เลือกไว้ ${draft.centerIds.length} จาก ${centerOptions.length} ศูนย์`
+                  : 'ศูนย์ที่ไม่ได้เลือกจะเปิดทำการตามเวลาปกติในวันนี้'}
+              />
+            ) : null}
+          </FormGroup>
         </div>
       </Popup>
 
