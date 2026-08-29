@@ -29,6 +29,17 @@ const TREAT_MODULE_SUBITEMS = [
   { key: 'interfaces', label: 'สถานะการเชื่อมต่อระบบภายนอก',         path: '/treat/interfaces' },
 ];
 
+/* งานเยี่ยมบ้าน (TOR §1.18) — โมดูลเยี่ยมบ้านมีเมนูของตัวเองระดับ rail อยู่แล้ว
+   (`homevisit`) แต่คนที่ทำงานอยู่ในบันทึกการรักษาต้องหยิบงานเยี่ยมบ้านจากที่
+   เดียวกันได้ จึงเพิ่มเป็นเมนูย่อยของ "บันทึกการรักษา" ด้วย (มติผู้ใช้ 29 ส.ค. 69)
+   — ไม่ใส่ไว้ใน TREAT_DEPARTMENT_SUBITEMS เพราะนั่นเป็นรายชื่อ "คลินิก" ที่หน้า
+   คิวรวมรอรับเคสใช้ต่อ เยี่ยมบ้านไม่ใช่คลินิกปลายทางของการคัดกรอง.
+   path ชี้ /homevisit ซึ่งเป็นหน้าคิวนัดเยี่ยม (สลับหน้าในโมดูลด้วย
+   HomeVisitSubNav) — หน้าปลายทางส่ง activeKey='homevisit' รางจึงย้ายไป
+   ไฮไลต์เมนูเยี่ยมบ้านหลังกด เหมือนเมนูย่อยอื่นที่พาออกนอก /treat */
+const TREAT_HOME_VISIT_SUBITEM =
+  { key: 'homevisit', label: 'งานเยี่ยมบ้าน', path: '/homevisit' };
+
 /* export เพื่อให้ "คิวรวมรอรับเคส" ใช้รายชื่อคลินิกชุดเดียวกับเมนู — ถ้าเพิ่ม
    คลินิกใหม่ในเมนู หน้าคิวรวมจะเห็นทันทีโดยไม่ต้องแก้สองที่ให้ตรงกัน */
 export const TREAT_DEPARTMENT_SUBITEMS = [
@@ -114,6 +125,7 @@ export const PHCIS_SIDE_MENU = [
       TREAT_DEPARTMENT_SUBITEMS[0],
       ...TREAT_MODULE_SUBITEMS,
       ...TREAT_DEPARTMENT_SUBITEMS.slice(1),
+      TREAT_HOME_VISIT_SUBITEM,
     ],
   },
   /* Exist Nurse — จุดที่พยาบาลปิดเยี่ยมก่อนผู้รับบริการกลับบ้าน วางถัดจาก
