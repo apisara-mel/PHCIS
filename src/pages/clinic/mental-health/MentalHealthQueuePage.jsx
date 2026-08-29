@@ -485,6 +485,8 @@ const MentalHealthQueuePage = () => {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={handleTabChange}
+      /* แท็บ "นัดล่วงหน้า" — shell เป็นคนเติมแท็บและวาดเนื้อหา */
+      upcoming={{ depts: ['สุขภาพจิต'] }}
     >
       <Popup
         open={!!cancelTarget}

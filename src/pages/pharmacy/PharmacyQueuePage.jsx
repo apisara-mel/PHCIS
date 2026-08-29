@@ -18,6 +18,8 @@ import { checkHighAlert } from '@/data/pharmacyRegistry';
 import { findMrPatientByHn } from '@/data/mrPatients';
 import PharmacySubNav, { PharmacyHeaderActions } from '@/components/pharmacy/PharmacySubNav';
 import StickyStatusTabBar, { QUEUE_STICKY_UNDER_STATUS_TABS } from '@/components/tab/StickyStatusTabBar';
+import UpcomingAppointmentsPanel from '@/components/queue/UpcomingAppointmentsPanel';
+import { countUpcomingAppointments } from '@/data/upcomingAppointments';
 import { buildDispenseStatusSummaryCards, countRows } from '@/pages/pharmacy/pharmacySummaryCards';
 import { PHARMACY_WORKLIST_CARD_BODY } from '@/pages/pharmacy/pharmacyContentCard';
 import QueuePatientAvatar, { resolveQueuePatientAvatarProps } from '@/components/patient/QueuePatientAvatar';
@@ -32,6 +34,9 @@ const TABS = [
   { key: 'dispensed', label: 'จ่ายแล้ว',    icon: 'check_circle'  },
   { key: 'problem',   label: 'มีปัญหา',     icon: 'report'        },
   { key: 'no_show',   label: 'ไม่มารับยา',  icon: 'person_off'    },
+  /* นัดล่วงหน้า — แถบแท็บของหน้านี้อยู่ในเนื้อหน้า ไม่ได้มาจาก QueuePageShell
+     จึงเติมแท็บและสลับเนื้อหาเอง (มติผู้ใช้ 29 ส.ค. 69) */
+  { key: 'upcoming',  label: 'นัดล่วงหน้า', icon: 'event_upcoming' },
 ];
 
 const TAB_STATUS_FILTER = {
@@ -375,9 +380,13 @@ const PharmacyQueuePage = () => {
     [activeTab],
   );
 
+  const upcomingCount = useMemo(() => countUpcomingAppointments({ days: 7 }), []);
   const statusTabs = useMemo(
-    () => TABS.map((t) => ({ ...t, count: tabCounts[t.key] })),
-    [tabCounts],
+    () => TABS.map((t) => ({
+      ...t,
+      count: t.key === 'upcoming' ? upcomingCount : tabCounts[t.key],
+    })),
+    [tabCounts, upcomingCount],
   );
 
   return (
@@ -409,6 +418,12 @@ const PharmacyQueuePage = () => {
             onChange={handleTabChange}
           />
 
+          {activeTab === 'upcoming' ? (
+            <UpcomingAppointmentsPanel
+              emptyMessage='ยังไม่มีนัดล่วงหน้าที่ต้องเตรียมยาในช่วงนี้'
+            />
+          ) : (
+          <>
           <div className='w-full flex items-start justify-center'>
             <PrimarySearch
               value={searchQ}
@@ -478,6 +493,8 @@ const PharmacyQueuePage = () => {
             <div className='flex-1' />
             <Pagination currentPage={safePage} pageCount={totalPages} onPageChange={setPage} />
           </div>
+          </>
+          )}
         </div>
       </div>
     </QueuePageShell>

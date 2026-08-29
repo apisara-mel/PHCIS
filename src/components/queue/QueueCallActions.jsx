@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import BrandIconButton from '@/components/button/BrandIconButton';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Tooltip from '@/components/tooltip/Tooltip';
 import AlertDialog from '@/components/popup/AlertDialog';
@@ -17,6 +18,10 @@ import AlertDialog from '@/components/popup/AlertDialog';
    `disabledReason` มีค่า = ปิดทุกปุ่มพร้อมบอกเหตุผลใน tooltip (เช่น ผู้เสียชีวิต) */
 
 const QueueCallActions = ({
+  /* เรียกไปแล้วหรือยัง — ปุ่มเปลี่ยนเป็นสถานะ "เรียกแล้ว" แต่ยังกดเรียกซ้ำได้
+     (มติผู้ใช้ 29 ส.ค. 69) คนไข้ไม่มาตามเรียกเป็นเรื่องปกติ ปุ่มที่กดซ้ำไม่ได้
+     จะบังคับให้เจ้าหน้าที่ไปหาทางอื่นเรียก */
+  called = false,
   paused = false,
   disabled = false,
   /** เหตุผลที่กดไม่ได้ — ขึ้นใน tooltip ของปุ่มเรียกคิวแทนข้อความปกติ */
@@ -42,18 +47,33 @@ const QueueCallActions = ({
     <>
     <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
       <Tooltip
-        content={disabledReason || 'เรียกคิว'}
+        content={disabledReason || (called ? 'เรียกแล้ว — กดเพื่อเรียกซ้ำ' : 'เรียกคิว')}
         position='top'
         disabled={!canCall && !disabledReason}
       >
-        <BrandIconButton
-          icon='volume_up'
-          size={size}
-          variant={callVariant}
-          disabled={!canCall}
-          aria-label='เรียกคิว'
-          onClick={canCall ? stop(onCall) : undefined}
-        />
+        {called ? (
+          /* เรียกแล้ว = ปุ่มมีคำกำกับ ไม่ใช่ไอคอนเปล่า — สถานะต้องอ่านออกจาก
+             แถวโดยไม่ต้องเอาเมาส์ไปชี้ และยังเป็นปุ่มที่กดเรียกซ้ำได้อยู่ */
+          <BrandSubdueButton
+            variant='outline'
+            size={size}
+            leadingIcon='volume_up'
+            disabled={!canCall}
+            aria-label='เรียกแล้ว — กดเพื่อเรียกซ้ำ'
+            onClick={canCall ? stop(onCall) : undefined}
+          >
+            เรียกแล้ว
+          </BrandSubdueButton>
+        ) : (
+          <BrandIconButton
+            icon='volume_up'
+            size={size}
+            variant={callVariant}
+            disabled={!canCall}
+            aria-label='เรียกคิว'
+            onClick={canCall ? stop(onCall) : undefined}
+          />
+        )}
       </Tooltip>
       <Tooltip content={pauseLabel} position='top' disabled={blocked}>
         <BrandIconButton

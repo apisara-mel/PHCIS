@@ -430,6 +430,8 @@ const NcdQueuePage = () => {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={handleTabChange}
+      /* แท็บ "นัดล่วงหน้า" — shell เป็นคนเติมแท็บและวาดเนื้อหา */
+      upcoming={{ depts: ['อายุรกรรม'] }}
     >
       <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}>
         <div

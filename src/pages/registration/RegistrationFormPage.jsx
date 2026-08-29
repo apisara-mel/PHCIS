@@ -305,6 +305,8 @@ const RegistrationFormPage = () => {
   /* พักคิว / ยกเลิกคิว จากพาเนล — เก็บเป็น state ของหน้านี้ (roster กลางเป็น
      ค่าคงที่ ยังไม่มี store ที่เขียนได้) `paused` แค่สลับปุ่ม ส่วนยกเลิกเอาแถวออก */
   const [queuePaused, setQueuePaused] = useState({});
+  /* เรียกคิวไปแล้วคนไหนบ้าง — ปุ่มขึ้นสถานะ "เรียกแล้ว" แต่ยังกดซ้ำได้ */
+  const [queueCalled, setQueueCalled] = useState({});
   const [queueCancelled, setQueueCancelled] = useState({});
   /* ยกเลิกคิวต้องยืนยันก่อนเสมอ — ป๊อปอัปตัวเดียวกับตารางคิวเวชระเบียน
      (มติผู้ใช้ 27 ส.ค. 69) */
@@ -382,7 +384,11 @@ const RegistrationFormPage = () => {
         sectionLabels={REGISTRATION_QUEUE_SUBMENU_LABELS}
         /* เห็นแค่คิวที่รอลงทะเบียน พร้อมเลขคิวและปุ่มจัดการคิว · ไม่มี "ดูทั้งหมด"
            แล้ว (มติผู้ใช้ 27 ส.ค. 69) */
-        sections={['waiting']}
+        /* สองหมวด: คิวที่รอ + คิวที่กำลังทำอยู่ (มติผู้ใช้ 29 ส.ค. 69) — เดิมเห็น
+           แต่คิวที่รอ เจ้าหน้าที่จึงไม่รู้ว่าใครกำลังถูกให้บริการอยู่ ทั้งที่เป็นคน
+           ที่ต้องรู้ก่อนจะเรียกคิวถัดไป · คำเรียกหมวดมาจาก sectionLabels ของแต่ละ
+           โมดูล (ลงทะเบียน / คัดกรอง / ตรวจ) จึงใช้คำที่ถูกของงานนั้น */
+        sections={['inProgress', 'waiting']}
         showQueueNo
         /* แถวเรียบคั่นเส้นบางเหมือนตาราง worklist — ไม่ใช่การ์ด ไม่มีจุดสี
            ไม่มี chevron และทุกอย่างอยู่บรรทัดเดียว (มติผู้ใช้ 27 ส.ค. 69) */
@@ -390,8 +396,10 @@ const RegistrationFormPage = () => {
         onPickPatient={goToPatientRegister}
         renderRowActions={(p) => (
           <QueueCallActions
+            called={!!queueCalled[p.id]}
             paused={!!queuePaused[p.id]}
             disabledReason={p.deceased ? 'ผู้รับบริการเสียชีวิต — เรียกคิวไม่ได้' : undefined}
+            onCall={() => setQueueCalled((s2) => ({ ...s2, [p.id]: true }))}
             onPause={() => setQueuePaused((s2) => ({ ...s2, [p.id]: !s2[p.id] }))}
             onCancel={() => setQueueCancelCandidate(p)}
           />

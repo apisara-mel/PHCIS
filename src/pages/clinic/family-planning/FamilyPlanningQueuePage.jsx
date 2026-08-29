@@ -483,6 +483,8 @@ const FamilyPlanningQueuePage = () => {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={handleTabChange}
+      /* แท็บ "นัดล่วงหน้า" — shell เป็นคนเติมแท็บและวาดเนื้อหา */
+      upcoming={{ depts: ['สูติ-นรีเวช'] }}
       actions={(
         <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
           <ColorfulBadge style='red' size='small' hierarchy='secondary'>ข้อมูลลับ §1.4.2</ColorfulBadge>

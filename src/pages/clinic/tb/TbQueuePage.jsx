@@ -138,6 +138,10 @@ const queueRowToSearchItem = (row) => ({
 
 const TbQueuePage = () => {
   const history = useHistory();
+  /* หน้านี้เดิมไม่มีแถบแท็บเลย — เพิ่มแท็บเดียว "คิววันนี้" เพื่อให้ shell มีที่
+     ต่อแท็บ "นัดล่วงหน้า" ให้ (มติผู้ใช้ 29 ส.ค. 69) คิวของวันยังเป็นเนื้อหาเดิม
+     ทั้งหมด แท็บแรกจึงไม่เปลี่ยนพฤติกรรมอะไร */
+  const [activeTab, setActiveTab] = useState('waiting');
   const [searchQ, setSearchQ] = useState('');
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -327,6 +331,11 @@ const TbQueuePage = () => {
         </div>
       )}
       summaryCards={summaryCards}
+      tabs={[{ key: 'waiting', label: 'คิววันนี้', icon: 'schedule', count: rows.length }]}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      /* แท็บ "นัดล่วงหน้า" — shell เป็นคนเติมแท็บและวาดเนื้อหา */
+      upcoming={{ depts: ['อายุรกรรม'] }}
     >
       <div className='flex flex-col flex-1 min-w-0' style={{ paddingTop: 'var(--dim-space-600)', paddingBottom: 'var(--dim-space-600)', paddingLeft: 'var(--dim-space-600)', paddingRight: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}>
         <div

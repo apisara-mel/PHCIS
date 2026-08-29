@@ -695,6 +695,8 @@ const UnassignedWorklistPage = () => {
         tabs={tabsWithCounts}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        /* แท็บ "นัดล่วงหน้า" — shell เป็นคนเติมแท็บและวาดเนื้อหา */
+        upcoming={{}}
         /* ปุ่มประจำ worklist ของบันทึกการรักษา — ดูคำอธิบายใน EmrWorklistAction */
         leadingActions={<DutyRosterAction />}
       >

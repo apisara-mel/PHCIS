@@ -4,6 +4,8 @@ import React, {
 import { Redirect, useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import QueueSubMenu from '@/components/layout/QueueSubMenu';
+import { EmrRowAction } from '@/components/patient/EmrRowAction';
+import ScreeningConfirmPopup from '@/components/popup/ScreeningConfirmPopup';
 import Popover from '@/components/popup/Popover';
 import Popup from '@/components/popup/Popup';
 import ActionList from '@/components/list/ActionList';
@@ -32,6 +34,7 @@ import { GuardedAction } from '@/pages/treat/panels/panelHooks';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import { mergePatientFlags } from '@/data/treatmentPatientFlags';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
+import { appendAudit } from '@/data/treatmentAudit';
 import {
   TREATMENT_QUEUE_ROWS,
   TREATMENT_QUEUE_SUBMENU_LABELS,
@@ -326,6 +329,8 @@ const TreatmentFormPage = () => {
      store ที่เขียนได้ ผลของ พักคิว/ยกเลิกคิว จึงเก็บเป็น state ของหน้านี้ แบบ
      เดียวกับพาเนลของเวชระเบียนและคัดกรอง */
   const [queuePaused, setQueuePaused] = useState({});
+  /* เรียกคิวไปแล้วคนไหนบ้าง — ปุ่มขึ้นสถานะ "เรียกแล้ว" แต่ยังกดซ้ำได้ */
+  const [queueCalled, setQueueCalled] = useState({});
   const [queueCancelled, setQueueCancelled] = useState({});
   const [queueCancelCandidate, setQueueCancelCandidate] = useState(null);
 
@@ -367,6 +372,25 @@ const TreatmentFormPage = () => {
     pathname: '/treat/record',
     state: { hn: p.hn, queue: p.queue, name: p.name },
   });
+
+  /* กดแถวในพาเนลคิว = รับผู้ป่วยคนนั้นเข้าตรวจ จึงถามยืนยันก่อนเหมือนกดจาก
+     worklist (มติผู้ใช้ 29 ส.ค. 69) — ป๊อปอัปตัวเดียวกัน (Figma 145:6101) และ
+     ยืนยันแล้วบันทึกเวลารับเข้าลง audit เช่นเดียวกัน ไม่งั้นทางเข้าทางนี้จะ
+     ข้ามการบันทึกเวลาไปเงียบ ๆ */
+  const [panelAcceptTarget, setPanelAcceptTarget] = useState(null);
+  const confirmPanelAccept = () => {
+    const p = panelAcceptTarget;
+    if (!p) return;
+    appendAudit({
+      hn: p.hn,
+      category: 'note',
+      field: 'รับผู้ป่วยเข้าตรวจ',
+      oldValue: `${p.queue ? `คิว ${p.queue} · ` : ''}พาเนลคิวข้างฟอร์ม`,
+      newValue: 'รับเข้าห้องตรวจ',
+    });
+    setPanelAcceptTarget(null);
+    goToPatientRecord(p);
+  };
 
   /* ส่งยาไปห้องยา (ToR §1.9.11.1 — เชื่อมต่อกับระบบการสั่งยา/CPOE). Pushes
      this visit's medication orders into the pharmacy dispensing queue —
@@ -608,6 +632,17 @@ const TreatmentFormPage = () => {
         patientName={queueCancelCandidate?.name || '—'}
         avatarSrc={queueCancelCandidate?.avatarUrl}
       />
+      <ScreeningConfirmPopup
+        open={!!panelAcceptTarget}
+        patient={panelAcceptTarget ? {
+          ...(getPatientByHN(panelAcceptTarget.hn) || {}),
+          fullName: getPatientByHN(panelAcceptTarget.hn)?.fullName || panelAcceptTarget.name,
+          hn: panelAcceptTarget.hn,
+        } : undefined}
+        description='ยืนยันการรับผู้ป่วยเข้าห้องตรวจ — ระบบจะบันทึกเวลารับเข้าลงประวัติการตรวจ'
+        onConfirm={confirmPanelAccept}
+        onCancel={() => setPanelAcceptTarget(null)}
+      />
       <QueueSubMenu
         /* แถวเรียบคั่นด้วยเส้น ไม่ใช่การ์ดซ้อนการ์ด (มติผู้ใช้ 28 ส.ค. 69) —
            กรอบรอบทุกแถวในพาเนลแคบทำให้ดูเป็นกล่องเล็ก ๆ เรียงกันแทนที่จะเป็นคิว */
@@ -616,16 +651,30 @@ const TreatmentFormPage = () => {
         sectionLabels={TREATMENT_QUEUE_SUBMENU_LABELS}
         /* เห็นแค่ "คิวที่เหลือวันนี้" พร้อมรูปผู้ป่วยและปุ่มจัดการคิว · ไม่มีจุดสี
            นำหน้าและไม่มีปุ่ม "ดูทั้งหมด" แล้ว (มติผู้ใช้ 28 ส.ค. 69) */
-        sections={['waiting']}
+        /* สองหมวด: คิวที่รอ + คิวที่กำลังทำอยู่ (มติผู้ใช้ 29 ส.ค. 69) — เดิมเห็น
+           แต่คิวที่รอ เจ้าหน้าที่จึงไม่รู้ว่าใครกำลังถูกให้บริการอยู่ ทั้งที่เป็นคน
+           ที่ต้องรู้ก่อนจะเรียกคิวถัดไป · คำเรียกหมวดมาจาก sectionLabels ของแต่ละ
+           โมดูล (ลงทะเบียน / คัดกรอง / ตรวจ) จึงใช้คำที่ถูกของงานนั้น */
+        sections={['inProgress', 'waiting']}
         showDots={false}
-        onPickPatient={goToPatientRecord}
+        onPickPatient={(p) => setPanelAcceptTarget(p)}
         renderRowActions={(p) => (
           <QueueCallActions
+            called={!!queueCalled[p.id]}
             paused={!!queuePaused[p.id]}
             onPause={() => setQueuePaused((s2) => ({ ...s2, [p.id]: !s2[p.id] }))}
             onCancel={() => setQueueCancelCandidate(p)}
-            onCall={() => goToPatientRecord(p)}
-          />
+            onCall={() => {
+              setQueueCalled((s2) => ({ ...s2, [p.id]: true }));
+              setPanelAcceptTarget(p);
+            }}
+          >
+            {/* ดูประวัติของ "คนในแถวนั้น" ได้จากพาเนลโดยไม่ต้องเปิดเคสเขาขึ้นมา
+                (มติผู้ใช้ 29 ส.ค. 69) — บ่อยครั้งการอ่านประวัติคือสิ่งที่ตัดสินว่า
+                จะเรียกใครก่อน · `EmrRowAction` อ่าน HN ของแถว ข้อมูลจึงผูกกับชื่อ
+                ที่เห็นเสมอ ไม่ใช่คนไข้ที่กำลังเปิดฟอร์มอยู่ */}
+            <EmrRowAction hn={p.hn} name={p.name} />
+          </QueueCallActions>
         )}
       />
       <div className='flex-1 min-w-0 flex flex-col'>

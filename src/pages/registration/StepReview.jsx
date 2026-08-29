@@ -175,7 +175,13 @@ const StepReview = ({ form, onJumpToStep }) => {
         />
         <Row
           label='ที่อยู่ติดต่อได้'
-          value={f.useRegisteredForContact ? 'เหมือนที่อยู่ตามทะเบียนบ้าน' : addressLine(f.addressContact)}
+          /* ที่อยู่ติดต่อได้ยืมได้สองทาง — บอกว่ายืมจากไหน ไม่ใช่แค่ "เหมือนทะเบียนบ้าน"
+             ไม่งั้นแถวนี้จะโกหกเมื่อผู้ใช้เลือก "เหมือนที่อยู่ปัจจุบัน" */
+          value={f.useRegisteredForContact
+            ? 'เหมือนที่อยู่ตามทะเบียนบ้าน'
+            : f.useCurrentForContact
+              ? 'เหมือนที่อยู่ปัจจุบัน'
+              : addressLine(f.addressContact)}
         />
       </StepCard>
 

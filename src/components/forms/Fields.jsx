@@ -201,10 +201,17 @@ export const FieldGrid = ({
    control in the design system. The asterisk uses the require/600 red
    alias with a 2px (--dim-space-050) gap per the same Figma Field name
    row. */
-export const Field = ({ label, required, span = 1, children, hint }) => (
+export const Field = ({ label, required, span = 1, children, hint, style }) => (
   <div
     className='flex flex-col min-w-0'
-    style={{ gap: 'var(--dim-space-150)', gridColumn: `span ${span} / span ${span}` }}
+    /* `style` ถูกส่งต่อจริง (มติผู้ใช้ 29 ส.ค. 69) — ก่อนหน้านี้ prop นี้ถูกรับไว้
+       แล้วทิ้ง ผู้เรียกที่ส่ง `flex: '1 1 0'` มาเพื่อให้ช่องกินเต็มความกว้างจึงไม่มีผล
+       และกล่องกรอกกว้างตามเนื้อหาแทนที่จะเต็มคอลัมน์ */
+    style={{
+      gap: 'var(--dim-space-150)',
+      gridColumn: `span ${span} / span ${span}`,
+      ...style,
+    }}
   >
     {label && (
       <label style={{

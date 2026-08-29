@@ -139,6 +139,10 @@ export const buildEmptyRegistrationForm = () => ({
   useRegisteredForCurrent: false,
   addressCurrent: { ...EMPTY_ADDRESS },
   useRegisteredForContact: false,
+  /* ที่อยู่ติดต่อได้เลือก "เหมือนที่อยู่ปัจจุบัน" ได้อีกทางหนึ่ง (มติผู้ใช้ 29 ส.ค. 69)
+     — คนที่ย้ายมาอยู่คนละที่กับทะเบียนบ้านมักให้ติดต่อที่อยู่ที่ตัวเองอยู่จริง
+     สองธงนี้เป็นทางเลือกที่ตัดกัน ติ๊กอันหนึ่งอีกอันต้องหลุด */
+  useCurrentForContact: false,
   addressContact: { ...EMPTY_ADDRESS },
 
   // Step 3 — contact
@@ -372,6 +376,7 @@ export const buildPersonalDataFromPatient = (patient) => {
     useRegisteredForCurrent: false,
     addressCurrent: { ...EMPTY_ADDRESS },
     useRegisteredForContact: false,
+    useCurrentForContact: false,
     addressContact: { ...EMPTY_ADDRESS },
   };
 };
@@ -598,7 +603,8 @@ const isStepAddressComplete = (form) => {
   if (!form) return false;
   if (!isAddressFilled(form.addressRegistered)) return false;
   const currentOk = form.useRegisteredForCurrent || isAddressFilled(form.addressCurrent);
-  const contactOk = form.useRegisteredForContact || isAddressFilled(form.addressContact);
+  const contactOk = form.useRegisteredForContact || form.useCurrentForContact
+    || isAddressFilled(form.addressContact);
   return currentOk && contactOk;
 };
 

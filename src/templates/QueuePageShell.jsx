@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header, { SubHeader } from '@/components/layout/Header';
@@ -8,6 +8,8 @@ import TabUnderline from '@/components/tab/TabUnderline';
 import { morphTabStripPaddingStyle } from '@/components/layout/headerMorphStyles';
 import TabPill, { TabBar } from '@/components/tab/TabPill';
 import SummaryCardsBar from '@/components/layout/SummaryCardsBar';
+import UpcomingAppointmentsPanel from '@/components/queue/UpcomingAppointmentsPanel';
+import { countUpcomingAppointments } from '@/data/upcomingAppointments';
 import PageHeaderInfoPanel from '@/components/layout/PageHeaderInfoPanel';
 import { useHeaderAutoHide } from '@/context/HeaderAutoHideContext';
 import { APP_TOPBAR_HEIGHT, MIH_TOPBAR_OFFSET } from '@/hooks/useHeaderAutoHide';
@@ -57,6 +59,11 @@ import { MIH_CHROME_MORPH_STEP_BAND } from '@/components/layout/wizardChromeMorp
      tabVariant       — 'underline' (default, page-level) | 'pill' (capsule TabBar)
      activeTab        — controlled tab value
      onTabChange      — fired when the user changes tabs
+     upcoming         — เปิดแท็บ "นัดล่วงหน้า" ให้หน้านี้ (มติผู้ใช้ 29 ส.ค. 69)
+                        `true` = ทุกแผนก · `{ depts, emptyMessage }` = เฉพาะแผนก
+                        ของจุดงานนั้น · shell เป็นคนเติมแท็บและวาดเนื้อหาแทน
+                        `children` เมื่อแท็บนั้นถูกเลือก หน้าจึงเพิ่มได้ด้วย prop
+                        เดียวโดยไม่ต้องแก้ tab array และ body switch ของตัวเอง
      stickyTopOffset  — px offset under the Topbar when visible (default 64 = h-16)
      children         — page body (typically the white content card) */
 
@@ -80,6 +87,9 @@ export const QUEUE_STICKY_UNDER_TABS =
   `var(--mih-queue-sticky-under-tabs, ${QUEUE_STICKY_UNDER_TABS_FALLBACK}px)`;
 
 const STICKY_UNDER_TABS_VAR = '--mih-queue-sticky-under-tabs';
+
+/** คีย์ของแท็บนัดล่วงหน้า — หน้าไหนใช้คีย์นี้เองอยู่แล้ว shell จะไม่เติมซ้ำ */
+export const UPCOMING_TAB_KEY = 'upcoming';
 
 /* เดิมซ่อนชิปศูนย์ในระบบความยินยอม/จัดการระบบ เพราะสองระบบนั้นมีชิป `ศูนย์:`
    ของตัวเองอยู่ในหน้า — ย้ายขึ้น Header ให้เหมือน PHCIS แล้ว จึงไม่มีระบบไหน
@@ -114,6 +124,7 @@ const QueuePageShell = ({
   headerInfoDense = false,
   belowSummary,
   tabs,
+  upcoming = null,
   tabVariant = 'underline',
   activeTab,
   onTabChange,
@@ -140,6 +151,26 @@ const QueuePageShell = ({
     !title && summaryTitle && effectiveTitle === summaryTitle ? undefined : summaryTitle;
   const hasHeaderInfo = !!headerInfo;
   const hasBelowSummary = !!belowSummary;
+  /* แท็บ "นัดล่วงหน้า" — ต่อท้ายแท็บของหน้า ก่อนแท็บที่เป็น "ทะเบียนทั้งหมด"
+     ไม่ได้ เพราะ shell ไม่รู้ความหมายของแต่ละแท็บ จึงต่อท้ายสุดเสมอ
+     ตัวเลขบนแท็บใช้ช่วง 7 วัน ให้ตรงกับช่วงเริ่มต้นที่เปิดมาเห็น */
+  const upcomingCfg = upcoming === true ? {} : (upcoming || null);
+  const upcomingCount = useMemo(
+    () => (upcomingCfg ? countUpcomingAppointments({ days: 7, depts: upcomingCfg.depts }) : 0),
+    [upcomingCfg],
+  );
+  const tabsWithUpcoming = useMemo(() => {
+    if (!tabs || !upcomingCfg) return tabs;
+    if (tabs.some((t) => t.key === UPCOMING_TAB_KEY)) return tabs;
+    return [...tabs, {
+      key: UPCOMING_TAB_KEY,
+      label: 'นัดล่วงหน้า',
+      icon: 'event_upcoming',
+      count: upcomingCount,
+    }];
+  }, [tabs, upcomingCfg, upcomingCount]);
+  const showUpcomingBody = !!upcomingCfg && activeTab === UPCOMING_TAB_KEY;
+
   const hasTabs = !!tabs;
   /* Summary under the tabs — only possible when there ARE tabs; otherwise
      the flag is a no-op and the band stays in its normal slot. */
@@ -389,7 +420,7 @@ const QueuePageShell = ({
                   transition: 'padding 180ms cubic-bezier(0.32, 0.72, 0, 1)',
                 }}
               >
-                {tabs.map((t) => (
+                {tabsWithUpcoming.map((t) => (
                   <TabPill
                     key={t.key}
                     size={pillSize}
@@ -416,7 +447,31 @@ const QueuePageShell = ({
 
         {summaryAfterTabs ? summaryBand : null}
 
-        {children}
+        {/* แท็บนัดล่วงหน้าแทน `children` ทั้งก้อน — ตัวกรอง/ตารางของหน้านั้น
+            ผูกกับคิวของวัน ใช้กับนัดล่วงหน้าไม่ได้ และแท็บนี้มีตัวกรองช่วงเวลา
+            ของตัวเองอยู่แล้ว */}
+        {showUpcomingBody ? (
+          <div
+            className='flex flex-col flex-1 min-w-0'
+            style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-600)' }}
+          >
+            <div
+              className='w-full flex flex-col'
+              style={{
+                background: 'var(--surface-card-100)',
+                borderRadius: 'var(--dim-radius-500)',
+                boxShadow: 'var(--shadow-card-strong)',
+                padding: 'var(--dim-space-600)',
+                gap: 'var(--dim-space-600)',
+              }}
+            >
+              <UpcomingAppointmentsPanel
+                depts={upcomingCfg.depts}
+                emptyMessage={upcomingCfg.emptyMessage}
+              />
+            </div>
+          </div>
+        ) : children}
 
         <Footer />
       </main>

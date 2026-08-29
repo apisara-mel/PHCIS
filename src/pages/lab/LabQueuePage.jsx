@@ -21,6 +21,8 @@ import Pagination from '@/components/pagination/Pagination';
 import { Icon } from '@/components/icons/Icon';
 import LabSubNav from '@/components/lab/LabSubNav';
 import StickyStatusTabBar from '@/components/tab/StickyStatusTabBar';
+import UpcomingAppointmentsPanel from '@/components/queue/UpcomingAppointmentsPanel';
+import { countUpcomingAppointments } from '@/data/upcomingAppointments';
 import {
   LAB_ORDERS, LAB_STATUSES, LAB_URGENCIES, LAB_LOCATIONS,
   LAB_STATUS_BY_KEY, LAB_URGENCY_BY_KEY,
@@ -94,7 +96,7 @@ const buildSummaryCards = (rows) => [
 /* Tabs are the six pipeline stages, in pipeline order, exactly as the
    mockup's tab strip renders them (รอรับคำขอ 4 · รอเก็บ/รับตัวอย่าง 9 ·
    กำลังตรวจ 6 · ส่งตรวจภายนอก 5 · รอรับรองผล 3 · รายงานผลแล้ว 58). */
-const buildTabs = (rows, advanceCount = 0) => [
+const buildTabs = (rows, advanceCount = 0, upcomingCount = 0) => [
   /* คำสั่งล่วงหน้าอยู่ก่อน "รอรับคำขอ" เพราะยังไม่เข้าสายพาน — ยังไม่มี
      Accession จนกว่าผู้ป่วยจะมาถึงแล้วกด "ดึงมาใช้" */
   ...(advanceCount > 0
@@ -110,6 +112,9 @@ const buildTabs = (rows, advanceCount = 0) => [
      pipeline first and the catch-all after it, rather than opening on the
      one tab that is not a stage. */
   { key: 'all', label: 'ทั้งหมด', icon: 'biotech', count: rows.length },
+  /* นัดล่วงหน้า — แถบแท็บของหน้านี้อยู่ในเนื้อหน้า ไม่ได้มาจาก QueuePageShell
+     จึงเติมแท็บและสลับเนื้อหาเอง (มติผู้ใช้ 29 ส.ค. 69) */
+  { key: 'upcoming', label: 'นัดล่วงหน้า', icon: 'event_upcoming', count: upcomingCount },
 ];
 
 /* Patient avatar chip — 36px circle, same shape/size as QueuePage.jsx's
@@ -752,7 +757,11 @@ const LabQueuePage = () => {
   };
 
   const summaryCards = useMemo(() => buildSummaryCards(liveRows), [liveRows]);
-  const tabs = useMemo(() => buildTabs(liveRows, advanceRows.length), [liveRows, advanceRows.length]);
+  const upcomingCount = useMemo(() => countUpcomingAppointments({ days: 7 }), []);
+  const tabs = useMemo(
+    () => buildTabs(liveRows, advanceRows.length, upcomingCount),
+    [liveRows, advanceRows.length, upcomingCount],
+  );
 
   /* Row-action confirmation — one dialog reused for every destructive-ish
      action, holding the pending row + action so the copy stays correct
@@ -1225,6 +1234,12 @@ const LabQueuePage = () => {
                 onChange={setActiveTab}
               />
 
+              {activeTab === 'upcoming' ? (
+                <UpcomingAppointmentsPanel
+                  emptyMessage='ยังไม่มีนัดล่วงหน้าที่ต้องเตรียมสิ่งส่งตรวจในช่วงนี้'
+                />
+              ) : (
+              <>
               {/* Summary counts moved below the tab strip (มติผู้ใช้ 28 ส.ค. 69):
                   they describe the list the current tab is showing, so they now
                   sit with it and scroll away with it instead of riding in the
@@ -1311,6 +1326,8 @@ const LabQueuePage = () => {
                 <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
               </div>
               </SmoothFilterResults>
+              </>
+              )}
             </div>
 
             {/* Always mounted (rather than conditionally rendered) so opening

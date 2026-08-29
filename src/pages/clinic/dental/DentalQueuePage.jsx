@@ -481,6 +481,8 @@ const DentalQueuePage = () => {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={handleTabChange}
+      /* แท็บ "นัดล่วงหน้า" — shell เป็นคนเติมแท็บและวาดเนื้อหา */
+      upcoming={{ depts: ['ทันตกรรม'] }}
     >
       {/* ยกเลิกการส่งตรวจ — เหตุผลบังคับ + audit ผู้ยกเลิก/เวลา (playbook §5) */}
       <Popup

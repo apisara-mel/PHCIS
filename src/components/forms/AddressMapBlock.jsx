@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import SecondarySearch from '@/components/search/SecondarySearch';
+import { FilterDropdown } from '@/components/forms/FilterTag';
 import { Sym } from '@/components/forms/Fields';
 
 /* MIH AddressMapBlock — PHCIS Registration 133:9181 "ปักหมุดตำแหน่งบ้าน".
@@ -245,34 +246,80 @@ const AddressMapBlock = ({
     );
   };
 
-  /* Mock gazetteer — Thai landmarks each pinned to a fixed canvas spot.
-     `aliases` carries alternate spellings so the typeahead matches
-     English, transliterations, and shorter colloquial names. */
+  /* Mock gazetteer — สถานที่และ **ชื่อชุมชน** ปักไว้ที่จุดคงที่บนผืนแผนที่จำลอง
+     `aliases` เก็บชื่อเรียกอื่น (อังกฤษ/คำย่อ/ชื่อที่คนแถวนั้นเรียก) เพื่อให้พิมพ์
+     แบบไหนก็เจอ · `kind` แยกว่าเป็นชุมชนหรือสถานที่ทั่วไป เพื่อให้ผลลัพธ์
+     บอกได้ว่ากำลังเลือกอะไรอยู่
+
+     ชั้นชุมชนเพิ่ม 29 ส.ค. 69 (มติผู้ใช้) — คนไข้ในเขตเมืองมักบอกที่อยู่ด้วยชื่อ
+     ชุมชน ("ชุมชนคลองเตยล็อค 1–6") ไม่ใช่เลขที่บ้านหรือชื่อซอย เจ้าหน้าที่จึงต้อง
+     ค้นด้วยคำที่คนไข้พูดจริงได้ · ชื่อชุมชนยกมาจากชุดข้อมูลที่ระบบใช้อยู่แล้ว
+     (งานสังคมสงเคราะห์ / เยี่ยมบ้าน / บำบัดสารเสพติด) จะได้ไม่มีสองทะเบียนชื่อ */
   const SEARCH_MOCKS = useMemo(() => ([
-    { id: 'sukhumvit',  label: 'ถนนสุขุมวิท',          sublabel: 'เขตวัฒนา · เขตคลองเตย', aliases: ['Sukhumvit Road', 'สุขุมวิท'],            pct: { x: 0.50, y: 0.50 } },
-    { id: 'khlong-toei', label: 'เขตคลองเตย',           sublabel: 'กรุงเทพมหานคร',          aliases: ['Khlong Toei', 'คลองเตย'],                 pct: { x: 0.18, y: 0.40 } },
-    { id: 'benjakitti',  label: 'สวนเบญจกิติ',          sublabel: 'เขตคลองเตย',              aliases: ['Benjakitti Park', 'เบญจกิติ', 'สวน'],     pct: { x: 0.78, y: 0.28 } },
-    { id: 'phra-khanong',label: 'เขตพระโขนง',           sublabel: 'กรุงเทพมหานคร',          aliases: ['Phra Khanong', 'พระโขนง'],                pct: { x: 0.84, y: 0.72 } },
-    { id: 'watthana',    label: 'เขตวัฒนา',              sublabel: 'กรุงเทพมหานคร',          aliases: ['Watthana', 'วัฒนา', 'ทองหล่อ'],            pct: { x: 0.50, y: 0.72 } },
-    { id: 'thonglor',    label: 'ซอยทองหล่อ',           sublabel: 'เขตวัฒนา',                aliases: ['Thonglor', 'Thong Lo', 'ทองหล่อ'],         pct: { x: 0.62, y: 0.62 } },
-    { id: 'asoke',       label: 'แยกอโศก-มนตรี',        sublabel: 'เขตวัฒนา',                aliases: ['Asoke', 'อโศก'],                          pct: { x: 0.42, y: 0.40 } },
-    { id: 'saen-saep',   label: 'คลองแสนแสบ',           sublabel: 'กรุงเทพมหานคร',          aliases: ['Saen Saep Canal', 'แสนแสบ', 'คลอง'],       pct: { x: 0.35, y: 0.88 } },
+    { id: 'sukhumvit',  kind: 'place', label: 'ถนนสุขุมวิท',          sublabel: 'เขตวัฒนา · เขตคลองเตย', aliases: ['Sukhumvit Road', 'สุขุมวิท'],            pct: { x: 0.50, y: 0.50 } },
+    { id: 'khlong-toei', kind: 'place', label: 'เขตคลองเตย',           sublabel: 'กรุงเทพมหานคร',          aliases: ['Khlong Toei', 'คลองเตย'],                 pct: { x: 0.18, y: 0.40 } },
+    { id: 'benjakitti',  kind: 'place', label: 'สวนเบญจกิติ',          sublabel: 'เขตคลองเตย',              aliases: ['Benjakitti Park', 'เบญจกิติ', 'สวน'],     pct: { x: 0.78, y: 0.28 } },
+    { id: 'phra-khanong', kind: 'place', label: 'เขตพระโขนง',          sublabel: 'กรุงเทพมหานคร',          aliases: ['Phra Khanong', 'พระโขนง'],                pct: { x: 0.84, y: 0.72 } },
+    { id: 'watthana',    kind: 'place', label: 'เขตวัฒนา',              sublabel: 'กรุงเทพมหานคร',          aliases: ['Watthana', 'วัฒนา', 'ทองหล่อ'],            pct: { x: 0.50, y: 0.72 } },
+    { id: 'thonglor',    kind: 'place', label: 'ซอยทองหล่อ',           sublabel: 'เขตวัฒนา',                aliases: ['Thonglor', 'Thong Lo', 'ทองหล่อ'],         pct: { x: 0.62, y: 0.62 } },
+    { id: 'asoke',       kind: 'place', label: 'แยกอโศก-มนตรี',        sublabel: 'เขตวัฒนา',                aliases: ['Asoke', 'อโศก'],                          pct: { x: 0.42, y: 0.40 } },
+    { id: 'saen-saep',   kind: 'place', label: 'คลองแสนแสบ',           sublabel: 'กรุงเทพมหานคร',          aliases: ['Saen Saep Canal', 'แสนแสบ', 'คลอง'],       pct: { x: 0.35, y: 0.88 } },
+
+    /* ── ชุมชน (BMA registered communities) ─────────────────────────── */
+    { id: 'c-lock123',   kind: 'community', label: 'ชุมชนล็อค 1-2-3',        sublabel: 'ชุมชน · เขตคลองเตย', aliases: ['ล็อค 1-2-3', 'lock 123', 'คลองเตยล็อค'],        pct: { x: 0.16, y: 0.46 } },
+    { id: 'c-lock16',    kind: 'community', label: 'ชุมชนคลองเตยล็อค 1–6',   sublabel: 'ชุมชน · เขตคลองเตย', aliases: ['คลองเตยล็อค 1-6', 'ล็อค 1-6', 'lock 1-6'],      pct: { x: 0.13, y: 0.52 } },
+    { id: 'c-lock456',   kind: 'community', label: 'ชุมชนคลองเตยล็อค 4-5-6', sublabel: 'ชุมชน · เขตคลองเตย', aliases: ['ล็อค 4-5-6', 'lock 456'],                       pct: { x: 0.20, y: 0.56 } },
+    { id: 'c-mubanphat', kind: 'community', label: 'ชุมชนหมู่บ้านพัฒนา',      sublabel: 'ชุมชน · เขตคลองเตย', aliases: ['หมู่บ้านพัฒนา', 'Muban Phatthana'],             pct: { x: 0.24, y: 0.62 } },
+    { id: 'c-suanoi',    kind: 'community', label: 'ชุมชนสวนอ้อย',           sublabel: 'ชุมชน · เขตคลองเตย', aliases: ['สวนอ้อย', 'Suan Oi'],                           pct: { x: 0.28, y: 0.36 } },
+    { id: 'c-phatthanamai', kind: 'community', label: 'ชุมชนพัฒนาใหม่',       sublabel: 'ชุมชน · เขตคลองเตย', aliases: ['พัฒนาใหม่'],                                    pct: { x: 0.10, y: 0.62 } },
+    { id: 'c-underway',  kind: 'community', label: 'ชุมชนใต้ทางด่วนอโศก',    sublabel: 'ชุมชน · เขตวัฒนา',   aliases: ['ใต้ทางด่วน', 'อโศก'],                           pct: { x: 0.40, y: 0.46 } },
+    { id: 'c-thonglor20', kind: 'community', label: 'ชุมชนซอยทองหล่อ 20',    sublabel: 'ชุมชน · เขตวัฒนา',   aliases: ['ทองหล่อ 20', 'Thonglor 20'],                    pct: { x: 0.66, y: 0.58 } },
+    { id: 'c-thatthong', kind: 'community', label: 'ชุมชนหลังวัดธาตุทอง',    sublabel: 'ชุมชน · เขตวัฒนา',   aliases: ['วัดธาตุทอง', 'ธาตุทอง'],                        pct: { x: 0.58, y: 0.44 } },
+    { id: 'c-ruamrudee', kind: 'community', label: 'ชุมชนซอยร่วมฤดี',        sublabel: 'ชุมชน · เขตปทุมวัน', aliases: ['ร่วมฤดี', 'Ruamrudee'],                         pct: { x: 0.30, y: 0.24 } },
+    { id: 'c-baandon',   kind: 'community', label: 'ชุมชนสุเหร่าบ้านดอน',    sublabel: 'ชุมชน · เขตวัฒนา',   aliases: ['สุเหร่าบ้านดอน', 'บ้านดอน'],                    pct: { x: 0.70, y: 0.50 } },
+    { id: 'c-rimkhlong', kind: 'community', label: 'ชุมชนริมคลองพระโขนง',    sublabel: 'ชุมชน · เขตพระโขนง', aliases: ['ริมคลองพระโขนง', 'ริมคลอง'],                    pct: { x: 0.86, y: 0.80 } },
   ]), []);
 
   /* Substring match over label + sublabel + aliases. Returns up to 6
      suggestions to keep the dropdown short — feels like a real
      typeahead instead of a wall of options. */
+  /* แท็บของดรอปดาวน์ — เปิดมาเห็นรายการทั้งหมดแยกตามชนิด แล้วพิมพ์เพื่อกรอง
+     ภายในแท็บที่เลือกอยู่ (มติผู้ใช้ 29 ส.ค. 69) เจ้าหน้าที่ที่ยังไม่รู้ว่าชุมชนชื่อ
+     อะไรแน่ต้อง "ไล่ดู" ได้ ไม่ใช่ต้องเดาคำค้นให้ถูกก่อนถึงจะเห็นอะไร */
+  const SEARCH_TABS = useMemo(() => ([
+    { key: 'community', label: 'ชื่อชุมชน', match: (m) => m.kind === 'community' },
+    { key: 'district',  label: 'เขต',       match: (m) => m.kind === 'place' && m.label.startsWith('เขต') },
+    { key: 'place',     label: 'ถนน / ซอย', match: (m) => m.kind === 'place' && !m.label.startsWith('เขต') },
+  ]), []);
+  const [searchTab, setSearchTab] = useState('community');
+
   const suggestions = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return SEARCH_MOCKS.filter((s) => {
+    const inTab = SEARCH_TABS.find((t) => t.key === searchTab)?.match ?? (() => true);
+    /* ไม่ได้พิมพ์อะไร = โชว์ทั้งแท็บ (ไล่ดูได้) · พิมพ์แล้ว = กรองภายในแท็บ */
+    return SEARCH_MOCKS.filter(inTab).filter((s) => {
+      if (!q) return true;
       const hay = [s.label, s.sublabel, ...(s.aliases || [])]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
       return hay.includes(q);
-    }).slice(0, 6);
-  }, [SEARCH_MOCKS, query]);
+    });
+  }, [SEARCH_MOCKS, SEARCH_TABS, searchTab, query]);
+
+  /* จำนวนผลลัพธ์ต่อแท็บ — ติดไว้บนแท็บเพื่อไม่ให้กดเข้าไปเจอรายการว่าง */
+  const tabCounts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const hit = (s) => {
+      if (!q) return true;
+      return [s.label, s.sublabel, ...(s.aliases || [])]
+        .filter(Boolean).join(' ').toLowerCase()
+        .includes(q);
+    };
+    return Object.fromEntries(SEARCH_TABS.map((t) => [
+      t.key, SEARCH_MOCKS.filter(t.match).filter(hit).length,
+    ]));
+  }, [SEARCH_MOCKS, SEARCH_TABS, query]);
 
   /* Dropdown open/close — controlled so a click outside the search +
      dropdown collapses it. `searchBoxRef` wraps both elements so the
@@ -376,17 +423,17 @@ const AddressMapBlock = ({
         <SecondarySearch
           value={query}
           onChange={(next) => {
-            const v = next ?? '';
-            setQuery(v);
-            setSearchOpen(v.trim().length > 0);
+            setQuery(next ?? '');
+            setSearchOpen(true);
           }}
           onSubmit={handleSearch}
-          onFocus={() => { if (query.trim()) setSearchOpen(true); }}
-          placeholder='ค้นหาสถานที่… (เช่น สุขุมวิท, คลองเตย, พระโขนง)'
+          /* เปิดดรอปดาวน์ทันทีที่โฟกัส แม้ยังไม่พิมพ์ — แท็บคือรายการให้ไล่ดู */
+          onFocus={() => setSearchOpen(true)}
+          placeholder='ค้นหาชื่อชุมชน / ถนน / ซอย… (เช่น ชุมชนล็อค 1-2-3, สุขุมวิท, ทองหล่อ)'
           className='w-full'
           style={{ width: '100%', maxWidth: 'none' }}
         />
-        {searchOpen && suggestions.length > 0 && (
+        {searchOpen && (
           <div
             role='listbox'
             aria-label='ผลการค้นหา'
@@ -398,10 +445,44 @@ const AddressMapBlock = ({
               borderRadius: 'var(--dim-radius-200)',
               border: 'var(--dim-stroke-100) solid var(--border-card-default)',
               boxShadow: 'var(--shadow-brand-drop-bottom-100)',
-              maxHeight: 240,
-              overflowY: 'auto',
+              maxHeight: 320,
             }}
           >
+            {/* ตัวเลือกชนิดสถานที่ — `FilterDropdown` ของ design system ไม่ใช่
+                แถวชิปที่จัดสไตล์เอง (มติผู้ใช้ 29 ส.ค. 69) มันคือตัวกรองว่าจะดู
+                อะไร ทรงเดียวกับตัวกรองบน worklist ทุกหน้า และกินที่แถวเดียว
+                แทนสามชิปเรียง · ตรึงไว้บนสุด รายการด้านล่างเลื่อนของมันเอง */}
+            <div
+              className='flex items-center shrink-0'
+              style={{
+                padding: 'var(--dim-space-200)',
+                borderBottom: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
+              }}
+            >
+              <FilterDropdown
+                prefix='ประเภท:'
+                size='sm'
+                options={SEARCH_TABS.map((t) => ({
+                  value: t.key,
+                  label: `${t.label} (${tabCounts[t.key] ?? 0})`,
+                }))}
+                value={searchTab}
+                onChange={setSearchTab}
+              />
+            </div>
+
+            <div style={{ overflowY: 'auto' }}>
+            {suggestions.length === 0 && (
+              <div style={{
+                padding: 'var(--dim-space-300)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm, 14px)',
+                color: 'var(--text-content-tertiary)',
+              }}
+              >
+                ไม่พบในหมวดนี้ — ลองสลับแท็บหรือแก้คำค้น
+              </div>
+            )}
             {suggestions.map((sug) => (
               <button
                 key={sug.id}
@@ -421,7 +502,14 @@ const AddressMapBlock = ({
                 onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-list-hover, #F4FBF8)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               >
-                <Sym name='location_on' size={16} color='var(--icon-content-tertiary, #858C92)' />
+                {/* ชุมชนใช้ไอคอนกลุ่มบ้าน สถานที่ทั่วไปใช้หมุด — บอกชนิดได้ก่อนอ่านคำบรรยาย */}
+                <Sym
+                  name={sug.kind === 'community' ? 'holiday_village' : 'location_on'}
+                  size={16}
+                  color={sug.kind === 'community'
+                    ? 'var(--icon-brandPrimary-default, #007549)'
+                    : 'var(--icon-content-tertiary, #858C92)'}
+                />
                 <span className='flex flex-col min-w-0 flex-1'>
                   <span style={{
                     color: 'var(--text-content-default)',
@@ -443,6 +531,7 @@ const AddressMapBlock = ({
                 </span>
               </button>
             ))}
+            </div>
           </div>
         )}
       </div>

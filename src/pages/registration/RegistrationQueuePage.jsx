@@ -811,6 +811,8 @@ const RegistrationQueuePage = () => {
       tabs={tabsWithCounts}
       activeTab={activeTab}
       onTabChange={(key) => { setActiveTab(key); setPage(1); }}
+      /* แท็บ "นัดล่วงหน้า" — shell เป็นคนเติมแท็บและวาดเนื้อหา */
+      upcoming={{}}
     >
       <div
         className='flex flex-col flex-1 min-w-0'

@@ -684,6 +684,8 @@ const TreatmentQueuePage = () => {
       tabs={tabsWithResults}
       activeTab={activeTab}
       onTabChange={handleTabChange}
+      /* แท็บ "นัดล่วงหน้า" มาจาก shell — ดูคำอธิบายใน QueuePageShell */
+      upcoming={{ emptyMessage: 'ยังไม่มีนัดล่วงหน้าในช่วงนี้' }}
     >
       <div
         className='flex flex-col flex-1 min-w-0'

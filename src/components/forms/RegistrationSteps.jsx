@@ -1384,6 +1384,9 @@ const AddressBlock = ({ data, onChange, disabled = false }) => {
    that should survive the snapshot copy. */
 const ADDRESS_TEXT_KEYS = ['zip', 'province', 'district', 'subdistrict', 'road', 'moo', 'houseNo'];
 
+/* คัดเฉพาะช่องข้อความของที่อยู่ — หมุดแผนที่ (lat/lng/pinSaved) เป็นของ slice
+   ปลายทางเสมอ ชื่อพารามิเตอร์เป็น `source` เพราะตอนนี้ต้นทางเป็นได้ทั้ง
+   ทะเบียนบ้านและที่อยู่ปัจจุบัน */
 const copyRegisteredInto = (registered, target) => {
   const next = { ...target };
   ADDRESS_TEXT_KEYS.forEach((k) => { next[k] = registered?.[k] ?? ''; });
@@ -1397,6 +1400,13 @@ const REGISTERED_ADDRESS_REQUIRED_KEYS = ['zip', 'province', 'district'];
 const isRegisteredAddressComplete = (addr) =>
   REGISTERED_ADDRESS_REQUIRED_KEYS.every((k) => String(addr?.[k] ?? '').trim() !== '');
 
+/* ที่อยู่ปัจจุบัน "พร้อมให้คัดลอก" เมื่อมันมีข้อมูลครบพอ ๆ กัน — ถ้าตัวมันเองยัง
+   ยืมทะเบียนบ้านอยู่ ก็ยังใช้เป็นต้นทางได้ เพราะค่าถูกคัดลงมาแล้ว */
+const isCurrentAddressUsable = (form) =>
+  isRegisteredAddressComplete(form?.useRegisteredForCurrent
+    ? form?.addressRegistered
+    : form?.addressCurrent);
+
 export const Step2Address = ({ form, setForm }) => {
   const setAddr = (key) => (v) => setForm((s) => ({ ...s, [key]: v }));
   const registeredComplete = isRegisteredAddressComplete(form.addressRegistered);
@@ -1408,8 +1418,25 @@ export const Step2Address = ({ form, setForm }) => {
     setForm((s) => {
       if (checked && !isRegisteredAddressComplete(s.addressRegistered)) return s;
       const next = { ...s, [flagKey]: checked };
+      /* ที่อยู่ติดต่อได้มีสองทางเลือกที่ตัดกัน — เลือกทะเบียนบ้านต้องปลดที่อยู่ปัจจุบัน */
+      if (checked && flagKey === 'useRegisteredForContact') next.useCurrentForContact = false;
       if (checked) {
         next[targetKey] = copyRegisteredInto(s.addressRegistered, s[targetKey]);
+      }
+      return next;
+    });
+  };
+
+  /* "เหมือนที่อยู่ปัจจุบัน" ของที่อยู่ติดต่อได้ — ต้นทางคือที่อยู่ปัจจุบันที่ผู้ใช้เห็นจริง
+     (ถ้ามันยืมทะเบียนบ้านอยู่ ก็คือค่าของทะเบียนบ้านที่คัดลงมาแล้ว) */
+  const handleUseCurrentForContact = (checked) => {
+    setForm((s) => {
+      if (checked && !isCurrentAddressUsable(s)) return s;
+      const source = s.useRegisteredForCurrent ? s.addressRegistered : s.addressCurrent;
+      const next = { ...s, useCurrentForContact: checked };
+      if (checked) {
+        next.useRegisteredForContact = false;
+        next.addressContact = copyRegisteredInto(source, s.addressContact);
       }
       return next;
     });
@@ -1433,6 +1460,25 @@ export const Step2Address = ({ form, setForm }) => {
     }));
   }, [form.addressRegistered, form.useRegisteredForContact, setForm]);
 
+  useEffect(() => {
+    if (!form.useCurrentForContact) return;
+    setForm((s) => ({
+      ...s,
+      addressContact: copyRegisteredInto(
+        s.useRegisteredForCurrent ? s.addressRegistered : s.addressCurrent,
+        s.addressContact,
+      ),
+    }));
+  }, [form.addressCurrent, form.addressRegistered, form.useRegisteredForCurrent,
+    form.useCurrentForContact, setForm]);
+
+  /* ที่อยู่ปัจจุบันถูกล้างจนไม่ครบ — ธง "เหมือนที่อยู่ปัจจุบัน" ต้องหลุดตาม */
+  useEffect(() => {
+    if (!form.useCurrentForContact) return;
+    if (isCurrentAddressUsable(form)) return;
+    setForm((s) => ({ ...s, useCurrentForContact: false }));
+  }, [form, form.useCurrentForContact, setForm]);
+
   /* If required ทะเบียนบ้าน fields are cleared, drop mirror flags. */
   useEffect(() => {
     if (registeredComplete) return;
@@ -1450,6 +1496,8 @@ export const Step2Address = ({ form, setForm }) => {
   const contactAddressDisplay = form.useRegisteredForContact
     ? form.addressRegistered
     : form.addressContact;
+  const contactMirrored = form.useRegisteredForContact || form.useCurrentForContact;
+  const currentUsable = isCurrentAddressUsable(form);
 
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
@@ -1486,21 +1534,37 @@ export const Step2Address = ({ form, setForm }) => {
       </SubCard>
 
       <SubCard titleTone='brand' titleIcon='contact_mail' title='ที่อยู่ติดต่อได้'>
-        <CheckboxButton
-          checked={form.useRegisteredForContact}
-          onChange={handleUseRegistered('addressContact', 'useRegisteredForContact')}
-          disabled={!registeredComplete}
-          label='เหมือนที่อยู่ตามทะเบียนบ้าน'
-          border
-          showCircleIcon={false}
-          showIcon={false}
-          className='shrink-0'
-          style={{ width: 'fit-content', alignSelf: 'flex-start' }}
-        />
+        {/* สองทางเลือกที่ตัดกัน (มติผู้ใช้ 29 ส.ค. 69) — คนที่ย้ายมาอยู่คนละที่กับ
+            ทะเบียนบ้านมักให้ติดต่อที่ที่อยู่ปัจจุบัน เดิมมีให้เลือกแค่ทะเบียนบ้าน
+            จึงต้องพิมพ์ที่อยู่เดิมซ้ำทั้งชุด */}
+        <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-200)' }}>
+          <CheckboxButton
+            checked={form.useRegisteredForContact}
+            onChange={handleUseRegistered('addressContact', 'useRegisteredForContact')}
+            disabled={!registeredComplete}
+            label='เหมือนที่อยู่ตามทะเบียนบ้าน'
+            border
+            showCircleIcon={false}
+            showIcon={false}
+            className='shrink-0'
+            style={{ width: 'fit-content' }}
+          />
+          <CheckboxButton
+            checked={form.useCurrentForContact}
+            onChange={handleUseCurrentForContact}
+            disabled={!currentUsable}
+            label='เหมือนที่อยู่ปัจจุบัน'
+            border
+            showCircleIcon={false}
+            showIcon={false}
+            className='shrink-0'
+            style={{ width: 'fit-content' }}
+          />
+        </div>
         <AddressBlock
           data={contactAddressDisplay}
           onChange={setAddr('addressContact')}
-          disabled={form.useRegisteredForContact}
+          disabled={contactMirrored}
         />
       </SubCard>
     </div>
@@ -2401,10 +2465,13 @@ const SEVERITY = [
 /* ระดับความรุนแรงเป็นการ์ดให้กด ไม่ใช่ดรอปดาวน์ (มติผู้ใช้ 27 ส.ค. 69) —
    ตัวเลือกมีแค่ 3 ระดับ ซ่อนไว้ใต้ดรอปดาวน์ทำให้ต้องกดสองครั้งกว่าจะเห็น
    ทรงเดียวกับการ์ดระดับความเร่งด่วนของหน้าคัดกรอง (SelectableCardButton) */
+/* การ์ดกว้างตามเนื้อหา ไม่ตรึง 180px (มติผู้ใช้ 29 ส.ค. 69) — ความกว้างที่ตรึงไว้
+   ทำให้การ์ดกว้างกว่าข้อความมาก ปุ่มจึงดูห่างกันทั้งที่ระยะ gap เป็น 12px
+   เท่าแถวการ์ดเลือกได้ของหน้าอื่นอยู่แล้ว (เช่น ระดับความปวด / ESI ที่จุดคัดกรอง) */
 const SeverityCards = ({ value, onChange, ariaPrefix = 'ระดับความรุนแรง' }) => (
   <div className='flex flex-wrap items-stretch w-full' style={{ gap: 'var(--dim-space-300)' }}>
     {SEVERITY.map((lv, i) => (
-      <div key={lv.value} style={{ flex: '0 0 auto', minWidth: 180 }}>
+      <div key={lv.value} style={{ flex: '0 0 auto' }}>
         <SelectableCardButton
           selected={value === lv.value}
           onClick={() => onChange(lv.value)}
