@@ -152,7 +152,9 @@ const UpcomingAppointmentsPanel = ({
         >
           ช่วงเวลา:
         </span>
-        <TabBar aria-label='ช่วงเวลาของนัดล่วงหน้า'>
+        {/* 8 ชิปยาวเกินความกว้างการ์ดบนจอแคบ ต้องตกบรรทัดใหม่ ไม่ใช่ถูกตัด
+            หายไปทางขวา (มติผู้ใช้ 29 ส.ค. 69) */}
+        <TabBar aria-label='ช่วงเวลาของนัดล่วงหน้า' className='flex-wrap'>
           {UPCOMING_RANGES.map((r) => (
             <TabPill
               key={r.key}

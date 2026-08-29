@@ -5,9 +5,10 @@ import Icon from '@/components/icons/Icon';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import TabPill, { TabBar } from '@/components/tab/TabPill';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import {
   NOTIFICATION_CATEGORIES, SEVERITIES,
-  getNotifications, subscribeNotifications, markRead, markAllRead,
+  getNotifications, subscribeNotifications, markRead, markAllRead, confirmAppointment,
 } from '@/data/userNotifications';
 
 /* ศูนย์รวมการแจ้งเตือน — TOR §1.17.5.5
@@ -38,11 +39,15 @@ const NotificationCenterPopup = ({ open, onClose, center = null }) => {
   const history = useHistory();
   const [tick, setTick] = useState(0);
   const [filter, setFilter] = useState(ALL_KEY);
+  /* แถวนัดหมายที่กางดูรายละเอียดอยู่ — กางในป๊อปอัปเลย ไม่พาออกไปหน้าอื่น
+     เพราะเจ้าหน้าที่กำลังไล่อ่านรายการค้างอยู่ ออกไปแล้วต้องเริ่มไล่ใหม่
+     (มติผู้ใช้ 29 ส.ค. 69) */
+  const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => subscribeNotifications(() => setTick((t) => t + 1)), []);
   /* เปิดใหม่ = เริ่มที่ภาพรวมเสมอ ไม่ค้างตัวกรองของครั้งก่อนซึ่งอาจทำให้
      เข้าใจผิดว่าไม่มีการแจ้งเตือนใหม่ */
-  useEffect(() => { if (open) setFilter(ALL_KEY); }, [open]);
+  useEffect(() => { if (open) { setFilter(ALL_KEY); setExpandedId(null); } }, [open]);
 
   const all = useMemo(
     () => getNotifications(center),
@@ -68,6 +73,12 @@ const NotificationCenterPopup = ({ open, onClose, center = null }) => {
 
   const openItem = (n) => {
     markRead(n.id, true);
+    /* รายการที่พกรายละเอียดนัดมาด้วย = กางดูในที่ · รายการอื่นยังพาไปหน้าต้นทาง
+       เหมือนเดิม เพราะไม่มีอะไรให้ดูในป๊อปอัป */
+    if (n.appointment) {
+      setExpandedId((cur) => (cur === n.id ? null : n.id));
+      return;
+    }
     onClose?.();
     if (n.link) history.push(n.link);
   };
@@ -86,10 +97,10 @@ const NotificationCenterPopup = ({ open, onClose, center = null }) => {
       subtitle={unreadTotal > 0
         ? `ยังไม่อ่าน ${unreadTotal} รายการ จากทั้งหมด ${all.length} รายการ`
         : `อ่านครบทุกรายการแล้ว · ทั้งหมด ${all.length} รายการ`}
-      /* extraLarge = เต็มจอ ซึ่งใหญ่เกินสำหรับรายการแจ้งเตือน (มติผู้ใช้
-         29 ส.ค. 69) · large = 1024px ขอบสูงสุด ซึ่งพอดีกับชิป 10 อันและ
-         รายการที่มีสามบรรทัดต่อรายการ */
-      size='large'
+      /* เต็มหน้าจอ (มติผู้ใช้ 29 ส.ค. 69) — ศูนย์รวมนี้เก็บทุกหมวดของทั้งระบบ
+         เจ้าหน้าที่มาที่นี่เพื่อกวาดสายตาหาว่ามีอะไรค้าง ไม่ใช่อ่านทีละใบ
+         พื้นที่กว้างจึงเห็นได้หลายรายการต่อหนึ่งครั้งที่เปิด */
+      size='extraLarge'
       showCloseButton
       secondaryAction={{ label: 'ปิด', onClick: onClose }}
       primaryAction={{
@@ -98,7 +109,10 @@ const NotificationCenterPopup = ({ open, onClose, center = null }) => {
         disabled: unreadTotal === 0,
       }}
     >
-      <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
+      <div
+        className='flex flex-col w-full min-w-0'
+        style={{ gap: 'var(--dim-space-400)', flex: '1 1 auto', minHeight: 0 }}
+      >
         {/* ตัวกรองหมวด — ชิปทรงเดียวกับแท็บของหน้า worklist · 10 ชิปยาวเกิน
             ความกว้างป๊อปอัป ต้องตกบรรทัดใหม่ ไม่ใช่ถูกตัดหายไปทางขวา */}
         <TabBar aria-label='หมวดการแจ้งเตือน' className='flex-wrap'>
@@ -115,36 +129,11 @@ const NotificationCenterPopup = ({ open, onClose, center = null }) => {
           ))}
         </TabBar>
 
-        {/* หมวดที่เลือกอยู่บอกที่มาตาม TOR — ผู้ตรวจรับงานต้องเห็นว่าแจ้งเตือน
-            นี้มาจากข้อไหน ไม่ใช่หมวดที่คิดขึ้นเอง */}
-        {CATEGORY_BY_KEY[filter] && (
-          <div
-            className='flex items-start w-full'
-            style={{
-              gap: 'var(--dim-space-200)',
-              padding: 'var(--dim-space-300)',
-              borderRadius: 'var(--dim-radius-300, 10px)',
-              background: 'var(--surface-brandPrimary-quaternary)',
-              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
-            }}
-          >
-            <Icon name='info' size={16} color='var(--icon-topic-default)' />
-            <span style={{
-              color: 'var(--text-content-secondary)',
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-xs)',
-              lineHeight: 1.5,
-            }}>
-              {`${CATEGORY_BY_KEY[filter].desc} · TOR ข้อ ${CATEGORY_BY_KEY[filter].tor}`}
-            </span>
-          </div>
-        )}
-
         <div
           className='flex flex-col w-full min-w-0'
-          /* สูงตามเนื้อหา แต่ไม่เกินครึ่งจอ — รายการยาวแล้วให้เลื่อนในกล่องตัวเอง
-             ไม่ดันป๊อปอัปจนปุ่มท้ายหลุดออกนอกจอ */
-          style={{ maxHeight: '52vh', overflowY: 'auto' }}
+          /* กินพื้นที่ที่เหลือของป๊อปอัปเต็มจอ แล้วเลื่อนในกล่องตัวเอง —
+             ไม่ดันจนปุ่มท้ายหลุดออกนอกจอ */
+          style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}
         >
           {rows.length === 0 && (
             <div
@@ -164,9 +153,11 @@ const NotificationCenterPopup = ({ open, onClose, center = null }) => {
 
           {rows.map((n) => {
             const cat = CATEGORY_BY_KEY[n.category];
+            const ap = n.appointment;
+            const expanded = expandedId === n.id;
             return (
+              <div key={n.id} className='flex flex-col w-full min-w-0'>
               <button
-                key={n.id}
                 type='button'
                 onClick={() => openItem(n)}
                 className='flex items-start w-full text-left'
@@ -248,7 +239,111 @@ const NotificationCenterPopup = ({ open, onClose, center = null }) => {
                     อ่านแล้ว
                   </NeutralSubdueButton>
                 )}
+                {n.appointment && (
+                  <Icon
+                    name={expandedId === n.id ? 'expand_less' : 'expand_more'}
+                    size={18}
+                    color='var(--icon-content-tertiary)'
+                  />
+                )}
               </button>
+
+              {/* รายละเอียดนัดหมายที่จองผ่านแอป — ยืนยันได้ที่นี่เลย หรือกด
+                  "ดูรายละเอียด" เพื่อเปิดแท็บใหม่ไปหน้าจัดการนัดหมาย ซึ่งเปิด
+                  แท็บใหม่เพราะรายการที่ไล่อ่านค้างอยู่ต้องไม่หายไป */}
+              {ap && expanded && (
+                <div
+                  className='flex flex-col w-full min-w-0'
+                  style={{
+                    gap: 'var(--dim-space-300)',
+                    margin: '0 var(--dim-space-300) var(--dim-space-300)',
+                    padding: 'var(--dim-space-400)',
+                    borderRadius: 'var(--dim-radius-300, 10px)',
+                    background: 'var(--surface-brandPrimary-quaternary)',
+                    border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)',
+                  }}
+                >
+                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                    <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug'>
+                      {ap.id}
+                    </ColorfulBadge>
+                    <ColorfulBadge
+                      style={ap.confirmed ? 'green' : 'orange'}
+                      size='small'
+                      hierarchy='secondary'
+                      width='hug'
+                    >
+                      {ap.confirmed ? 'ยืนยันแล้ว' : 'รอยืนยัน'}
+                    </ColorfulBadge>
+                  </div>
+
+                  <div
+                    className='grid w-full'
+                    style={{
+                      gap: 'var(--dim-space-300)',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(var(--dim-size-2100, 160px), 1fr))',
+                    }}
+                  >
+                    {[
+                      ['วันที่นัด', `${ap.date} · ${ap.time}`],
+                      ['คลินิก', ap.clinic],
+                      ['แพทย์', ap.doctor],
+                      ['ประเภทนัด', ap.type],
+                      ['ช่องทางที่จอง', ap.channel],
+                      ['ยืนยันเมื่อ', ap.confirmedAt || '—'],
+                    ].map(([label, value]) => (
+                      <span key={label} className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050)' }}>
+                        <span style={{
+                          color: 'var(--text-content-tertiary)',
+                          fontFamily: 'var(--type-family-body)',
+                          fontSize: 'var(--type-size-xs)',
+                        }}>
+                          {label}
+                        </span>
+                        <span style={{
+                          color: 'var(--text-content-default)',
+                          fontFamily: 'var(--type-family-body)',
+                          fontSize: 'var(--type-size-sm)',
+                          fontWeight: 'var(--type-weight-medium)',
+                        }}>
+                          {value}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+
+                  {ap.note && (
+                    <span style={{
+                      color: 'var(--text-content-secondary)',
+                      fontFamily: 'var(--type-family-body)',
+                      fontSize: 'var(--type-size-xs)',
+                      lineHeight: 1.5,
+                    }}>
+                      {ap.note}
+                    </span>
+                  )}
+
+                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                    <BrandPrimaryButton
+                      size='sm'
+                      leadingIcon='event_available'
+                      disabled={ap.confirmed}
+                      onClick={() => confirmAppointment(n.id, 'เพิ่งยืนยัน')}
+                    >
+                      {ap.confirmed ? 'ยืนยันการนัดหมายแล้ว' : 'ยืนยันการนัดหมาย'}
+                    </BrandPrimaryButton>
+                    <NeutralSubdueButton
+                      variant='outline'
+                      size='sm'
+                      leadingIcon='open_in_new'
+                      onClick={() => window.open(n.link || '/appointment', '_blank', 'noopener')}
+                    >
+                      ดูรายละเอียดการนัดหมาย
+                    </NeutralSubdueButton>
+                  </div>
+                </div>
+              )}
+              </div>
             );
           })}
         </div>

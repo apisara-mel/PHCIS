@@ -25,7 +25,7 @@ import { buildTreatmentSearchHistorySeed } from '@/data/primarySearchHistorySeed
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import {
-  getResultsInbox, subscribeResultsInbox,
+  getResultsInbox, subscribeResultsInbox, RESULT_STATUS_BY_KEY,
 } from '@/data/resultsInbox';
 import { CURRENT_CLINICIAN, appendAudit } from '@/data/treatmentAudit';
 import ScreeningConfirmPopup from '@/components/popup/ScreeningConfirmPopup';
@@ -351,7 +351,12 @@ const TreatmentQueuePage = () => {
   const [resultsTick, setResultsTick] = useState(0);
   useEffect(() => subscribeResultsInbox(() => setResultsTick((t) => t + 1)), []);
   const resultRows = useMemo(
-    () => getResultsInbox(CURRENT_CLINICIAN.name),
+    () => getResultsInbox(CURRENT_CLINICIAN.name, {
+      /* ตารางนี้เป็นภาพรวมผลตรวจของคลินิก จึงต้องเห็นครบทั้งวงจร
+         รอผล → ส่งผลแล้ว → รับผลแล้ว (มติผู้ใช้ 29 ส.ค. 69) */
+      includePending: true,
+      includeAcknowledged: true,
+    }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [resultsTick],
   );
@@ -390,21 +395,15 @@ const TreatmentQueuePage = () => {
       /* คอลัมน์นี้เป็น "สถานะ" ไม่ใช่ปุ่ม — ผลตรวจไหลเข้ามาจากห้องแล็บ/รังสี
          อัตโนมัติ ไม่มีอะไรให้แพทย์กดยืนยันรับ (มติผู้ใช้ 29 ส.ค. 69) เดิมเป็น
          ปุ่ม "รับทราบผล" ซึ่งสร้างงานปลอมให้คนกดเพื่อเคลียร์แถวออกจากลิสต์ */
-      key: 'ackStatus', label: 'สถานะ', width: 150, sortable: false,
-      render: (r) => (r.ack ? (
-        <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug'>
-          {`รับทราบแล้ว · ${r.ack.at}`}
-        </ColorfulBadge>
-      ) : (
-        <ColorfulBadge
-          style={r.critical ? 'red' : r.abnormal ? 'orange' : 'green'}
-          size='small'
-          hierarchy='secondary'
-          width='hug'
-        >
-          รายงานผลแล้ว
-        </ColorfulBadge>
-      )),
+      key: 'resultStatus', label: 'สถานะ', width: 150, sortable: true,
+      render: (r) => {
+        const st = RESULT_STATUS_BY_KEY[r.resultStatus] || RESULT_STATUS_BY_KEY.reported;
+        return (
+          <ColorfulBadge style={st.tone} size='small' hierarchy='secondary' width='hug'>
+            {st.label}
+          </ColorfulBadge>
+        );
+      },
     },
   ]), []);
 

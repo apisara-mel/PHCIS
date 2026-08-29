@@ -179,6 +179,13 @@ const SEED = [
     title: 'ยืนยันนัดหมายผ่านแอปแล้ว — 4 ก.ย. 69 09:00 น.', patient: 'นางสาวมณี ศรีทอง', hn: '00131209',
     body: 'ผู้รับบริการกดยืนยันนัดในแอปพลิเคชันประชาชน · คลินิกตรวจรักษา · นพ. วันชัย อยู่เย็น',
     source: 'แอปพลิเคชันประชาชน', link: '/appointment', audience: 'dept', dept: 'opd',
+    appointment: {
+      id: 'AP-69-004821', date: '4 ก.ย. 2569', time: '09:00 น.',
+      clinic: 'คลินิกตรวจรักษา', doctor: 'นพ. วันชัย อยู่เย็น',
+      type: 'ตรวจตามนัด', channel: 'แอปพลิเคชันประชาชน',
+      confirmed: true, confirmedAt: '3 ส.ค. 2569 10:48',
+      note: 'งดน้ำงดอาหารก่อนเจาะเลือด 8 ชั่วโมง',
+    },
     at: '3 ส.ค. 2569 10:48', ageMinutes: 12, read: false, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
   },
   {
@@ -186,6 +193,13 @@ const SEED = [
     title: 'ขอเลื่อนนัดผ่านแอป — รอเจ้าหน้าที่ยืนยัน', patient: 'นายเอกชัย รุ่งเรือง', hn: '00126641',
     body: 'ขอเลื่อนจาก 5 ก.ย. 69 เป็น 12 ก.ย. 69 (เหตุผล: ติดภารกิจ) — ต้องตรวจสอบ slot ว่างก่อนตอบกลับ',
     source: 'แอปพลิเคชันประชาชน', link: '/appointment', audience: 'dept', dept: 'opd',
+    appointment: {
+      id: 'AP-69-004902', date: '12 ก.ย. 2569', time: '10:30 น.',
+      clinic: 'คลินิกตรวจรักษา', doctor: 'พญ. สุภาพร มณีรัตน์',
+      type: 'ขอเลื่อนนัด', channel: 'แอปพลิเคชันประชาชน',
+      confirmed: false, confirmedAt: '',
+      note: 'เดิมนัด 5 ก.ย. 69 13:00 น. · เหตุผล: ติดภารกิจ',
+    },
     at: '3 ส.ค. 2569 10:26', ageMinutes: 34, read: false, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
   },
   {
@@ -197,9 +211,16 @@ const SEED = [
   },
   {
     id: 'nt-024', category: 'appointment', severity: 'normal', center: 'hc-4',
-    title: 'ยังไม่ยืนยันนัด 5 ราย — นัดพรุ่งนี้', patient: '', hn: '',
+    title: 'ยังไม่ยืนยันนัด 5 ราย — นัดพรุ่งนี้', patient: 'นางกัลยา วงศ์ทอง', hn: '00141277',
     body: 'ส่งแจ้งเตือนผ่านแอปแล้วแต่ยังไม่กดยืนยัน — ควรโทรยืนยันก่อนสิ้นวัน',
     source: 'แอปพลิเคชันประชาชน', link: '/appointment', audience: 'dept', dept: 'opd',
+    appointment: {
+      id: 'AP-69-004777', date: '30 ส.ค. 2569', time: '13:30 น.',
+      clinic: 'คลินิกทันตกรรม', doctor: 'ทพ. สมชาย ใสสวัสดี',
+      type: 'ตรวจตามนัด', channel: 'แอปพลิเคชันประชาชน',
+      confirmed: false, confirmedAt: '',
+      note: 'ส่งแจ้งเตือนแล้ว 2 ครั้ง ยังไม่ตอบกลับ',
+    },
     at: '3 ส.ค. 2569 08:30', ageMinutes: 150, read: false, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
   },
   {
@@ -240,6 +261,20 @@ export const urgentCount = (centerValue = null) =>
   getNotifications(centerValue).filter((n) => n.severity !== 'normal' && !n.acknowledged).length;
 
 const stamp = () => new Date().toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+
+/** ยืนยันนัดหมายที่มากับการแจ้งเตือน — ใช้จากศูนย์รวมแจ้งเตือนโดยตรง
+    เจ้าหน้าที่ไม่ต้องเปิดหน้าอื่นเพื่อกดยืนยันสิ่งที่อ่านอยู่ตรงหน้า
+    (มติผู้ใช้ 29 ส.ค. 69) */
+export function confirmAppointment(id, at = '') {
+  const i = ITEMS.findIndex((n) => n.id === id);
+  if (i < 0 || !ITEMS[i].appointment) return;
+  ITEMS[i] = {
+    ...ITEMS[i],
+    read: true,
+    appointment: { ...ITEMS[i].appointment, confirmed: true, confirmedAt: at },
+  };
+  notify();
+}
 
 export function markRead(id, read = true) {
   const n = ITEMS.find((x) => x.id === id);
