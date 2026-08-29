@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
+import SYSTEM_NAV from '@/pages/system/systemNav';
 import Table from '@/components/table/Table';
 import Switch from '@/components/switch/Switch';
 import InputField from '@/components/forms/InputField';
@@ -250,21 +251,19 @@ const QueueIntegrationPage = () => {
     <>
       <QueuePageShell
         activeKey='queue-center'
-        sidebarFallbackKey='opd'
+        sidebarItems={SYSTEM_NAV}
+        sidebarFallbackKey='system-overview'
         breadcrumb={breadcrumb}
         title='การเชื่อมต่อข้อมูลคิว'
         actions={<RoleSwitcher />}
         summaryTitle='ผูกคิวกลางเข้ากับระบบงานเดิม'
         summaryCards={summaryCards}
+        belowSummary={<QueueCenterSubNav />}
         tabs={tabs}
         activeTab={activeTab}
         onTabChange={setActiveTab}
       >
         <div className='flex flex-col flex-1 min-w-0' style={PAGE_BODY_STYLE}>
-          {/* เมนูย่อยของโมดูล — วางในเนื้อหาแทน slot belowSummary ของ shell
-              เพราะ shell ทำให้ slot นั้นกับแถบแท็บ sticky ทับกันที่ตำแหน่งเดียวกัน */}
-          <QueueCenterSubNav />
-
           {!canAdmin ? (
             <ReadOnlyBanner message='หน้าการเชื่อมต่อข้อมูลคิวต้องมีสิทธิผู้ดูแลระบบจึงจะแก้ไขได้ — ตอนนี้ดูข้อมูลและบันทึกการเชื่อมต่อได้อย่างเดียว' />
           ) : null}

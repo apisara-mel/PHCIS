@@ -1,5 +1,7 @@
 import { PATIENT_PROFILES, PENDING_REGISTRATION_NO_PHOTO } from '@/data/patientProfiles';
 import { MR_PATIENTS } from '@/data/mrPatients';
+import { USERS } from '@/data/usersAccess';
+import { REGISTRY_CENTER } from '@/data/registrationRegistries';
 
 /* MIH registrationQueue — shared roster for the เวชระเบียน queue page
    (Figma 2756:148259) and the in-form QueueSubMenu side panel on
@@ -45,10 +47,27 @@ export const VISIT_TYPE_TO_FILTER = {
   [VISIT_TYPE_WALKIN]: 'walkin',
 };
 
+/** "นัดหมายทั้งหมด" — รวมนัดสามแบบ (ที่ศูนย์ · Telemed ด้วยตนเอง · Telemed
+    โดยเจ้าหน้าที่) ไม่รวม Walk-in. เจ้าหน้าที่ส่วนใหญ่อยากรู้แค่ "วันนี้มีนัดกี่ราย"
+    ไม่ได้แยกช่องทางจอง ถ้ามีแต่ตัวเลือกละเอียดต้องเลือกทีละแบบแล้วบวกเอง
+    (มติผู้ใช้ 29 ส.ค. 69) */
+export const VISIT_TYPE_FILTER_ALL_APPOINTMENTS = 'appointment-all';
+
 export const VISIT_TYPE_FILTER_OPTIONS = [
   { value: 'all', label: 'ทุกประเภท' },
+  { value: VISIT_TYPE_FILTER_ALL_APPOINTMENTS, label: 'นัดหมายทั้งหมด' },
   ...VISIT_TYPE_OPTIONS.map((label) => ({ value: VISIT_TYPE_TO_FILTER[label], label })),
 ];
+
+/** แถวนี้ผ่านตัวกรอง "ประเภท" ค่านี้หรือไม่ — ที่เดียวที่รู้ว่า `appointment-all`
+    หมายถึงนัดสามแบบรวมกัน ผู้เรียกจึงไม่ต้องรู้เอง */
+export const matchesVisitTypeFilter = (visitType, filterValue) => {
+  if (!filterValue || filterValue === 'all') return true;
+  if (filterValue === VISIT_TYPE_FILTER_ALL_APPOINTMENTS) {
+    return isAppointmentVisitType(visitType);
+  }
+  return VISIT_TYPE_TO_FILTER[visitType] === filterValue;
+};
 
 /** จริงหรือไม่ว่าแถวนี้มาตามนัด (ทั้งสามแบบ) — Walk-in และแถวที่ยังไม่เคยมา = false */
 export const isAppointmentVisitType = (visitType) => (
@@ -90,19 +109,36 @@ const seedRegistrationStatus = (i) => {
   return 'pending';
 };
 
-const ageYearsOnly = (age) => {
+/** "42 ปี - 3 เดือน - 8 วัน" → "42" — ตารางคิวแสดงเฉพาะปี
+    export เพื่อให้ป๊อปอัป "เพิ่มคิว" แปลงอายุด้วยกฎเดียวกัน */
+export const ageYearsOnly = (age) => {
   const m = String(age ?? '').match(/^(\d+)/);
   return m ? m[1] : '';
 };
 
+/* เจ้าหน้าที่เวชระเบียนที่กำลังลงทะเบียนอยู่ — ดึงจากทะเบียนผู้ใช้จริง ไม่ตั้ง
+   ชื่อขึ้นมาใหม่ ถ้าเพิ่ม/ลบผู้ใช้ในระบบสิทธิ์ รายชื่อตรงนี้ตามทันที */
+const REGISTRARS = USERS
+  .filter((u) => u.role === 'registrar' && u.status === 'active')
+  .map((u) => u.name);
+
 /* Build a 130-row roster — one PATIENT_PROFILES entry per index (same pool
    as OPD queue / Screening PatientCard), MR fields for phone/rights/status. */
-export const buildRegistrationQueueRoster = (total = 130) => {
+export const buildRegistrationQueueRoster = (opts = 130) => {
+  /* รับได้ทั้งตัวเลข (ผู้เรียกเดิม) และ object (ทะเบียนแยกของคลินิกลับ)
+     — ทะเบียนคนละเล่มต้องได้รายชื่อคนละชุด ไม่ใช่ 20 แถวแรกของทะเบียนศูนย์
+     จึงเลื่อน seed ด้วย `seedOffset` (ดู registrationRegistries.js) */
+  const cfg = typeof opts === 'number' ? { total: opts } : (opts ?? {});
+  /* catalog เรียกฟิลด์นี้ว่า `rosterSize` (อ่านรู้เรื่องกว่าในบริบทของทะเบียน)
+     ส่วนผู้เรียกเดิมส่ง `total` มา — รับทั้งสองชื่อ */
+  const { seedOffset = 0, registryKey = REGISTRY_CENTER } = cfg;
+  const total = cfg.total ?? cfg.rosterSize ?? 130;
   const rows = [];
   let pendingNoPhotoIdx = 0;
   for (let i = 0; i < total; i += 1) {
+    const seed = i + seedOffset;
     const status = seedRegistrationStatus(i);
-    const queueChannel = QUEUE_CHANNEL_OPTIONS[i % QUEUE_CHANNEL_OPTIONS.length];
+    const queueChannel = QUEUE_CHANNEL_OPTIONS[seed % QUEUE_CHANNEL_OPTIONS.length];
     /* คิวที่ยังไม่รู้ตัวตนมีได้เฉพาะช่องทางที่ไม่ได้เสียบบัตร — คิวจากตู้ Kiosk
        อ่านบัตรมาแล้ว จึงมีโปรไฟล์เต็มเสมอ */
     const usePendingNoPhoto = status === 'pending'
@@ -110,10 +146,10 @@ export const buildRegistrationQueueRoster = (total = 130) => {
       && pendingNoPhotoIdx < PENDING_REGISTRATION_NO_PHOTO.length;
     const profile = usePendingNoPhoto
       ? PENDING_REGISTRATION_NO_PHOTO[pendingNoPhotoIdx++]
-      : PATIENT_PROFILES[i % PATIENT_PROFILES.length];
+      : PATIENT_PROFILES[seed % PATIENT_PROFILES.length];
     const neverServed = Boolean(usePendingNoPhoto || profile.neverServed);
     const mr = profile.hn ? MR_BY_HN[profile.hn] : null;
-    const fallbackMr = MR_PATIENTS[i % MR_PATIENTS.length];
+    const fallbackMr = MR_PATIENTS[seed % MR_PATIENTS.length];
     /* First in-progress row is VIP — matches QueueSubMenu Figma chip. */
     const isVip = status === 'progress' && i === 2;
     rows.push({
@@ -131,8 +167,8 @@ export const buildRegistrationQueueRoster = (total = 130) => {
         ? (profile.rights || fallbackMr.rights)
         : (mr?.rights ?? fallbackMr.rights),
       queueChannel,
-      visitType: neverServed ? '' : VISIT_TYPE_PATTERN[i % VISIT_TYPE_PATTERN.length],
-      patientStatus: neverServed ? 'inactive' : (i % 7 === 0 ? 'inactive' : 'active'),
+      visitType: neverServed ? '' : VISIT_TYPE_PATTERN[seed % VISIT_TYPE_PATTERN.length],
+      patientStatus: neverServed ? 'inactive' : (seed % 7 === 0 ? 'inactive' : 'active'),
       status,
       /* รูป profile — ตัวเดียวกับที่ตารางคิวเวชระเบียนใช้ (PATIENT_PROFILES)
          พกมากับแถวเลย พาเนลข้างฟอร์มจะได้ไม่ต้องไป lookup เองแล้วหลุดกัน */
@@ -140,6 +176,12 @@ export const buildRegistrationQueueRoster = (total = 130) => {
       noProfilePhoto: neverServed,
       neverServed,
       vipBadge: isVip ? 'VIP / ผู้ป่วยพิเศษ' : undefined,
+      /* เฉพาะแถวที่กำลังทำอยู่ — คิวที่ยังไม่มีใครหยิบยังไม่มีเจ้าของงาน
+         (มติผู้ใช้ 29 ส.ค. 69) */
+      registeredBy: status === 'progress' && REGISTRARS.length > 0
+        ? REGISTRARS[seed % REGISTRARS.length]
+        : '',
+      registryKey,
     });
   }
   return rows;

@@ -98,7 +98,7 @@ import {
 
    Persistence is sessionStorage only (prototype) — see manifest notes. */
 
-const breadcrumb = ['บันทึกการรักษา', 'คลินิก HIV/STI', 'ติดตามการดูแล'];
+const breadcrumb = ['บันทึกการรักษา', 'คลินิกรักปลอดภัย', 'ติดตามการดูแล'];
 const QUEUE_PATH = '/clinic/hiv-sti';
 const REGISTRY_PATH = '/clinic/hiv-sti/registry';
 const RECORD_PATH = '/clinic/hiv-sti/record';
@@ -998,7 +998,7 @@ const HivStiFollowUpPage = () => {
         >
           {readOnlyRole && (
             <ReadOnlyBanner>
-              บัญชีของคุณไม่มีสิทธิบันทึกข้อมูลคลินิก HIV/STI — ดูข้อมูลการติดตามและพิมพ์รายงานได้ แต่บันทึกผลไม่ได้
+              บัญชีของคุณไม่มีสิทธิบันทึกข้อมูลคลินิกรักปลอดภัย — ดูข้อมูลการติดตามและพิมพ์รายงานได้ แต่บันทึกผลไม่ได้
             </ReadOnlyBanner>
           )}
 
@@ -1104,7 +1104,7 @@ const HivStiFollowUpPage = () => {
             <SectionCard>
               <SectionHeader icon='person_search'>ไม่พบข้อมูลการติดตาม</SectionHeader>
               <NoticeBand tone='warning' icon='warning'>
-                {`ยังไม่มีข้อมูลติดตามของผู้รับบริการรายนี้ (HN ${hn}) — ตรวจสอบว่าขึ้นทะเบียนคลินิก HIV/STI แล้วหรือยัง`}
+                {`ยังไม่มีข้อมูลติดตามของผู้รับบริการรายนี้ (HN ${hn}) — ตรวจสอบว่าขึ้นทะเบียนคลินิกรักปลอดภัย แล้วหรือยัง`}
               </NoticeBand>
               <div className='flex items-center flex-wrap mih-hivsti-noprint' style={{ gap: 'var(--dim-space-200, 8px)' }}>
                 <BrandSubdueButton variant='outline' size='sm' leadingIcon='badge' onClick={() => history.push(REGISTRY_PATH)}>

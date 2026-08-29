@@ -92,7 +92,7 @@ const SEED_RULES = [
     note: 'จ่ายยาต่อเนื่องตามระบบ DOT — เภสัชกรจ่ายพร้อมให้คำแนะนำ',
   },
   {
-    id: 'rr-006', order: 6, name: 'คลินิกเอดส์/โรคติดต่อทางเพศสัมพันธ์ (บ่าย) → ห้องยาผู้ป่วยนอก',
+    id: 'rr-006', order: 6, name: 'คลินิกรักปลอดภัย (บ่าย) → ห้องยาผู้ป่วยนอก',
     sources: ['hs-std'], destination: 'hs-pharm-1', fallback: 'hs-pharm-2',
     visitTypes: ['appointment', 'walkin'], window: 'in', days: ['mon', 'wed', 'fri'],
     drugCategories: ['general', 'special'], right: 'any', enabled: true,

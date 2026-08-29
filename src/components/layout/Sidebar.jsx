@@ -9,8 +9,7 @@ import { useClinicFilter } from '@/components/layout/HeaderClinicContext';
 import { PHCIS_CURRENT_USER } from '@/data/phcisCurrentUser';
 import FontSizeControls from '@/components/layout/FontSizeControls';
 import DoctorProfileAvatar from '@/components/layout/DoctorProfileAvatar';
-import Popover from '@/components/popup/Popover';
-import MobilePushLogPanel from '@/components/layout/MobilePushLogPanel';
+import NotificationCenterPopup from '@/components/notification/NotificationCenterPopup';
 import {
   subscribeLabNotifications, unreadLabNotificationCount,
 } from '@/data/treatmentInterfaces';
@@ -75,6 +74,8 @@ const Sidebar = ({
   openWidth,
   /** Allow nav labels to wrap to multiple lines instead of clipping. */
   wrapLabels = false,
+  /** Suppress the active-row chevron where the selected state is already explicit. */
+  hideActiveChevron = false,
 }) => {
   const history = useHistory();
   const location = useLocation();
@@ -516,7 +517,7 @@ const Sidebar = ({
                   <LabNotificationCountBadge count={labUnreadCount} />
                 )}
               </span>
-              {active && (
+              {active && !hideActiveChevron && (
                 <span
                   className='shrink-0 overflow-hidden flex items-center justify-center'
                   style={{
@@ -638,14 +639,13 @@ const Sidebar = ({
           </span>
         </div>
 
-        <Popover
+        {/* ศูนย์รวมการแจ้งเตือน (TOR §1.17.5.5) — เดิมเป็น Popover ที่มีแต่ log
+            push ของ Mobile App ซึ่งเป็นการแจ้งเตือนแค่ช่องทางเดียว เจ้าหน้าที่
+            ต้องไปตามหาที่เหลือทีละหน้าเอง (มติผู้ใช้ 29 ส.ค. 69) */}
+        <NotificationCenterPopup
           open={notifyOpen}
           onClose={() => setNotifyOpen(false)}
-          anchorRef={notifyAnchorRef}
-          style={{ zIndex: 1600 }}
-        >
-          <MobilePushLogPanel />
-        </Popover>
+        />
 
         {/* User area · avatar true-centers when collapsed */}
         <div

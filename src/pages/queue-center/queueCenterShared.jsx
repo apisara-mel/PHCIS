@@ -212,45 +212,7 @@ export const RoleSwitcher = () => {
   );
 };
 
-export const ReadOnlyBanner = ({ message }) => (
-  <div
-    className='w-full flex items-start'
-    style={{
-      gap: 'var(--dim-space-300)',
-      background: 'var(--surface-statussummarycard-inprogress, #FFEDD5)',
-      border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-tertiary)',
-      borderRadius: 'var(--dim-radius-300, 10px)',
-      paddingTop: 'var(--dim-space-300)',
-      paddingRight: 'var(--dim-space-400)',
-      paddingBottom: 'var(--dim-space-300)',
-      paddingLeft: 'var(--dim-space-400)',
-    }}
-    role='status'
-  >
-    <Icon name='lock_person' size={20} style={{ color: 'var(--text-warning-default)' }} />
-    <div className='flex-1 min-w-0 flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
-      <span
-        style={{
-          fontFamily: 'var(--type-family-body)',
-          fontSize: 'var(--type-size-sm, 14px)',
-          fontWeight: 'var(--type-weight-bold, 700)',
-          color: 'var(--text-warning-default)',
-        }}
-      >
-        โหมดอ่านอย่างเดียว
-      </span>
-      <span
-        style={{
-          fontFamily: 'var(--type-family-body)',
-          fontSize: 'var(--type-size-xs, 12px)',
-          color: 'var(--text-content-secondary)',
-        }}
-      >
-        {message}
-      </span>
-    </div>
-  </div>
-);
+export const ReadOnlyBanner = () => null;
 
 export const EmptyState = ({ icon = 'inbox', title, description, action }) => (
   <div
@@ -418,16 +380,26 @@ export const WaitCell = ({ minutes, overdue, threshold }) => (
 /* ────────────────────────────────────────────────── แถบเมนูย่อยของโมดูล */
 
 const SUB_NAV = [
-  { path: '/queue-center',             label: 'จัดการคิวและเรียกคิว', icon: 'campaign',   exact: true  },
-  { path: '/queue-center/issue',       label: 'การออกคิว',           icon: 'confirmation_number', exact: false },
-  { path: '/queue-center/integration', label: 'การเชื่อมต่อข้อมูลคิว', icon: 'hub',        exact: false },
-  { path: '/queue-center/settings',    label: 'ตั้งค่าระบบคิว',       icon: 'settings',   exact: false },
+  { path: '/queue-center/kiosk-settings', label: 'ตั้งค่าตู้บริการ', icon: 'print', exact: false },
+  { path: '/queue-center/ticket-settings', label: 'ตั้งค่าใบคิว',     icon: 'receipt_long', exact: false },
+  { path: '/queue-center/display',     label: 'ตั้งค่าจอแสดงผลการเรียกคิว', icon: 'tv',   exact: false },
 ];
 
 export const QueueCenterSubNav = () => (
   <nav
-    className='w-full flex items-center flex-wrap'
-    style={{ gap: 'var(--dim-space-200)', paddingBottom: 'var(--dim-space-200)' }}
+    className='w-full flex items-center overflow-x-auto'
+    style={{
+      gap: 'var(--dim-space-100)',
+      paddingTop: 'var(--dim-space-200)',
+      paddingLeft: 'var(--dim-space-300)',
+      paddingRight: 'var(--dim-space-300)',
+      background: 'var(--surface-brandPrimary-quaternary)',
+      border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-tertiary)',
+      borderRadius: 'var(--dim-radius-500, 16px)',
+      boxShadow: 'var(--shadow-card)',
+      whiteSpace: 'nowrap',
+    }}
+    role='tablist'
     aria-label='เมนูระบบบริหารจัดการคิว'
   >
     {SUB_NAV.map((item) => (
@@ -435,16 +407,15 @@ export const QueueCenterSubNav = () => (
         key={item.path}
         to={item.path}
         exact={item.exact}
-        className='inline-flex items-center'
+        className='inline-flex items-center shrink-0'
+        role='tab'
         style={{
           gap: 'var(--dim-space-150)',
-          borderRadius: 'var(--dim-radius-600, 24px)',
-          border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary)',
-          background: 'var(--surface-card-100)',
+          borderBottom: 'var(--dim-stroke-200, 2px) solid transparent',
           color: 'var(--text-content-secondary)',
-          paddingTop: 'var(--dim-space-150)',
+          paddingTop: 'var(--dim-space-300)',
           paddingRight: 'var(--dim-space-400)',
-          paddingBottom: 'var(--dim-space-150)',
+          paddingBottom: 'var(--dim-space-300)',
           paddingLeft: 'var(--dim-space-400)',
           fontFamily: 'var(--type-family-body)',
           fontSize: 'var(--type-size-sm, 14px)',
@@ -452,9 +423,12 @@ export const QueueCenterSubNav = () => (
           textDecoration: 'none',
         }}
         activeStyle={{
-          background: 'var(--surface-brandPrimary-quaternary)',
-          borderColor: 'var(--border-brandPrimary-tertiary, var(--border-brandPrimary-quaternary))',
+          background: 'var(--surface-card-100)',
+          borderTopLeftRadius: 'var(--dim-radius-300, 10px)',
+          borderTopRightRadius: 'var(--dim-radius-300, 10px)',
+          borderBottomColor: 'var(--border-brandPrimary-default, var(--brand-p600))',
           color: 'var(--text-brandPrimary-default)',
+          fontWeight: 'var(--type-weight-bold, 700)',
         }}
       >
         <Icon name={item.icon} size={16} />

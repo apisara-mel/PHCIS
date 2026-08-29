@@ -8,26 +8,39 @@
    passes, so both the /admin/* and /assess/* page sets show ONE identical
    menu without per-page edits. (SystemRolesPage keeps its own /admin/roles
    route but is no longer surfaced here — replaced by "สิทธิ์การเข้าถึงระบบ".) */
+/* แท็บของเมนู "โครงสร้างองค์กรและสิทธิ์" — แหล่งความจริงเดียวของทั้งแถบแท็บ
+   (OrgStructureSubNav) และของสิทธิ์ระดับเมนูย่อย (accessMenuCatalog).
+   key ยังเป็นคีย์เดิมของทั้ง 5 หน้า จึงยังตรงกับ route/หน้าที่มีอยู่. */
+export const ORG_STRUCTURE_TABS = [
+  { key: 'system-structures',     label: 'รูปแบบโครงสร้างศูนย์', path: '/admin/structures'      },
+  { key: 'system-centers',        label: 'ศูนย์บริการ',          path: '/admin/centers'         },
+  { key: 'assess-positions',      label: 'ตำแหน่ง',              path: '/assess/positions'      },
+  { key: 'assess-activity',       label: 'บทบาท',                path: '/assess/activities'     },
+  { key: 'assess-access-control', label: 'สิทธิ์การเข้าถึงระบบ',  path: '/assess/access-control' },
+];
+
 export const SYSTEM_NAV = [
   { key: 'system-overview',       label: 'แดชบอร์ด',        icon: 'bar_chart_4_bars', path: '/admin' },
-  /* แม่แบบโครงสร้างภายในศูนย์ (แผนก/คลินิก + ห้องตรวจ/เตียง) ตั้งไว้ครั้งเดียว
-     แล้วเลือกใช้ซ้ำได้ตอนเพิ่มศูนย์บริการ — ย้ายมาต่อจากแดชบอร์ด 25 ส.ค. 69 (มติผู้ใช้)
-     เพราะเป็นของที่ตั้งก่อนเริ่มเพิ่มศูนย์ */
-  { key: 'system-structures',     label: 'รูปแบบโครงสร้างศูนย์', icon: 'account_tree',  path: '/admin/structures' },
-  { key: 'system-centers',        label: 'ศูนย์บริการ',      icon: 'domain',           path: '/admin/centers' },
-  /* ตำแหน่งอยู่ใต้ศูนย์บริการ — ตั้งผังคน/ตำแหน่งต่อจากผังศูนย์ (25 ส.ค. 69 มติผู้ใช้) */
-  { key: 'assess-positions',      label: 'ตำแหน่ง',          icon: 'account_tree',     path: '/assess/positions' },
-  /* บทบาท (Activity-based Access Control) — แทน Group Policy เดิม 22 ส.ค. 2569
-     ลำดับชั้น บทบาทหลัก → บทบาทย่อย; route เดิม /assess/group-policy redirect มาที่นี่
-     ป้ายเมนูเปลี่ยนจาก "กิจกรรม" เป็น "บทบาท" 25 ส.ค. 2569 (route/key คงเดิม) */
-  { key: 'assess-activity',       label: 'บทบาท',            icon: 'business_center',  path: '/assess/activities' },
+  /* โครงสร้างองค์กรและสิทธิ์ — 5 หน้าที่เคยเป็น 5 เมนูแยก ยุบเป็นเมนูเดียว
+     29 ส.ค. 69 (มติผู้ใช้) สลับหน้ากันด้วยแท็บ TabUnderline ของ
+     `components/system/OrgStructureSubNav.jsx` แบบเดียวกับ pharmacy / lab /
+     homevisit — ไม่ใช่ `subItems` เพราะ subItems กาง SideSubMenu ข้างราง แทนที่
+     จะพาไปหน้าแรกของกลุ่ม. ลำดับแท็บ = ลำดับขั้นตอนตั้งค่าจริง:
+       รูปแบบโครงสร้างศูนย์ (แม่แบบแผนก/คลินิก + ห้องตรวจ/เตียง ตั้งครั้งเดียว
+       ใช้ซ้ำได้) → ศูนย์บริการ → ตำแหน่ง → บทบาท → สิทธิ์ของบทบาทนั้น
+     `tabItems` ไม่ถูก Sidebar ใช้เลย — มีไว้ให้ accessMenuCatalog แตกสิทธิ์
+     ถึงระดับเมนูย่อยได้เหมือนตอนยังเป็น 5 เมนู (มติผู้ใช้ 26 ส.ค. 69) */
+  {
+    key: 'system-org',
+    label: 'โครงสร้างองค์กรและสิทธิ์',
+    icon: 'corporate_fare',
+    path: '/admin/structures',
+    tabItems: ORG_STRUCTURE_TABS,
+  },
   /* "แผนก" ถูกซ่อนจากเมนู 10 ส.ค. 2569 — แผนกไม่ใช่ทะเบียนลอย ๆ อีกต่อไป แต่
      ผูกกับศูนย์บริการ สร้าง/แก้ที่ step "แผนกและคลินิก" ของหน้าเพิ่มศูนย์บริการ
      ตามลำดับชั้น แผนก → คลินิก → ห้อง/เตียง. route /assess/departments ยังเปิด
      อยู่สำหรับลิงก์เดิม แค่ไม่มีเมนูของตัวเอง — แบบเดียวกับ SystemRolesPage. */
-  /* ลำดับตามขั้นตอนตั้งค่าจริง: บทบาท → สิทธิ์ของบทบาทนั้น → คนที่ถือสิทธิ์
-     (26 ส.ค. 69 มติผู้ใช้) */
-  { key: 'assess-access-control', label: 'สิทธิ์การเข้าถึงระบบ',   icon: 'how_to_reg',       path: '/assess/access-control' },
   { key: 'system-staff',          label: 'บุคลากร',          icon: 'group',            path: '/assess/users' },
   /* ซ่อนชั่วคราว 26 ส.ค. 69 (มติผู้ใช้) — route /opd/room-config ยังเข้าได้ตาม
      ลิงก์เดิม เอากลับมาโดยลบคอมเมนต์ออก
@@ -56,6 +69,7 @@ export const SYSTEM_NAV = [
   /* เทมเพลตแดชบอร์ด — ตัวสร้างย้ายมาจากหน้าแดชบอร์ดมาเป็นงานผู้ดูแลระบบ
      (มติผู้ใช้ 27 ส.ค. 69) หน้าแดชบอร์ดเหลือแค่ "เลือกใช้" */
   { key: 'system-dashboard-templates', label: 'เทมเพลตแดชบอร์ด', icon: 'dashboard_customize', path: '/admin/dashboard-templates' },
+  { key: 'queue-center', label: 'ระบบบริหารจัดการคิว', icon: 'campaign', path: '/queue-center' },
 ];
 
 export default SYSTEM_NAV;

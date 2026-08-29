@@ -81,13 +81,40 @@ export function useTextareaSuggestions({
     setInputQuery(String(value ?? '').trim());
   }, [value]);
 
+  /* ข้อความที่มาจากการ "เลือก" รายการแนะนำ (ไม่ใช่ที่ผู้ใช้พิมพ์เอง)
+     — เลือกแล้ว ค่าในช่องจะกลายเป็นประโยคยาวทั้งประโยค ถ้ายังเอาทั้งช่อง
+     ไปเทียบกับรายการแนะนำ จะไม่มีวันตรงอะไรอีกเลย ป๊อปอัปเลยไม่กลับมาอีก
+     ทั้งที่ผู้ใช้พิมพ์คำใหม่ต่อท้าย (มติผู้ใช้ 29 ส.ค. 69) */
+  const [pickedBase, setPickedBase] = useState('');
+
+  /* หลังเลือกรายการไปแล้ว ต้องพิมพ์ใหม่ครบ 3 ตัวอักษรถึงจะเด้งรายการแนะนำอีก
+     (มติผู้ใช้ 29 ส.ค. 69) — ตอนช่องยังว่าง `minChars` ของแต่ละหน้าเป็นคนคุม
+     (บางช่องตั้งไว้ 1) แต่ตอนในช่องมีข้อความเต็มประโยคอยู่แล้ว การเด้งตั้งแต่
+     ตัวอักษรแรกรบกวนคนที่แค่พิมพ์ต่อ ไม่ได้อยากเลือกใหม่ */
+  const MIN_CHARS_AFTER_PICK = 3;
+  const minCharsFor = (base) => (base ? Math.max(minChars, MIN_CHARS_AFTER_PICK) : minChars);
+
+  /* คำค้นที่ใช้จริง = ส่วนที่ผู้ใช้พิมพ์ "หลังจาก" ข้อความที่เลือกมา ถ้าผู้ใช้
+     แก้จนไม่ขึ้นต้นด้วยข้อความนั้นแล้ว ถือว่าเลิกอิงของเดิม กลับไปเทียบทั้งช่อง */
+  const activeQuery = useMemo(() => {
+    const v = String(inputQuery ?? '');
+    if (pickedBase && v.startsWith(pickedBase)) {
+      return v.slice(pickedBase.length).replace(/^[\s,·/–—-]+/u, '').trim();
+    }
+    return v.trim();
+  }, [inputQuery, pickedBase]);
+
+  useEffect(() => {
+    if (pickedBase && !String(inputQuery ?? '').startsWith(pickedBase)) setPickedBase('');
+  }, [inputQuery, pickedBase]);
+
   const enabled = Array.isArray(suggestions) && suggestions.length > 0;
 
   const filtered = useMemo(() => {
-    if (!enabled || inputQuery.length < minChars) return [];
-    const lq = inputQuery.toLowerCase();
+    if (!enabled || activeQuery.length < minCharsFor(pickedBase)) return [];
+    const lq = activeQuery.toLowerCase();
     return suggestions.filter((s) => String(s).toLowerCase().includes(lq)).slice(0, 10);
-  }, [enabled, inputQuery, minChars, suggestions]);
+  }, [enabled, activeQuery, minChars, pickedBase, suggestions]);
 
   const showDropdown = open && filtered.length > 0;
 
@@ -135,7 +162,7 @@ export function useTextareaSuggestions({
     }
     updateMenuPosition();
     return undefined;
-  }, [showDropdown, filtered, inputQuery, popoverWidth, updateMenuPosition]);
+  }, [showDropdown, filtered, activeQuery, popoverWidth, updateMenuPosition]);
 
   useEffect(() => {
     if (!showDropdown) return undefined;
@@ -186,7 +213,12 @@ export function useTextareaSuggestions({
     } else {
       onChange({ target: { value: nextValue } });
     }
-    setOpen(q.length >= minChars);
+    /* คำนวณจากค่าใหม่ตรง ๆ — state ยังไม่ทันอัปเดตในเฟรมนี้ */
+    const base = pickedBase && q.startsWith(pickedBase) ? pickedBase : '';
+    const next = base
+      ? q.slice(base.length).replace(/^[\s,·/–—-]+/u, '').trim()
+      : q;
+    setOpen(next.length >= minCharsFor(base));
   };
 
   const handleEventChange = (e) => {
@@ -199,13 +231,15 @@ export function useTextareaSuggestions({
 
   const pick = (text) => {
     onChange({ target: { value: text } });
+    setInputQuery(String(text ?? '').trim());
+    setPickedBase(String(text ?? '').trim());
     setHoveredRow(null);
     setOpen(false);
   };
 
   const handleFocus = useCallback(() => {
-    if (enabled && inputQuery.length >= minChars) setOpen(true);
-  }, [enabled, inputQuery, minChars]);
+    if (enabled && activeQuery.length >= minCharsFor(pickedBase)) setOpen(true);
+  }, [enabled, activeQuery, minChars, pickedBase]);
 
   const portal =
     showDropdown && menuPos && typeof document !== 'undefined'
@@ -284,7 +318,7 @@ export function useTextareaSuggestions({
                       lineHeight: 1.5,
                     }}
                   >
-                    {highlightMatch(s, inputQuery, `sug-${i}`)}
+                    {highlightMatch(s, activeQuery, `sug-${i}`)}
                   </span>
                   <Icon
                     name='add_circle'

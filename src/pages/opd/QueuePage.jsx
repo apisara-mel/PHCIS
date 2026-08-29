@@ -95,11 +95,14 @@ const FILTER_OPTIONS = {
      includes both hospital appointments and Telemedicine, while the latter
      two options drill into those appointment channels individually. */
   type: [
+    /* ลำดับเดียวกันทุกหน้า (มติผู้ใช้ 29 ส.ค. 69): ทุกประเภท → นัดหมายทั้งหมด
+       → นัดย่อยแต่ละแบบ → Walk-in · เดิม Walk-in แทรกอยู่กลางทำให้กลุ่ม
+       "นัดหมาย" ถูกผ่าออกจากกัน หัวข้อรวมไม่ได้อยู่ติดกับลูกของมัน */
     { value: 'all',                  label: 'ทุกประเภท'              },
-    { value: 'walkin',               label: 'Walk-in'                },
-    { value: 'appointment_all',      label: 'นัดหมาย: ทั้งหมด'        },
-    { value: 'appointment_hospital', label: 'นัดหมาย: ที่โรงพยาบาล'   },
+    { value: 'appointment_all',      label: 'นัดหมายทั้งหมด'          },
+    { value: 'appointment_hospital', label: 'นัดหมาย: ที่ศูนย์บริการ' },
     { value: 'telemedicine',         label: 'นัดหมาย: Telemedicine'  },
+    { value: 'walkin',               label: 'Walk-in'                },
   ],
   date: [
     { value: 'today',     label: 'วันนี้'             },
@@ -807,10 +810,6 @@ const QueuePage = () => {
      full row set so the sakura section keeps drawing attention even when
      search / filters narrow the main table. Shown only on the
      "กำลังซักประวัติ" tab per the Figma reference. */
-  const draftRows = useMemo(
-    () => rows.filter((r) => r.statusKey === 'draft'),
-    [rows],
-  );
 
   const filtered = useMemo(() => {
     /* In edit mode show the full underlying queue so drag-reorder works on
@@ -1052,64 +1051,6 @@ const QueuePage = () => {
 
             <SmoothFilterResults opaque={resultsOpaque}>
             <SearchResultCount found={sortedRows.length} total={rows.length} />
-
-            {/* Draft callout — Figma 264:80153 / 264:56523. Lives INSIDE
-                the white queue card (Figma 264:52725) between the filter
-                row and the main table. Sakura-tinted card listing
-                screenings parked as drafts; uses the new
-                --surface-card-sakura-200 + --border-card-sakura-100 tokens
-                and reuses the canonical <Table /> so column layout stays
-                identical. Visible only on the "กำลังซักประวัติ" tab. */}
-            {activeTab === 'progress' && draftRows.length > 0 && (
-              <section
-                className='w-full flex flex-col'
-                style={{
-                  background:   'var(--surface-card-sakura-200)',
-                  border:       'var(--dim-stroke-400, 4px) solid var(--border-card-sakura-100)',
-                  borderRadius: 'var(--dim-radius-500)',
-                  padding:      'var(--dim-space-600)',
-                  gap:          'var(--dim-space-300)',
-                }}
-              >
-                <header
-                  className='flex flex-col min-w-0'
-                  style={{ gap: 'var(--dim-space-050, 2px)' }}
-                >
-                  <h2
-                    style={{
-                      margin: 'var(--dim-space-0)',
-                      color: 'var(--text-topic-tertiary-title)',
-                      fontFamily: 'var(--type-family-heading-content)',
-                      fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-                      fontSize: 'var(--type-size-base)',
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    รายการที่บันทึกร่างไว้
-                  </h2>
-                  <p
-                    style={{
-                      margin: 'var(--dim-space-0)',
-                      color: 'var(--text-topic-tertiary-subtext-on, var(--text-content-tertiary))',
-                      fontFamily: 'var(--type-family-body)',
-                      fontWeight: 'var(--type-weight-medium)',
-                      fontSize: 'var(--type-size-xs)',
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    กรุณาบันทึกต่อให้เสร็จ หรือลบรายการหากไม่ต้องการบันทึกต่อ
-                  </p>
-                </header>
-                <Table
-                  columns={columns}
-                  rows={draftRows}
-                  rowKey={(row) => row.id}
-                  stickyColCount={4}
-                  onRowClick={handleRowClick}
-                />
-              </section>
-            )}
-
             {/* Table — generic <Table> handles layout, sticky cols, sort,
                 drag-reorder, hover, and row click. Cell rendering for
                 queue/name/type/contact/status/actions/telemedicine comes

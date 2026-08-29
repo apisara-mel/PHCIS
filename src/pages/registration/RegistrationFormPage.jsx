@@ -331,6 +331,9 @@ const RegistrationFormPage = () => {
       avatarUrl: r.avatarUrl,
       newUser: r.neverServed || !r.name,
       deceased: r.lifeStatus === 'deceased',
+      /* หมวด "กำลังลงทะเบียน" ต้องบอกว่าใครเป็นคนทำอยู่ — ไม่งั้นเจ้าหน้าที่
+         อีกคนไม่รู้ว่าเคสนี้มีเจ้าของแล้ว แล้วไปหยิบซ้ำ (มติผู้ใช้ 29 ส.ค. 69) */
+      sublabel: r.registeredBy ? `ลงทะเบียนโดย ${r.registeredBy}` : undefined,
     }));
     return {
       done:       { items: map(raw.done.items),       total: raw.done.total       },
@@ -394,9 +397,13 @@ const RegistrationFormPage = () => {
            ไม่มี chevron และทุกอย่างอยู่บรรทัดเดียว (มติผู้ใช้ 27 ส.ค. 69) */
         rowVariant='divider'
         onPickPatient={goToPatientRegister}
-        renderRowActions={(p) => (
+        renderRowActions={(p, section, rowIdx) => (
           <QueueCallActions
-            called={!!queueCalled[p.id]}
+            /* หมวด "กำลังลงทะเบียน" → ปุ่มบอกสถานะจริงของงาน ส่วนหมวดที่รออยู่
+               แถวแรกคือคิวที่กำลังถูกเรียก จึงขึ้น "เรียกแล้ว" ตั้งแต่แรก
+               (มติผู้ใช้ 29 ส.ค. 69) */
+            statusLabel={section === 'inProgress' ? 'กำลังลงทะเบียน' : undefined}
+            called={!!queueCalled[p.id] || (section === 'waiting' && rowIdx === 0)}
             paused={!!queuePaused[p.id]}
             disabledReason={p.deceased ? 'ผู้รับบริการเสียชีวิต — เรียกคิวไม่ได้' : undefined}
             onCall={() => setQueueCalled((s2) => ({ ...s2, [p.id]: true }))}

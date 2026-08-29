@@ -177,7 +177,7 @@ export const HivStiStep1History = ({ form, setForm, hn, clinicPatient, visitNo, 
           </InfoPanel>
         ) : (
           <NoticeBand tone='info' icon='info'>
-            ผู้รับบริการรายนี้ยังไม่มีข้อมูลในทะเบียนคลินิก HIV/STI — บันทึกการรักษาได้ตามปกติ
+            ผู้รับบริการรายนี้ยังไม่มีข้อมูลในทะเบียนคลินิกรักปลอดภัย — บันทึกการรักษาได้ตามปกติ
             และลงทะเบียนภายหลังที่หน้าทะเบียนผู้รับบริการ
           </NoticeBand>
         )}
@@ -1268,7 +1268,7 @@ export const HivStiStep7Appointment = ({ form, setForm, readOnly, onConfirmRecor
         </div>
         {form.printNeutralSlip === false && (
           <NoticeBand tone='danger' icon='error'>
-            ปิดข้อความกลางแล้ว — ใบนัดจะระบุชื่อคลินิก HIV/STI ซึ่งเสี่ยงต่อการเปิดเผยข้อมูลลับ
+            ปิดข้อความกลางแล้ว — ใบนัดจะระบุชื่อคลินิกรักปลอดภัย ซึ่งเสี่ยงต่อการเปิดเผยข้อมูลลับ
             ให้เลือกเฉพาะกรณีที่ผู้รับบริการยินยอมเป็นลายลักษณ์อักษรเท่านั้น
           </NoticeBand>
         )}

@@ -658,9 +658,12 @@ const TreatmentFormPage = () => {
         sections={['inProgress', 'waiting']}
         showDots={false}
         onPickPatient={(p) => setPanelAcceptTarget(p)}
-        renderRowActions={(p) => (
+        renderRowActions={(p, section, rowIdx) => (
           <QueueCallActions
-            called={!!queueCalled[p.id]}
+            /* หมวดที่กำลังทำอยู่ → ปุ่มบอกสถานะจริง · หมวดที่รอ แถวแรกคือคิวที่
+               กำลังถูกเรียก (มติผู้ใช้ 29 ส.ค. 69) */
+            statusLabel={section === 'inProgress' ? 'กำลังตรวจ' : undefined}
+            called={!!queueCalled[p.id] || (section === 'waiting' && rowIdx === 0)}
             paused={!!queuePaused[p.id]}
             onPause={() => setQueuePaused((s2) => ({ ...s2, [p.id]: !s2[p.id] }))}
             onCancel={() => setQueueCancelCandidate(p)}

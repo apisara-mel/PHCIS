@@ -57,6 +57,7 @@ import {
   parseThaiBuddhistDate,
   ID_CARD_CHIP_PHOTO_MOCK,
   MOBILITY_OTHER_SUGGESTIONS,
+  FLAG_OTHER_SUGGESTIONS,
   buildMockRightsGroups,
   hasThaiCharacters,
   getBirthYearError,
@@ -414,8 +415,16 @@ export const StepConsent = ({ form, setForm, patient }) => {
           />
         ) : (
           <div
-            className='grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 min-[1366px]:grid-cols-5 items-stretch'
-            style={{ gap: 'var(--dim-space-400)' }}
+            /* auto-fill ตามความกว้าง "ของกล่อง" ไม่ใช่ของ viewport — breakpoint
+               แบบเดิม (md=768 → 3 คอลัมน์) ไม่รู้ว่าเมนูข้างซ้ายกางอยู่หรือไม่
+               การ์ดเลยแคบจนปุ่ม "กรอกแบบฟอร์ม" ตัดคำ · 280px = ความกว้าง
+               ต่ำสุดที่แถวปุ่มท้ายการ์ดยังอยู่ครบ */
+            className='grid w-full items-stretch'
+            style={{
+              gap: 'var(--dim-space-400)',
+              gridTemplateColumns:
+                'repeat(auto-fill, minmax(var(--dim-size-2450, 280px), 1fr))',
+            }}
           >
             {pending.map((item) => (
               <PendingConsentFormCard
@@ -434,8 +443,16 @@ export const StepConsent = ({ form, setForm, patient }) => {
         <SubCard>
           <SectionTitle icon='task_alt'>แบบฟอร์มที่ให้ความยินยอมแล้ว</SectionTitle>
           <div
-            className='grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 min-[1366px]:grid-cols-5 items-stretch'
-            style={{ gap: 'var(--dim-space-400)' }}
+            /* auto-fill ตามความกว้าง "ของกล่อง" ไม่ใช่ของ viewport — breakpoint
+               แบบเดิม (md=768 → 3 คอลัมน์) ไม่รู้ว่าเมนูข้างซ้ายกางอยู่หรือไม่
+               การ์ดเลยแคบจนปุ่ม "กรอกแบบฟอร์ม" ตัดคำ · 280px = ความกว้าง
+               ต่ำสุดที่แถวปุ่มท้ายการ์ดยังอยู่ครบ */
+            className='grid w-full items-stretch'
+            style={{
+              gap: 'var(--dim-space-400)',
+              gridTemplateColumns:
+                'repeat(auto-fill, minmax(var(--dim-size-2450, 280px), 1fr))',
+            }}
           >
             {consentedCards.map((item) => (
               <PendingConsentFormCard
@@ -465,8 +482,12 @@ export const StepConsent = ({ form, setForm, patient }) => {
           </NeutralSubdueButton>
         </div>
         <div
-          className='grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 min-[1366px]:grid-cols-5 items-stretch'
-          style={{ gap: 'var(--dim-space-400)' }}
+          className='grid w-full items-stretch'
+          style={{
+            gap: 'var(--dim-space-400)',
+            gridTemplateColumns:
+              'repeat(auto-fill, minmax(var(--dim-size-2450, 280px), 1fr))',
+          }}
         >
           {otherFormCards.map((item) => (
             <PendingConsentFormCard
@@ -2648,7 +2669,17 @@ export const Step5Flags = ({ form, setForm }) => {
     ...s,
     mobilityOther: e?.target?.value ?? '',
   }));
-  const setFlag = (key, v) => setForm((s) => ({ ...s, flags: { ...s.flags, [key]: v } }));
+  const setFlag = (key, v) => setForm((s) => ({
+    ...s,
+    flags: { ...s.flags, [key]: v },
+    /* ปลด "อื่นๆ" แล้วข้อความที่พิมพ์ไว้ต้องหายไปด้วย ไม่งั้นจะถูกบันทึกทั้งที่
+       ไม่มี flag รองรับ — ทรงเดียวกับ mobilityOther */
+    ...(key === 'flagOther' && !v ? { flagOtherNote: '' } : null),
+  }));
+  const setFlagOtherNote = (e) => setForm((s) => ({
+    ...s,
+    flagOtherNote: e?.target?.value ?? '',
+  }));
 
   const updateAllergy = (idx, key, value) => {
     setForm((s) => ({
@@ -2874,8 +2905,9 @@ export const Step5Flags = ({ form, setForm }) => {
                 placeholder='ใช้ไม้เท้า / ใช้ walker'
                 suggestions={MOBILITY_OTHER_SUGGESTIONS}
                 minChars={1}
-                height={160}
-                minHeight={96}
+                /* เตี้ยลงจาก 160 (มติผู้ใช้ 29 ส.ค. 69) — กรอกข้อความสั้น */
+                height={112}
+                minHeight={80}
                 popoverAriaLabel='คำแนะนำสภาพการเคลื่อนไหว'
               />
             </div>
@@ -2920,10 +2952,13 @@ export const Step5Flags = ({ form, setForm }) => {
                       อ้าง `--dim-space-1000` ไว้ตามชื่อในสเกล ถ้าเพิ่ม token ที่ repo
                       `mih-design` แล้ว `npm run tokens:pull` ค่าจะมาแทน fallback เอง */}
                   <div
-                    className='flex items-start w-full'
+                    /* flex-wrap: จอแคบ (แท็บเล็ตแนวตั้ง / หน้าต่างซอย) ช่องจะตกลง
+                       บรรทัดใหม่แทนที่จะถูกบีบจนพิมพ์ไม่ได้ — basis 240px คือ
+                       ความกว้างต่ำสุดที่ textarea ยังใช้งานได้ */
+                    className='flex flex-wrap items-start w-full'
                     style={{ gap: 'var(--dim-space-1000, 40px)' }}
                   >
-                    <Field label='ชื่ออาหาร' required style={{ flex: '1 1 0' }}>
+                    <Field label='ชื่ออาหาร' required style={{ flex: '1 1 240px' }}>
                       <SuggestibleTextarea
                         voice
                         /* เต็มความกว้างของคอลัมน์ (ครึ่งการ์ด) — ค่าเริ่มต้นของ
@@ -2934,16 +2969,18 @@ export const Step5Flags = ({ form, setForm }) => {
                         placeholder='เช่น กุ้ง, ปลาทะเล, นมวัว, ถั่วลิสง'
                         suggestions={ALLERGY_FOOD_NAME_SUGGESTIONS}
                         minChars={1}
-                        height={160}
-                        minHeight={96}
+                        /* เตี้ยลงจาก 160 (มติผู้ใช้ 29 ส.ค. 69) — ช่องพวกนี้กรอก
+                           ข้อความสั้น ๆ ความสูงเดิมเหลือที่ว่างเปล่าครึ่งกล่อง
+                           และดันการ์ดทั้งใบยาวเกินจำเป็น */
+                        height={112}
+                        minHeight={80}
                         popoverAriaLabel='คำแนะนำชื่ออาหาร'
                       />
                     </Field>
                     <Field
                       label='อาการ'
                       required
-                      hint='ระบุอาการแพ้ทุกครั้งที่เคยพบ เพื่อช่วยแพทย์ประเมินความเสี่ยง'
-                      style={{ flex: '1 1 0' }}
+                      style={{ flex: '1 1 240px' }}
                     >
                       <SuggestibleTextarea
                         voice
@@ -2955,16 +2992,22 @@ export const Step5Flags = ({ form, setForm }) => {
                         placeholder='อาการแพ้รุนแรง เช่น Anaphylaxis, ผื่นลมพิษทั่วตัว, หน้าบวม, หายใจไม่ออก'
                         suggestions={ALLERGY_SYMPTOM_SUGGESTIONS}
                         minChars={1}
+                        /* สูงเท่ากล่องชื่อในแถวเดียวกัน (มติผู้ใช้ 29 ส.ค. 69) */
+                        height={112}
+                        minHeight={80}
                         popoverAriaLabel='คำแนะนำอาการแพ้'
                       />
                     </Field>
+                    {/* ระดับความรุนแรงอยู่แถวเดียวกับชื่อ+อาการ (มติผู้ใช้ 29 ส.ค. 69)
+                        — เป็นข้อมูลของรายการเดียวกัน อ่านจบในบรรทัดเดียว
+                        ไม่ต้องกวาดสายตาลงมาอีกแถว */}
+                    <Field label='ระดับความรุนแรง' required style={{ flex: '0 0 auto' }}>
+                      <SeverityCards
+                        value={a.severity}
+                        onChange={(v) => updateFoodAllergy(idx, 'severity', v)}
+                      />
+                    </Field>
                   </div>
-                  <Field label='ระดับความรุนแรง' required>
-                    <SeverityCards
-                      value={a.severity}
-                      onChange={(v) => updateFoodAllergy(idx, 'severity', v)}
-                    />
-                  </Field>
                 </SubCard>
               ))}
               <div className='w-full'>
@@ -3018,10 +3061,13 @@ export const Step5Flags = ({ form, setForm }) => {
                       อ้าง `--dim-space-1000` ไว้ตามชื่อในสเกล ถ้าเพิ่ม token ที่ repo
                       `mih-design` แล้ว `npm run tokens:pull` ค่าจะมาแทน fallback เอง */}
                   <div
-                    className='flex items-start w-full'
+                    /* flex-wrap: จอแคบ (แท็บเล็ตแนวตั้ง / หน้าต่างซอย) ช่องจะตกลง
+                       บรรทัดใหม่แทนที่จะถูกบีบจนพิมพ์ไม่ได้ — basis 240px คือ
+                       ความกว้างต่ำสุดที่ textarea ยังใช้งานได้ */
+                    className='flex flex-wrap items-start w-full'
                     style={{ gap: 'var(--dim-space-1000, 40px)' }}
                   >
-                    <Field label='ชื่อยา' required style={{ flex: '1 1 0' }}>
+                    <Field label='ชื่อยา' required style={{ flex: '1 1 240px' }}>
                       <SuggestibleTextarea
                         voice
                         /* เต็มความกว้างของคอลัมน์ (ครึ่งการ์ด) — ค่าเริ่มต้นของ
@@ -3032,8 +3078,11 @@ export const Step5Flags = ({ form, setForm }) => {
                         placeholder='Penicillin'
                         suggestions={ALLERGY_DRUG_NAME_SUGGESTIONS}
                         minChars={1}
-                        height={160}
-                        minHeight={96}
+                        /* เตี้ยลงจาก 160 (มติผู้ใช้ 29 ส.ค. 69) — ช่องพวกนี้กรอก
+                           ข้อความสั้น ๆ ความสูงเดิมเหลือที่ว่างเปล่าครึ่งกล่อง
+                           และดันการ์ดทั้งใบยาวเกินจำเป็น */
+                        height={112}
+                        minHeight={80}
                         popoverAriaLabel='คำแนะนำชื่อยา'
                       />
                     </Field>
@@ -3041,8 +3090,7 @@ export const Step5Flags = ({ form, setForm }) => {
                     <Field
                       label='อาการ'
                       required
-                      hint='ระบุอาการแพ้ทุกครั้งที่เคยพบ เพื่อช่วยแพทย์ประเมินความเสี่ยง'
-                      style={{ flex: '1 1 0' }}
+                      style={{ flex: '1 1 240px' }}
                     >
                       <SuggestibleTextarea
                         voice
@@ -3054,16 +3102,22 @@ export const Step5Flags = ({ form, setForm }) => {
                         placeholder='อาการแพ้รุนแรง เช่น Anaphylaxis, ผื่นลมพิษทั่วตัว, หน้าบวม, หายใจไม่ออก'
                         suggestions={ALLERGY_SYMPTOM_SUGGESTIONS}
                         minChars={1}
+                        /* สูงเท่ากล่องชื่อในแถวเดียวกัน (มติผู้ใช้ 29 ส.ค. 69) */
+                        height={112}
+                        minHeight={80}
                         popoverAriaLabel='คำแนะนำอาการแพ้'
                       />
                     </Field>
+                    {/* ระดับความรุนแรงอยู่แถวเดียวกับชื่อ+อาการ (มติผู้ใช้ 29 ส.ค. 69)
+                        — เป็นข้อมูลของรายการเดียวกัน อ่านจบในบรรทัดเดียว
+                        ไม่ต้องกวาดสายตาลงมาอีกแถว */}
+                    <Field label='ระดับความรุนแรง' required style={{ flex: '0 0 auto' }}>
+                      <SeverityCards
+                        value={a.severity}
+                        onChange={(v) => updateAllergy(idx, 'severity', v)}
+                      />
+                    </Field>
                   </div>
-                  <Field label='ระดับความรุนแรง' required>
-                    <SeverityCards
-                      value={a.severity}
-                      onChange={(v) => updateAllergy(idx, 'severity', v)}
-                    />
-                  </Field>
                 </SubCard>
               ))}
               {/* Figma 211:21962 — History List form Button (BrandDashedAddButton);
@@ -3114,10 +3168,13 @@ export const Step5Flags = ({ form, setForm }) => {
                       อ้าง `--dim-space-1000` ไว้ตามชื่อในสเกล ถ้าเพิ่ม token ที่ repo
                       `mih-design` แล้ว `npm run tokens:pull` ค่าจะมาแทน fallback เอง */}
                   <div
-                    className='flex items-start w-full'
+                    /* flex-wrap: จอแคบ (แท็บเล็ตแนวตั้ง / หน้าต่างซอย) ช่องจะตกลง
+                       บรรทัดใหม่แทนที่จะถูกบีบจนพิมพ์ไม่ได้ — basis 240px คือ
+                       ความกว้างต่ำสุดที่ textarea ยังใช้งานได้ */
+                    className='flex flex-wrap items-start w-full'
                     style={{ gap: 'var(--dim-space-1000, 40px)' }}
                   >
-                    <Field label='ชื่อสารเคมี' required style={{ flex: '1 1 0' }}>
+                    <Field label='ชื่อสารเคมี' required style={{ flex: '1 1 240px' }}>
                       <SuggestibleTextarea
                         voice
                         /* เต็มความกว้างของคอลัมน์ (ครึ่งการ์ด) — ค่าเริ่มต้นของ
@@ -3128,16 +3185,18 @@ export const Step5Flags = ({ form, setForm }) => {
                         placeholder='เช่น น้ำยาฟอกขาว, ลาเท็กซ์, นิกเกิล'
                         suggestions={ALLERGY_CHEMICAL_NAME_SUGGESTIONS}
                         minChars={1}
-                        height={160}
-                        minHeight={96}
+                        /* เตี้ยลงจาก 160 (มติผู้ใช้ 29 ส.ค. 69) — ช่องพวกนี้กรอก
+                           ข้อความสั้น ๆ ความสูงเดิมเหลือที่ว่างเปล่าครึ่งกล่อง
+                           และดันการ์ดทั้งใบยาวเกินจำเป็น */
+                        height={112}
+                        minHeight={80}
                         popoverAriaLabel='คำแนะนำชื่อสารเคมี'
                       />
                     </Field>
                     <Field
                       label='อาการ'
                       required
-                      hint='ระบุอาการแพ้ทุกครั้งที่เคยพบ เพื่อช่วยแพทย์ประเมินความเสี่ยง'
-                      style={{ flex: '1 1 0' }}
+                      style={{ flex: '1 1 240px' }}
                     >
                       <SuggestibleTextarea
                         voice
@@ -3149,16 +3208,22 @@ export const Step5Flags = ({ form, setForm }) => {
                         placeholder='อาการแพ้รุนแรง เช่น ผื่นแดงคัน, ผื่นลมพิษ, ปวดแสบปวดร้อน'
                         suggestions={ALLERGY_SYMPTOM_SUGGESTIONS}
                         minChars={1}
+                        /* สูงเท่ากล่องชื่อในแถวเดียวกัน (มติผู้ใช้ 29 ส.ค. 69) */
+                        height={112}
+                        minHeight={80}
                         popoverAriaLabel='คำแนะนำอาการแพ้สารเคมี'
                       />
                     </Field>
+                    {/* ระดับความรุนแรงอยู่แถวเดียวกับชื่อ+อาการ (มติผู้ใช้ 29 ส.ค. 69)
+                        — เป็นข้อมูลของรายการเดียวกัน อ่านจบในบรรทัดเดียว
+                        ไม่ต้องกวาดสายตาลงมาอีกแถว */}
+                    <Field label='ระดับความรุนแรง' required style={{ flex: '0 0 auto' }}>
+                      <SeverityCards
+                        value={a.severity}
+                        onChange={(v) => updateChemicalAllergy(idx, 'severity', v)}
+                      />
+                    </Field>
                   </div>
-                  <Field label='ระดับความรุนแรง' required>
-                    <SeverityCards
-                      value={a.severity}
-                      onChange={(v) => updateChemicalAllergy(idx, 'severity', v)}
-                    />
-                  </Field>
                 </SubCard>
               ))}
               <div className='w-full'>
@@ -3200,40 +3265,51 @@ export const Step5Flags = ({ form, setForm }) => {
                       : null
                   }
                 >
-                  <Field label='ชื่อโรค' required>
-                    <SuggestibleTextarea
-                      voice
-                      value={a.name}
-                      onChange={(e) => updateChronicCondition(idx, 'name', e?.target?.value ?? '')}
-                      placeholder='เช่น เบาหวาน, ความดันโลหิตสูง, ไทรอยด์'
-                      suggestions={CHRONIC_CONDITION_NAME_SUGGESTIONS}
-                      minChars={1}
-                      height={160}
-                      minHeight={96}
-                      popoverAriaLabel='คำแนะนำชื่อโรค'
-                    />
-                  </Field>
-                  <Field
-                    label='อาการ / รายละเอียด'
-                    required
-                    hint='ระบุอาการปัจจุบันและการรักษาที่ได้รับ เพื่อให้แพทย์ทราบบริบทผู้ป่วย'
+                  {/* ชื่อโรค + อาการ + ระดับความรุนแรง อยู่แถวเดียวกัน ทรงเดียวกับ
+                      การ์ดแพ้อาหาร/แพ้ยา/แพ้สารเคมี (มติผู้ใช้ 29 ส.ค. 69) */}
+                  <div
+                    /* flex-wrap: จอแคบ (แท็บเล็ตแนวตั้ง / หน้าต่างซอย) ช่องจะตกลง
+                       บรรทัดใหม่แทนที่จะถูกบีบจนพิมพ์ไม่ได้ — basis 240px คือ
+                       ความกว้างต่ำสุดที่ textarea ยังใช้งานได้ */
+                    className='flex flex-wrap items-start w-full'
+                    style={{ gap: 'var(--dim-space-1000, 40px)' }}
                   >
-                    <SuggestibleTextarea
-                      voice
-                      value={a.symptom}
-                      onChange={(e) => updateChronicCondition(idx, 'symptom', e?.target?.value ?? '')}
-                      placeholder='เช่น ทานยาควบคุมต่อเนื่อง, มีอาการกำเริบบางช่วง'
-                      suggestions={CHRONIC_CONDITION_SYMPTOM_SUGGESTIONS}
-                      minChars={1}
-                      popoverAriaLabel='คำแนะนำอาการของโรคประจำตัว'
-                    />
-                  </Field>
-                  <Field label='ระดับความรุนแรง' required>
-                    <SeverityCards
-                      value={a.severity}
-                      onChange={(v) => updateChronicCondition(idx, 'severity', v)}
-                    />
-                  </Field>
+                    <Field label='ชื่อโรค' required style={{ flex: '1 1 240px' }}>
+                      <SuggestibleTextarea
+                        voice
+                        /* เต็มความกว้างของคอลัมน์ — FieldShell คุม maxWidth 640 ไว้ */
+                        style={{ maxWidth: 'none', width: '100%' }}
+                        value={a.name}
+                        onChange={(e) => updateChronicCondition(idx, 'name', e?.target?.value ?? '')}
+                        placeholder='เช่น เบาหวาน, ความดันโลหิตสูง, ไทรอยด์'
+                        suggestions={CHRONIC_CONDITION_NAME_SUGGESTIONS}
+                        minChars={1}
+                        height={112}
+                        minHeight={80}
+                        popoverAriaLabel='คำแนะนำชื่อโรค'
+                      />
+                    </Field>
+                    <Field label='อาการ / รายละเอียด' required style={{ flex: '1 1 240px' }}>
+                      <SuggestibleTextarea
+                        voice
+                        style={{ maxWidth: 'none', width: '100%' }}
+                        value={a.symptom}
+                        onChange={(e) => updateChronicCondition(idx, 'symptom', e?.target?.value ?? '')}
+                        placeholder='เช่น ทานยาควบคุมต่อเนื่อง, มีอาการกำเริบบางช่วง'
+                        suggestions={CHRONIC_CONDITION_SYMPTOM_SUGGESTIONS}
+                        minChars={1}
+                        height={112}
+                        minHeight={80}
+                        popoverAriaLabel='คำแนะนำอาการของโรคประจำตัว'
+                      />
+                    </Field>
+                    <Field label='ระดับความรุนแรง' required style={{ flex: '0 0 auto' }}>
+                      <SeverityCards
+                        value={a.severity}
+                        onChange={(v) => updateChronicCondition(idx, 'severity', v)}
+                      />
+                    </Field>
+                  </div>
                 </SubCard>
               ))}
               <div className='w-full'>
@@ -3249,6 +3325,26 @@ export const Step5Flags = ({ form, setForm }) => {
             </>
           )}
           <Checkbox checked={form.flags.flagOther} onChange={(v) => setFlag('flagOther', v)} label='อื่นๆ' />
+          {/* ติ๊ก "อื่นๆ" แล้วต้องระบุได้ว่าอื่นๆ คืออะไร — ลำพัง flag เปล่า ๆ
+              ไม่บอกอะไรกับคนที่เปิดเวชระเบียนต่อ ใช้แผงและ Voice Textarea
+              ชุดเดียวกับ "อื่นๆ" ของสภาพผู้รับบริการ (มติผู้ใช้ 29 ส.ค. 69) */}
+          {form.flags.flagOther && (
+            <div className='flex flex-col w-full' style={MOBILITY_OTHER_PANEL}>
+              <SuggestibleTextarea
+                voice
+                label='ระบุ Flag เพิ่มเติม'
+                required
+                value={form.flagOtherNote ?? ''}
+                onChange={(e) => setFlagOtherNote(e?.target ? e : { target: { value: e } })}
+                placeholder='เช่น ต้องการล่ามภาษามือ, ตั้งครรภ์, ใส่อุปกรณ์โลหะในร่างกาย'
+                suggestions={FLAG_OTHER_SUGGESTIONS}
+                minChars={1}
+                height={112}
+                minHeight={80}
+                popoverAriaLabel='คำแนะนำ Flag เพิ่มเติม'
+              />
+            </div>
+          )}
         {/* ปุ่มอยู่ชิดซ้าย ไม่ใช่กลางการ์ด (มติผู้ใช้ 27 ส.ค. 69) */}
         <div className='flex justify-start'>
           <AddRowButton>เพิ่ม Flag</AddRowButton>

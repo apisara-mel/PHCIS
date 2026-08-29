@@ -59,7 +59,7 @@ export const CONSULT_CLINICS = [
   { key: 'dental',   label: 'คลินิกทันตกรรม',                short: 'ทันตกรรม',   waiting: 5, icon: 'dentistry' },
   { key: 'mental',   label: 'คลินิกสุขภาพจิต',               short: 'สุขภาพจิต',  waiting: 1, icon: 'psychology' },
   { key: 'tb',       label: 'คลินิกวัณโรค',                  short: 'วัณโรค',     waiting: 0, icon: 'coronavirus' },
-  { key: 'hivsti',   label: 'คลินิกโรคติดต่อทางเพศสัมพันธ์และเอชไอวี', short: 'HIV/STI', waiting: 1, icon: 'medical_information', confidential: true },
+  { key: 'hivsti',   label: 'คลินิกรักปลอดภัย', short: 'HIV/STI', waiting: 1, icon: 'medical_information', confidential: true },
   { key: 'rehab',    label: 'งานเวชศาสตร์ฟื้นฟูและกายภาพบำบัด', short: 'เวชศาสตร์ฟื้นฟู', waiting: 2, icon: 'directions_run' },
   { key: 'social',   label: 'งานสังคมสงเคราะห์',              short: 'สังคมสงเคราะห์', waiting: 0, icon: 'diversity_3' },
 ];

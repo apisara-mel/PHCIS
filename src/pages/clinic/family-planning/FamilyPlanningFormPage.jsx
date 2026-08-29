@@ -346,23 +346,14 @@ const FamilyPlanningFormPage = () => {
             </div>
           )}
 
-          {/* โหมดอ่านอย่างเดียว + ปุ่มแก้ไข (audit-stamped) */}
+          {/* แก้ไขบันทึกที่บันทึกแล้ว */}
           {mode === 'view' && (
             <div
-              className='flex items-center'
+              className='flex justify-end'
               style={{
-                ...bannerBase,
-                background: 'var(--surface-card-quaternary, #F9FBFB)',
-                border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #EEF0F1)',
-                color: 'var(--text-content-secondary, #636B72)',
+                marginBottom: 'var(--dim-space-300)',
               }}
             >
-              <Icon name='visibility' size={18} />
-              <span>
-                แสดงบันทึกการให้บริการที่บันทึกแล้ว (อ่านอย่างเดียว)
-                {initial.lastVisit ? ` · บันทึกโดย ${initial.lastVisit.savedBy} · ${formatFpDateTime(initial.lastVisit.savedAt)}` : ''}
-              </span>
-              <div className='flex-1' />
               <BrandSubdueButton variant='outline' size='sm' leadingIcon='edit' onClick={startEdit}>
                 แก้ไขบันทึก
               </BrandSubdueButton>

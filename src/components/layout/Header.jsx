@@ -238,8 +238,10 @@ const Header = ({
 
       <div className='flex-1' />
 
-      {/* Right side — progressively reveal items as the viewport grows */}
-      <div className='flex items-center gap-3 lg:gap-8 text-sm text-ink-secondary'>
+      {/* Right side — progressively reveal items as the viewport grows.
+          shrink-0: ไม่มีตัวไหนย่อได้จริง ถ้าปล่อยให้กลุ่มนี้ถูกบีบ ปุ่มจะซ้อนทับกัน
+          เอง ให้ breadcrumb ทางซ้าย (min-w-0 + truncate) เป็นฝ่ายย่อแทน */}
+      <div className='flex items-center gap-3 lg:gap-8 shrink-0 text-sm text-ink-secondary'>
         {/* Date — lg+ only */}
         <div className='hidden lg:flex items-center gap-2'>
           <Icon name='calendar' size={16} />

@@ -82,7 +82,7 @@ const FILTER_OPTIONS = {
   therapist: [{ value: 'all', label: 'ทุกคน' }],
   arrivalType: [
     { value: 'all',         label: 'ทุกประเภท' },
-    { value: 'appointment', label: 'นัดหมาย' },
+    { value: 'appointment', label: 'นัดหมายทั้งหมด' },
     { value: 'walkin',      label: 'Walk-in' },
   ],
   time: [

@@ -10,11 +10,20 @@
 import { CRITICAL_ESCALATE_MINUTES } from '@/data/labCritical';
 import { USERS } from '@/data/usersAccess';
 
+/* หมวดการแจ้งเตือน — อ้างข้อ TOR ที่เป็นต้นเหตุของแต่ละหมวดไว้ในตัว `tor`
+   เพื่อให้ตรวจย้อนได้ว่าหมวดนี้มีเพราะอะไร ไม่ใช่คิดเอง (มติผู้ใช้ 29 ส.ค. 69)
+
+   §1.17.5.5 เป็นข้อหลัก ("ในกรณีต่าง ๆ เช่น การรับส่งตัว การรับผล การส่งตรวจ")
+   ส่วนที่เหลือเป็นข้อที่ระบุการแจ้งเตือนไว้เฉพาะเรื่อง */
 export const NOTIFICATION_CATEGORIES = [
-  { key: 'transfer', label: 'รับส่งตัว',  icon: 'sync_alt',        tone: 'indigo', desc: 'ส่งต่อผู้ป่วยเข้า/ออก · การตอบรับหรือปฏิเสธการส่งต่อ' },
-  { key: 'result',   label: 'รับผล',      icon: 'lab_profile',     tone: 'teal',   desc: 'ผลแลป / ผลรังสี ส่งกลับมาที่คลินิกต้นทาง' },
-  { key: 'order',    label: 'ส่งตรวจ',    icon: 'send',            tone: 'blue',   desc: 'คำสั่งตรวจถูกส่ง หรือถูกรับเข้าห้องปฏิบัติการ' },
-  { key: 'critical', label: 'ค่าวิกฤต',   icon: 'emergency',  tone: 'red',    desc: 'ค่าวิกฤต (critical value) ต้องรับทราบภายในเวลาที่กำหนด' },
+  { key: 'transfer',    label: 'รับส่งตัว',    icon: 'sync_alt',       tone: 'indigo', tor: '๑.๑๗.๕.๕', desc: 'ส่งต่อผู้ป่วยเข้า/ออก · การตอบรับหรือปฏิเสธการส่งต่อ' },
+  { key: 'result',      label: 'รับผล',        icon: 'lab_profile',    tone: 'teal',   tor: '๑.๑๗.๕.๕', desc: 'ผลแลป / ผลรังสี ส่งกลับมาที่คลินิกต้นทาง' },
+  { key: 'order',       label: 'ส่งตรวจ',      icon: 'send',           tone: 'blue',   tor: '๑.๑๗.๕.๕ · ๑.๕.๒.๙', desc: 'คำสั่งตรวจถูกส่ง ถูกรับเข้าห้องปฏิบัติการ หรือเป็นคำสั่งล่วงหน้าที่ถึงกำหนด' },
+  { key: 'critical',    label: 'ค่าวิกฤต',     icon: 'emergency',      tone: 'red',    tor: '๑.๑๗.๕.๕', desc: 'ค่าวิกฤต (critical value) ต้องรับทราบภายในเวลาที่กำหนด' },
+  { key: 'medication',  label: 'ยาและ CDSS',   icon: 'pill',           tone: 'orange', tor: '๑.๕.๔.๑๘–๒๑ · ๑.๙.๒.๙–๑๐', desc: 'แพ้ยา · ตีกัน · สั่งซ้ำ · เกินขนาด · สั่งนอกสิทธิ · แก้ไข/ยกเลิกคำสั่งยา' },
+  { key: 'appointment', label: 'คิวและนัดหมาย', icon: 'event_upcoming', tone: 'green',  tor: '๔.๓.๕ · ๑.๖.๒.๖ · ๔.๒.๖', desc: 'เตือนก่อนถึงคิวหรือนัดหมาย · ผู้รับบริการยืนยัน/เลื่อน/ยกเลิกนัดผ่านแอปพลิเคชัน' },
+  { key: 'flag',        label: 'ข้อมูลพึงระวัง', icon: 'flag',          tone: 'purple', tor: '๑.๑.๑.๑๙', desc: 'Flag ของผู้รับบริการที่ผู้ใช้งานที่เกี่ยวข้องต้องทราบ' },
+  { key: 'inventory',   label: 'คลังยา',       icon: 'inventory_2',    tone: 'grey',   tor: '๕.๑.๑๖ · ๕.๑.๒๔.๗', desc: 'ยาใกล้หมดอายุ · คงเหลือต่ำกว่าเกณฑ์ · รออนุมัติ' },
 ];
 
 export const SEVERITIES = [
@@ -122,6 +131,90 @@ const SEED = [
     body: 'ผู้ป่วยเจ็บหน้าอก — ส่งตรวจด่วน รอผลภายใน 30 นาที',
     source: 'ห้องอุบัติเหตุ-ฉุกเฉิน', link: '/lab/orders', audience: 'center', dept: 'opd',
     at: '3 ส.ค. 2569 10:05', ageMinutes: 55, read: false, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
+  },
+  {
+    id: 'nt-013', category: 'medication', severity: 'critical', center: 'hc-4',
+    title: 'CDSS: สั่งยาที่ผู้รับบริการแพ้ — Amoxicillin', patient: 'นางสาวมณี ศรีทอง', hn: '00131209',
+    body: 'ประวัติแพ้ Penicillin (ผื่นลมพิษทั่วตัว) — ระบบระงับคำสั่งไว้รอการยืนยันจากแพทย์',
+    source: 'ระบบสนับสนุนการตัดสินใจ (CDSS)', link: '/treat/queue', audience: 'me', dept: 'opd',
+    at: '3 ส.ค. 2569 10:35', ageMinutes: 25, read: false, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
+  },
+  {
+    id: 'nt-014', category: 'medication', severity: 'urgent', center: 'hc-4',
+    title: 'CDSS: ยาตีกัน — Warfarin + Ibuprofen', patient: 'นายวิรัตน์ เกิดผล', hn: '00128877',
+    body: 'เสี่ยงเลือดออกเพิ่มขึ้น — แนะนำเปลี่ยนเป็น Paracetamol หรือปรึกษาเภสัชกร',
+    source: 'ระบบสนับสนุนการตัดสินใจ (CDSS)', link: '/treat/queue', audience: 'me', dept: 'opd',
+    at: '3 ส.ค. 2569 10:12', ageMinutes: 48, read: false, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
+  },
+  {
+    id: 'nt-015', category: 'medication', severity: 'normal', center: 'hc-4',
+    title: 'แพทย์แก้ไขคำสั่งยา — แจ้งห้องยา', patient: 'นางบุญมี สุขสันต์', hn: '00114520',
+    body: 'เปลี่ยนขนาด Metformin จาก 500 mg เป็น 850 mg วันละ 2 ครั้ง',
+    source: 'ระบบบันทึกการรักษา', link: '/pharmacy/queue', audience: 'dept', dept: 'pharmacy',
+    at: '3 ส.ค. 2569 09:48', ageMinutes: 72, read: true, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
+  },
+  {
+    id: 'nt-016', category: 'appointment', severity: 'normal', center: 'hc-4',
+    title: 'พรุ่งนี้มีนัดหมาย 11 ราย', patient: '', hn: '',
+    body: 'คลินิกตรวจรักษา 6 ราย · ฝากครรภ์ 3 ราย · ทันตกรรม 2 ราย — ตรวจสอบการเตรียมล่วงหน้าได้ที่แท็บนัดล่วงหน้า',
+    source: 'ระบบนัดหมาย', link: '/treat/queue', audience: 'dept', dept: 'opd',
+    at: '3 ส.ค. 2569 09:00', ageMinutes: 120, read: false, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
+  },
+  {
+    id: 'nt-017', category: 'appointment', severity: 'urgent', center: 'hc-4',
+    title: 'ผู้รับบริการใกล้ถึงคิว — A012', patient: 'นายวิชัย รุ่งเรือง', hn: '00126641',
+    body: 'เหลืออีก 2 คิวจะถึงคิวนี้ — เตรียมเรียกเข้าห้องตรวจ',
+    source: 'ระบบบริหารจัดการคิว', link: '/treat/queue', audience: 'me', dept: 'opd',
+    at: '3 ส.ค. 2569 10:50', ageMinutes: 10, read: false, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
+  },
+  {
+    id: 'nt-018', category: 'flag', severity: 'urgent', center: 'hc-4',
+    title: 'ข้อมูลพึงระวัง: แพ้ยา + ตั้งครรภ์', patient: 'นางสาวจันทร์เพ็ญ ดีงาม', hn: '00130012',
+    body: 'ผู้รับบริการที่กำลังเข้าตรวจมี Flag แพ้ยา (Sulfa) และอยู่ระหว่างตั้งครรภ์ 12 สัปดาห์',
+    source: 'เวชระเบียน', link: '/registration/queue', audience: 'me', dept: 'opd',
+    at: '3 ส.ค. 2569 10:44', ageMinutes: 16, read: false, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
+  },
+  {
+    id: 'nt-021', category: 'appointment', severity: 'normal', center: 'hc-4',
+    title: 'ยืนยันนัดหมายผ่านแอปแล้ว — 4 ก.ย. 69 09:00 น.', patient: 'นางสาวมณี ศรีทอง', hn: '00131209',
+    body: 'ผู้รับบริการกดยืนยันนัดในแอปพลิเคชันประชาชน · คลินิกตรวจรักษา · นพ. วันชัย อยู่เย็น',
+    source: 'แอปพลิเคชันประชาชน', link: '/appointment', audience: 'dept', dept: 'opd',
+    at: '3 ส.ค. 2569 10:48', ageMinutes: 12, read: false, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
+  },
+  {
+    id: 'nt-022', category: 'appointment', severity: 'urgent', center: 'hc-4',
+    title: 'ขอเลื่อนนัดผ่านแอป — รอเจ้าหน้าที่ยืนยัน', patient: 'นายเอกชัย รุ่งเรือง', hn: '00126641',
+    body: 'ขอเลื่อนจาก 5 ก.ย. 69 เป็น 12 ก.ย. 69 (เหตุผล: ติดภารกิจ) — ต้องตรวจสอบ slot ว่างก่อนตอบกลับ',
+    source: 'แอปพลิเคชันประชาชน', link: '/appointment', audience: 'dept', dept: 'opd',
+    at: '3 ส.ค. 2569 10:26', ageMinutes: 34, read: false, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
+  },
+  {
+    id: 'nt-023', category: 'appointment', severity: 'urgent', center: 'hc-4',
+    title: 'ยกเลิกนัดผ่านแอป — 6 ก.ย. 69 13:30 น.', patient: 'นางกัลยา วงศ์ทอง', hn: '00141277',
+    body: 'ผู้รับบริการยกเลิกนัดทันตกรรมเอง — slot ว่างแล้ว จัดคิวให้รายอื่นได้',
+    source: 'แอปพลิเคชันประชาชน', link: '/appointment', audience: 'dept', dept: 'dental',
+    at: '3 ส.ค. 2569 09:12', ageMinutes: 108, read: true, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
+  },
+  {
+    id: 'nt-024', category: 'appointment', severity: 'normal', center: 'hc-4',
+    title: 'ยังไม่ยืนยันนัด 5 ราย — นัดพรุ่งนี้', patient: '', hn: '',
+    body: 'ส่งแจ้งเตือนผ่านแอปแล้วแต่ยังไม่กดยืนยัน — ควรโทรยืนยันก่อนสิ้นวัน',
+    source: 'แอปพลิเคชันประชาชน', link: '/appointment', audience: 'dept', dept: 'opd',
+    at: '3 ส.ค. 2569 08:30', ageMinutes: 150, read: false, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
+  },
+  {
+    id: 'nt-019', category: 'inventory', severity: 'urgent', center: 'hc-4',
+    title: 'ยาใกล้หมดอายุ 6 รายการ', patient: '', hn: '',
+    body: 'Amoxicillin 500 mg (หมดอายุ 15 ก.ย. 69) และอีก 5 รายการ — ควรเบิกใช้ก่อนหรือส่งคืนคลังกลาง',
+    source: 'คลังยาและเวชภัณฑ์', link: '/pharmacy/stock', audience: 'dept', dept: 'pharmacy',
+    at: '3 ส.ค. 2569 08:00', ageMinutes: 180, read: false, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
+  },
+  {
+    id: 'nt-020', category: 'inventory', severity: 'normal', center: 'hc-4',
+    title: 'ยาคงเหลือต่ำกว่าเกณฑ์ — Losartan 50 mg', patient: '', hn: '',
+    body: 'คงเหลือ 120 เม็ด ต่ำกว่าจุดสั่งซื้อ (500 เม็ด) — ใบขอเบิกรออนุมัติอยู่ 1 ใบ',
+    source: 'คลังยาและเวชภัณฑ์', link: '/pharmacy/stock', audience: 'dept', dept: 'pharmacy',
+    at: '2 ส.ค. 2569 16:20', ageMinutes: 1060, read: true, acknowledged: false, ackBy: '', ackAt: '', assignedTo: '', sourceCancelled: false,
   },
 ];
 

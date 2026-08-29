@@ -27,7 +27,12 @@ import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
 const COLLAPSED_WIDTH = 24;
 /* กว้างพอให้ เลขคิว · รูป · ชื่อ · ปุ่มสามตัว อยู่บรรทัดเดียวไม่ตัดคำ
    (เดิม 327 — มติผู้ใช้ 27 ส.ค. 69 ให้ขยาย) */
-const DEFAULT_EXPANDED_WIDTH = 460;
+/* 460 → 640: แถวหนึ่งต้องวาง เลขคิว + รูป + ชื่อเต็ม + badge (เช่น
+   "VIP / ผู้ป่วยพิเศษ") + ปุ่มเรียก/พัก/ยกเลิก ให้ครบในบรรทัดเดียว พอปุ่มเรียก
+   เปลี่ยนเป็น "เรียกแล้ว" (มีป้ายกำกับ ไม่ใช่ไอคอนเปล่า) ความกว้างเดิมไม่พอ
+   ชื่อคนไข้โดนตัดเหลือ "นา..." ซึ่งเป็นข้อมูลที่ต้องอ่านออกก่อนเรียกคิว
+   (มติผู้ใช้ 29 ส.ค. 69) */
+const DEFAULT_EXPANDED_WIDTH = 640;
 const TRANSITION = 'width 240ms cubic-bezier(0.32, 0.72, 0, 1)';
 
 /* Each bucket is `{ items, total }` so the header can show the full
@@ -87,7 +92,7 @@ const ROW_AVATAR_SIZE = 28;
    รูปเดียวกันทั้งสองที่ และคนที่ยังไม่มีข้อมูลได้ silhouette "ผู้ใช้ใหม่"
    อัตโนมัติ (มติผู้ใช้ 27 ส.ค. 69) */
 const QueueRow = ({
-  name, hn, avatarUrl, newUser, tone, badge, queueNo, actions,
+  name, hn, avatarUrl, newUser, tone, badge, queueNo, actions, sublabel,
   emphasis = false, showDot = true, divider = false, onClick,
 }) => (
   /* สองทรง:
@@ -156,9 +161,17 @@ const QueueRow = ({
         newUser={newUser}
         size={ROW_AVATAR_SIZE}
       />
+      {/* มี sublabel (เช่น "ลงทะเบียนโดย …") → ชื่อขึ้นบรรทัดบน sublabel บรรทัดล่าง
+          แทนที่จะต่อท้ายในบรรทัดเดียว เพราะแถวนี้มี badge + ปุ่มสามอันอยู่แล้ว
+          ถ้าเบียดเข้าไปอีกชื่อคนไข้จะโดนตัด (มติผู้ใช้ 29 ส.ค. 69) */}
       <span
-        className={divider ? 'min-w-0 flex items-center' : 'flex-1 min-w-0 flex flex-col items-start'}
-        style={{ gap: 'var(--dim-space-200, 8px)', flex: divider ? '1 1 auto' : undefined }}
+        className={divider && !sublabel
+          ? 'min-w-0 flex items-center'
+          : 'flex-1 min-w-0 flex flex-col items-start'}
+        style={{
+          gap: divider && sublabel ? 'var(--dim-space-050, 2px)' : 'var(--dim-space-200, 8px)',
+          flex: divider ? '1 1 auto' : undefined,
+        }}
       >
         {name && name !== queueNo && (
           <span
@@ -178,6 +191,19 @@ const QueueRow = ({
           <ColorfulBadge style='red' size='small' width='hug' hierarchy='secondary'>
             {badge}
           </ColorfulBadge>
+        )}
+        {sublabel && (
+          <span
+            className='truncate w-full'
+            style={{
+              color: 'var(--text-content-tertiary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+              lineHeight: 1.5,
+            }}
+          >
+            {sublabel}
+          </span>
         )}
       </span>
       {/* chevron บอกว่าแถวกดเข้าไปได้ — ซ้ำซ้อนเมื่อมีปุ่มจริงอยู่ท้ายแถวแล้ว */}
@@ -399,7 +425,7 @@ const QueueSubMenu = ({
               >
                 {sectionLabels[key](bucket.total)}
               </SectionLabel>
-              {bucket.items.map((p) => (
+              {bucket.items.map((p, rowIdx) => (
                 <QueueRow
                   key={p.id}
                   name={p.name}
@@ -409,10 +435,11 @@ const QueueSubMenu = ({
                   queueNo={showQueueNo ? p.queue : undefined}
                   tone={DOT_TONES[key]}
                   badge={p.badge}
+                  sublabel={p.sublabel}
                   emphasis={key === 'inProgress'}
                   divider={rowVariant === 'divider'}
                   showDot={showDots && rowVariant !== 'divider'}
-                  actions={renderRowActions ? renderRowActions(p, key) : undefined}
+                  actions={renderRowActions ? renderRowActions(p, key, rowIdx) : undefined}
                   onClick={onPickPatient ? () => onPickPatient(p, key) : undefined}
                 />
               ))}

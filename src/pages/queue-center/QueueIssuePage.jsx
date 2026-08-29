@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import SYSTEM_NAV from '@/pages/system/systemNav';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
@@ -423,21 +424,19 @@ const QueueIssuePage = () => {
     <>
       <QueuePageShell
         activeKey='queue-center'
-        sidebarFallbackKey='opd'
+        sidebarItems={SYSTEM_NAV}
+        sidebarFallbackKey='system-overview'
         breadcrumb={breadcrumb}
         title='การออกคิว'
         actions={actions}
         summaryTitle='ออกบัตรคิวให้ผู้รับบริการ'
         summaryCards={summaryCards}
+        belowSummary={<QueueCenterSubNav />}
         tabs={tabs}
         activeTab={activeTab}
         onTabChange={setActiveTab}
       >
         <div className='flex flex-col flex-1 min-w-0' style={PAGE_BODY_STYLE}>
-          {/* เมนูย่อยของโมดูล — วางในเนื้อหาแทน slot belowSummary ของ shell
-              เพราะ shell ทำให้ slot นั้นกับแถบแท็บ sticky ทับกันที่ตำแหน่งเดียวกัน */}
-          <QueueCenterSubNav />
-
           {!canOperate ? (
             <ReadOnlyBanner message='บทบาทของคุณดูข้อมูลได้อย่างเดียว — ต้องมีสิทธิเจ้าหน้าที่จุดบริการจึงจะออกคิว พิมพ์ซ้ำ หรือยกเลิกบัตรคิวได้' />
           ) : null}

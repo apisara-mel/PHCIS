@@ -51,7 +51,9 @@ const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', chil
   return (
   <ButtonSizeAliasProvider size='sm'>
   <div
-    className={`flex items-start w-full shrink-0 ${MIH_CHROME_MORPH_SUBHEADER}`}
+    /* flex-wrap: จอแคบกว่าความกว้างรวมของ title + ปุ่ม กลุ่มปุ่มจะตกลงไป
+       บรรทัดที่สองแทนที่จะล้นออกนอกขอบขวา (แถบนี้ sticky จึงเลื่อนตามไม่ได้) */
+    className={`flex flex-wrap items-start w-full shrink-0 ${MIH_CHROME_MORPH_SUBHEADER}`}
     style={{
       gap: 'var(--dim-space-300)',
       paddingLeft: 'var(--dim-space-600)',
@@ -111,7 +113,12 @@ const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', chil
     )}
     <div className='flex-1 min-w-0' style={{ minHeight: 'var(--dim-size-700, 36px)' }} />
     {hasActions && (
-      <div className='flex items-center shrink-0 flex-wrap justify-end' style={{ gap: 'var(--dim-space-200)' }}>
+      /* เดิมเป็น shrink-0 ทำให้ flex-wrap ข้างในไม่เคยทำงาน — กลุ่มปุ่มคงความ
+         กว้างเต็มบรรทัดเดียวเสมอแล้วล้นขอบขวา */
+      <div
+        className='flex items-center flex-wrap justify-end'
+        style={{ gap: 'var(--dim-space-200)', flex: '0 1 auto', minWidth: 0 }}
+      >
         {leadingActions}
         {showConsentAction && <CreateConsentRequestHeaderAction />}
         {children}

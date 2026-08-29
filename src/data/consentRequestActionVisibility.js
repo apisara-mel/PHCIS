@@ -36,6 +36,7 @@ const EXCLUDED_SYSTEM_PREFIXES = [
   '/mobile',
   '/components',
   '/preview',
+  '/queue-center',
   '/doc-template',
   '/questionnaire',                /* แบบสัมภาษณ์ลูกค้า — เครื่องมือภายในทีม BA/SA */
 ];

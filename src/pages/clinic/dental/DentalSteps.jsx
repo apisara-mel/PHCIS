@@ -101,10 +101,6 @@ const ReadOnlyFence = ({ active, children }) => {
   );
 };
 
-const ReadOnlyBanner = ({ show, children }) => (
-  show ? <Note tone='warning' icon='visibility'>{children}</Note> : null
-);
-
 /* ══════════════════════════════════════════════════════════════════════
    ขั้นที่ 1 — ประวัติและข้อมูลประกอบการวินิจฉัย
    ══════════════════════════════════════════════════════════════════════ */
@@ -1312,9 +1308,6 @@ export const DentalStep5Orders = ({
   form, setForm, patient, cardPatient, readOnly = false, onStepChange, stepIndexes,
 }) => (
   <StepCard>
-    <ReadOnlyBanner show={readOnly}>
-      บันทึกนี้อยู่ในโหมดอ่านอย่างเดียว — ดูคำสั่งทางการแพทย์ได้แต่แก้ไขไม่ได้
-    </ReadOnlyBanner>
     <ReadOnlyFence active={readOnly}>
       <Step5Orders
         form={form}
@@ -1342,9 +1335,6 @@ export const DentalStep6Appointment = ({
   form, setForm, patient, cardPatient, readOnly = false,
 }) => (
   <StepCard>
-    <ReadOnlyBanner show={readOnly}>
-      บันทึกนี้อยู่ในโหมดอ่านอย่างเดียว — ดูรายละเอียดนัดหมายได้แต่แก้ไขไม่ได้
-    </ReadOnlyBanner>
     <Note tone='info' icon='event_available'>
       นัดหมายทันตกรรมต่อเนื่อง (อุดต่อ / ตัดไหม / ขูดหินน้ำลายรอบถัดไป) จะไปปรากฏในแท็บ
       “นัดแล้วยังไม่มาติดต่อ” ของคิวทันตกรรม พร้อมปุ่มส่งตรวจในวันนัด
@@ -1376,10 +1366,6 @@ export const DentalStep7Certificate = ({
 
   return (
     <StepCard>
-      <ReadOnlyBanner show={readOnly}>
-        บันทึกนี้อยู่ในโหมดอ่านอย่างเดียว — ออก/พิมพ์ใบรับรองแพทย์ใหม่ไม่ได้จนกว่าจะกด “แก้ไข” ที่หัวบันทึก
-      </ReadOnlyBanner>
-
       <ReadOnlyFence active={readOnly}>
         <Step7Certificate
           form={form}

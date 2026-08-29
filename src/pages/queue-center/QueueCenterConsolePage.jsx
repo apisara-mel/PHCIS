@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageShell';
+import SYSTEM_NAV from '@/pages/system/systemNav';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
@@ -110,15 +111,6 @@ const breadcrumb = ['ระบบบริหารจัดการคิว',
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:queue-center';
 const PAGE_SIZE = 15;
 
-const TAB_FILTERS = {
-  waiting: (q) => q.status === 'waiting' || q.status === 'calling',
-  serving: (q) => q.status === 'serving',
-  paused: (q) => q.status === 'paused',
-  passed: (q) => q.status === 'passed',
-  done: (q) => q.status === 'done',
-  cancelled: (q) => q.status === 'cancelled',
-};
-
 const TIME_BUCKETS = {
   morning: [6, 12],
   afternoon: [12, 18],
@@ -191,7 +183,6 @@ const QueueCenterConsolePage = () => {
   const canOperate = actor.canOperate;
 
   const [stationId, setStationId] = useState(QUEUE_STATIONS[1]?.id || QUEUE_STATIONS[0].id);
-  const [activeTab, setActiveTab] = useState('all');
   const [searchQ, setSearchQ] = useState('');
   const [filters, setFilters] = useState(FILTER_DEFAULTS);
   const [page, setPage] = useState(1);
@@ -293,8 +284,6 @@ const QueueCenterConsolePage = () => {
 
   const filtered = useMemo(() => {
     let result = rows;
-    const pred = TAB_FILTERS[activeTab];
-    if (pred) result = result.filter(pred);
     if (filters.queueType !== 'all') result = result.filter((q) => q.queueType === filters.queueType);
     if (filters.source !== 'all') result = result.filter((q) => q.entryChannel === filters.source);
     const dateRange = resolveDateRange(filters.dateValue);
@@ -318,7 +307,7 @@ const QueueCenterConsolePage = () => {
       ].some((f) => f && String(f).toLowerCase().includes(q)));
     }
     return result;
-  }, [rows, activeTab, filters, searchQ]);
+  }, [rows, filters, searchQ]);
 
   const sorted = useMemo(() => {
     const sign = sortConfig.direction === 'desc' ? -1 : 1;
@@ -469,7 +458,7 @@ const QueueCenterConsolePage = () => {
       }
       case 'skip': {
         const res = skipQueue(queue.id, reason);
-        if (res.ok) notify(`ข้ามคิว ${queue.code} แล้ว — เรียกกลับได้จากแท็บ "ข้ามคิว"`);
+        if (res.ok) notify(`ข้ามคิว ${queue.code} แล้ว — เรียกกลับได้จากการจัดการคิว`);
         return res;
       }
       case 'pause': {
@@ -697,16 +686,6 @@ const QueueCenterConsolePage = () => {
     { key: 'overdue', label: 'รอเกินเกณฑ์', value: summary.overdue, indicator: `เกณฑ์ ${waitThresholdFor({ queueType: 'general' })} นาที`, color: 'destructive', icon: 'running_with_errors' },
   ];
 
-  const tabs = useMemo(() => ([
-    { key: 'all', label: 'ทั้งหมด', icon: 'list' },
-    { key: 'waiting', label: 'รอเรียก', icon: 'hourglass_top' },
-    { key: 'serving', label: 'กำลังให้บริการ', icon: 'support_agent' },
-    { key: 'paused', label: 'พักคิว', icon: 'pause_circle' },
-    { key: 'passed', label: 'ข้ามคิว', icon: 'skip_next' },
-    { key: 'done', label: 'เสร็จสิ้น', icon: 'task_alt' },
-    { key: 'cancelled', label: 'ยกเลิก', icon: 'cancel' },
-  ]), []);
-
   const actions = (
     <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
       <RoleSwitcher />
@@ -733,20 +712,13 @@ const QueueCenterConsolePage = () => {
     </div>
   );
 
-  /* หมายเหตุ layout: QueuePageShell ทำให้ทั้ง `belowSummary` และแถบแท็บ sticky
-     ที่ตำแหน่งเดียวกัน (top = stickyTopOffset) แถบแท็บจึงทับ belowSummary ตอน
-     เลื่อนหน้า — หน้าเหล่านี้มีแท็บอยู่แล้ว จึงวางเมนูย่อย + ชิปจุดบริการไว้
-     ต้นเนื้อหาหน้า (เลื่อนหายไปตามปกติ) แทนการใช้ slot นั้น */
-  const moduleNav = (
-    <div className='w-full flex flex-col'>
-      <QueueCenterSubNav />
-      <StationChipBar
-        stations={QUEUE_STATIONS}
-        activeId={stationId}
-        onSelect={(id) => { setStationId(id); setPage(1); }}
-        summaryOf={stationSummary}
-      />
-    </div>
+  const stationSelector = (
+    <StationChipBar
+      stations={QUEUE_STATIONS}
+      activeId={stationId}
+      onSelect={(id) => { setStationId(id); setPage(1); }}
+      summaryOf={stationSummary}
+    />
   );
 
   /* ─────────────────────────────────────────────── now-serving panel */
@@ -974,18 +946,17 @@ const QueueCenterConsolePage = () => {
     <>
       <QueuePageShell
         activeKey='queue-center'
-        sidebarFallbackKey='opd'
+        sidebarItems={SYSTEM_NAV}
+        sidebarFallbackKey='system-overview'
         breadcrumb={breadcrumb}
         title='ระบบบริหารจัดการคิว'
         actions={actions}
         summaryTitle={station ? `${station.label} · ${station.zone} ${station.floor}` : 'จัดการคิว'}
         summaryCards={summaryCards}
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabChange={(k) => { setActiveTab(k); setPage(1); }}
+        belowSummary={<QueueCenterSubNav />}
       >
         <div className='flex flex-col flex-1 min-w-0' style={PAGE_BODY_STYLE}>
-          {moduleNav}
+          {stationSelector}
 
           {!canOperate ? (
             <ReadOnlyBanner message='บทบาทของคุณดูข้อมูลคิวได้อย่างเดียว — ปุ่มเรียกคิว พักคิว โอนคิว ยกเลิก และแก้ไขถูกปิดไว้ ต้องมีสิทธิเจ้าหน้าที่จุดบริการ' />

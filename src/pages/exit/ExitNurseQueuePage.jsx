@@ -212,6 +212,8 @@ const ExitNurseQueuePage = () => {
     }
     return (
       <QueueCallActions
+        /* ปุ่มบอกสถานะจริงของแถว (มติผู้ใช้ 29 ส.ค. 69) */
+        statusLabel={row.status === 'doing' ? 'กำลังส่งกลับ' : undefined}
         paused={!!row.paused}
         callVariant={row.status === 'waiting' ? 'fill' : 'quaternary'}
         onCall={() => setOpenId(row.id)}

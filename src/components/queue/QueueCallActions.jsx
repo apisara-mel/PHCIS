@@ -22,6 +22,11 @@ const QueueCallActions = ({
      (มติผู้ใช้ 29 ส.ค. 69) คนไข้ไม่มาตามเรียกเป็นเรื่องปกติ ปุ่มที่กดซ้ำไม่ได้
      จะบังคับให้เจ้าหน้าที่ไปหาทางอื่นเรียก */
   called = false,
+  /* แถวที่ "กำลังทำอยู่" — ปุ่มบอกสถานะจริงของงานนั้น (กำลังลงทะเบียน /
+     กำลังคัดกรอง / กำลังตรวจ) แทนคำว่า "เรียกแล้ว" ซึ่งบอกแค่ว่าเคยกดเรียก
+     ไม่ได้บอกว่าตอนนี้เคสไปถึงไหน (มติผู้ใช้ 29 ส.ค. 69) · ยังกดเรียกซ้ำได้
+     เพราะคนไข้เดินออกจากห้องกลางคันเป็นเรื่องปกติ */
+  statusLabel,
   paused = false,
   disabled = false,
   /** เหตุผลที่กดไม่ได้ — ขึ้นใน tooltip ของปุ่มเรียกคิวแทนข้อความปกติ */
@@ -42,16 +47,19 @@ const QueueCallActions = ({
   const stop = (fn) => (e) => { e.stopPropagation(); fn?.(); };
   /* กดพัก → ถามก่อน · กดคืนคิว → ทำเลย */
   const handlePauseClick = paused ? onPause : () => setConfirmPause(true);
+  /* statusLabel มาก่อน called — แถวที่กำลังทำอยู่ถูกเรียกไปแล้วเสมอ ถ้าโชว์
+     "เรียกแล้ว" จะเป็นข้อมูลที่เก่ากว่าความจริง */
+  const labelledCall = statusLabel || (called ? 'เรียกแล้ว' : '');
 
   return (
     <>
     <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
       <Tooltip
-        content={disabledReason || (called ? 'เรียกแล้ว — กดเพื่อเรียกซ้ำ' : 'เรียกคิว')}
+        content={disabledReason || (labelledCall ? `${labelledCall} — กดเพื่อเรียกซ้ำ` : 'เรียกคิว')}
         position='top'
         disabled={!canCall && !disabledReason}
       >
-        {called ? (
+        {labelledCall ? (
           /* เรียกแล้ว = ปุ่มมีคำกำกับ ไม่ใช่ไอคอนเปล่า — สถานะต้องอ่านออกจาก
              แถวโดยไม่ต้องเอาเมาส์ไปชี้ และยังเป็นปุ่มที่กดเรียกซ้ำได้อยู่ */
           <BrandSubdueButton
@@ -59,10 +67,10 @@ const QueueCallActions = ({
             size={size}
             leadingIcon='volume_up'
             disabled={!canCall}
-            aria-label='เรียกแล้ว — กดเพื่อเรียกซ้ำ'
+            aria-label={`${labelledCall} — กดเพื่อเรียกซ้ำ`}
             onClick={canCall ? stop(onCall) : undefined}
           >
-            เรียกแล้ว
+            {labelledCall}
           </BrandSubdueButton>
         ) : (
           <BrandIconButton

@@ -25,7 +25,7 @@ import { buildTreatmentSearchHistorySeed } from '@/data/primarySearchHistorySeed
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import {
-  acknowledgeResult, getResultsInbox, subscribeResultsInbox,
+  getResultsInbox, subscribeResultsInbox,
 } from '@/data/resultsInbox';
 import { CURRENT_CLINICIAN, appendAudit } from '@/data/treatmentAudit';
 import ScreeningConfirmPopup from '@/components/popup/ScreeningConfirmPopup';
@@ -93,9 +93,12 @@ const FILTER_OPTIONS = {
     { value: 'นพ.สมชาย ใจดี', label: 'นพ.สมชาย ใจดี' },
   ],
   type: [
+    /* ลำดับเดียวกันทุกหน้า (มติผู้ใช้ 29 ส.ค. 69): ทุกประเภท → นัดหมายทั้งหมด
+       → นัดย่อยแต่ละแบบ → Walk-in · เดิม Walk-in แทรกอยู่กลางทำให้กลุ่ม
+       "นัดหมาย" ถูกผ่าออกจากกัน หัวข้อรวมไม่ได้อยู่ติดกับลูกของมัน */
     { value: 'all', label: 'ทุกประเภท' },
+    { value: 'appointment', label: 'นัดหมายทั้งหมด' },
     { value: 'walkin', label: 'Walk-in' },
-    { value: 'appointment', label: 'นัดหมาย' },
   ],
 };
 const FILTER_DEFAULTS = {
@@ -384,18 +387,23 @@ const TreatmentQueuePage = () => {
     },
     { key: 'reportedAt', label: 'เวลารายงานผล', width: 140 },
     {
-      key: 'ackAction', label: 'การดำเนินการ', width: 150, sortable: false,
+      /* คอลัมน์นี้เป็น "สถานะ" ไม่ใช่ปุ่ม — ผลตรวจไหลเข้ามาจากห้องแล็บ/รังสี
+         อัตโนมัติ ไม่มีอะไรให้แพทย์กดยืนยันรับ (มติผู้ใช้ 29 ส.ค. 69) เดิมเป็น
+         ปุ่ม "รับทราบผล" ซึ่งสร้างงานปลอมให้คนกดเพื่อเคลียร์แถวออกจากลิสต์ */
+      key: 'ackStatus', label: 'สถานะ', width: 150, sortable: false,
       render: (r) => (r.ack ? (
-        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+        <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug'>
           {`รับทราบแล้ว · ${r.ack.at}`}
-        </span>
+        </ColorfulBadge>
       ) : (
-        <BrandSubdueButton
-          variant='fill' size='sm' leadingIcon='check'
-          onClick={(e) => { e.stopPropagation(); acknowledgeResult(r.key, { by: CURRENT_CLINICIAN.name }); }}
+        <ColorfulBadge
+          style={r.critical ? 'red' : r.abnormal ? 'orange' : 'green'}
+          size='small'
+          hierarchy='secondary'
+          width='hug'
         >
-          รับทราบผล
-        </BrandSubdueButton>
+          รายงานผลแล้ว
+        </ColorfulBadge>
       )),
     },
   ]), []);
@@ -761,6 +769,10 @@ const TreatmentQueuePage = () => {
               rows={resultRows}
               rowKey={(r) => r.key}
               onRowClick={(r) => history.push(r.href)}
+              /* ปักสามคอลัมน์แรก (ประเภท · HN · ชื่อ) เหมือนตารางคิวหลักของหน้า
+                 เดียวกัน — ตารางนี้กว้างเกินจอ พอเลื่อนไปอ่านคอลัมน์สรุปผลแล้ว
+                 ไม่รู้ว่ากำลังอ่านผลของใคร (มติผู้ใช้ 29 ส.ค. 69) */
+              stickyColCount={3}
               stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
               emptyMessage='ไม่มีผลตรวจที่รอรับทราบ — ผลที่ออกใหม่จะมาแสดงที่นี่'
             />

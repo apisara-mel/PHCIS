@@ -48,7 +48,7 @@ import {
      • Read-only — a closed encounter (queue's ตรวจเสร็จแล้ว row) or a
        role without clinic rights renders the same steps inert + banner. */
 
-const breadcrumb = ['บันทึกการรักษา', 'คลินิก HIV/STI', 'บันทึกการรักษา'];
+const breadcrumb = ['บันทึกการรักษา', 'คลินิกรักปลอดภัย', 'บันทึกการรักษา'];
 
 const HIV_STI_STEPS = [
   { title: 'ซักประวัติ', subtitle: 'History & Vital Signs' },
@@ -165,7 +165,7 @@ const HivStiFormPage = () => {
     if (f.prepPrescribed) parts.push('สั่งยา PrEP');
     if ((f.medications || []).length) parts.push(`สั่งยา ${(f.medications || []).length} รายการ`);
     if (f.telemedStatus === 'completed') parts.push('ปรึกษาทางไกลเสร็จสิ้น');
-    return parts.length ? parts.join(' · ') : 'บันทึกการรักษาคลินิก HIV/STI';
+    return parts.length ? parts.join(' · ') : 'บันทึกการรักษาคลินิกรักปลอดภัย';
   };
 
   const handleConfirmRecord = () => {
@@ -243,7 +243,7 @@ const HivStiFormPage = () => {
                   <ReadOnlyBanner>
                     {navState?.readOnly
                       ? 'บันทึกนี้ตรวจเสร็จแล้ว — เปิดดูได้อย่างเดียว การแก้ไขต้องเปิดบันทึกครั้งใหม่จากคิว'
-                      : 'บัญชีของคุณไม่มีสิทธิบันทึกข้อมูลคลินิก HIV/STI — เปิดดูได้อย่างเดียว'}
+                      : 'บัญชีของคุณไม่มีสิทธิบันทึกข้อมูลคลินิกรักปลอดภัย — เปิดดูได้อย่างเดียว'}
                   </ReadOnlyBanner>
                 ) : (
                   <div

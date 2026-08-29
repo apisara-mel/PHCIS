@@ -38,7 +38,7 @@ import {
   canEditHivSti,
 } from '@/data/hivStiVisits';
 
-/* HivStiRegistryPage — ทะเบียนผู้รับบริการคลินิก HIV/STI (TOR 1.10.6.6 + .1).
+/* HivStiRegistryPage — ทะเบียนผู้รับบริการคลินิกรักปลอดภัย (TOR 1.10.6.6 + .1).
    Covers all four registry verbs on one page (แสดง = the table, บันทึก =
    create popup, แก้ไข = edit popup, ยกเลิก = reason-required cancel +
    เปิดใช้งานใหม่ — the cancel/reactivate contract mirrors ANC's
@@ -53,7 +53,7 @@ import {
    via PrivacyRevealPopup. Every save/cancel/edit stamps ผู้บันทึก+เวลา
    (shown through ConsentAuditBar in the edit popup + the cancel badge). */
 
-const breadcrumb = ['บันทึกการรักษา', 'คลินิก HIV/STI', 'ทะเบียนผู้รับบริการ'];
+const breadcrumb = ['บันทึกการรักษา', 'คลินิกรักปลอดภัย', 'ทะเบียนผู้รับบริการ'];
 const PAGE_SIZE = 20;
 
 const CANCEL_REASON_SUGGESTIONS = [
@@ -348,7 +348,7 @@ const HivStiRegistryPage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
-      title='ทะเบียนผู้รับบริการคลินิก HIV/STI'
+      title='ทะเบียนผู้รับบริการคลินิกรักปลอดภัย'
       summaryCards={summaryCards}
       actions={!readOnlyRole && (
         <BrandSubdueButton variant='fill' leadingIcon='person_add' onClick={openCreate}>
@@ -482,7 +482,7 @@ const HivStiRegistryPage = () => {
           >
             {readOnlyRole && (
               <ReadOnlyBanner>
-                บัญชีของคุณไม่มีสิทธิแก้ไขทะเบียนคลินิก HIV/STI — เปิดดูได้อย่างเดียว
+                บัญชีของคุณไม่มีสิทธิแก้ไขทะเบียนคลินิกรักปลอดภัย — เปิดดูได้อย่างเดียว
               </ReadOnlyBanner>
             )}
 

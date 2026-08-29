@@ -1205,9 +1205,12 @@ const ScreeningPage = () => {
         showQueueNo
         showDots={false}
         onPickPatient={goToPatientScreening}
-        renderRowActions={(p) => (
+        renderRowActions={(p, section, rowIdx) => (
           <QueueCallActions
-            called={!!queueCalled[p.id]}
+            /* หมวดที่กำลังทำอยู่ → ปุ่มบอกสถานะจริง · หมวดที่รอ แถวแรกคือคิวที่
+               กำลังถูกเรียก (มติผู้ใช้ 29 ส.ค. 69) */
+            statusLabel={section === 'inProgress' ? 'กำลังคัดกรอง' : undefined}
+            called={!!queueCalled[p.id] || (section === 'waiting' && rowIdx === 0)}
             paused={!!queuePaused[p.id]}
             onPause={() => setQueuePaused((s2) => ({ ...s2, [p.id]: !s2[p.id] }))}
             onCancel={() => setQueueCancelCandidate(p)}
@@ -1235,35 +1238,6 @@ const ScreeningPage = () => {
           stickyTop={MORPH_STICKY_BELOW_PATIENT}
         />
         <div className='p-3 md:p-6 flex-1'>
-          {/* Read-only banner (TOR 1.2.2.2 — อ่านอย่างเดียว mode) */}
-          {readOnlyMode && (
-            <div
-              className='flex items-center'
-              style={{
-                gap: 'var(--dim-space-200)',
-                marginBottom: 'var(--dim-space-300)',
-                paddingTop: 'var(--dim-space-300)',
-                paddingBottom: 'var(--dim-space-300)',
-                paddingLeft: 'var(--dim-space-400)',
-                paddingRight: 'var(--dim-space-400)',
-                background: 'var(--surface-alert-info, #F0F6FF)',
-                borderRadius: 'var(--dim-radius-400, 12px)',
-              }}
-            >
-              <Icon name='visibility' size={18} style={{ color: 'var(--text-info-default, #1D4ED8)' }} />
-              <span
-                style={{
-                  color: 'var(--text-info-default, #1D4ED8)',
-                  fontFamily: 'var(--type-family-body)',
-                  fontSize: 'var(--type-size-sm)',
-                  fontWeight: 'var(--type-weight-medium)',
-                }}
-              >
-                โหมดอ่านอย่างเดียว — บันทึกการคัดกรองรอบก่อนหน้าแก้ไขไม่ได้ (เริ่ม “คัดกรองซ้ำ” จากหน้าคิวหากต้องการรอบใหม่)
-              </span>
-            </div>
-          )}
-
           {/* Round-history strip (TOR 1.2.2.2) — read-only, append-only */}
           {(readOnlyMode || rescreenActive) && rounds.length > 0 && (
             <div

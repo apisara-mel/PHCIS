@@ -164,7 +164,7 @@ export const POLICY_UNITS = [
   { value: 'ncd',        label: 'คลินิกโรคเรื้อรัง (NCD)' },
   { value: 'anc',        label: 'คลินิกฝากครรภ์ (ANC)' },
   { value: 'mentalHealth', label: 'คลินิกสุขภาพจิต' },
-  { value: 'hiv',        label: 'คลินิกโรคติดต่อทางเพศสัมพันธ์ / HIV' },
+  { value: 'hiv',        label: 'คลินิกรักปลอดภัย' },
   { value: 'pharmacy',   label: 'ห้องยา' },
   { value: 'lab',        label: 'ห้องปฏิบัติการ' },
   { value: 'homeVisit',  label: 'งานเยี่ยมบ้าน' },

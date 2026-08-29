@@ -1,6 +1,25 @@
 import React from 'react';
 import Popup from '@/components/popup/Popup';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import Select from '@/components/forms/Select';
+import InputField from '@/components/forms/InputField';
+import { Field } from '@/components/forms/Fields';
+
+/* เหตุผลการยกเลิกคิว — ชุดเดียวใช้ทุกระบบ (เวชระเบียน · คัดกรอง · ตรวจรักษา)
+   เพื่อให้รายงานสรุปสาเหตุการยกเลิกนับรวมกันได้ ถ้าแต่ละหน้าพิมพ์เองอิสระ
+   ข้อมูลจะแตกเป็นข้อความคนละแบบจนสรุปไม่ได้ (มติผู้ใช้ 29 ส.ค. 69) */
+export const QUEUE_CANCEL_REASONS = [
+  { value: 'no-show',        label: 'ผู้รับบริการไม่มาตามเรียก' },
+  { value: 'left',           label: 'ผู้รับบริการกลับก่อน' },
+  { value: 'duplicate',      label: 'คิวซ้ำ / ออกคิวผิด' },
+  { value: 'wrong-clinic',   label: 'ส่งผิดคลินิก' },
+  { value: 'reschedule',     label: 'เลื่อนไปวันอื่น' },
+  { value: 'referred',       label: 'ส่งต่อหน่วยบริการอื่น' },
+  { value: 'system',         label: 'ระบบขัดข้อง / ออกคิวใหม่' },
+  { value: 'other',          label: 'อื่นๆ' },
+];
+
+const OTHER_REASON = 'other';
 
 /* MIH DeleteQueueConfirmPopup — destructive confirmation for "ลบคิว".
    Aliases the DS <Popup size='large'> shell so chrome (close X, footer
@@ -184,7 +203,24 @@ const DeleteQueueConfirmPopup = ({
   avatarSrc,
   title = 'ยืนยันการลบคิว',
   subtitle = 'คิวนี้จะถูกนำออกจากรายการ และไม่สามารถย้อนกลับได้',
+  /** ปิดช่องเหตุผลสำหรับที่เรียกซึ่งไม่ต้องการบันทึกสาเหตุ */
+  requireReason = true,
 }) => {
+  const [reason, setReason] = React.useState('');
+  const [otherText, setOtherText] = React.useState('');
+
+  /* เปิดใหม่ทุกครั้ง = เคสใหม่ ต้องไม่ค้างเหตุผลของคิวก่อนหน้า ซึ่งจะทำให้
+     กดยืนยันผ่านไปพร้อมเหตุผลของคนอื่นโดยไม่รู้ตัว */
+  React.useEffect(() => {
+    if (open) { setReason(''); setOtherText(''); }
+  }, [open]);
+
+  const isOther = reason === OTHER_REASON;
+  const reasonLabel = isOther
+    ? otherText.trim()
+    : (QUEUE_CANCEL_REASONS.find((r) => r.value === reason)?.label ?? '');
+  const reasonReady = !requireReason || (Boolean(reason) && (!isOther || otherText.trim().length > 0));
+
   return (
     <Popup
       open={open}
@@ -195,16 +231,51 @@ const DeleteQueueConfirmPopup = ({
       secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
       primaryAction={{
         label: 'ยืนยัน',
-        onClick: onConfirm,
+        /* ส่งเหตุผลกลับไปให้ผู้เรียกบันทึก — ผู้เรียกเดิมที่ไม่รับอาร์กิวเมนต์
+           ยังทำงานได้เหมือนเดิม */
+        onClick: () => onConfirm?.({ reason, reasonLabel }),
         tone: 'danger',
+        disabled: !reasonReady,
       }}
     >
-      <PatientSummary
-        queue={queue}
-        hn={hn}
-        patientName={patientName}
-        avatarSrc={avatarSrc}
-      />
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+        <PatientSummary
+          queue={queue}
+          hn={hn}
+          patientName={patientName}
+          avatarSrc={avatarSrc}
+        />
+
+        {requireReason && (
+          <>
+            {/* บังคับระบุเหตุผล — "คิวหายไปเฉย ๆ" คือสิ่งที่ตรวจสอบย้อนหลังไม่ได้
+                และเป็นข้อมูลที่รายงานสาเหตุการยกเลิกต้องใช้ */}
+            <Field label='เหตุผลที่ยกเลิกคิว' required>
+              <Select
+                value={reason}
+                onChange={setReason}
+                options={QUEUE_CANCEL_REASONS}
+                placeholder='เลือกเหตุผล'
+                showLabel={false}
+                showHelperText={false}
+              />
+            </Field>
+
+            {isOther && (
+              <Field label='ระบุเหตุผล' required>
+                <InputField
+                  value={otherText}
+                  onChange={setOtherText}
+                  placeholder='พิมพ์เหตุผลการยกเลิกคิว'
+                  showLabel={false}
+                  showHelperText={false}
+                  showLeadingIcon={false}
+                />
+              </Field>
+            )}
+          </>
+        )}
+      </div>
     </Popup>
   );
 };

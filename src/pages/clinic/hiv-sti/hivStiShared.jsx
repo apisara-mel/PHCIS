@@ -113,7 +113,7 @@ export const HivStiConfidentialGate = ({ children }) => {
       </div>
       <PrivacyRevealPopup
         open
-        fieldLabel='ข้อมูลผู้รับบริการคลินิก HIV/STI (ข้อมูลลับ §1.4.2)'
+        fieldLabel='ข้อมูลผู้รับบริการคลินิกรักปลอดภัย (ข้อมูลลับ §1.4.2)'
         onClose={() => history.push('/hub')}
         onConfirm={() => {
           passHivStiGate();
@@ -177,26 +177,7 @@ export const MaskedPii = ({ hn, masked, full, fieldLabel = 'ข้อมูล�
 
 /* ── Read-only banner (สิทธิไม่พอ / บันทึกที่ปิดแล้ว) ─────────────── */
 
-export const ReadOnlyBanner = ({ children }) => (
-  <div
-    className='flex items-center w-full'
-    style={{
-      gap: 'var(--dim-space-200, 8px)',
-      paddingTop: 'var(--dim-space-300, 12px)',
-      paddingBottom: 'var(--dim-space-300, 12px)',
-      paddingLeft: 'var(--dim-space-400, 16px)',
-      paddingRight: 'var(--dim-space-400, 16px)',
-      borderRadius: 'var(--dim-radius-200, 8px)',
-      background: 'var(--surface-warning-quaternary, #FFF9F0)',
-      color: 'var(--text-warning-default, #F46928)',
-      fontSize: 'var(--type-size-sm, 14px)',
-      fontWeight: 'var(--type-weight-medium)',
-    }}
-  >
-    <Icon name='lock' size={18} />
-    <span>{children}</span>
-  </div>
-);
+export const ReadOnlyBanner = () => null;
 
 /* ── Small shared helpers ─────────────────────────────────────────── */
 

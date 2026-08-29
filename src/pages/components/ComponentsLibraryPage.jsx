@@ -4004,7 +4004,7 @@ const SideSubMenuStateTable = ({ cellMinWidth = 240 }) => (
 const SIDESUBMENU_TREAT_ITEMS = [
   { key: 'opd',         label: 'คลินิกตรวจรักษา' },
   { key: 'family',      label: 'คลินิกส่งเสริมสุขภาพ (วางแผนครอบครัว)' },
-  { key: 'std',         label: 'คลินิกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์' },
+  { key: 'std',         label: 'คลินิกรักปลอดภัย' },
   { key: 'drug',        label: 'คลินิกบำบัดและรักษาผู้ป่วยติดสารเสพติด' },
   { key: 'anc',         label: 'คลินิกฝากครรภ์' },
   { key: 'wellness',    label: 'คลินิกตรวจสุขภาพ' },

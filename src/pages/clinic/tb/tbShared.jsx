@@ -103,9 +103,7 @@ export const ErrorNote = ({ children }) => (
   </div>
 );
 
-export const ReadOnlyBanner = ({ children }) => (
-  <Banner tone='warning' icon='visibility'>{children}</Banner>
-);
+export const ReadOnlyBanner = () => null;
 
 /* Empty-state block used inside cards/tabs (list empty / no linked result). */
 export const EmptyPanel = ({ icon = 'folder_open', title, subtitle, action }) => (

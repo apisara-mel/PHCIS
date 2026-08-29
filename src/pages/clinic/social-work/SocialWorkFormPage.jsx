@@ -956,11 +956,6 @@ const SocialWorkFormPage = () => {
       >
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
           {panelError && <SwBanner tone='danger' icon='error'>{panelError}</SwBanner>}
-          {locked && (
-            <SwBanner tone='neutral' icon='lock'>
-              หัวข้อนี้อยู่ในโหมดอ่านอย่างเดียว (ระเบียนถูกบันทึก/ยุติแล้ว หรือสิทธิไม่เพียงพอ)
-            </SwBanner>
-          )}
           {ActivePanel && (
             <ActivePanel
               value={panelDraft}

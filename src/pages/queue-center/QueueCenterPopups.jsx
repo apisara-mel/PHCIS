@@ -262,16 +262,6 @@ export const QueueEditPopup = ({ open, queue, onClose, onSave, canEdit = true })
         primaryAction={readOnly ? undefined : { label: 'บันทึกการแก้ไข', onClick: submit }}
       >
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-          {readOnly ? (
-            <Alert
-              type='info'
-              title={isQueueClosed(queue) ? 'ข้อมูลย้อนหลัง — แก้ไขไม่ได้' : 'โหมดอ่านอย่างเดียว'}
-              subtext={isQueueClosed(queue)
-                ? 'คิวนี้เสร็จสิ้น/ยกเลิกแล้ว จึงถูกล็อกเป็น read-only'
-                : 'ต้องมีสิทธิเจ้าหน้าที่จุดบริการจึงจะแก้ไขข้อมูลคิวได้'}
-            />
-          ) : null}
-
           <div className='w-full grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-400)' }}>
             <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
               <FieldLabel required>ประเภทคิว</FieldLabel>

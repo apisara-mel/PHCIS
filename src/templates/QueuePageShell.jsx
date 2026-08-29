@@ -9,7 +9,9 @@ import { morphTabStripPaddingStyle } from '@/components/layout/headerMorphStyles
 import TabPill, { TabBar } from '@/components/tab/TabPill';
 import SummaryCardsBar from '@/components/layout/SummaryCardsBar';
 import UpcomingAppointmentsPanel from '@/components/queue/UpcomingAppointmentsPanel';
-import { countUpcomingAppointments } from '@/data/upcomingAppointments';
+import {
+  countUpcomingAppointments, UPCOMING_RANGES, DEFAULT_UPCOMING_RANGE,
+} from '@/data/upcomingAppointments';
 import PageHeaderInfoPanel from '@/components/layout/PageHeaderInfoPanel';
 import { useHeaderAutoHide } from '@/context/HeaderAutoHideContext';
 import { APP_TOPBAR_HEIGHT, MIH_TOPBAR_OFFSET } from '@/hooks/useHeaderAutoHide';
@@ -106,6 +108,8 @@ const QueuePageShell = ({
   sidebarOpenWidth,
   /** Wrap sidemenu labels onto multiple lines. */
   sidebarWrapLabels,
+  /** Hide chevron on the selected side-menu item for this shell. */
+  sidebarHideActiveChevron = false,
   breadcrumb,
   brandTitle,
   title,
@@ -153,10 +157,16 @@ const QueuePageShell = ({
   const hasBelowSummary = !!belowSummary;
   /* แท็บ "นัดล่วงหน้า" — ต่อท้ายแท็บของหน้า ก่อนแท็บที่เป็น "ทะเบียนทั้งหมด"
      ไม่ได้ เพราะ shell ไม่รู้ความหมายของแต่ละแท็บ จึงต่อท้ายสุดเสมอ
-     ตัวเลขบนแท็บใช้ช่วง 7 วัน ให้ตรงกับช่วงเริ่มต้นที่เปิดมาเห็น */
+     ตัวเลขบนแท็บอ้างช่วงเริ่มต้นของพาเนล (ไม่ hardcode) — กดเข้าไปแล้วต้องเจอ
+     จำนวนเท่าที่แท็บบอก ถ้าสองค่านี้หลุดกันผู้ใช้จะนับว่าระบบผิด */
   const upcomingCfg = upcoming === true ? {} : (upcoming || null);
   const upcomingCount = useMemo(
-    () => (upcomingCfg ? countUpcomingAppointments({ days: 7, depts: upcomingCfg.depts }) : 0),
+    () => (upcomingCfg
+      ? countUpcomingAppointments({
+        days: UPCOMING_RANGES.find((r) => r.key === DEFAULT_UPCOMING_RANGE)?.days ?? 7,
+        depts: upcomingCfg.depts,
+      })
+      : 0),
     [upcomingCfg],
   );
   const tabsWithUpcoming = useMemo(() => {
@@ -306,6 +316,7 @@ const QueuePageShell = ({
       fallbackKey={sidebarFallbackKey}
       openWidth={resolvedSidebarOpenWidth}
       wrapLabels={resolvedSidebarWrapLabels}
+      hideActiveChevron={sidebarHideActiveChevron}
     />
     <div className='flex-1 min-w-0 flex flex-col'>
       <Header
@@ -435,7 +446,10 @@ const QueuePageShell = ({
               </TabBar>
             ) : (
               <TabUnderline
-                tabs={tabs}
+                /* ต้องเป็น `tabsWithUpcoming` ไม่ใช่ `tabs` — สาขา pill ใช้ถูกอยู่แล้ว
+                   แต่สาขานี้ตกหล่น แท็บ "นัดล่วงหน้า" จึงไม่เคยขึ้นในหน้าที่ใช้แท็บ
+                   แบบขีดเส้นใต้ ซึ่งคือ worklist เกือบทั้งหมด (29 ส.ค. 69) */
+                tabs={tabsWithUpcoming}
                 value={activeTab}
                 onChange={onTabChange}
                 morphOnScroll

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import Popup from '@/components/popup/Popup';
-import InputField from '@/components/forms/InputField';
-import Textarea from '@/components/forms/Textarea';
+import PatientLookupField from '@/components/patient/PatientLookupField';
+import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
+import { QUEUE_NOTE_SUGGESTIONS } from '@/data/registrationForm';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { Field } from '@/components/forms/Fields';
 
@@ -17,11 +18,13 @@ import { Field } from '@/components/forms/Fields';
 
 const AddQueuePopup = ({ open, onClose, queueNo, onCreate }) => {
   const [name, setName] = useState('');
+  /* โปรไฟล์ที่เลือกจากฐานข้อมูล (null = พิมพ์ชื่อเอง ยังไม่มีประวัติ) */
+  const [patient, setPatient] = useState(null);
   const [note, setNote] = useState('');
 
   /* ล้างฟอร์มทุกครั้งที่เปิดใหม่ — คิวถัดไปไม่ควรค้างชื่อของคิวก่อนหน้า */
   useEffect(() => {
-    if (open) { setName(''); setNote(''); }
+    if (open) { setName(''); setPatient(null); setNote(''); }
   }, [open]);
 
   return (
@@ -38,7 +41,12 @@ const AddQueuePopup = ({ open, onClose, queueNo, onCreate }) => {
           key: 'create',
           kind: 'primary',
           label: 'สร้างคิว',
-          onClick: () => onCreate?.({ name: name.trim(), note: note.trim() }),
+          onClick: () => onCreate?.({
+            name: name.trim(),
+            note: note.trim(),
+            /* มี patient = คิวนี้ผูกกับ HN เดิม หน้าคิวจะได้ไม่สร้างคนซ้ำ */
+            patient,
+          }),
         },
       ]}
     >
@@ -69,24 +77,38 @@ const AddQueuePopup = ({ open, onClose, queueNo, onCreate }) => {
         </div>
 
         {/* ทั้งสองช่องไม่บังคับ — ป้ายกำกับจึงไม่มีดอกจัน และมี hint บอกชัด */}
-        <Field label='ชื่อผู้รับบริการ' hint='ไม่บังคับ — กรอกได้ภายหลังในฟอร์มลงทะเบียน'>
-          <InputField
+        {/* ค้นจากฐานข้อมูลก็ได้ พิมพ์ใหม่ก็ได้ (มติผู้ใช้ 29 ส.ค. 69) — คนไข้เก่า
+            เลือกจากรายการแล้วคิวผูกกับ HN เดิมทันที ส่วนคนที่ยังไม่เคยมา
+            พิมพ์ชื่อลงไปตรง ๆ ไม่ต้องเลือกอะไร */}
+        <Field
+          label='ชื่อผู้รับบริการ'
+          hint='ค้นจากฐานข้อมูล หรือพิมพ์ชื่อใหม่ได้'
+        >
+          <PatientLookupField
             value={name}
             onChange={setName}
-            placeholder='เช่น นายสมชาย มีสุข'
-            showFieldName={false}
-            showHelperText={false}
+            selected={patient}
+            onSelectPatient={setPatient}
+            showSearchIcon={false}
+            historyKey='mih:add-queue-patient-history'
           />
         </Field>
 
-        <Field label='หมายเหตุ' hint='ไม่บังคับ — เช่น มากับผู้ดูแล, ต้องใช้รถเข็น'>
-          <Textarea
+        <Field label='หมายเหตุ' hint='เช่น มากับผู้ดูแล, ต้องใช้รถเข็น'>
+          {/* voice + suggestion เหมือนช่องกรอกอื่นในงานลงทะเบียน — เจ้าหน้าที่
+              หน้าเคาน์เตอร์มือไม่ว่าง (ถือบัตร/สแกน) พิมพ์ทีละตัวไม่ทันคิว
+              (มติผู้ใช้ 29 ส.ค. 69) */}
+          <SuggestibleTextarea
+            voice
+            style={{ maxWidth: 'none', width: '100%' }}
             value={note}
-            onChange={setNote}
+            onChange={(e) => setNote(e?.target ? e.target.value : e)}
             placeholder='บันทึกสั้น ๆ ช่วยจำสำหรับเจ้าหน้าที่'
-            rows={3}
-            showLabel={false}
-            showHelperText={false}
+            suggestions={QUEUE_NOTE_SUGGESTIONS}
+            minChars={1}
+            height={112}
+            minHeight={80}
+            popoverAriaLabel='คำแนะนำหมายเหตุคิว'
           />
         </Field>
       </div>

@@ -418,14 +418,7 @@ export const AuditLine = ({ children, icon = 'history' }) => (
 );
 
 /** แถบสิทธิไม่เพียงพอ — ทุกหน้าที่มีปุ่มบันทึกต้องแสดงเมื่อ read-only */
-export const ReadOnlyBanner = ({ show, message }) => {
-  if (!show) return null;
-  return (
-    <NoticeBar tone='warning' icon='lock'>
-      {message || 'บัญชีของคุณไม่มีสิทธิบันทึกข้อมูลงานอนามัยโรงเรียน — ดูข้อมูลได้อย่างเดียว ปุ่มบันทึก/นำเข้า/เลื่อนชั้นถูกปิดไว้'}
-    </NoticeBar>
-  );
-};
+export const ReadOnlyBanner = () => null;
 
 /** badge สถานะทะเบียน/record มาตรฐาน */
 export const StatusPill = ({ meta, children }) => (

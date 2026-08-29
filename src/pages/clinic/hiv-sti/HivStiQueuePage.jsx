@@ -35,7 +35,7 @@ import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 import DutyRosterAction from '@/components/patient/DutyRosterAction';
 import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 
-/* HivStiQueuePage — คิวการรักษาคลินิก HIV/STI (TOR 1.10.6.2 + .1).
+/* HivStiQueuePage — คิวการรักษาคลินิกรักปลอดภัย (TOR 1.10.6.2 + .1).
    Mirrors AncQueuePage's queue mechanics (tabs / search / filters /
    column sort / pagination / check-in from appointments — legacy HCIS
    manual §2.1's three-strip worklist) with two §1.4.2 differences:
@@ -48,7 +48,7 @@ import { withEmrRowAction } from '@/components/patient/EmrRowAction';
         already passed the gate may look up by HN / ชื่อ / เลขบัตร) but
         suggestions render the masked identity only. */
 
-const breadcrumb = ['บันทึกการรักษา', 'คลินิก HIV/STI'];
+const breadcrumb = ['บันทึกการรักษา', 'คลินิกรักปลอดภัย'];
 const SUMMARY_TITLE = 'คิวการรักษา — งาน HIV และโรคติดต่อทางเพศสัมพันธ์';
 
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:hiv-sti-queue';
@@ -441,7 +441,7 @@ const HivStiQueuePage = () => {
           >
             {readOnlyRole && (
               <ReadOnlyBanner>
-                บัญชีของคุณไม่มีสิทธิบันทึกข้อมูลคลินิก HIV/STI — เปิดดูได้อย่างเดียว
+                บัญชีของคุณไม่มีสิทธิบันทึกข้อมูลคลินิกรักปลอดภัย — เปิดดูได้อย่างเดียว
                 ติดต่อผู้ดูแลระบบเพื่อขอสิทธิเพิ่มเติม
               </ReadOnlyBanner>
             )}

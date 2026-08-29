@@ -32,15 +32,18 @@ import {
   getPatientByHN,
 } from '@/data/patientProfiles';
 import { buildRegistrationSearchHistorySeed } from '@/data/primarySearchHistorySeeds';
+import Alert from '@/components/alert/Alert';
 import { NEW_USER_AVATAR } from '@/data/avatarAssets';
+import { REGISTRY_CENTER, getRegistrationRegistry } from '@/data/registrationRegistries';
 import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
 import QueueCallActions from '@/components/queue/QueueCallActions';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import {
+  ageYearsOnly,
   buildRegistrationQueueRoster,
   REGISTRATION_QUEUE_ROWS,
   VISIT_TYPE_FILTER_OPTIONS,
-  VISIT_TYPE_TO_FILTER,
+  matchesVisitTypeFilter,
 } from '@/data/registrationQueue';
 
 /* MIH RegistrationQueuePage — Figma node 2756:148259 / queue col 199:9243.
@@ -51,8 +54,6 @@ import {
    PATIENT_PROFILES (same as Screening PatientCard). Clicking a row navigates to
    /registration/register with the selected HN in router state — the registration form
    prefills from MR_PATIENTS via that key. */
-
-const breadcrumb = ['ระบบงานเวชระเบียน'];
 
 /* Summary cards — 6-card row per Figma 2756:148259. Labels mirror the
    MR (เวชระเบียน) flow: ซักประวัติ rather than the OPD "ลงทะเบียน". */
@@ -294,7 +295,7 @@ const actionModeForStatus = (status) => {
   return 'disabled';
 };
 
-const makeRenderActions = ({ onCall, onPause, onCancel, onMore, showMore = true }) => function ActionsCell(row) {
+const makeRenderActions = ({ onCall, onPause, onCancel, onMore, isCalled, showMore = true }) => function ActionsCell(row) {
   const mode = actionModeForStatus(row.status);
   /* TOR 1.1.1.2 — แถวผู้เสียชีวิต: ปิดเรียกคิว/พักคิว (และเปิด Visit ผ่านเมนู) */
   const deceased = row.lifeStatus === 'deceased';
@@ -304,6 +305,12 @@ const makeRenderActions = ({ onCall, onPause, onCancel, onMore, showMore = true 
     /* ปุ่มสามตัวใช้ <QueueCallActions> ตัวเดียวกับพาเนลคิวข้างฟอร์มลงทะเบียน
        (มติผู้ใช้ 27 ส.ค. 69) เหลือเฉพาะ more_vert ที่เป็นของตารางล้วน ๆ */
     <QueueCallActions
+      /* ปุ่มบอกสถานะจริงของแถว — 'progress' คือเคสที่เจ้าหน้าที่กำลังทำอยู่
+         (มติผู้ใช้ 29 ส.ค. 69) */
+      statusLabel={row.status === 'progress' ? 'กำลังลงทะเบียน' : undefined}
+      /* กดเรียกคิวในตารางแล้วปุ่มต้องเปลี่ยนเป็น "เรียกแล้ว" ทันที — ไม่งั้น
+         เจ้าหน้าที่จำไม่ได้ว่าเรียกใครไปแล้วบ้างในคิวยาว ๆ (มติผู้ใช้ 29 ส.ค. 69) */
+      called={Boolean(isCalled?.(row))}
       paused={isPaused}
       disabled={mode === 'disabled'}
       disabledReason={deceased ? 'ผู้รับบริการเสียชีวิต — เรียกคิวไม่ได้' : undefined}
@@ -338,7 +345,7 @@ const makeRenderActions = ({ onCall, onPause, onCancel, onMore, showMore = true 
    Tab "รายชื่อผู้ป่วยทั้งหมด" (Register Home 331:147299) omits คิว +
    สถานะการเข้าใช้บริการ — patient directory, not today's visit queue.
    Actions column is bound later with page-level onCall / onPause / onCancel. */
-const buildColumns = ({ renderPrivacyCell, isDirectory = false, onCall, onPause, onCancel, onMore }) => {
+const buildColumns = ({ renderPrivacyCell, isDirectory = false, onCall, onPause, onCancel, onMore, isCalled }) => {
   const cols = [
     !isDirectory && { key: 'queue',        header: 'คิว',  sortable: true, render: renderQueue },
     { key: 'hn',           header: 'HN',  sortable: true, render: renderHn },
@@ -354,7 +361,7 @@ const buildColumns = ({ renderPrivacyCell, isDirectory = false, onCall, onPause,
        มาวันนี้ยังต้องใช้ · ผู้เสียชีวิตยังมีป้ายกำกับในช่องชื่ออยู่แล้ว */
     isDirectory && { key: 'lifeStatus',   header: 'สถานะชีวิต', sortable: true, render: renderLifeStatus },
     !isDirectory && { key: 'status',       header: 'สถานะการเข้าใช้บริการ', sortable: true, render: renderStatus },
-    { key: 'actions',      header: 'การดำเนินการ', render: makeRenderActions({ onCall, onPause, onCancel, onMore, showMore: isDirectory }) },
+    { key: 'actions',      header: 'การดำเนินการ', render: makeRenderActions({ onCall, onPause, onCancel, onMore, isCalled, showMore: isDirectory }) },
   ];
   return cols.filter(Boolean);
 };
@@ -375,14 +382,19 @@ const PAGE_SIZE = 20;
 
 /* Page-scoped localStorage key — keeps Registration's recent-search list
    separate from the OPD / Treatment queues. */
-const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:registration-queue';
+const searchHistoryKey = (registryKey) =>
+  `mih:primarysearch-history:registration-queue:${registryKey}`;
 
 /* Demo recent-search — Figma PHCIS-OPD 290:48930 (MR id + HN pills). */
 const REGISTRATION_SEARCH_HISTORY_SEED = buildRegistrationSearchHistorySeed(
   REGISTRATION_QUEUE_ROWS.slice(0, 4),
 );
 
-const RegistrationQueuePage = () => {
+/* หน้าเดียวใช้ได้ทั้งสามทะเบียน (ศูนย์ / รักปลอดภัย / บำบัดสารเสพติด) —
+   ต่างกันแค่หัวข้อ · roster · แถบแจ้งเตือนทะเบียนลับ ไม่ใช่ตรรกะ จึงไม่ควร
+   ก๊อปหน้าไป 3 ใบแล้วต้องแก้สามที่ทุกครั้ง (มติผู้ใช้ 29 ส.ค. 69) */
+const RegistrationQueuePage = ({ registryKey = REGISTRY_CENTER }) => {
+  const registry = getRegistrationRegistry(registryKey);
   const history = useHistory();
   const [activeTab, setActiveTab] = useState('pending');
   const [searchQ, setSearchQ] = useState('');
@@ -391,7 +403,7 @@ const RegistrationQueuePage = () => {
     history: searchHistory,
     push: pushHistory,
     clear: clearHistory,
-  } = useSearchHistory(SEARCH_HISTORY_KEY, {
+  } = useSearchHistory(searchHistoryKey(registry.key), {
     seedIfEmpty: REGISTRATION_SEARCH_HISTORY_SEED,
   });
   /* Map a registration row to the Figma 3345:2981 search-row shape:
@@ -440,7 +452,24 @@ const RegistrationQueuePage = () => {
   );
 
   /* Mutable roster — drag-reorder in edit mode updates this array in place. */
-  const [rows, setRows] = useState(() => buildRegistrationQueueRoster());
+  const [rows, setRows] = useState(() => buildRegistrationQueueRoster({ ...registry, registryKey: registry.key }));
+  useEffect(() => {
+    setRows(buildRegistrationQueueRoster({ ...registry, registryKey: registry.key }));
+  }, [registry]);
+
+  /* ทะเบียนศูนย์ใช้ตัวเลขตาม Figma (130 ราย มีบริบทมากกว่าที่ mock มี) ส่วน
+     ทะเบียนแยกมีคนไข้หลักสิบ ถ้ายืมตัวเลขชุดเดียวกันมาจะขัดกับตารางข้างล่าง
+     ทันที จึงนับจาก roster จริง */
+  const summaryCards = useMemo(() => {
+    if (!registry.confidential) return SUMMARY_CARDS;
+    const count = (fn) => rows.filter(fn).length;
+    return [
+      { key: 'total',    label: 'ผู้รับบริการรวมวันนี้', value: rows.length,                                  indicator: 'เฉพาะทะเบียนนี้',  color: 'info',       icon: 'directions_walk' },
+      { key: 'pending',  label: 'รอลงทะเบียน',          value: count((r) => r.status === 'pending'),          indicator: 'ในคิววันนี้',       color: 'inprogress', icon: 'hourglass_top'   },
+      { key: 'progress', label: 'กำลังลงทะเบียน',        value: count((r) => r.status === 'progress'),         indicator: 'กำลังดำเนินการ',    color: 'inprogress', icon: 'assignment'      },
+      { key: 'done',     label: 'ลงทะเบียนแล้ว',         value: count((r) => r.status === 'done'),             indicator: 'รอซักประวัติ',      color: 'positive',   icon: 'how_to_reg'      },
+    ];
+  }, [registry.confidential, rows]);
 
   /* PII reveal — masked dob / nationalId / phone cells open PrivacyRevealPopup. */
   const [privacyRevealRequest, setPrivacyRevealRequest] = useState(null);
@@ -498,6 +527,13 @@ const RegistrationQueuePage = () => {
 
   /* Cancel-queue confirmation — set when user clicks ยกเลิกคิว. */
   const [cancelCandidate, setCancelCandidate] = useState(null);
+  /* เรียกคิวไปแล้วคนไหนบ้าง — ปุ่มขึ้น "เรียกแล้ว" แต่ยังกดเรียกซ้ำได้
+     (roster กลางเป็นค่าคงที่ ยังไม่มี store ที่เขียนได้ จึงเก็บเป็น state ของหน้า
+     ทรงเดียวกับ queuePaused ในพาเนลคิวข้างฟอร์ม) */
+  const [queueCalled, setQueueCalled] = useState({});
+  const handleCall = useCallback((row) => {
+    setQueueCalled((s2) => ({ ...s2, [row.id]: true }));
+  }, []);
   const handleAskCancel = useCallback((row) => setCancelCandidate(row), []);
   const handleCloseCancel = useCallback(() => setCancelCandidate(null), []);
   const handleConfirmCancel = useCallback(() => {
@@ -543,26 +579,30 @@ const RegistrationQueuePage = () => {
     return `A${String(maxNo + 1).padStart(3, '0')}`;
   }, [rows]);
 
-  const handleCreateQueue = useCallback(({ name, note }) => {
+  const handleCreateQueue = useCallback(({ name, note, patient }) => {
     const queue = nextQueueNo;
+    /* เลือกคนจากฐานข้อมูลมาแล้ว → แถวคิวได้ตัวตนเต็มตั้งแต่ออกคิว ไม่ใช่คิวเปล่า
+       (มติผู้ใช้ 29 ส.ค. 69) ถ้าพิมพ์ชื่อเองก็ยังเป็นคิวที่ยังไม่รู้ตัวตนเหมือนเดิม */
+    const mr = patient?.hn ? getPatientByHN(patient.hn) : null;
     setRows((prev) => [...prev, {
       id: `MR-NEW-${queue}`,
       queue,
-      hn: '',
-      name: name || '',
+      hn: patient?.hn || '',
+      name: patient?.fullName || name || '',
       note: note || '',
-      age: '',
-      nationalId: '',
-      phone: '',
-      rights: '',
+      age: patient?.age ? ageYearsOnly(patient.age) : '',
+      nationalId: patient?.nationalId || '',
+      phone: patient?.phone || '',
+      rights: patient?.rights || '',
       queueChannel: 'รับกับเจ้าหน้าที่',
       visitType: '',
       lifeStatus: 'alive',
-      patientStatus: 'inactive',
+      patientStatus: patient ? 'active' : 'inactive',
       status: 'pending',
+      avatarUrl: mr?.avatarUrl ?? patient?.avatarUrl,
       /* ยังไม่รู้ตัวตน → avatar "ผู้ใช้ใหม่" เหมือนคิวรอลงทะเบียนอื่น */
-      noProfilePhoto: true,
-      neverServed: true,
+      noProfilePhoto: !patient,
+      neverServed: !patient,
     }]);
     setAddQueueOpen(false);
     setAddedQueue(queue);
@@ -600,12 +640,13 @@ const RegistrationQueuePage = () => {
     () => buildColumns({
       renderPrivacyCell,
       isDirectory: isDirectoryTab,
-      onCall: () => {},
+      onCall: handleCall,
       onPause: handlePause,
       onCancel: handleAskCancel,
       onMore: handleOpenRowMenu,
+      isCalled: (row) => Boolean(queueCalled[row.id]),
     }),
-    [renderPrivacyCell, isDirectoryTab, handlePause, handleAskCancel, handleOpenRowMenu],
+    [renderPrivacyCell, isDirectoryTab, handleCall, handlePause, handleAskCancel, handleOpenRowMenu, queueCalled],
   );
 
   /* Edit-queue-order mode — toggled by "แก้ไขลำดับคิว". Rows show a drag
@@ -690,7 +731,7 @@ const RegistrationQueuePage = () => {
       r = r.filter((row) => row.patientStatus === filters.status);
     }
     if (filters.type !== 'all') {
-      r = r.filter((row) => VISIT_TYPE_TO_FILTER[row.visitType] === filters.type);
+      r = r.filter((row) => matchesVisitTypeFilter(row.visitType, filters.type));
     }
     if (filters.visitStatus !== 'all') {
       r = r.filter((row) => row.status === filters.visitStatus);
@@ -802,15 +843,24 @@ const RegistrationQueuePage = () => {
     />
     <QueuePageShell
       activeKey='registration'
-      breadcrumb={breadcrumb}
-      title='ระบบงานเวชระเบียน'
+      breadcrumb={registry.breadcrumb}
+      title={registry.title}
       actions={buildMrActions({
         onAddQueue: () => setAddQueueOpen(true),
       })}
-      summaryCards={SUMMARY_CARDS}
+      summaryCards={summaryCards}
       tabs={tabsWithCounts}
       activeTab={activeTab}
       onTabChange={(key) => { setActiveTab(key); setPage(1); }}
+      /* ทะเบียนลับต้องบอกให้ชัดตั้งแต่หัวหน้าว่านี่คนละเล่มกับทะเบียนศูนย์
+         และการเปิดดูถูกบันทึกไว้ — ทะเบียนศูนย์ไม่มีแถบนี้ */
+      belowSummary={registry.confidential ? (
+        <Alert
+          type='warning'
+          title={registry.noticeTitle}
+          subtext={registry.noticeSubtext}
+        />
+      ) : null}
       /* แท็บ "นัดล่วงหน้า" — shell เป็นคนเติมแท็บและวาดเนื้อหา */
       upcoming={{}}
     >

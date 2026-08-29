@@ -27,6 +27,7 @@ import OpdWalkinRequestPage from '@/pages/opd/OpdWalkinRequestPage';
 import OpdRoomConfigPage from '@/pages/opd/OpdRoomConfigPage';
 import OpdRg506Page from '@/pages/opd/OpdRg506Page';
 import RegistrationQueuePage from '@/pages/registration/RegistrationQueuePage';
+import { REGISTRY_SAFE_LOVE, REGISTRY_ADDICTION } from '@/data/registrationRegistries';
 import RegistrationFormPage from '@/pages/registration/RegistrationFormPage';
 import RegistrationVisitOpenPage from '@/pages/registration/RegistrationVisitOpenPage';
 import RegistrationConsentFillPage from '@/pages/registration/RegistrationConsentFillPage';
@@ -218,7 +219,7 @@ import QueueCenterConsolePage from '@/pages/queue-center/QueueCenterConsolePage'
 import QueueIssuePage from '@/pages/queue-center/QueueIssuePage';
 import QueueIntegrationPage from '@/pages/queue-center/QueueIntegrationPage';
 import QueueSettingsPage from '@/pages/queue-center/QueueSettingsPage';
-import QueueDisplayLauncherPage from '@/pages/queue-display/QueueDisplayLauncherPage';
+import QueueKioskSettingsPage from '@/pages/queue-center/QueueKioskSettingsPage';
 import HallDisplayPage from '@/pages/queue-display/HallDisplayPage';
 import StationDisplayPage from '@/pages/queue-display/StationDisplayPage';
 import FinanceDisplayPage from '@/pages/queue-display/FinanceDisplayPage';
@@ -459,7 +460,9 @@ export default function Routes() {
         <Route exact path='/queue-center/issue'            component={QueueIssuePage} />
         <Route exact path='/queue-center/integration'      component={QueueIntegrationPage} />
         <Route exact path='/queue-center/settings'         component={QueueSettingsPage} />
-        <Route exact path='/queue-center/display'          component={QueueDisplayLauncherPage} />
+        <Route exact path='/queue-center/kiosk-settings'   component={QueueKioskSettingsPage} />
+        <Route exact path='/queue-center/ticket-settings'  component={QueueKioskSettingsPage} />
+        <Route exact path='/queue-center/display'          component={QueueKioskSettingsPage} />
         <Route exact path='/queue-center/display/hall'     component={HallDisplayPage} />
         <Route exact path='/queue-center/display/station'  component={StationDisplayPage} />
         <Route exact path='/queue-center/display/finance'  component={FinanceDisplayPage} />
@@ -467,6 +470,18 @@ export default function Routes() {
         <Route exact path='/queue-center/display/online'   component={QueueStatusOnlinePage} />
         <Route exact path='/registration'          component={RegistrationQueuePage} />
         <Route exact path='/registration/queue'    component={RegistrationQueuePage} />
+        {/* ทะเบียนแยกของคลินิกลับ — หน้าเดียวกับทะเบียนศูนย์ ต่างที่ registryKey
+            (หัวข้อ · roster · แถบเตือนทะเบียนลับ) ดู registrationRegistries.js */}
+        <Route
+          exact
+          path='/registration/safe-love'
+          render={() => <RegistrationQueuePage registryKey={REGISTRY_SAFE_LOVE} />}
+        />
+        <Route
+          exact
+          path='/registration/addiction'
+          render={() => <RegistrationQueuePage registryKey={REGISTRY_ADDICTION} />}
+        />
         <Route exact path='/registration/register' component={RegistrationFormPage} />
         {/* การบันทึกการมาสถานพยาบาล — เปิด Visit Number (TOR §1.1.2).
             Sub-flow ของงานเวชระเบียน (เข้าจาก row action ของหน้าคิว หรือหลัง

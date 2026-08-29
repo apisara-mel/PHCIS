@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
+import SYSTEM_NAV from '@/pages/system/systemNav';
 import Table from '@/components/table/Table';
 import Switch from '@/components/switch/Switch';
 import InputField from '@/components/forms/InputField';
@@ -499,12 +500,14 @@ const QueueSettingsPage = () => {
     <>
       <QueuePageShell
         activeKey='queue-center'
-        sidebarFallbackKey='opd'
+        sidebarItems={SYSTEM_NAV}
+        sidebarFallbackKey='system-overview'
         breadcrumb={breadcrumb}
         title='ตั้งค่าระบบคิว'
         actions={<RoleSwitcher />}
         summaryTitle='ผังจุดบริการ · รหัสคิว · เสียงเรียก · เกณฑ์เวลารอ'
         summaryCards={summaryCards}
+        belowSummary={<QueueCenterSubNav />}
         tabs={tabs}
         activeTab={activeTab}
         onTabChange={(k) => {
@@ -520,10 +523,6 @@ const QueueSettingsPage = () => {
         }}
       >
         <div className='flex flex-col flex-1 min-w-0' style={PAGE_BODY_STYLE}>
-          {/* เมนูย่อยของโมดูล — วางในเนื้อหาแทน slot belowSummary ของ shell
-              เพราะ shell ทำให้ slot นั้นกับแถบแท็บ sticky ทับกันที่ตำแหน่งเดียวกัน */}
-          <QueueCenterSubNav />
-
           {!canAdmin ? (
             <ReadOnlyBanner message='หน้าตั้งค่าระบบคิวต้องมีสิทธิผู้ดูแลระบบจึงจะแก้ไขได้ — ตอนนี้ดูค่าตั้งทั้งหมดได้ แต่บันทึกไม่ได้' />
           ) : null}

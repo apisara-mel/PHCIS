@@ -889,3 +889,20 @@ a:focus, a:focus-visible,
 .shrink-0 {
   flex-shrink: 0;
 }
+
+/* Stepper (StepProgress) — จอแคบให้เลื่อนแนวนอนในกล่องตัวเอง ไม่ดันหน้าให้ล้น
+   แต่ละ step เป็น shrink-0 + minWidth คงที่เพราะเส้นเชื่อมระหว่างวงกลมจะขาด
+   ถ้าปล่อยให้ wrap · แถบเลื่อนซ่อนไว้ ตัว stepper บอกตำแหน่งอยู่แล้ว */
+.mih-step-progress-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.mih-step-progress-scroll::-webkit-scrollbar {
+  display: none;
+}
+.mih-step-progress-scroll > [data-step-progress] {
+  width: max-content;
+  min-width: 100%;
+}

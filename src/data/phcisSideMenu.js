@@ -1,3 +1,5 @@
+import { REGISTRATION_MENU_SUBITEMS } from '@/data/registrationRegistries';
+
 /* PHCIS — เมนูข้าง (Side Menu) ของระบบ PHCIS
    ══════════════════════════════════════════════════════════════════════
    ย้ายออกจาก <Sidebar> เมื่อ 26 ส.ค. 2569 เพื่อให้เป็น "แหล่งความจริงเดียว"
@@ -36,7 +38,9 @@ export const TREAT_DEPARTMENT_SUBITEMS = [
      โรงพยาบาล ไม่ใช่ชื่อคลินิกของศูนย์บริการสาธารณสุข) */
   { key: 'opd-treat',  label: 'คลินิกตรวจรักษา',                          path: '/treat/queue' },
   { key: 'family',     label: 'คลินิกส่งเสริมสุขภาพ (วางแผนครอบครัว)',      path: '/clinic/family-planning' },
-  { key: 'std',        label: 'คลินิกโรคติดต่อทางเพศสัมพันธ์และโรคเอดส์',   path: '/clinic/hiv-sti' },
+  /* ชื่อบริการจริงของ กทม. — เดิมใช้ชื่อโรคเป็นชื่อคลินิก ซึ่งทำให้คนไข้ที่นั่ง
+     รออยู่หน้าห้องถูกเปิดเผยโดยปริยายว่ามาด้วยเรื่องอะไร (มติผู้ใช้ 29 ส.ค. 69) */
+  { key: 'std',        label: 'คลินิกรักปลอดภัย',                          path: '/clinic/hiv-sti' },
   { key: 'drug',       label: 'คลินิกบำบัดและรักษาผู้ป่วยติดสารเสพติด',     path: '/clinic/addiction' },
   { key: 'anc',        label: 'คลินิกฝากครรภ์',                            path: '/treat/anc/queue' },
   /* "ส่งเสริมสุขภาพเฉพาะกลุ่มที่สำคัญ" = ชื่อคู่มือ S014 (117 น.) ซึ่งเนื้อในคือ
@@ -76,7 +80,14 @@ export const PHCIS_SIDE_MENU = [
   { key: 'dashboard', label: 'แดชบอร์ด', icon: 'bar_chart_4_bars', path: '/dashboard' },
   /* คลังเอกสาร e-document เป็นระบบระดับ Hub (systemCatalog doc-template) —
      เมนูของตัวเองผ่าน EDOCUMENT_NAV ไม่ใช่รายการใน PHCIS rail นี้. */
-  { key: 'registration', label: 'เวชระเบียน',              icon: 'assignment',       path: '/registration/queue' },
+  /* เวชระเบียน — ศูนย์ใช้ทะเบียนกลางร่วมกันทุกคลินิก ยกเว้นคลินิกรักปลอดภัย
+     กับคลินิกบำบัดสารเสพติดที่กฎหมายให้เก็บทะเบียนแยกและจำกัดผู้เข้าถึง
+     (มติผู้ใช้ 29 ส.ค. 69) รายการทั้งสามมาจาก registrationRegistries.js
+     ที่เดียว — เพิ่มทะเบียนใหม่ที่นั่นแล้วเมนูกับ route ตามมาเอง */
+  {
+    key: 'registration', label: 'เวชระเบียน', icon: 'assignment', path: '/registration/queue',
+    subItems: REGISTRATION_MENU_SUBITEMS,
+  },
   { key: 'observation',   label: 'สังเกตอาการ',     icon: 'monitor_heart',  path: '/observation' },
   /* คัดกรอง — เดิมชื่อ "ระบบงานผู้รับบริการนอก" แล้วเป็น "คัดกรองและซักประวัติ" (TOR §1.2.2).
      งาน OPD (คิว) อยู่เป็นเมนูย่อยภายใต้โมดูลนี้; รง.506 เป็นเมนูหลักแยก · §1.2.7 อยู่ที่
@@ -189,16 +200,6 @@ export const PHCIS_SIDE_MENU = [
      `activeKey='queue-center'` ที่ทุกหน้าในโมดูลส่งมาผูกกับ key นี้.
      (เหมือน `opd`/`treat` — SideSubMenu รับเฉพาะ { key, label, path } ไอคอน
      ที่ builder เสนอไว้ confirmation_number / hub / settings / tv จึงยังไม่ถูกใช้) */
-  {
-    key: 'queue-center', label: 'ระบบบริหารจัดการคิว', icon: 'campaign', path: '/queue-center',
-    subItems: [
-      { key: 'qc-console',     label: 'จัดการคิวและเรียกคิว',     path: '/queue-center'             },
-      { key: 'qc-issue',       label: 'การออกคิว',                path: '/queue-center/issue'       },
-      { key: 'qc-integration', label: 'การเชื่อมต่อข้อมูลคิว',    path: '/queue-center/integration' },
-      { key: 'qc-settings',    label: 'ตั้งค่าระบบคิว',           path: '/queue-center/settings'    },
-      { key: 'qc-display',     label: 'จอแสดงผลการเรียกคิว',      path: '/queue-center/display'     },
-    ],
-  },
   /* ทะเบียนการส่งต่อผู้รับบริการ — TOR §1.4.3.14 / §1.4.11.1. เดิมเป็น submenu
      ใต้ระบบบันทึกการรักษา; ยกเป็นเมนูหลักใน rail. Route ยังอยู่ที่ /treat/refer. */
   {

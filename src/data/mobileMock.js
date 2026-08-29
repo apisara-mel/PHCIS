@@ -130,7 +130,7 @@ export const CLINICS = [
       { key: 'general', label: 'ตรวจรักษาทั่วไป' },
       { key: 'chronic', label: 'คลินิกโรคเรื้อรัง' },
       { key: 'tb',      label: 'คลินิกวัณโรค' },
-      { key: 'sti',     label: 'คลินิกโรคติดต่อทางเพศสัมพันธ์' },
+      { key: 'sti',     label: 'คลินิกรักปลอดภัย' },
     ],
   },
   {

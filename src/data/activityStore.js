@@ -40,7 +40,7 @@ export const DEMO_ACTIVITIES = [
       { id: 'sb-elderly-doc', name: 'คลินิกผู้สูงอายุครบวงจร', active: true, order: 6 },
       { id: 'sb-mental',      name: 'คลินิกสุขภาพจิต', active: true, order: 7 },
       { id: 'sb-tb',          name: 'คลินิกวัณโรค', active: true, order: 8 },
-      { id: 'sb-sti',         name: 'คลินิกโรคติดต่อทางเพศสัมพันธ์และเอดส์', active: true, order: 9 },
+      { id: 'sb-sti',         name: 'คลินิกรักปลอดภัย', active: true, order: 9 },
       { id: 'sb-drug-clinic', name: 'คลินิกบำบัดสารเสพติด', active: true, order: 10 },
       { id: 'sb-telemed',     name: 'แพทย์ทางไกล (Telemedicine)', active: true, order: 11 },
     ],

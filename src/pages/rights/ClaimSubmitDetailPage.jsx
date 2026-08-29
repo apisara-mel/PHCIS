@@ -476,14 +476,6 @@ const ClaimSubmitDetailPage = () => {
           />
         )}
 
-        {!role.canEdit && !locked && (
-          <Alert
-            type='info'
-            title='คุณกำลังดูในโหมดอ่านอย่างเดียว'
-            subtext='บทบาท “เจ้าหน้าที่ทั่วไป” ดูข้อมูลได้แต่แก้ไขและยืนยันไม่ได้ — สลับบทบาทที่มุมขวาบนเพื่อทดลองสิทธิเจ้าหน้าที่เบิกจ่าย'
-          />
-        )}
-
         {saved && !dirty && (
           <Alert type='success' title='บันทึกข้อมูลส่งเบิกแล้ว' subtext={`บันทึกโดย ${visit.savedBy} · ${visit.savedAt}`} />
         )}

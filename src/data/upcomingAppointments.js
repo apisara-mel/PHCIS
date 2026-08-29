@@ -36,7 +36,10 @@ export const UPCOMING_RANGES = [
   { key: 'd90', label: '3 เดือน',      days: 90 },
 ];
 
-export const DEFAULT_UPCOMING_RANGE = 'd7';
+/* เปิดแท็บมาเห็น "พรุ่งนี้" ก่อน (มติผู้ใช้ 29 ส.ค. 69) — สิ่งที่เจ้าหน้าที่ต้อง
+   เตรียมตอนสิ้นวันคือคิวของพรุ่งนี้ ช่วงที่ไกลกว่านั้นเป็นการวางแผน ไม่ใช่งาน
+   ที่ต้องทำวันนี้ */
+export const DEFAULT_UPCOMING_RANGE = 'd1';
 
 /* ── ชุดนัดล่วงหน้าจำลอง ────────────────────────────────────────────────
    กระจายไปข้างหน้าตั้งแต่พรุ่งนี้ถึง ~80 วัน ครอบคลุมหลายแผนก เพื่อให้ทุกหน้า
@@ -110,10 +113,26 @@ const storeAppointments = () => {
  *  · `depts` รายชื่อแผนกที่หน้านั้นสนใจ — ไม่ส่ง = ทุกแผนก
  *            (แต่ละจุดงานเห็นเฉพาะคิวของตัวเอง ตามที่ผู้ใช้ต้องการ)
  */
-export const getUpcomingAppointments = ({ days = 7, depts = null, now = new Date() } = {}) => {
+/** ขอบล่าง/ขอบบนของแท็บนัดล่วงหน้า — ตัวเลือกวันที่ต้องอยู่ในกรอบเดียวกับชิป
+    ช่วงเวลา ไม่งั้นเลือกวันที่นอกกรอบแล้วได้ตารางว่างโดยไม่รู้ว่าทำไม */
+export const upcomingDateBounds = (now = new Date()) => {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const from = dateKey(addDays(today, 1));
-  const to = dateKey(addDays(today, Math.max(1, days)));
+  const maxDays = Math.max(...UPCOMING_RANGES.map((r) => r.days));
+  return { min: addDays(today, 1), max: addDays(today, maxDays) };
+};
+
+export const getUpcomingAppointments = ({
+  days = 7,
+  depts = null,
+  /* เจาะจงวันเดียว (คีย์ YYYY-MM-DD) — มาก่อน `days` เสมอ เจ้าหน้าที่ที่ถูกถาม
+     ว่า "วันที่ 12 มีใครบ้าง" ไม่ควรต้องเลือกช่วง 3 เดือนแล้วไล่หาเอง
+     (มติผู้ใช้ 29 ส.ค. 69) */
+  date = null,
+  now = new Date(),
+} = {}) => {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const from = date || dateKey(addDays(today, 1));
+  const to = date || dateKey(addDays(today, Math.max(1, days)));
 
   const inRange = (a) => a.date >= from && a.date <= to;
   const inDept = (a) => !depts?.length || depts.includes(a.dept);

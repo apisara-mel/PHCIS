@@ -346,9 +346,16 @@ const StepProgress = ({
     </div>
   );
 
+  /* จอแคบ: stepper เลื่อนแนวนอนได้ในกล่องของตัวเอง — ต่อ step เป็น shrink-0
+     + minWidth คงที่ (เส้นเชื่อมจะขาดถ้าปล่อยให้ wrap) ถ้าปล่อยไว้เฉย ๆ แถบ
+     sticky ทั้งแถบจะถูกดันจนล้นขอบขวาทั้งหน้า */
+  const scrollableRow = (
+    <div className='mih-step-progress-scroll w-full'>{row}</div>
+  );
+
   const morphedRow = (framed || morph) ? (
-    <div style={morphStepScaleStyle}>{row}</div>
-  ) : row;
+    <div style={morphStepScaleStyle}>{scrollableRow}</div>
+  ) : scrollableRow;
 
   if (!framed) return morphedRow;
 
