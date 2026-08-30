@@ -7,115 +7,13 @@ import Icon from '@/components/icons/Icon';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Popup from '@/components/popup/Popup';
+import FormStructurePreview, { countFields } from '@/components/forms/FormStructurePreview';
 import {
   getFormBySlug,
   getCategory,
   CATEGORY_PALETTE,
 } from '@/data/formsLibrary';
 import EDOCUMENT_NAV, { EDOCUMENT_BRAND_TITLE } from '@/pages/forms/edocumentNav';
-
-/* Token-driven type chip for the field-preview list. Each row in the
-   preview shows a small uppercase pill telling the clinician what kind
-   of input the patient will see on mobile — no live state, just a
-   reference visual. */
-const FIELD_TYPE_LABEL = {
-  text:        'TEXT',
-  textarea:    'TEXTAREA',
-  date:        'DATE',
-  datetime:    'DATE+TIME',
-  signature:   'LAYSIGNED',
-  checkbox:    'CHECKBOX',
-  select:      'SELECT',
-  'radio-4':   'SCALE 0–3',
-  'radio-5':   'SCALE 1–5',
-  'slider-0-10': 'SLIDER 0–10',
-};
-
-const FieldRow = ({ field }) => (
-  <li
-    className='flex items-center w-full'
-    style={{
-      gap: 'var(--dim-space-300)',
-      padding: 'var(--dim-space-200) var(--dim-space-300)',
-      borderRadius: 'var(--dim-radius-200)',
-      background: 'var(--surface-card-100)',
-      border: 'var(--dim-stroke-100) solid var(--border-card-default)',
-    }}
-  >
-    <span
-      className='inline-flex items-center justify-center shrink-0'
-      style={{
-        width: 28,
-        height: 28,
-        borderRadius: 'var(--dim-radius-200)',
-        background: 'var(--surface-brandPrimary-quaternary)',
-        color: 'var(--text-brandPrimary-default)',
-      }}
-    >
-      <Icon name='form' size={14} />
-    </span>
-    <span className='flex-1 min-w-0 text-sm text-ink'>
-      {field.label}
-      {field.required && <span className='ml-1 text-[color:var(--text-input-require)]'>*</span>}
-      {field.critical && (
-        <span className='ml-2 inline-flex items-center px-2 h-5 rounded-full text-[11px] font-semibold'
-          style={{ backgroundColor: 'var(--surface-pill-red)', color: 'var(--text-pill-red)' }}>
-          ตรวจซ้ำเมื่อพบสัญญาณเสี่ยง
-        </span>
-      )}
-    </span>
-    <span
-      className='inline-flex items-center justify-center shrink-0'
-      style={{
-        height: 22,
-        paddingLeft: 'var(--dim-space-200)',
-        paddingRight: 'var(--dim-space-200)',
-        borderRadius: 'var(--dim-radius-full)',
-        background: 'var(--surface-colorfulbadge-indigo)',
-        color: 'var(--text-colorfulbadge-indigo)',
-        fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-        fontSize: 11,
-        fontWeight: 'var(--type-weight-medium)',
-        lineHeight: 1.5,
-        letterSpacing: 0.3,
-      }}
-    >
-      {FIELD_TYPE_LABEL[field.type] || field.type.toUpperCase()}
-    </span>
-  </li>
-);
-
-const SectionBlock = ({ section, index }) => (
-  <section
-    className='flex flex-col w-full'
-    style={{ gap: 'var(--dim-space-300)' }}
-  >
-    <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
-      <span
-        className='inline-flex items-center justify-center shrink-0'
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: 'var(--dim-radius-full)',
-          background: 'var(--surface-brandPrimary-default)',
-          color: 'var(--text-brandPrimary-on-brand, #FFFFFF)',
-          fontFamily: 'var(--type-family-body)',
-          fontWeight: 'var(--type-weight-bold)',
-          fontSize: 'var(--type-size-xs)',
-        }}
-      >
-        {index + 1}
-      </span>
-      <h3 className='text-base font-bold text-ink'>{section.title}</h3>
-    </div>
-    <ul
-      className='flex flex-col w-full m-0 p-0 list-none'
-      style={{ gap: 'var(--dim-space-200)' }}
-    >
-      {section.fields.map((f, i) => <FieldRow key={i} field={f} />)}
-    </ul>
-  </section>
-);
 
 /* QR popup — Figma 1:1159 style sheet not used; this is a lightweight
    prototype QR. URL is encoded via api.qrserver.com so we don't add a
@@ -224,7 +122,7 @@ const FormDetailPage = () => {
     );
   }
 
-  const fieldCount = form.sections.reduce((sum, s) => sum + s.fields.length, 0);
+  const fieldCount = countFields(form);
   const breadcrumb = ['คลังเอกสาร e-document', category?.label || '', form.name].filter(Boolean);
 
   return (
@@ -287,7 +185,7 @@ const FormDetailPage = () => {
 
               <div className='flex flex-wrap items-center text-sm text-ink-tertiary' style={{ gap: 'var(--dim-space-400)' }}>
                 <span className='inline-flex items-center gap-1'>
-                  <Icon name='form' size={16} />
+                  <Icon name='description' size={16} />
                   {fieldCount} ช่อง
                 </span>
                 <span className='inline-flex items-center gap-1'>
@@ -339,18 +237,7 @@ const FormDetailPage = () => {
             className='bg-surface-card rounded-card shadow-card flex flex-col w-full'
             style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}
           >
-            <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
-              <h2 className='text-base font-bold text-brand-500'>โครงสร้างแบบฟอร์ม</h2>
-              <p className='text-xs text-ink-tertiary'>
-                รายการช่องที่ผู้ป่วยจะพบเมื่อเปิดแบบฟอร์มบนโทรศัพท์ ทั้งหมด {fieldCount} ช่อง
-                แบ่งเป็น {form.sections.length} ส่วน
-              </p>
-            </div>
-            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
-              {form.sections.map((section, i) => (
-                <SectionBlock key={i} section={section} index={i} />
-              ))}
-            </div>
+            <FormStructurePreview form={form} />
           </section>
         </div>
 

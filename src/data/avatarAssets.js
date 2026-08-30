@@ -90,8 +90,8 @@ export const STAFF_AVATARS = [
 
 /* ชื่อเจ้าหน้าที่ในข้อมูลตัวอย่างเป็นสตริงล้วน ไม่มี id ให้ join กับ USERS จึง
    แฮชชื่อเป็นดัชนีคงที่ในกองรูปข้างบน — ชื่อเดิมได้รูปเดิมเสมอ แค่ไม่ใช่รูป "จริง"
-   ของคนคนนั้น (ตัวเดียวกับที่ ObservationQueuePage / ObservationExternalReferForm
-   เขียนไว้เองคนละชุด — ย้ายมาไว้ที่เดียวเมื่อแตะไฟล์พวกนั้นครั้งหน้า) */
+   ของคนคนนั้น · ผู้ใช้ทุกที่เรียกตัวนี้ ไม่มีสำเนาในหน้าอื่นแล้ว (รวมมา
+   30 ส.ค. 69 จาก ObservationQueuePage / ObservationExternalReferForm) */
 export const staffAvatarForName = (name = '') => {
   if (!name || !STAFF_AVATARS.length) return '';
   let hash = 0;

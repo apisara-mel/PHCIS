@@ -29,6 +29,11 @@ const CATEGORY_COLORS = {
   assessment: PHCIS_CHART.indigo,
   report: PHCIS_CHART.yellow,
   survey: PHCIS_CHART.pink,
+  /* สามหมวดงานเยี่ยมบ้าน — ระบุสีไว้เอง ไม่งั้น fallback วนพาเลตต์ 4 สี
+     แล้วโดนัทจะมีสีซ้ำกับสามหมวดบน */
+  homevisit: 'var(--surface-colorfulbadge-green-bold, #16A34A)',
+  'homecare-plan': 'var(--surface-colorfulbadge-blue-bold, #3B82F6)',
+  'homecare-assessment': 'var(--surface-colorfulbadge-purple-bold, #A855F7)',
 };
 
 export default function EdocumentDashboardPage() {

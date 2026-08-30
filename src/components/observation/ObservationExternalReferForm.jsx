@@ -19,7 +19,7 @@ import {
 } from '@/components/layout/HeaderClinicContext';
 import { OBSERVATION_ESI_LEVELS } from '@/data/observationMock';
 import { USERS } from '@/data/usersAccess';
-import { STAFF_AVATARS } from '@/data/avatarAssets';
+import { staffAvatarForName } from '@/data/avatarAssets';
 
 const facilityOptions = REFER_FACILITIES.map((f) => ({ value: f.value, label: f.label }));
 
@@ -39,10 +39,7 @@ function resolveReporterAvatar(name = '', fallback = '') {
   if (fallback) return fallback;
   const hit = USERS.find((u) => u.name === name);
   if (hit?.avatarUrl) return hit.avatarUrl;
-  if (!name || !STAFF_AVATARS?.length) return '';
-  let hash = 0;
-  for (let i = 0; i < name.length; i += 1) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  return STAFF_AVATARS[hash % STAFF_AVATARS.length];
+  return staffAvatarForName(name);
 }
 
 const REFER_REASON_OPTIONS = [

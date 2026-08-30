@@ -241,6 +241,8 @@ const ScreeningStep5 = ({ onValidityChange, patient = {}, onJumpToStep }) => {
     { label: 'น้ำหนัก', value: num(v?.weight) ? `${num(v.weight)} กก.` : '' },
     { label: 'ส่วนสูง', value: num(v?.height) ? `${num(v.height)} ซม.` : '' },
     { label: 'รอบการวัด', value: v?.round?.date ? `${v.round.date} ${v.round.time || ''}`.trim() : '' },
+    /* ช่องไม่บังคับของขั้นที่ 1 — ว่างได้ Pairs จะขึ้น "ยังไม่ได้กรอก" เอง */
+    { label: 'บันทึกเพิ่มเติม', value: String(v?.note || '').trim() },
   ];
 
   const symptomItems = [

@@ -72,6 +72,9 @@ import {
   appendRegistrationAudit,
   EDUCATION_OPTIONS,
   OCCUPATION_OPTIONS,
+  RELIGION_OPTIONS,
+  ETHNICITY_OPTIONS,
+  NATIONALITY_OPTIONS,
 } from '@/data/registrationForm';
 import { MR_GENDERS, MR_GENDER_IDENTITIES } from '@/data/mrPatients';
 import { HOMEVISIT_SOURCES } from '@/data/homevisitVisits';
@@ -102,6 +105,9 @@ const BLOOD_TYPES = ['O', 'A', 'B', 'AB'];
    ไม่ใช่ UI และหน้าอื่น (สรุปข้อมูล / รายงาน) ต้องอ่านชุดเดียวกัน */
 const EDUCATION = EDUCATION_OPTIONS;
 const OCCUPATIONS = OCCUPATION_OPTIONS;
+const RELIGIONS = RELIGION_OPTIONS;
+const ETHNICITIES = ETHNICITY_OPTIONS;
+const NATIONALITIES = NATIONALITY_OPTIONS;
 const MARITAL = ['โสด', 'สมรส', 'หย่า', 'หม้าย'];
 /** Spouse name row — Figma 2373:119045; only when marital status is สมรส. */
 const SHOWS_SPOUSE_FIELDS = (marital) => marital === 'สมรส';
@@ -923,7 +929,16 @@ export const PatientStatusCard = ({ form, setForm, patient }) => {
   );
 };
 
-export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
+export const Step1Personal = ({
+  form,
+  setForm,
+  patient,
+  onNameBlurCheck,
+  /* แถวฟิลด์เสริมที่หน้าอื่นแทรกเข้ามาเหนือแถว "เลขบัตรประชาชน" — งานเยี่ยมบ้าน
+     ใส่ ศาสนา/เชื้อชาติ/สัญชาติ ตรงนี้ (มติผู้ใช้ 30 ส.ค. 69) ค่าเริ่มต้นว่าง
+     หน้าเวชระเบียนจึงไม่เปลี่ยน */
+  beforeIdRow = null,
+}) => {
   const set = (k) => (v) => setForm((s) => ({ ...s, [k]: v }));
   const handleMaritalChange = (marital) => {
     setForm((s) => ({
@@ -1068,6 +1083,8 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
               />
             </Field>
           </FieldGrid>
+
+          {beforeIdRow}
 
           <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
             <Field
@@ -1250,11 +1267,53 @@ export const Step1Personal = ({ form, setForm, patient, onNameBlurCheck }) => {
                 placeholder='เลือกสถานภาพ'
               />
             </Field>
+            {/* แถวที่สองเต็มพอดีสามช่อง: ศาสนา · เชื้อชาติ · สัญชาติ — แถวแรก
+                ถูกจองโดยมติ 28 ส.ค. 69 ที่ให้สถานภาพขึ้นมาเป็นช่องที่สาม ·
+                ทั้งสามใช้ SelectWithOther เพราะแคตตาล็อกมี "อื่นๆ" เหมือนอาชีพ */}
+            <Field label='ศาสนา'>
+              <SelectWithOther
+                value={form.religion}
+                onChange={set('religion')}
+                otherValue={form.religionOther}
+                onOtherChange={set('religionOther')}
+                options={RELIGIONS}
+                placeholder='เลือกศาสนา'
+                otherPlaceholder='ระบุศาสนา'
+                otherLabel='ระบุศาสนา'
+              />
+            </Field>
+            <Field label='เชื้อชาติ'>
+              <SelectWithOther
+                value={form.ethnicity}
+                onChange={set('ethnicity')}
+                otherValue={form.ethnicityOther}
+                onOtherChange={set('ethnicityOther')}
+                options={ETHNICITIES}
+                placeholder='เลือกเชื้อชาติ'
+                otherPlaceholder='ระบุเชื้อชาติ'
+                otherLabel='ระบุเชื้อชาติ'
+              />
+            </Field>
+            <Field label='สัญชาติ'>
+              <SelectWithOther
+                value={form.nationality}
+                onChange={set('nationality')}
+                otherValue={form.nationalityOther}
+                onOtherChange={set('nationalityOther')}
+                options={NATIONALITIES}
+                placeholder='เลือกสัญชาติ'
+                otherPlaceholder='ระบุสัญชาติ'
+                otherLabel='ระบุสัญชาติ'
+              />
+            </Field>
           </FieldGrid>
 
 
+          {/* cols={3} เท่ากับแถว การศึกษา/อาชีพ/สถานภาพ ด้านบน — ของเดิมเป็น
+              cols={2} ช่องคู่สมรสจึงกว้างกว่าช่องอื่นทั้งฟอร์มอยู่สองช่อง
+              (มติผู้ใช้ 30 ส.ค. 69) */}
           {showSpouseFields && (
-            <FieldGrid cols={2} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
+            <FieldGrid cols={3} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
               <Field label='ชื่อคู่สมรส'>
                 <InputField
                   value={form.spouseFirstName}
@@ -1438,7 +1497,16 @@ const isCurrentAddressUsable = (form) =>
     ? form?.addressRegistered
     : form?.addressCurrent);
 
-export const Step2Address = ({ form, setForm, mapHeading, currentAddressExtra = null }) => {
+export const Step2Address = ({
+  form,
+  setForm,
+  mapHeading,
+  currentAddressExtra = null,
+  /* จำกัดความกว้างบล็อกแผนที่ — งานเยี่ยมบ้านตั้งให้เท่ากล่อง "บันทึกการเดินทาง"
+     ที่อยู่ใต้มัน (มติผู้ใช้ 30 ส.ค. 69) ค่าเริ่มต้นไม่จำกัด หน้าเวชระเบียนจึง
+     ยังเต็มความกว้างเหมือนเดิม */
+  mapMaxWidth,
+}) => {
   const setAddr = (key) => (v) => setForm((s) => ({ ...s, [key]: v }));
   const registeredComplete = isRegisteredAddressComplete(form.addressRegistered);
 
@@ -1561,16 +1629,22 @@ export const Step2Address = ({ form, setForm, mapHeading, currentAddressExtra = 
           onChange={setAddr('addressCurrent')}
           disabled={form.useRegisteredForCurrent}
         />
+        <div className='w-full' style={mapMaxWidth ? { maxWidth: mapMaxWidth } : undefined}>
         <AddressMapBlock
           value={form.addressCurrent}
           /* หน้าที่เอาขั้นนี้ไปใช้ซ้ำเปลี่ยนหัวข้อแผนที่ได้ (งานเยี่ยมบ้านเรียกว่า
              "ตำแหน่งบ้านและการเดินทาง") ค่าเริ่มต้นยังเป็นของหน้าเวชระเบียน */
           heading={mapHeading}
+          /* ตัดกรอบใน (padding 24 + maxWidth 780) ของบล็อกแผนที่ออก ขอบซ้าย-ขวา
+             จึงตรงกับแถวฟิลด์ ถนน/หมู่ ที่อยู่เหนือมันในการ์ดเดียวกัน
+             (มติผู้ใช้ 30 ส.ค. 69) — เดิมแผนที่เยื้องเข้ามาข้างละ 24px */
+          flush
           onChange={(patch) => setForm((s) => ({
             ...s,
             addressCurrent: { ...s.addressCurrent, ...patch },
           }))}
         />
+        </div>
         {/* ช่องเสริมของหน้าที่เอาขั้นนี้ไปใช้ซ้ำ — งานเยี่ยมบ้านวาง "บันทึกการเดินทาง"
             ไว้ในการ์ดนี้ เพราะเป็นเรื่องของการไปถึงที่อยู่ปัจจุบันโดยตรง */}
         {currentAddressExtra}
@@ -2743,7 +2817,15 @@ const ALLERGY_SYMPTOM_SUGGESTIONS = [
   'ปากบวม / ลิ้นบวม',
 ];
 
-export const Step5Flags = ({ form, setForm }) => {
+export const Step5Flags = ({
+  form,
+  setForm,
+  /* การ์ด "สภาพที่มาใช้บริการ / สภาพของผู้รับบริการ" — ปิดได้สำหรับหน้าที่ถาม
+     เรื่องนี้ไว้แล้วที่อื่น (งานเยี่ยมบ้านถาม ๖ กลุ่ม/รับ–ส่งต่อ ที่ขั้น
+     "ข้อมูลส่วนตัว" ไปแล้ว — มติผู้ใช้ 30 ส.ค. 69) ค่าเริ่มต้น true
+     หน้าเวชระเบียนจึงไม่เปลี่ยน */
+  showMobilityCard = true,
+}) => {
   /* หมวดที่เปิดอยู่ของแถบ Flag — เริ่มที่ "แพ้ยา" เหมือนหน้าคัดกรอง */
   const [flagTab, setFlagTab] = useState(FLAG_TABS[0].key);
   const activeTab = FLAG_TABS.find((t) => t.key === flagTab) ?? FLAG_TABS[0];
@@ -3006,6 +3088,7 @@ export const Step5Flags = ({ form, setForm }) => {
     /* สองกลุ่มแยกการ์ดคนละใบ (มติผู้ใช้ 27 ส.ค. 69) */
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
       {/* Figma PHCIS-Registration 210:21268 — mobility block */}
+      {showMobilityCard && (
       <SubCard>
         <SectionTitle icon='directions_walk'>
           {homeVisit ? 'สภาพของผู้รับบริการ' : 'สภาพที่มาใช้บริการ'}
@@ -3135,10 +3218,14 @@ export const Step5Flags = ({ form, setForm }) => {
           )}
         </div>
       </SubCard>
+      )}
 
       {/* Figma 210:21275 — topic + choices in one column, 24px (space/600) between rows */}
       <SubCard>
-        <SectionTitle icon='flag'>หมายเหตุและ Flag</SectionTitle>
+        {/* ชื่อการ์ดบอกให้ครบว่าเก็บอะไรบ้าง (มติผู้ใช้ 30 ส.ค. 69) — "หมายเหตุ
+            และ Flag" ไม่บอกว่าข้างในมีประวัติการแพ้กับโรคประจำตัวด้วย ชื่อขั้น
+            บนแถบ stepper ยังเป็นคำเดิม */}
+        <SectionTitle icon='flag'>ประวัติการแพ้ · โรคประจำตัว · ข้อควรระวัง (Flag)</SectionTitle>
           {/* แถบหมวดทรงเดียวกับขั้นประวัติการแพ้ของหน้าคัดกรอง (มติผู้ใช้ 29 ส.ค. 69)
               — จุดคัดกรองอ่านข้อมูลชุดนี้ต่อ สองหน้าจึงต้องจัดหมวดเหมือนกัน */}
           <div className='flex w-full justify-center'>
@@ -3159,8 +3246,10 @@ export const Step5Flags = ({ form, setForm }) => {
           </div>
 
           {/* ธงของหมวดที่เปิดอยู่ — หนึ่งแท็บมีธงเดียว ปุ่มจึงอยู่บนสุดของแผง
-              แล้วรายละเอียดค่อยกางออกเมื่อธงถูกเปิด */}
-          <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              แล้วรายละเอียดค่อยกางออกเมื่อธงถูกเปิด · จัดกึ่งกลางให้ตรงกับแถบ
+              แท็บที่อยู่เหนือมัน (มติผู้ใช้ 30 ส.ค. 69) — เดิมชิดซ้ายแล้วลอยอยู่
+              มุมเดียวของแผงกว้าง ๆ ทั้งที่เป็นปุ่มของทั้งหมวด */}
+          <div className='flex flex-wrap w-full justify-center' style={{ gap: 'var(--dim-space-300)' }}>
             <CheckboxButton
               checked={!!form.flags?.[activeTab.flag]}
               onChange={toggleFlag(activeTab.flag)}

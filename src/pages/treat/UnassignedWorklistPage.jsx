@@ -697,7 +697,8 @@ const UnassignedWorklistPage = () => {
         onTabChange={setActiveTab}
         /* แท็บ "นัดล่วงหน้า" — shell เป็นคนเติมแท็บและวาดเนื้อหา */
         upcoming={{}}
-        /* ปุ่มประจำ worklist ของบันทึกการรักษา — ดูคำอธิบายใน EmrWorklistAction */
+        /* ปุ่มประจำ worklist ของบันทึกการรักษา — ตารางเวรของหน่วยงาน เปิดจาก
+           หัวหน้าแถบ ไม่ผูกกับผู้ป่วยรายไหน */
         leadingActions={<DutyRosterAction />}
       >
         <div

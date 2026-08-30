@@ -185,6 +185,10 @@ const EDocumentBuilderPopup = ({
   onSave,               /* ({ name, blocks, templateSlug }) => void */
   editing = null,       /* saved e-Document being re-opened, or null */
   patientName,
+  /* คลังเอกสารเปิดตัวสร้างตัวเดียวกันนี้เพื่อ "แก้ไขแบบฟอร์มในคลัง" ซึ่งไม่ได้
+     ผูกกับการมารับบริการของผู้ป่วย จึงให้ผู้เรียกเขียนหัวเรื่องเองได้ */
+  title: titleProp,
+  subtitle: subtitleProp,
 }) => {
   const isEdit = Boolean(editing);
   const [stage, setStage] = useState(isEdit ? 'build' : 'pick');
@@ -250,10 +254,10 @@ const EDocumentBuilderPopup = ({
     <Popup
       open={open}
       onClose={close}
-      title={isEdit ? `แก้ไข e-Document · ${editing.name}` : 'สร้าง e-Document'}
-      subtitle={patientName
+      title={titleProp ?? (isEdit ? `แก้ไข e-Document · ${editing.name}` : 'สร้าง e-Document')}
+      subtitle={subtitleProp ?? (patientName
         ? `สร้างเอกสารสำหรับ ${patientName} ด้วยตัวสร้างแบบฟอร์ม — บันทึกแล้วเก็บไว้ในระเบียนการมารับบริการครั้งนี้`
-        : 'สร้างเอกสารด้วยตัวสร้างแบบฟอร์ม แล้วเก็บไว้ในระเบียนการมารับบริการครั้งนี้'}
+        : 'สร้างเอกสารด้วยตัวสร้างแบบฟอร์ม แล้วเก็บไว้ในระเบียนการมารับบริการครั้งนี้')}
       size='extraLarge'
       bodyScrollable
       primaryAction={primaryAction}

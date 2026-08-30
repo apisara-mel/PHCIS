@@ -6,7 +6,7 @@ import Footer from '@/components/layout/Footer';
 import Icon from '@/components/icons/Icon';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
-import ESignatureField from '@/components/form-builder/ESignatureField';
+import FieldControl, { FULL_WIDTH_TYPES } from '@/components/forms/FormFieldControl';
 import ConsentAuditBar from '@/components/forms/ConsentAuditBar';
 import NeutralButton from '@/components/button/NeutralButton';
 import AlertDialog from '@/components/popup/AlertDialog';
@@ -35,235 +35,9 @@ import EDOCUMENT_NAV, { EDOCUMENT_BRAND_TITLE } from '@/pages/forms/edocumentNav
    กรอกแทน" banner) so the QR-landed view feels patient-facing without a
    separate page. */
 
-const RADIO_4_OPTIONS = [
-  { value: 0, label: 'ไม่เลย' },
-  { value: 1, label: 'บางวัน' },
-  { value: 2, label: 'มากกว่าครึ่ง' },
-  { value: 3, label: 'เกือบทุกวัน' },
-];
-
-const RADIO_5_OPTIONS = [
-  { value: 1, label: 'น้อยที่สุด' },
-  { value: 2, label: 'น้อย' },
-  { value: 3, label: 'ปานกลาง' },
-  { value: 4, label: 'มาก' },
-  { value: 5, label: 'มากที่สุด' },
-];
-
-const SELECT_FALLBACK = [
-  { value: '', label: 'กรุณาเลือก' },
-  { value: 'option1', label: 'ตัวเลือกที่ 1' },
-  { value: 'option2', label: 'ตัวเลือกที่ 2' },
-  { value: 'option3', label: 'ตัวเลือกที่ 3' },
-];
-
-/* Field renderers — each receives (value, onChange, field, key). Visual
-   alias from design tokens (--surface-input-*, --border-input-*, etc.) so
-   brand-swap retints automatically. */
-
-const fieldStyle = {
-  width: '100%',
-  padding: '10px 12px',
-  background: 'var(--surface-input-default)',
-  border: 'var(--dim-stroke-100) solid var(--border-input-default)',
-  borderRadius: 'var(--dim-radius-200)',
-  color: 'var(--text-input-filled)',
-  fontFamily: 'var(--type-family-body)',
-  fontSize: 'var(--type-size-sm)',
-  outline: 'none',
-};
-
-const TextRenderer = ({ value, onChange, field }) => (
-  <input
-    type='text'
-    value={value || ''}
-    onChange={(e) => onChange(e.target.value)}
-    placeholder={field.placeholder || `กรอก${field.label}`}
-    style={fieldStyle}
-  />
-);
-
-const TextareaRenderer = ({ value, onChange, field }) => (
-  <textarea
-    value={value || ''}
-    onChange={(e) => onChange(e.target.value)}
-    placeholder={field.placeholder || `กรอก${field.label}`}
-    rows={3}
-    style={{ ...fieldStyle, resize: 'vertical', minHeight: 96 }}
-  />
-);
-
-const DateRenderer = ({ value, onChange }) => (
-  <input
-    type='date'
-    value={value || ''}
-    onChange={(e) => onChange(e.target.value)}
-    style={fieldStyle}
-  />
-);
-
-const DateTimeRenderer = ({ value, onChange }) => (
-  <input
-    type='datetime-local'
-    value={value || ''}
-    onChange={(e) => onChange(e.target.value)}
-    style={fieldStyle}
-  />
-);
-
-const SelectRenderer = ({ value, onChange, field }) => {
-  const options = field.options || SELECT_FALLBACK;
-  return (
-    <select
-      value={value || ''}
-      onChange={(e) => onChange(e.target.value)}
-      style={{ ...fieldStyle, appearance: 'none', backgroundPosition: 'right 12px center' }}
-    >
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
-      ))}
-    </select>
-  );
-};
-
-const CheckboxRenderer = ({ value, onChange, field }) => (
-  <label
-    className='flex items-center cursor-pointer w-full'
-    style={{
-      gap: 'var(--dim-space-300)',
-      padding: 'var(--dim-space-300)',
-      background: value
-        ? 'var(--surface-brandPrimary-quaternary)'
-        : 'var(--surface-card-100)',
-      border: `var(--dim-stroke-100) solid ${value
-        ? 'var(--border-brandPrimary-default)'
-        : 'var(--border-card-default)'}`,
-      borderRadius: 'var(--dim-radius-200)',
-    }}
-  >
-    <input
-      type='checkbox'
-      checked={!!value}
-      onChange={(e) => onChange(e.target.checked)}
-      style={{ width: 18, height: 18, accentColor: 'var(--surface-brandPrimary-default)' }}
-    />
-    <span className='text-sm text-ink'>
-      {field.label}
-      {field.required && <span className='ml-1' style={{ color: 'var(--text-input-require)' }}>*</span>}
-    </span>
-  </label>
-);
-
-const RadioGroup = ({ value, onChange, options, name }) => (
-  <div
-    className='flex flex-wrap w-full'
-    style={{ gap: 'var(--dim-space-200)' }}
-  >
-    {options.map((opt) => {
-      const selected = String(value) === String(opt.value);
-      return (
-        <label
-          key={opt.value}
-          className='flex items-center cursor-pointer'
-          style={{
-            gap: 'var(--dim-space-200)',
-            padding: '8px 14px',
-            minHeight: 40,
-            background: selected
-              ? 'var(--surface-brandPrimary-quaternary)'
-              : 'var(--surface-card-100)',
-            border: `var(--dim-stroke-100) solid ${selected
-              ? 'var(--border-brandPrimary-default)'
-              : 'var(--border-card-default)'}`,
-            borderRadius: 'var(--dim-radius-full)',
-            color: selected
-              ? 'var(--text-brandPrimary-default)'
-              : 'var(--text-content-secondary)',
-            fontSize: 'var(--type-size-sm)',
-            fontWeight: selected ? 'var(--type-weight-medium)' : 'var(--type-weight-regular)',
-            transition: 'background 120ms ease, border-color 120ms ease',
-          }}
-        >
-          <input
-            type='radio'
-            name={name}
-            checked={selected}
-            onChange={() => onChange(opt.value)}
-            style={{ accentColor: 'var(--surface-brandPrimary-default)' }}
-          />
-          {opt.label}
-        </label>
-      );
-    })}
-  </div>
-);
-
-const SliderRenderer = ({ value, onChange }) => {
-  const num = typeof value === 'number' ? value : 0;
-  return (
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-      <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
-        <span className='text-xs text-ink-tertiary' style={{ minWidth: 24 }}>0</span>
-        <input
-          type='range'
-          min={0}
-          max={10}
-          step={1}
-          value={num}
-          onChange={(e) => onChange(Number(e.target.value))}
-          style={{ flex: 1, accentColor: 'var(--surface-brandPrimary-default)' }}
-        />
-        <span className='text-xs text-ink-tertiary' style={{ minWidth: 24, textAlign: 'right' }}>10</span>
-      </div>
-      <div className='text-sm font-bold' style={{ color: 'var(--text-brandPrimary-default)' }}>
-        ระดับที่เลือก: {num}
-      </div>
-    </div>
-  );
-};
-
-/* ลายเซ็นจริง 3 ช่องทาง (TOR 1.8.4.1–2): เลือกที่บันทึก / วาดใหม่ / อัปโหลด. */
-const SignatureRenderer = ({ value, onChange }) => (
-  <ESignatureField value={typeof value === 'string' ? value : ''} onChange={onChange} />
-);
-
-const renderField = (field, key, value, onChange) => {
-  switch (field.type) {
-    case 'text':       return <TextRenderer     value={value} onChange={onChange} field={field} />;
-    case 'textarea':   return <TextareaRenderer value={value} onChange={onChange} field={field} />;
-    case 'date':       return <DateRenderer     value={value} onChange={onChange} />;
-    case 'datetime':   return <DateTimeRenderer value={value} onChange={onChange} />;
-    case 'select':     return <SelectRenderer   value={value} onChange={onChange} field={field} />;
-    case 'checkbox':   return <CheckboxRenderer value={value} onChange={onChange} field={field} />;
-    case 'signature':  return <SignatureRenderer value={value} onChange={onChange} />;
-    case 'slider-0-10':return <SliderRenderer   value={value} onChange={onChange} />;
-    case 'radio-4':    return <RadioGroup value={value} onChange={onChange} options={RADIO_4_OPTIONS} name={key} />;
-    case 'radio-5':    return <RadioGroup value={value} onChange={onChange} options={RADIO_5_OPTIONS} name={key} />;
-    default:           return <TextRenderer value={value} onChange={onChange} field={field} />;
-  }
-};
-
-/* Checkboxes render their own label inline (so the whole row is tap-target).
-   For everything else we render an explicit label row above the control. */
-const needsExternalLabel = (type) => type !== 'checkbox';
-
-const FieldBlock = ({ field, fieldKey, value, onChange }) => (
-  <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-    {needsExternalLabel(field.type) && (
-      <label
-        className='text-sm font-medium'
-        style={{ color: 'var(--text-content-primary)' }}
-      >
-        {field.label}
-        {field.required && (
-          <span className='ml-1' style={{ color: 'var(--text-input-require)' }}>*</span>
-        )}
-      </label>
-    )}
-    {renderField(field, fieldKey, value, onChange)}
-  </div>
-);
-
+/* ส่วนของแบบฟอร์ม — จัดช่องเป็นกริดสองคอลัมน์บนจอกว้าง (มติผู้ใช้ 30 ส.ค. 69)
+   ฟอร์มเยี่ยมบ้านบางใบมี 40+ ช่อง เรียงเดี่ยวลงมาทำให้ต้องเลื่อนยาวมาก
+   ช่องข้อความยาว/กลุ่มตัวเลือก/ลายเซ็น ยังกินเต็มแถวเพื่อให้อ่านง่าย */
 const SectionCard = ({ section, sectionIndex, values, setValue }) => (
   <section
     className='flex flex-col w-full'
@@ -291,18 +65,26 @@ const SectionCard = ({ section, sectionIndex, values, setValue }) => (
         {sectionIndex + 1}
       </span>
       <h3 className='text-base font-bold text-ink'>{section.title}</h3>
+      <span className='text-xs text-ink-tertiary'>{section.fields.length} ช่อง</span>
     </div>
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+    <div
+      className='grid w-full grid-cols-1 md:grid-cols-2'
+      style={{ columnGap: 'var(--dim-space-500)', rowGap: 'var(--dim-space-400)' }}
+    >
       {section.fields.map((f, i) => {
         const fieldKey = `s${sectionIndex}-f${i}`;
         return (
-          <FieldBlock
+          <div
             key={fieldKey}
-            fieldKey={fieldKey}
-            field={f}
-            value={values[fieldKey]}
-            onChange={(v) => setValue(fieldKey, v)}
-          />
+            className={`flex flex-col min-w-0 ${FULL_WIDTH_TYPES.has(f.type) ? 'md:col-span-2' : ''}`}
+          >
+            <FieldControl
+              field={f}
+              fieldKey={fieldKey}
+              value={values[fieldKey]}
+              onChange={(v) => setValue(fieldKey, v)}
+            />
+          </div>
         );
       })}
     </div>

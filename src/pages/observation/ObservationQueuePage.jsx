@@ -41,7 +41,7 @@ import Popup from '@/components/popup/Popup';
 import AlertDialog from '@/components/popup/AlertDialog';
 import { getPatientByHN, PATIENT_PROFILES } from '@/data/patientProfiles';
 import { USERS } from '@/data/usersAccess';
-import { STAFF_AVATARS } from '@/data/avatarAssets';
+import { staffAvatarForName } from '@/data/avatarAssets';
 import { getCurrentUser } from '@/pages/users/usersShared';
 import {
   MOCK_OBSERVATION_PATIENTS,
@@ -155,18 +155,6 @@ const ObservationBedsEmptyState = ({ onAdmit }) => (
     </BrandButton>
   </div>
 );
-
-/* The ผู้สั่ง / พยาบาลรับผู้ป่วย FILTER dropdowns (queue tabs) list names
-   baked into the historical mock patient records (e.g. "นพ. วรวิทย์
-   เกียรติเจริญ") rather than the admit form's USERS roster above, so
-   there's no shared id/name to join on for a real avatarUrl. Hash the
-   name to a stable index into the same staff portrait pool instead —
-   same name always resolves to the same photo, just not a "real" one. */
-const avatarForName = (name = '') => {
-  let hash = 0;
-  for (let i = 0; i < name.length; i += 1) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  return STAFF_AVATARS[hash % STAFF_AVATARS.length];
-};
 
 /* A bed row only carries patient data while it is occupied — both an
    empty bed and one waiting to be cleaned render as "no patient". */
@@ -712,11 +700,11 @@ export default function ObservationQueuePage() {
       ],
       doctor: [
         { value: 'all', label: 'ทั้งหมด' },
-        ...uniqueSorted(referred.map((p) => p.doctorName)).map((d) => ({ value: d, label: d, image: avatarForName(d) })),
+        ...uniqueSorted(referred.map((p) => p.doctorName)).map((d) => ({ value: d, label: d, image: staffAvatarForName(d) })),
       ],
       nurse: [
         { value: 'all', label: 'ทั้งหมด' },
-        ...uniqueSorted(referred.map((p) => p.nurseName)).map((n) => ({ value: n, label: n, image: avatarForName(n) })),
+        ...uniqueSorted(referred.map((p) => p.nurseName)).map((n) => ({ value: n, label: n, image: staffAvatarForName(n) })),
       ],
     };
   })();
@@ -733,7 +721,7 @@ export default function ObservationQueuePage() {
       ...DOCTOR_STAFF_OPTIONS,
       ...uniqueSorted(patients.map((p) => p.doctorName))
         .filter((d) => d && !seen.has(d))
-        .map((d) => ({ value: d, label: d, image: avatarForName(d) })),
+        .map((d) => ({ value: d, label: d, image: staffAvatarForName(d) })),
     ];
   })();
 
@@ -771,11 +759,11 @@ export default function ObservationQueuePage() {
       ],
       doctor: [
         { value: 'all', label: 'ทั้งหมด' },
-        ...uniqueSorted(observing.map((p) => p.doctorName)).map((d) => ({ value: d, label: d, image: avatarForName(d) })),
+        ...uniqueSorted(observing.map((p) => p.doctorName)).map((d) => ({ value: d, label: d, image: staffAvatarForName(d) })),
       ],
       nurse: [
         { value: 'all', label: 'ทั้งหมด' },
-        ...uniqueSorted(observing.map((p) => p.nurseName)).map((n) => ({ value: n, label: n, image: avatarForName(n) })),
+        ...uniqueSorted(observing.map((p) => p.nurseName)).map((n) => ({ value: n, label: n, image: staffAvatarForName(n) })),
       ],
     };
   })();

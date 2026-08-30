@@ -46,6 +46,7 @@ import {
   isScreeningCompleted,
 } from '@/data/opdScreeningDrafts';
 import { addWalkinRequest } from '@/data/opdWalkinRequests';
+import { getRegistrationHandoff } from '@/data/registrationHandoff';
 import {
   buildOpdQueueSubMenuBuckets,
   OPD_QUEUE_ROWS,
@@ -799,6 +800,44 @@ const ScreeningPage = () => {
   /* ประวัติแพ้ยา/โรคประจำตัวของทะเบียนกลาง — หัวแฟ้มคัดกรองต้องเห็นชุดเดียวกับ
      ห้องตรวจและห้องยา */
   const mrPatient = findMrPatientByHn(patient?.hn) || {};
+
+  /* TOR ๑.๑.๑.๑๙ — Flag ที่เวชระเบียนบันทึกไว้ต้องเตือน "ผู้ใช้งานที่เกี่ยวข้อง"
+     ซึ่งรวมจุดคัดกรอง ไม่ใช่โผล่แค่ในห้องตรวจ (TreatmentSafetyRail) เดิมหน้านี้
+     เห็น Flag เฉพาะในการ์ด "ข้อมูลจากเวชระเบียน" ของขั้นที่ 1 ซึ่งเลื่อนพ้นจอไป
+     ตั้งแต่ขั้นที่ 2 ป้ายจึงย้ายขึ้นมาอยู่บนหัวแฟ้มที่ sticky ตลอดทุกขั้น
+     ป้ายพก "ที่มา" ไปด้วยเสมอผ่าน title — ToR บังคับให้ตรวจสอบย้อนกลับได้ว่า
+     ธงใบนี้มาจากเอกสารใบไหน แพ้ยา/โรคประจำตัวไม่อยู่ในชุดนี้เพราะ PatientCard
+     แสดงเป็นแถวของตัวเองอยู่แล้ว */
+  const mrFlagBadges = useMemo(() => {
+    const handoff = getRegistrationHandoff(patient?.hn);
+    if (!handoff) return null;
+    const f = handoff.flags || {};
+    const src = handoff.flagSources || {};
+    /* ไอคอนชุดเดียวกับขั้น "ความปลอดภัย" ของหน้าลงทะเบียน (RegistrationSteps)
+       — ธงใบเดียวกันต้องหน้าตาเหมือนกันทั้งสองหน้า */
+    const defs = [
+      { on: f.safety, label: 'ความปลอดภัย', tone: 'orange', icon: 'health_and_safety',
+        source: src.safety || (handoff.safetyRisks || []).join(' · ') },
+      { on: f.dnr, label: 'DNR', tone: 'red', icon: 'do_not_disturb_on',
+        source: src.dnr },
+      { on: f.organDonor, label: 'บริจาคอวัยวะ', tone: 'teal', icon: 'volunteer_activism',
+        source: src.organDonor || (handoff.organDonorScopes || []).join(' · ') },
+      { on: f.vip, label: 'VIP', tone: 'purple', icon: 'star',
+        source: 'ผู้รับบริการพิเศษตามที่เวชระเบียนระบุ' },
+      { on: f.flagOther, label: 'Flag อื่น ๆ', tone: 'grey', icon: 'flag',
+        source: handoff.flagOtherNote },
+    ].filter((d) => d.on);
+    if (defs.length === 0) return null;
+    /* ที่มาอยู่บน <span title> ครอบ ไม่ใช่บนป้าย เพราะ ColorfulBadge ไม่ส่ง
+       props ที่ไม่รู้จักต่อลง DOM */
+    return defs.map((d) => (
+      <span key={d.label} title={`${d.label} — ที่มา: ${d.source || 'ไม่ได้ระบุที่มา'}`}>
+        <ColorfulBadge style={d.tone} size='small' hierarchy='secondary' showIcon icon={d.icon}>
+          {d.label}
+        </ColorfulBadge>
+      </span>
+    ));
+  }, [patient?.hn]);
   /* ⚠️ ต้องประกาศก่อน `nextStepLabel` — ป้ายปุ่มถัดไปอ่าน `isLast` (const เป็น TDZ
      ถ้าอ่านก่อนประกาศจะพังทั้งหน้า) */
   const steps = STEPS;
@@ -1262,6 +1301,10 @@ const ScreeningPage = () => {
           showMedicalHistory={false}
           drugAllergies={mrPatient.drugAllergies}
           chronicDiseases={mrPatient.chronicDiseases}
+          /* Flag จากเวชระเบียน (TOR ๑.๑.๑.๑๙) — แถวเดียวกับแพ้ยา/โรคประจำตัว
+             ไม่ให้หัวแฟ้มสูงขึ้นอีกแถว */
+          tags={mrFlagBadges}
+          tagsInAlertRow
         />
         <RecordWizardMorphBand
           title='คัดกรองและซักประวัติ'

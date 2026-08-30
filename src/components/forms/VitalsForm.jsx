@@ -124,6 +124,9 @@ const VitalsForm = ({
   patientAgeYears,
   /** node ที่วางชิดขวาบนแถวเดียวกับชิปช่วงอายุ (เช่น ปุ่มดูประวัติสัญญาณชีพ) */
   headerAction,
+  /** node ที่แทรกใต้กริดการ์ดสัญญาณชีพ เหนือปุ่ม "เพิ่มรอบการวัด"
+      (เช่น ช่องบันทึกเพิ่มเติมของขั้นคัดกรอง) — ผู้เรียกที่ไม่ส่งมาจะได้แผงเดิมทุกประการ */
+  beforeAddRoundSlot = null,
 }) => {
   const [roundVitalOverrides, setRoundVitalOverrides] = useState({});
 
@@ -476,6 +479,8 @@ const VitalsForm = ({
               )}
             />
           </div>
+
+          {beforeAddRoundSlot}
 
           {/* Figma 332:55917 — BrandDashedAddButton; disabled until `isFormValid`
              (same gate as footer "ถัดไป"). */}

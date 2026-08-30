@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Link, useHistory } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useHistory } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -12,14 +12,25 @@ import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import StatusBadge from '@/components/badge/StatusBadge';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
+import BrandButton from '@/components/button/BrandButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Pagination from '@/components/pagination/Pagination';
+import Popup from '@/components/popup/Popup';
+import Table, { EllipsisText } from '@/components/table/Table';
+import ViewToggle from '@/components/toggle/ViewToggle';
+import Tooltip from '@/components/tooltip/Tooltip';
+import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
+import OfficialFormCover from '@/components/consent/OfficialFormCover';
+import FormDetailPopup from '@/components/forms/FormDetailPopup';
+import { countFields } from '@/components/forms/FormStructurePreview';
+import EDocumentBuilderPopup from '@/components/form-builder/EDocumentBuilderPopup';
+import SuccessToast from '@/components/toast/SuccessToast';
+import { blocksFromLibraryForm } from '@/utils/formBuilderModel';
 import {
   FORM_CATEGORIES,
   FORMS,
   getFormsByCategory,
-  FORM_COVER_FOR_CATALOG,
   FORM_CATALOG_CATEGORY_BADGE,
   catalogVersionPill,
 } from '@/data/formsLibrary';
@@ -90,6 +101,9 @@ const FORM_STATUS_FILTER_OPTIONS = [
 
 const FORM_THUMB_ASPECT_RATIO = '227 / 113';
 
+/** จำนวนการ์ดมากสุดต่อหนึ่งหมวดในหน้ารวม — ที่เหลืออยู่ใน popup "ดูทั้งหมด" */
+const SECTION_CARD_LIMIT = 20;
+
 /** FormCard chrome — MIH Design System Card + PHCIS | Forms (`14:46491`). */
 function catalogCardFrameStyle({ hovered }) {
   const brandDrop = 'var(--shadow-brand-drop-bottom-200)';
@@ -101,29 +115,25 @@ function catalogCardFrameStyle({ hovered }) {
   return { boxShadow: '0 0 0 1px var(--border-card-default)' };
 }
 
-const FormThumb = ({ src, alt = '' }) => (
+/* หน้าปกการ์ด = ตราสำนักอนามัย กรุงเทพมหานคร (มติผู้ใช้ 30 ส.ค. 69) —
+   แบบเดียวกับการ์ดใบยินยอมใน [[ConsentFormsPage]] ภาพประกอบสต็อกเดิมซ้ำกัน
+   ทุกใบในหมวดเดียวกัน จึงไม่ได้บอกว่าเอกสารเป็นของหน่วยงานไหน */
+const FormThumb = () => (
   <div
-    className='relative w-full shrink-0 overflow-hidden bg-brand-100'
+    className='relative w-full shrink-0 overflow-hidden'
     style={{
       aspectRatio: FORM_THUMB_ASPECT_RATIO,
+      background: 'var(--surface-card-100)',
       borderBottom: 'var(--dim-stroke-100) solid var(--border-card-default)',
     }}
   >
-    <img
-      src={src}
-      alt={alt}
-      className='absolute inset-0 h-full w-full object-cover object-center'
-      loading='lazy'
-      decoding='async'
-    />
+    <OfficialFormCover compact />
   </div>
 );
 
-const CatalogFormCard = ({ form }) => {
-  const history = useHistory();
+const CatalogFormCard = ({ form, onView, onEdit }) => {
   const [hovered, setHovered] = useState(false);
   const badgeStyle = FORM_CATALOG_CATEGORY_BADGE[form.category] || 'grey';
-  const coverSrc = FORM_COVER_FOR_CATALOG[form.category] || FORM_COVER_FOR_CATALOG.survey;
   const versionPill = catalogVersionPill(form.version);
 
   return (
@@ -134,9 +144,16 @@ const CatalogFormCard = ({ form }) => {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <Link to={`/forms/${form.slug}`} className='shrink-0 block focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 rounded-t-xl' aria-label={`เปิดรายละเอียด ${form.name}`}>
-        <FormThumb src={coverSrc} alt='' />
-      </Link>
+      {/* กดที่หน้าปกหรือชื่อ = เปิดป๊อปอัปรายละเอียด (มติผู้ใช้ 30 ส.ค. 69) */}
+      <button
+        type='button'
+        onClick={onView}
+        className='shrink-0 block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 rounded-t-xl'
+        style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
+        aria-label={`เปิดรายละเอียด ${form.name}`}
+      >
+        <FormThumb />
+      </button>
       <div className='flex flex-1 min-h-0 flex-col gap-1.5 px-3'>
         <div className='flex flex-wrap gap-2 items-center'>
           <ColorfulBadge
@@ -160,12 +177,14 @@ const CatalogFormCard = ({ form }) => {
             </ColorfulBadge>
           )}
         </div>
-        <Link
-          to={`/forms/${form.slug}`}
-          className='text-sm font-bold text-ink leading-snug hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 rounded-sm'
+        <button
+          type='button'
+          onClick={onView}
+          className='text-sm font-bold text-ink leading-snug text-left hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 rounded-sm'
+          style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
         >
           {form.name}
-        </Link>
+        </button>
         <p className='text-xs text-ink-secondary leading-snug line-clamp-2'>{form.summary}</p>
         {form.code && (
           <p className='text-xs text-ink-tertiary font-medium tracking-wide'>{form.code}</p>
@@ -181,19 +200,100 @@ const CatalogFormCard = ({ form }) => {
           variant='fill'
           icon='visibility'
           aria-label={`ดูรายละเอียด ${form.name}`}
-          onClick={() => history.push(`/forms/${form.slug}`)}
+          onClick={onView}
         />
         <NeutralSubdueButton
           type='button'
           size='sm'
           variant='outline'
           leadingIcon='edit'
-          aria-label={`กรอกหรือแก้ไข ${form.name}`}
-          onClick={() => history.push(`/forms/${form.slug}/fill`)}
+          aria-label={`แก้ไข ${form.name}`}
+          onClick={onEdit}
         >
           แก้ไข
         </NeutralSubdueButton>
       </div>
+    </div>
+  );
+};
+
+/* แถบการ์ดหนึ่งหมวด — เลื่อนซ้าย-ขวา พร้อมปุ่มลูกศรใต้แถว (มติผู้ใช้ 30 ส.ค. 69)
+   ลากสกรอลล์อย่างเดียวไม่พอ: บนเดสก์ท็อปที่ไม่มีทัชแพดสองนิ้ว ผู้ใช้ไม่รู้ว่า
+   ยังมีการ์ดถัดไปอยู่ · ปุ่มโผล่เฉพาะตอนการ์ดล้นแถว และดับเมื่อสุดทาง */
+const CardScroller = ({ children, label }) => {
+  const trackRef = useRef(null);
+  const [atStart, setAtStart] = useState(true);
+  const [atEnd, setAtEnd] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+
+  const updateEdges = useCallback(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    setAtStart(el.scrollLeft <= 1);
+    setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1);
+    setOverflowing(el.scrollWidth > el.clientWidth + 1);
+  }, []);
+
+  useEffect(() => { updateEdges(); }, [children, updateEdges]);
+
+  /* การ์ดกว้างคงที่ — ต้องวัดใหม่เมื่อ container เปลี่ยนขนาด ไม่ใช่แค่ตอน
+     จำนวนการ์ดเปลี่ยน (ย่อ/ขยายหน้าต่าง หรือกางเมนูซ้าย) */
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const el = trackRef.current;
+    if (!el) return undefined;
+    const ro = new ResizeObserver(updateEdges);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [updateEdges]);
+
+  const slide = (dir) => {
+    const el = trackRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.max(el.clientWidth * 0.9, 280), behavior: 'smooth' });
+  };
+
+  return (
+    <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
+      <div
+        ref={trackRef}
+        onScroll={updateEdges}
+        className='flex w-full min-w-0 overflow-x-auto scrollbar-thin'
+        style={{
+          gap: 'var(--dim-space-400)',
+          /* เว้นขอบในแทร็ก ไม่งั้นวงแหวน/เงารอบการ์ดใบแรกกับใบสุดท้ายโดน
+             overflow ตัดจนดูเหมือนการ์ดถูก crop (มติผู้ใช้ 30 ส.ค. 69) */
+          paddingTop: 'var(--dim-space-100)',
+          paddingBottom: 'var(--dim-space-200)',
+          paddingLeft: 'var(--dim-space-100)',
+          paddingRight: 'var(--dim-space-100)',
+          scrollSnapType: 'x proximity',
+          scrollPaddingLeft: 'var(--dim-space-100)',
+          scrollPaddingRight: 'var(--dim-space-100)',
+        }}
+      >
+        {children}
+      </div>
+      {overflowing && (
+        <div className='flex items-center justify-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
+          <NeutralSubdueIconButton
+            variant='outline'
+            size='sm'
+            icon='chevron_left'
+            disabled={atStart}
+            onClick={() => slide(-1)}
+            aria-label={`เลื่อน${label}ไปทางซ้าย`}
+          />
+          <NeutralSubdueIconButton
+            variant='outline'
+            size='sm'
+            icon='chevron_right'
+            disabled={atEnd}
+            onClick={() => slide(1)}
+            aria-label={`เลื่อน${label}ไปทางขวา`}
+          />
+        </div>
+      )}
     </div>
   );
 };
@@ -208,6 +308,20 @@ const FormsLibraryPage = () => {
   const [creatorFilter, setCreatorFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
+  /* สองมุมมองเหมือนทะเบียนแบบฟอร์มความยินยอม (มติผู้ใช้ 30 ส.ค. 69):
+     'list' = ตาราง · 'grid' = การ์ดแยกตามหมวด */
+  const [viewMode, setViewMode] = useState('grid');
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  /* ดู/แก้ไขจากการ์ดเปิดเป็นป๊อปอัป ไม่ย้ายหน้า (มติผู้ใช้ 30 ส.ค. 69) */
+  const [detailForm, setDetailForm] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [savedToast, setSavedToast] = useState('');
+  /* สร้างเอกสารใหม่เปิดเป็น popup ไม่ย้ายไปหน้า /doc-template/new
+     (มติผู้ใช้ 30 ส.ค. 69) — ผู้ใช้ยังคาตัวกรอง/คำค้นของคลังไว้อยู่ */
+  const [createOpen, setCreateOpen] = useState(false);
+  /* "ดูทั้งหมด" ของหมวด = popup รวมทุกใบในหมวดนั้น ไม่ย้ายไปหน้าหมวด
+     (มติผู้ใช้ 30 ส.ค. 69) */
+  const [categoryPopup, setCategoryPopup] = useState(null);
 
   const normalizedQuery = search.trim().toLowerCase();
 
@@ -307,11 +421,134 @@ const FormsLibraryPage = () => {
       }));
   }, [search]);
 
+  /* ── มุมมองตาราง ────────────────────────────────────────────────── */
+  const IconAction = ({ hint, ...props }) => (
+    <Tooltip content={hint} position='top' variant='light'>
+      <span className='inline-flex shrink-0'>
+        <NeutralSubdueIconButton variant='outline' size='sm' aria-label={hint} {...props} />
+      </span>
+    </Tooltip>
+  );
+
+  const tableColumns = useMemo(() => [
+    { key: 'code', header: 'รหัสแบบฟอร์ม', sortable: true, render: (r) => <span className='text-sm text-ink'>{r.code || '-'}</span> },
+    {
+      key: 'name',
+      header: 'ชื่อแบบฟอร์ม',
+      sortable: true,
+      minWidth: 280,
+      render: (r) => (
+        <div className='min-w-0 w-full text-sm text-ink'>
+          <EllipsisText text={r.name || '-'} />
+        </div>
+      ),
+    },
+    {
+      key: 'category',
+      header: 'ประเภท',
+      sortable: true,
+      render: (r) => (
+        <ColorfulBadge
+          style={FORM_CATALOG_CATEGORY_BADGE[r.category] || 'grey'}
+          size='small'
+          hierarchy='secondary'
+          showDot={false}
+          showIcon={false}
+          width='hug'
+        >
+          {FORM_CATEGORIES.find((c) => c.key === r.category)?.label ?? r.category}
+        </ColorfulBadge>
+      ),
+    },
+    {
+      key: 'version',
+      header: 'เวอร์ชั่น',
+      render: (r) => (
+        <ColorfulBadge style='magenta' size='small' hierarchy='secondary' showDot={false} showIcon={false} width='hug'>
+          {catalogVersionPill(r.version)}
+        </ColorfulBadge>
+      ),
+    },
+    {
+      key: 'fields',
+      header: 'จำนวนช่อง',
+      sortable: true,
+      render: (r) => <span className='text-sm text-ink-secondary'>{countFields(r)} ช่อง</span>,
+    },
+    {
+      key: 'minutes',
+      header: 'เวลาโดยประมาณ',
+      sortable: true,
+      render: (r) => <span className='text-sm text-ink-secondary'>~{r.estimatedMinutes} นาที</span>,
+    },
+    {
+      key: 'status',
+      header: 'สถานะ',
+      render: (r) => {
+        const status = catalogFiltersForForm(r).formStatus;
+        const label = FORM_STATUS_FILTER_OPTIONS.find((o) => o.value === status)?.label ?? status;
+        return (
+          <StatusBadge style={status === 'published' ? 'success' : 'neutral'} size='small' showDot={false}>
+            {label}
+          </StatusBadge>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      header: 'การดำเนินการ',
+      minWidth: 200,
+      render: (r) => (
+        <div className='flex items-center justify-end flex-wrap shrink-0' style={{ gap: 'var(--dim-space-150)' }}>
+          <IconAction icon='visibility' hint='ดูแบบฟอร์ม' onClick={() => setDetailForm(r)} />
+          <IconAction icon='print' hint='พิมพ์' onClick={() => window.print?.()} />
+          <NeutralSubdueButton
+            leadingIcon='edit'
+            size='sm'
+            variant='outline'
+            className='shrink-0'
+            onClick={() => { setDetailForm(null); setEditForm(r); }}
+          >
+            แก้ไข
+          </NeutralSubdueButton>
+        </div>
+      ),
+    },
+  ], []);
+
+  const handleSort = (key) => setSortConfig((prev) => (
+    prev.key === key
+      ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+      : { key, direction: 'asc' }
+  ));
+
+  const sortedForms = useMemo(() => {
+    const rows = [...filteredFormsFlat];
+    const { key, direction } = sortConfig;
+    if (!key) return rows;
+    const valueOf = (r) => {
+      if (key === 'fields') return countFields(r);
+      if (key === 'minutes') return r.estimatedMinutes ?? 0;
+      if (key === 'category') return FORM_CATEGORIES.find((c) => c.key === r.category)?.label ?? '';
+      return r[key] ?? '';
+    };
+    rows.sort((a, b) => {
+      const va = valueOf(a);
+      const vb = valueOf(b);
+      const cmp = typeof va === 'number' && typeof vb === 'number'
+        ? va - vb
+        : String(va).localeCompare(String(vb), 'th');
+      return direction === 'asc' ? cmp : -cmp;
+    });
+    return rows;
+  }, [filteredFormsFlat, sortConfig]);
+
   const pageSize = 20;
-  const pageCount = Math.max(1, Math.ceil(filteredFormsFlat.length / pageSize));
+  const pageCount = Math.max(1, Math.ceil(sortedForms.length / pageSize));
   const safePage = Math.min(page, pageCount);
-  const rangeStart = filteredFormsFlat.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safePage * pageSize, filteredFormsFlat.length);
+  const rangeStart = sortedForms.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safePage * pageSize, sortedForms.length);
+  const pageRows = sortedForms.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <div className='min-h-screen w-full flex bg-brand-50'>
@@ -331,6 +568,29 @@ const FormsLibraryPage = () => {
               gap: 'var(--dim-space-400)',
             }}
           >
+            {/* แถวหัวการ์ด — ปุ่มสร้างเอกสารใหม่ (มติผู้ใช้ 30 ส.ค. 69) เมนูซ้ายมี
+                ทางเข้า `/doc-template/new` อยู่แล้ว แต่คนที่กวาดตาอยู่กลางหน้ารวม
+                ไม่เห็น จึงต้องมีปุ่มหลักอยู่บนหน้านี้ด้วย */}
+            <div
+              className='flex flex-wrap items-center justify-between w-full min-w-0'
+              style={{ gap: 'var(--dim-space-300)' }}
+            >
+              <div className='flex flex-col min-w-0'>
+                <h1 className='text-base font-bold text-ink'>คลังเอกสาร e-document</h1>
+                <p className='text-xs text-ink-secondary'>
+                  {FORMS.length} แบบฟอร์ม · {FORM_CATEGORIES.length} หมวดหมู่
+                </p>
+              </div>
+              <BrandButton
+                type='button'
+                size='md'
+                leadingIcon='note_add'
+                className='shrink-0'
+                onClick={() => setCreateOpen(true)}
+              >
+                สร้างเอกสาร e-document ใหม่
+              </BrandButton>
+            </div>
             <div className='w-full min-w-0 max-w-[640px] mx-auto'>
               <PrimarySearch
                 value={search}
@@ -424,6 +684,19 @@ const FormsLibraryPage = () => {
               <ClearFiltersTag active={showClearChip} onClear={clearFilters} size='lg' />
             </OverflowFlexRow>
             </div>
+            {/* สลับมุมมอง ตาราง ↔ การ์ด แบบเดียวกับทะเบียนแบบฟอร์มความยินยอม */}
+            <div className='flex items-center justify-end w-full' style={{ gap: 'var(--dim-space-200)' }}>
+              <span
+                style={{
+                  color: 'var(--text-content-tertiary)',
+                  fontFamily: 'var(--type-family-body)',
+                  fontSize: 'var(--type-size-sm)',
+                }}
+              >
+                มุมมอง
+              </span>
+              <ViewToggle value={viewMode} onChange={setViewMode} />
+            </div>
           </section>
 
           <SmoothFilterResults opaque={resultsOpaque}>
@@ -446,9 +719,28 @@ const FormsLibraryPage = () => {
             </section>
           )}
 
-          {visibleCategories.map((category) => {
+          {viewMode === 'list' ? (
+            <section
+              className='bg-surface-card rounded-card shadow-card flex flex-col w-full'
+              style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}
+            >
+              <Table
+                columns={tableColumns}
+                rows={pageRows}
+                rowKey={(row) => row.slug}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                stickyColCount={1}
+                emptyMessage='ไม่พบแบบฟอร์ม'
+                emptySubtext='ลองปรับตัวกรองหรือเปลี่ยนคำค้นหา'
+              />
+            </section>
+          ) : visibleCategories.map((category) => {
             const forms = getFormsByCategory(category.key).filter(queryMatchesForm);
             if (forms.length === 0) return null;
+            /* แถวของหมวดแสดงมากสุด 20 ใบ (มติผู้ใช้ 30 ส.ค. 69) — ที่เหลือดูได้
+               จากปุ่ม "ดูทั้งหมด" ซึ่งเปิด popup รวมทุกใบของหมวดนั้น */
+            const rowForms = forms.slice(0, SECTION_CARD_LIMIT);
 
             return (
               <section
@@ -481,9 +773,6 @@ const FormsLibraryPage = () => {
                     <div className='flex-1 min-w-0 flex flex-col gap-1'>
                       <div className='flex flex-wrap items-center gap-2'>
                         <h2 className='text-base font-bold text-brand-500'>{category.label}</h2>
-                        <StatusBadge style='success' size='small' showDot={false} icon='check_circle'>
-                          เปิดใช้งาน
-                        </StatusBadge>
                         <span
                           className='inline-flex items-center justify-center'
                           style={{
@@ -500,7 +789,9 @@ const FormsLibraryPage = () => {
                             lineHeight: 1.5,
                           }}
                         >
-                          {forms.length} แบบฟอร์ม
+                          {forms.length > SECTION_CARD_LIMIT
+                            ? `แสดง ${SECTION_CARD_LIMIT} จาก ${forms.length} แบบฟอร์ม`
+                            : `${forms.length} แบบฟอร์ม`}
                         </span>
                       </div>
                       <p className='text-sm text-ink-secondary'>{category.description}</p>
@@ -512,23 +803,29 @@ const FormsLibraryPage = () => {
                     variant='outline'
                     trailingIcon='chevron_right'
                     className='shrink-0 self-start sm:self-center'
-                    onClick={() => history.push(`/forms/category/${category.key}`)}
+                    onClick={() => setCategoryPopup(category)}
                   >
                     ดูทั้งหมด
                   </BrandSubdueButton>
                 </div>
 
-                <div
-                  className='grid w-full'
-                  style={{
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-                    gap: 'var(--dim-space-400)',
-                  }}
-                >
-                  {forms.map((form) => (
-                    <CatalogFormCard key={form.slug} form={form} />
+                {/* หนึ่งหมวด = การ์ดแถวเดียว เลื่อนซ้าย-ขวา (มติผู้ใช้ 30 ส.ค. 69)
+                    เดิมเป็นกริดหลายแถว ทำให้หมวดที่มี 51 ใบดันหมวดถัดไปตกจอ */}
+                <CardScroller label={category.label}>
+                  {rowForms.map((form) => (
+                    <div
+                      key={form.slug}
+                      className='shrink-0'
+                      style={{ width: 'var(--dim-size-2450, 280px)', scrollSnapAlign: 'start' }}
+                    >
+                      <CatalogFormCard
+                        form={form}
+                        onView={() => setDetailForm(form)}
+                        onEdit={() => { setDetailForm(null); setEditForm(form); }}
+                      />
+                    </div>
                   ))}
-                </div>
+                </CardScroller>
               </section>
             );
           })}
@@ -538,21 +835,105 @@ const FormsLibraryPage = () => {
             style={{ padding: 'var(--dim-space-400) var(--dim-space-600)' }}
           >
             <p className='text-sm text-ink-secondary'>
-              {filteredFormsFlat.length === 0
+              {sortedForms.length === 0
                 ? 'ไม่พบแบบฟอร์มที่ตรงกับการค้นหา'
-                : `แสดง ${rangeStart}-${rangeEnd} จาก ${filteredFormsFlat.length} รายการ`}
+                : (viewMode === 'list'
+                  ? `แสดง ${rangeStart}-${rangeEnd} จาก ${sortedForms.length} รายการ`
+                  : `ทั้งหมด ${sortedForms.length} รายการ · เลื่อนการ์ดซ้าย-ขวาในแต่ละหมวด`)}
             </p>
-            <Pagination
-              currentPage={safePage}
-              pageCount={pageCount}
-              onPageChange={setPage}
-              siblingCount={1}
-            />
+            {/* มุมมองการ์ดแสดงครบทุกใบในแถวเลื่อนอยู่แล้ว จึงไม่ต้องแบ่งหน้า */}
+            {viewMode === 'list' && (
+              <Pagination
+                currentPage={safePage}
+                pageCount={pageCount}
+                onPageChange={setPage}
+                siblingCount={1}
+              />
+            )}
           </section>
           </SmoothFilterResults>
         </div>
         <Footer copyright='© 2026 ศูนย์การพยาบาลคุณภาพ ดินแดง กรุงเทพมหานคร' />
       </main>
+
+      <FormDetailPopup
+        open={!!detailForm}
+        form={detailForm}
+        onClose={() => setDetailForm(null)}
+        onEdit={() => { setEditForm(detailForm); setDetailForm(null); }}
+        onOpenFullPage={() => detailForm && history.push(`/forms/${detailForm.slug}/fill`)}
+        onSaved={({ name }) => setSavedToast(`บันทึกร่าง “${name}” แล้ว`)}
+      />
+
+      {/* แก้ไข = เปิดตัวสร้างแบบฟอร์มพร้อมบล็อกของใบนี้ (ตัวเดียวกับที่ใช้
+          สร้างเอกสารใหม่) — ต้นแบบยังไม่มีที่เก็บถาวร จึงแจ้งผลด้วย toast */}
+      <EDocumentBuilderPopup
+        open={!!editForm}
+        onClose={() => setEditForm(null)}
+        editing={editForm ? {
+          id: editForm.slug,
+          name: editForm.name,
+          blocks: blocksFromLibraryForm(editForm),
+          templateSlug: editForm.slug,
+        } : null}
+        title={editForm ? `แก้ไขแบบฟอร์ม · ${editForm.name}` : undefined}
+        subtitle='ปรับโครงสร้างแบบฟอร์มในคลังเอกสาร e-document แล้วบันทึกเป็นเวอร์ชันใหม่'
+        onSave={({ name }) => {
+          setEditForm(null);
+          setSavedToast(`บันทึกการแก้ไข “${name}” แล้ว`);
+        }}
+      />
+
+      {/* ดูทั้งหมดของหมวด — การ์ดทุกใบในกริด ไม่ต้องเลื่อนทีละแถว */}
+      <Popup
+        open={!!categoryPopup}
+        onClose={() => setCategoryPopup(null)}
+        title={categoryPopup?.label ?? ''}
+        subtitle={categoryPopup
+          ? `${getFormsByCategory(categoryPopup.key).length} แบบฟอร์ม · ${categoryPopup.description}`
+          : ''}
+        size='extraLarge'
+        bodyScrollable
+        primaryAction={{ label: 'ปิด', onClick: () => setCategoryPopup(null) }}
+      >
+        {categoryPopup && (
+          <div
+            className='grid w-full min-w-0'
+            style={{
+              gridTemplateColumns: 'repeat(auto-fill, minmax(var(--dim-size-2450, 280px), 1fr))',
+              gap: 'var(--dim-space-400)',
+              alignItems: 'start',
+              padding: 'var(--dim-space-100)',
+            }}
+          >
+            {getFormsByCategory(categoryPopup.key).filter(queryMatchesForm).map((form) => (
+              <CatalogFormCard
+                key={form.slug}
+                form={form}
+                onView={() => { setCategoryPopup(null); setDetailForm(form); }}
+                onEdit={() => { setCategoryPopup(null); setEditForm(form); }}
+              />
+            ))}
+          </div>
+        )}
+      </Popup>
+
+      <EDocumentBuilderPopup
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title='สร้างเอกสาร e-document ใหม่'
+        subtitle='เลือกแบบฟอร์มตั้งต้นจากคลัง หรือเริ่มจากเอกสารเปล่า แล้วปรับด้วยตัวสร้างแบบฟอร์ม'
+        onSave={({ name }) => {
+          setCreateOpen(false);
+          setSavedToast(`สร้างเอกสาร “${name}” แล้ว`);
+        }}
+      />
+
+      <SuccessToast
+        open={!!savedToast}
+        message={savedToast}
+        onClose={() => setSavedToast('')}
+      />
     </div>
   );
 };

@@ -103,7 +103,7 @@ const CategoryFormCard = ({ form }) => {
           style={{ gap: 'var(--dim-space-300)' }}
         >
           <span className='inline-flex items-center gap-1'>
-            <Icon name='form' size={14} />
+            <Icon name='description' size={14} />
             {fieldCount} ช่อง
           </span>
           <span className='inline-flex items-center gap-1'>

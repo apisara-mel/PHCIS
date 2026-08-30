@@ -4,7 +4,7 @@ import QueuePageShell from '@/templates/QueuePageShell';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import BrandButton from '@/components/button/BrandButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
-import FormBuilderDragAndDrop from '@/components/form-builder/DragAndDrop';
+import FormCoverPicker, { OFFICIAL_COVER_KEY } from '@/components/forms/FormCoverPicker';
 import FormBuilderWorkspace from '@/components/form-builder/FormBuilderWorkspace';
 import { FormBuilderProvider, useFormBuilderContext } from '@/components/form-builder/FormBuilderContext';
 import useFormBuilder from '@/hooks/useFormBuilder';
@@ -26,22 +26,16 @@ const COVER_CARD = {
   gap: 'var(--dim-space-400)',
 };
 
-const SECTION_TITLE = {
-  color: 'var(--text-content-default)',
-  fontFamily: 'var(--type-family-heading-content)',
-  fontSize: 'var(--type-size-base)',
-  fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-  lineHeight: 1.5,
-};
-
 function CreateDocTemplatePageInner() {
   const history = useHistory();
   const {
-    coverFiles, setCoverFiles, lastSaved, saveDraft, publish,
+    setCoverFiles, lastSaved, saveDraft, publish,
     scrollPreviewToBlock, selectedId,
   } = useFormBuilderContext();
   const [published, setPublished] = useState(false);
   const [publishResult, setPublishResult] = useState(null);
+  /* หน้าปกที่เลือก — ค่าเริ่มต้นคือตราสำนักอนามัย เหมือนการสร้างใบยินยอม */
+  const [cover, setCover] = useState(OFFICIAL_COVER_KEY);
 
   const handleSave = () => saveDraft();
 
@@ -88,14 +82,10 @@ function CreateDocTemplatePageInner() {
             marginBottom: 0,
           }}
         >
-          <span style={SECTION_TITLE}>รูปหน้าปก</span>
-          <FormBuilderDragAndDrop
-            value={coverFiles}
-            onChange={setCoverFiles}
-            preview
-            multiple={false}
-            accept='image/png,image/jpeg,application/pdf'
-            style={{ maxWidth: 640 }}
+          <FormCoverPicker
+            value={cover}
+            onChange={setCover}
+            onFilesChange={setCoverFiles}
           />
         </section>
 

@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import VitalsForm from '@/components/forms/VitalsForm';
+import VoiceTextarea from '@/components/forms/VoiceTextarea';
 import { setScreeningSection } from '@/data/opdScreeningReview';
 import VitalsGraphPopup from '@/components/popup/VitalsGraphPopup';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -26,7 +27,12 @@ import Icon from '@/components/icons/Icon';
      • TOR 1.2.2.4 — "ดูประวัติ" button opening VitalsGraphPopup with a
        DatePickerRange window that filters the series by real calendar date.
 
-   VitalsForm itself is shared DS code and is NOT modified (playbook §4). */
+     • "บันทึกเพิ่มเติม" — ช่องพิมพ์/พูดแบบไม่บังคับ สำหรับสิ่งที่การ์ดสัญญาณชีพ
+       เก็บไม่ได้ เช่น ท่าที่วัด เหตุที่ค่าผิดปกติ หรือคำที่ผู้ป่วยบอกระหว่างวัด
+       วางไว้เหนือปุ่ม "เพิ่มรอบการวัด" ผ่าน `beforeAddRoundSlot` ของ VitalsForm
+       (slot แบบ opt-in คู่กับ `headerAction` — เมนูอื่นที่ใช้ฟอร์มเดียวกันไม่กระทบ)
+       ไม่ผูกกับ `onValidityChange` จึงไม่กันปุ่ม "ถัดไป" และไหลไปพร้อมค่าสัญญาณชีพ
+       ใน review section เดียวกัน ขั้น "ตรวจสอบข้อมูล" จึงอ่านต่อได้ */
 
 /* ── Two-tier thresholds (per vital, both directions) ────────────────── */
 export const VITAL_THRESHOLDS = {
@@ -134,6 +140,31 @@ const AlertPill = ({ label, value, unit, tier, dir }) => {
 
 const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [note, setNote] = useState('');
+
+  /* ใช้ ref ไม่ใช่ state เพราะผู้ส่งทั้งสองฝั่งต้องอ่านค่าล่าสุดของอีกฝั่ง
+     โดยไม่ทำให้ VitalsForm ได้ callback ใหม่ทุกตัวอักษรที่พิมพ์ในบันทึก */
+  const vitalsValuesRef = useRef(null);
+  const noteRef = useRef('');
+
+  const publishVitals = useCallback(() => {
+    setScreeningSection(patient.hn, 'vitals', {
+      ...(vitalsValuesRef.current || {}),
+      note: noteRef.current,
+    });
+  }, [patient.hn]);
+
+  const handleVitalsValues = useCallback((v) => {
+    vitalsValuesRef.current = v;
+    publishVitals();
+  }, [publishVitals]);
+
+  const handleNoteChange = useCallback((e) => {
+    const next = e?.target?.value ?? '';
+    noteRef.current = next;
+    setNote(next);
+    publishVitals();
+  }, [publishVitals]);
 
   const series = useMemo(() => buildVitalsSeries(patient.hn || ''), [patient.hn]);
   const latest = series[series.length - 1];
@@ -192,7 +223,18 @@ const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
         patientSex={patient.sex || patient.gender}
         patientAgeYears={parseInt(patient.age, 10) || undefined}
         /* ส่งค่าที่พยาบาลกรอกให้ step "ตรวจสอบข้อมูล" อ่านต่อ */
-        onValuesChange={(v) => setScreeningSection(patient.hn, 'vitals', v)}
+        onValuesChange={handleVitalsValues}
+        /* ช่องบันทึกเพิ่มเติม — ไม่บังคับกรอก จึงไม่ผูกกับ onValidityChange */
+        beforeAddRoundSlot={(
+          <VoiceTextarea
+            label='บันทึกเพิ่มเติม'
+            value={note}
+            onChange={handleNoteChange}
+            placeholder='สิ่งที่การ์ดด้านบนเก็บไม่ได้ เช่น ท่าที่วัด · เหตุที่ค่าผิดปกติ · สิ่งที่ผู้ป่วยบอกระหว่างวัด (ไม่บังคับ)'
+            helperText='ไม่บังคับกรอก — กดไมโครโฟนเพื่อพูดแทนการพิมพ์ได้'
+            style={{ width: '100%', maxWidth: 'none' }}
+          />
+        )}
         /* ปุ่มไปอยู่แถวเดียวกับชิปช่วงอายุใน VitalsForm (มติผู้ใช้ 28 ส.ค. 69) —
            เดิมเป็นแถวของตัวเองเหนือฟอร์ม เสียบรรทัดเปล่าไปหนึ่งแถว */
         headerAction={(

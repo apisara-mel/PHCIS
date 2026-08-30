@@ -452,6 +452,10 @@ const RegistrationFormPage = () => {
                แถวแรกคือคิวที่กำลังถูกเรียก จึงขึ้น "เรียกแล้ว" ตั้งแต่แรก
                (มติผู้ใช้ 29 ส.ค. 69) */
             statusLabel={section === 'inProgress' ? 'กำลังลงทะเบียน' : undefined}
+            /* แถวที่กำลังทำอยู่แสดงเป็นป้าย ไม่ใช่ปุ่ม — ตรรกะเดียวกับตารางคิว
+               เวชระเบียน ปุ่มที่อ่านเหมือนสถานะทำให้กดเรียกคิวซ้ำโดยไม่ตั้งใจ
+               (มติผู้ใช้ 30 ส.ค. 69) */
+            statusAsBadge
             called={!!queueCalled[p.id] || (section === 'waiting' && rowIdx === 0)}
             paused={!!queuePaused[p.id]}
             disabledReason={p.deceased ? 'ผู้รับบริการเสียชีวิต — เรียกคิวไม่ได้' : undefined}
