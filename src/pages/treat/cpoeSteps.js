@@ -19,8 +19,12 @@ import { soapHasContent } from '@/data/treatmentSoap';
    เพราะคลินิก NCD / TB และ Components Library ใช้อยู่ */
 /* SOAP Note ย้ายมาเป็นลำดับที่ 5 (หลังสั่งการรักษา) 28 ส.ค. 69 — หมอสรุป S/O/A/P
    หลังจากวินิจฉัยและสั่งการรักษาเสร็จแล้ว ไม่ใช่ก่อน */
+/* ขั้น "คัดกรองและซักประวัติ" ถูกถอดออกจากลำดับ 31 ส.ค. 69 (มติผู้ใช้) — งานคัดกรอง
+   ทำที่ `/opd/screening` ก่อนหน้าอยู่แล้ว หน้าตรวจรักษาเป็นฝั่งอ่านผล ซึ่งอ่านได้จาก
+   คอลัมน์ "บันทึกจากพยาบาล" ในขั้นตรวจร่างกาย · `Step2Screening` ยังอยู่ในไฟล์
+   TreatmentSteps เพราะคลินิกอื่นเรียกใช้ และ `CPOE_STEP_SCREENING` ยังคำนวณได้
+   (คืน 0 = ขั้นแรก) ปุ่มที่กระโดดมาขั้นนี้จึงไม่พาไปที่ว่าง */
 export const CPOE_TREATMENT_STEPS = [
-  { key: 'screening',   title: 'คัดกรองและซักประวัติ',  subtitle: 'Screening' },
   { key: 'examination', title: 'ตรวจร่างกาย',          subtitle: 'Physical Examination' },
   { key: 'diagnosis',   title: 'วินิจฉัย',              subtitle: 'Diagnosis' },
   { key: 'orders',      title: 'สั่งการรักษา',          subtitle: 'Treatment Order' },
@@ -57,17 +61,17 @@ export const isCpoeSoapComplete = (form) => soapHasContent(form?.soap);
    ถึง SOAP จึงต้องบวกกลับหนึ่งช่อง ส่วนขั้นหลัง SOAP ชดเชยกันพอดี */
 export const getCpoeCompletedSteps = (form, stepIndex = 0) => {
   /* ชุด legacy เรียง [ประวัติ, คัดกรอง, ตรวจร่างกาย, วินิจฉัย, —, นัดหมาย, เอกสาร]
-     ขั้นก่อน SOAP จึงบวกกลับหนึ่งช่อง ส่วน SOAP เป็นต้นไปตรงกันพอดี */
-  const legacyIndex = stepIndex < CPOE_STEP_SOAP ? stepIndex + 1 : stepIndex;
+     ตอนนี้ลำดับของ CPOE ไม่มีทั้ง "ประวัติ" และ "คัดกรอง" แล้ว ขั้นแรกคือตรวจร่างกาย
+     ซึ่งตรงกับ legacy[2] จึงบวกกลับสองช่องสำหรับขั้นก่อน SOAP */
+  const legacyIndex = stepIndex < CPOE_STEP_SOAP ? stepIndex + 2 : stepIndex;
   const legacy = getTreatmentCompletedSteps(form, legacyIndex);
   return [
-    legacy[1],                        /* 1 คัดกรอง            */
-    legacy[2],                        /* 2 ตรวจร่างกาย        */
-    legacy[3],                        /* 3 วินิจฉัย            */
-    stepIndex > CPOE_STEP_ORDERS,     /* 4 สั่งการรักษา (ไม่บังคับ) */
-    isCpoeSoapComplete(form),         /* 5 SOAP Note          */
-    legacy[5],                        /* 6 นัดหมาย            */
-    legacy[6],                        /* 7 เอกสาร/ใบรับรองแพทย์ */
+    legacy[2],                        /* 1 ตรวจร่างกาย        */
+    legacy[3],                        /* 2 วินิจฉัย            */
+    stepIndex > CPOE_STEP_ORDERS,     /* 3 สั่งการรักษา (ไม่บังคับ) */
+    isCpoeSoapComplete(form),         /* 4 SOAP Note          */
+    legacy[5],                        /* 5 นัดหมาย            */
+    legacy[6],                        /* 6 เอกสาร/ใบรับรองแพทย์ */
   ];
 };
 

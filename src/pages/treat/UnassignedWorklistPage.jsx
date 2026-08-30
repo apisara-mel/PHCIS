@@ -159,7 +159,9 @@ const ESI_ACCENT = {
   grey:   'var(--surface-colorfulbadge-grey-bold, #858C92)',
 };
 
-const CaseCard = ({ row, renderActions }) => {
+/* export เพื่อให้พาเนลคิวข้างฟอร์มตรวจรักษาใช้การ์ดใบเดียวกัน (มติผู้ใช้ 31 ส.ค. 69)
+   — มุมมอง "แยกตามคลินิก" ในพาเนลต้องหน้าตาเหมือนบอร์ดในหน้าคิวรวมรอรับเคส */
+export const CaseCard = ({ row, renderActions }) => {
   const triage = TRIAGE_LEVELS[row.esi];
   return (
     <div

@@ -4,6 +4,7 @@ import BrandCircleSubdueIconButton from '@/components/button/BrandCircleSubdueIc
 import DragAndDrop from '@/components/form-builder/DragAndDrop';
 import Select from '@/components/forms/Select';
 import { getCarriedScreening } from '@/data/screeningHandoff';
+import { activeFlagsFor } from '@/data/treatmentPatientFlags';
 import Checkbox from '@/components/checkbox/Checkbox';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
 import Tooltip from '@/components/tooltip/Tooltip';
@@ -331,6 +332,58 @@ const Field = ({ label, required, children }) => (
 /* หนึ่งบรรทัดในคอลัมน์ "บันทึกจากพยาบาล" — `row` = [label, value, tone?]
    ถ้ามี `tone` ค่าจะแสดงเป็น ColorfulBadge สีตามระดับแทนข้อความเปล่า ส่วนข้อความ
    ที่คัดลอกยังเป็น "หัวข้อ: ค่า" เหมือนกันทั้งสองแบบ */
+/* โทนป้ายระดับความรุนแรง — ไล่จากแดงลงมา ให้กวาดตาเจอตัวรุนแรงก่อน */
+const SEVERITY_TONE = { มาก: 'red', รุนแรง: 'red', ปานกลาง: 'orange', 'เล็กน้อย': 'yellow' };
+
+/* หนึ่งรายการที่พยาบาลซักไว้ — ชื่อเป็นบรรทัดของตัวเอง ระดับ/ความน่าจะเป็นเป็นป้าย
+   ส่วนอาการกับหมายเหตุแยกบรรทัดชิดซ้าย อ่านไล่ลงมาได้ */
+const NurseRecord = ({ record }) => (
+  <div
+    className='flex flex-col w-full'
+    style={{
+      gap: 'var(--dim-space-100)',
+      paddingTop: 'var(--dim-space-200)',
+      paddingBottom: 'var(--dim-space-200)',
+      borderBottom: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+    }}
+  >
+    <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
+      <span className='flex-1 min-w-0' style={{
+        color: 'var(--text-content-primary)',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-sm)',
+        fontWeight: 'var(--type-weight-medium)',
+      }}>
+        {record.name}
+      </span>
+      {record.severity && (
+        <ColorfulBadge style={SEVERITY_TONE[record.severity] || 'grey'} size='small' hierarchy='secondary'>
+          {record.severity}
+        </ColorfulBadge>
+      )}
+      {(record.probability || record.status) && (
+        <ColorfulBadge style='grey' size='small' hierarchy='secondary'>
+          {record.probability || record.status}
+        </ColorfulBadge>
+      )}
+      <CopyIconButton
+        label={`คัดลอก ${record.name}`}
+        text={`${record.name}: ${[record.severity, record.probability || record.status, record.symptom, record.note].filter(Boolean).join(' · ')}`}
+      />
+    </div>
+    {record.symptom && (
+      <span style={{ color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
+        {record.symptom}
+      </span>
+    )}
+    {record.note && (
+      <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xxs, 11px)' }}>
+        {record.note}
+      </span>
+    )}
+  </div>
+);
+
 const NurseRow = ({ row }) => {
   const [label, value, tone] = row;
   return (
@@ -385,26 +438,52 @@ const ExamNotesPanel = ({
      สิ่งที่จุดคัดกรองระบุไว้ · เตียงสังเกตอาการ (มติผู้ใช้ 28 ส.ค. 69) */
   const screening = getCarriedScreening(patient || {});
 
-  /* หนึ่งรายการที่พยาบาลซักไว้ = หนึ่งบรรทัด — ชื่อเป็นหัวแถว ส่วนรายละเอียด
-     (ระดับ · ความน่าจะเป็น/สถานะ · อาการ · หมายเหตุ) ต่อกันเป็นค่าเดียว เพื่อให้
-     คัดลอกไปช่องของแพทย์ได้ทั้งบรรทัดในคลิกเดียว */
-  const recordLine = (r) => [
-    r.severity && `ระดับ${r.severity}`,
-    r.probability || r.status,
-    r.symptom,
-    r.note,
-  ].filter(Boolean).join(' · ');
-
   /* "ระบุว่าไม่มี" ต้องขึ้นเป็นบรรทัด ไม่ใช่หายไปเฉย ๆ — หมอต้องอ่านออกว่า
      พยาบาลถามแล้วและได้คำตอบ ต่างจากหมวดที่ยังไม่ได้ซัก (ซึ่งไม่ขึ้นเลย) */
+  /* แท็บซักประวัติส่งรายการดิบมาให้ `NurseRecord` วาดเอง (มติผู้ใช้ 31 ส.ค. 69) —
+     ของเดิมยัดทุกอย่างเป็นข้อความยาวบรรทัดเดียวชิดขวา ระดับ/ความน่าจะเป็น/อาการ
+     ปนกันจนอ่านไม่ออกว่าอันไหนคืออะไร */
   const historyBlock = (title, topic) => {
-    const rows = (topic?.records || []).map((r) => [r.name, recordLine(r) || '—']);
-    if (rows.length === 0 && topic?.denied) return { title, rows: [['ผลการซักประวัติ', 'ซักแล้ว — ระบุว่าไม่มี']] };
-    return { title, rows };
+    const records = topic?.records || [];
+    if (records.length === 0 && topic?.denied) {
+      return { title, rows: [['ผลการซักประวัติ', 'ซักแล้ว — ระบุว่าไม่มี']] };
+    }
+    return { title, records };
   };
 
   const behaviour = screening.behaviour || null;
   const vitalRound = screening.vitalRound;
+
+  /* ข้อมูลที่มาจากหน้าเวชระเบียน (มติผู้ใช้ 31 ส.ค. 69) — คอลัมน์ซ้ายเคยมีแต่ผล
+     คัดกรองของวันนี้ ทั้งที่ทะเบียนผู้ป่วยถือข้อมูลที่หมอต้องอ่านก่อนลงมือหลายอย่าง
+     (ธงผู้ป่วย · สิทธิ · การเคลื่อนไหว · ผู้ติดต่อฉุกเฉิน · ประวัติแพ้/โรคประจำตัว
+     ที่บันทึกไว้ในทะเบียน ไม่ใช่ที่ซักวันนี้) `patient` ที่หน้าส่งมาคือเรกคอร์ด
+     เวชระเบียนที่ merge ธงแล้ว จึงอ่านได้ตรง ๆ */
+  const registryFlags = activeFlagsFor(patient) || [];
+  const registryContact = (patient?.emergency || [])[0];
+  const registryBlocks = [
+    {
+      title: 'ธงผู้ป่วยจากเวชระเบียน',
+      rows: registryFlags.map((f) => [f.label, patient?.flagSources?.[f.key] || 'บันทึกไว้ในทะเบียน']),
+    },
+    {
+      title: 'ข้อมูลทะเบียนผู้ป่วย',
+      rows: [
+        ['สิทธิการรักษา', patient?.rights],
+        ['หมู่เลือด', patient?.bloodType],
+        ['การเคลื่อนไหว', patient?.mobility],
+        ['อาชีพ', patient?.occupation],
+        ['โทรศัพท์', patient?.phone],
+      ].filter(([, v]) => v),
+    },
+    {
+      title: 'ผู้ติดต่อกรณีฉุกเฉิน',
+      rows: registryContact
+        ? [[`${registryContact.name} ${registryContact.last}`.trim(),
+          [registryContact.relation, registryContact.phone].filter(Boolean).join(' · ')]]
+        : [],
+    },
+  ].filter((b) => b.rows.length > 0);
 
   const nurseBlocks = [
     {
@@ -448,7 +527,7 @@ const ExamNotesPanel = ({
         ['เตียงสังเกตอาการ', screening.bedId],
       ].filter(([, v]) => v),
     },
-  ].filter((b) => b.rows.length > 0);
+  ].filter((b) => b.rows.length > 0).concat(registryBlocks);
 
   /* ซักประวัติทั้งชุดจากจุดคัดกรอง ทำเป็นแท็บ (มติผู้ใช้ 30 ส.ค. 69) — ป้ายและ
      ลำดับตรงกับแท็บของจุดคัดกรองเป๊ะ ๆ หมอกับพยาบาลจึงอ่านหัวข้อชุดเดียวกัน
@@ -461,6 +540,19 @@ const ExamNotesPanel = ({
     historyBlock('แพ้สารเคมี', screening.allergyTopics?.chemical),
     historyBlock('โรคประจำตัว', screening.allergyTopics?.disease),
     historyBlock('อื่น ๆ', screening.allergyTopics?.other),
+    {
+      /* ประวัติที่ "บันทึกไว้ในทะเบียน" ต่างจากที่ "ซักวันนี้" — หมอต้องเห็นทั้งคู่
+         เพราะทะเบียนคือของสะสมข้ามครั้ง ส่วนจุดคัดกรองคือของรอบนี้ */
+      title: 'จากทะเบียน (แพ้ยา/โรคประจำตัว)',
+      records: [
+        ...(patient?.drugAllergies || []).map((a) => ({
+          name: a.name, severity: a.severity, symptom: a.symptom, probability: 'บันทึกในทะเบียน',
+        })),
+        ...(patient?.chronicDiseases || []).map((d) => ({
+          name: d.name, severity: d.severity, symptom: d.detail, probability: 'โรคประจำตัว',
+        })),
+      ],
+    },
     {
       title: 'พฤติกรรมสุขภาพ',
       rows: [
@@ -499,11 +591,14 @@ const ExamNotesPanel = ({
       <div className='flex w-full items-stretch min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
         {/* Nurse column */}
         <div
-          className='flex flex-col shrink-0'
+          className='flex flex-col flex-1 min-w-0'
           style={{
             /* ไม่มีพื้นขาว/กรอบของตัวเอง — การ์ดขาวมาจากตัวห่อในหน้าแล้ว
-               (มติผู้ใช้ 28 ส.ค. 69) เหลือเส้นคั่นบาง ๆ ระหว่างสองคอลัมน์ */
-            width: 448,
+               (มติผู้ใช้ 28 ส.ค. 69) เหลือเส้นคั่นบาง ๆ ระหว่างสองคอลัมน์
+               แบ่งพื้นที่ 50/50 (มติผู้ใช้ 31 ส.ค. 69) — ของเดิมตรึงคอลัมน์พยาบาล
+               ไว้ 448px พอจอกว้างขึ้น ฝั่งแพทย์กินที่ไปเกือบหมด ทั้งที่ตอนนี้
+               คอลัมน์ซ้ายมีผลคัดกรองครบทุกหมวดแล้ว ต้องการที่พอ ๆ กัน */
+            flexBasis: 0,
             gap: 'var(--dim-space-400)',
             paddingRight: 'var(--dim-space-600)',
             borderRight: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
@@ -579,7 +674,11 @@ const ExamNotesPanel = ({
               ))}
             </div>
 
-            {activeHistory?.rows.length ? (
+            {activeHistory?.records?.length ? (
+              <div className='flex flex-col w-full'>
+                {activeHistory.records.map((r, i) => <NurseRecord key={`${r.name}-${i}`} record={r} />)}
+              </div>
+            ) : activeHistory?.rows?.length ? (
               <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
                 {activeHistory.rows.map((row) => <NurseRow key={row[0]} row={row} />)}
               </div>
@@ -599,6 +698,8 @@ const ExamNotesPanel = ({
         <div
           className='flex flex-col flex-1 min-w-0'
           style={{
+            /* คู่กับคอลัมน์ซ้าย — flexBasis 0 ทั้งคู่ทำให้แบ่งครึ่งพอดีทุกความกว้าง */
+            flexBasis: 0,
             gap: 'var(--dim-space-400)',
             paddingLeft: 'var(--dim-space-600)',
           }}

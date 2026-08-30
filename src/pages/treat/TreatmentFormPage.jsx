@@ -17,7 +17,7 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import TreatmentFormShell from '@/templates/TreatmentFormShell';
 import {
-  Step2Screening, Step3Examination, Step4DoctorRecord,
+  Step3Examination, Step4DoctorRecord,
   Step5Orders, Step6Appointment,
 } from '@/components/forms/TreatmentSteps';
 import SoapNotePanel from '@/pages/treat/panels/SoapNotePanel';
@@ -72,6 +72,7 @@ import {
   getUnassignedRows, groupRowsByClinic, comparePoolRows, clinicShortLabel,
   claimCase, subscribeUnassignedPool,
 } from '@/data/unassignedWorklist';
+import { CaseCard } from '@/pages/treat/UnassignedWorklistPage';
 
 const breadcrumb = ['บันทึกการรักษา', 'ตรวจรักษาทั่วไป (OPD)'];
 
@@ -246,8 +247,10 @@ const buildInitialForm = (p) => ({
 /* Step 8 ห่อ Step7Certificate เดิมไว้ทั้งดุ้น (การ์ดใบรับรองแพทย์ทำงาน
    เหมือนเดิมทุกประการ) แล้วเติมศูนย์พิมพ์เอกสาร / เทมเพลตใบคำขอ /
    ใบรับรองภาษาอังกฤษ / แบบฟอร์มยินยอม ต่อท้าย */
+/* ต้องเรียงตรงกับ CPOE_TREATMENT_STEPS — ถอด Step2Screening ออกพร้อมกับขั้น
+   "คัดกรองและซักประวัติ" (มติผู้ใช้ 31 ส.ค. 69) */
 const STEP_RENDERERS = [
-  Step2Screening, Step3Examination,
+  Step3Examination,
   Step4DoctorRecord, Step5Orders,
   SoapNotePanel,
   Step6Appointment, CpoeDocumentsStep,
@@ -392,6 +395,8 @@ const TreatmentFormPage = () => {
       /* บอกคลินิกและอาการสำคัญไว้ใต้ชื่อ — กองกลางเห็นเคสข้ามคลินิก ถ้าไม่บอก
          ก็ไม่รู้ว่าแถวนี้เป็นของคลินิกไหน */
       sublabel: [clinicShortLabel(r.clinicKey), r.cc].filter(Boolean).join(' · '),
+      /* แถวดิบ — มุมมอง "แยกตามคลินิก" ใช้การ์ดเต็มใบที่ต้องการ ESI/เวลารอ/สัญญาณชีพ */
+      raw: r,
     }));
     const rows = getUnassignedRows().filter((r) => !r.doctor || r.doctor === CURRENT_CLINICIAN.name);
 
@@ -708,6 +713,8 @@ const TreatmentFormPage = () => {
         /* แถวเรียบคั่นด้วยเส้น ไม่ใช่การ์ดซ้อนการ์ด (มติผู้ใช้ 28 ส.ค. 69) —
            กรอบรอบทุกแถวในพาเนลแคบทำให้ดูเป็นกล่องเล็ก ๆ เรียงกันแทนที่จะเป็นคิว */
         rowVariant='divider'
+        /* คิวรวมใช้การ์ดเต็มใบ พาเนลจึงต้องกว้างกว่าปกติ */
+        expandedWidth={poolPanel && poolView === 'clinic' ? 420 : undefined}
         queue={poolPanel ? poolPanel.queue : queueBuckets}
         sectionLabels={poolPanel ? poolPanel.labels : TREATMENT_QUEUE_SUBMENU_LABELS}
         /* ตัวสลับมุมมองของคิวรวม — ป้ายและพฤติกรรมชุดเดียวกับหน้าคิวรวมรอรับเคส */
@@ -743,6 +750,25 @@ const TreatmentFormPage = () => {
         sections={poolPanel ? poolPanel.sections : ['inProgress', 'waiting']}
         showDots={false}
         onPickPatient={(p) => setPanelAcceptTarget(p)}
+        /* มุมมอง "แยกตามคลินิก" แสดงการ์ดแบบเดียวกับบอร์ดในหน้าคิวรวมรอรับเคส
+           (มติผู้ใช้ 31 ส.ค. 69) — มุมมอง worklist ยังเป็นแถวเรียบตามเดิม */
+        renderRow={poolPanel && poolView === 'clinic'
+          ? (p) => (
+            <CaseCard
+              row={p.raw}
+              renderActions={() => (
+                <BrandSubdueButton
+                  size='sm'
+                  variant='outline'
+                  leadingIcon={p.doctor ? 'login' : 'assignment_ind'}
+                  onClick={(e) => { e.stopPropagation(); setPanelAcceptTarget(p); }}
+                >
+                  {p.doctor ? 'เปิดตรวจ' : 'รับเคสนี้'}
+                </BrandSubdueButton>
+              )}
+            />
+          )
+          : undefined}
         renderRowActions={(p, section, rowIdx) => (poolPanel ? (
           /* กองกลางไม่มีการ "เรียกคิว" — เคสยังไม่มีเจ้าของ สิ่งที่ทำได้คือรับเคส
              แล้วเข้าห้องตรวจ (เคสที่รับไว้เองแล้วก็แค่เปิดต่อ) */
@@ -754,7 +780,7 @@ const TreatmentFormPage = () => {
               leadingIcon={p.doctor ? 'login' : 'assignment_ind'}
               onClick={(e) => { e.stopPropagation(); setPanelAcceptTarget(p); }}
             >
-              {p.doctor ? 'เปิดตรวจ' : 'รับเคส'}
+              {p.doctor ? 'เปิดตรวจ' : 'รับเคสนี้'}
             </BrandSubdueButton>
           </div>
         ) : (

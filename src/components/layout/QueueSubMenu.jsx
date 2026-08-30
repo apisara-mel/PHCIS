@@ -296,6 +296,10 @@ const QueueSubMenu = ({
   renderRowActions,
   /** โหนดบนสุดของพาเนลตอนกาง (เช่น ตัวสลับมุมมองของคิวรวมรอรับเคส) */
   headerSlot = null,
+  /** แทนการเรนเดอร์แถวทั้งแถว — `(item, sectionKey, rowIdx) => ReactNode`
+      ใช้เมื่อผู้เรียกต้องการการ์ดของตัวเอง (พาเนลคิวรวมใช้การ์ดเดียวกับบอร์ด
+      ในหน้าคิวรวมรอรับเคส) ไม่ส่งมา = ใช้ QueueRow ตามเดิม */
+  renderRow,
   className = '',
   style = {},
 }) => {
@@ -428,7 +432,9 @@ const QueueSubMenu = ({
               >
                 {sectionLabels[key](bucket.total)}
               </SectionLabel>
-              {bucket.items.map((p, rowIdx) => (
+              {bucket.items.map((p, rowIdx) => (renderRow ? (
+                <React.Fragment key={p.id}>{renderRow(p, key, rowIdx)}</React.Fragment>
+              ) : (
                 <QueueRow
                   key={p.id}
                   name={p.name}
@@ -445,7 +451,7 @@ const QueueSubMenu = ({
                   actions={renderRowActions ? renderRowActions(p, key, rowIdx) : undefined}
                   onClick={onPickPatient ? () => onPickPatient(p, key) : undefined}
                 />
-              ))}
+              )))}
             </div>
           );
         })}

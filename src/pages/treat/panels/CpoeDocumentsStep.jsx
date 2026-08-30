@@ -270,80 +270,9 @@ const CpoeDocumentsStep = (props) => {
       {/* ── การ์ดใบรับรองแพทย์เดิม — ทำงานเหมือนเดิมทุกประการ ── */}
       <Step7Certificate {...props} />
 
-      {/* §1.5.11.3 ภาษาของใบรับรองแพทย์ — ขึ้นเฉพาะเมื่อเลือก "ออกใบรับรองแพทย์"
-          ไม่งั้นเป็นตัวเลือกภาษาและใบตัวอย่างของเอกสารที่ไม่ได้จะออก
-          (มติผู้ใช้ 28 ส.ค. 69) */}
-      {props?.form?.certIssue === 'yes' && (
-      <PanelCard
-        title='ภาษาของใบรับรองแพทย์'
-        subtitle='TOR §1.5.11.3 กำหนดให้ออกใบรับรองแพทย์ภาษาอังกฤษได้ — เลือกภาษาแล้วหัวข้อและข้อความมาตรฐานทั้งใบจะเปลี่ยนตาม'
-      >
-        <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          {CERT_LANGUAGES.map((l) => (
-            <label key={l.key} className='inline-flex items-center' style={{ gap: 'var(--dim-space-100, 4px)', cursor: canEdit ? 'pointer' : 'not-allowed' }}>
-              <input
-                type='radio'
-                name='cert-language'
-                checked={certLang === l.key}
-                disabled={!canEdit}
-                onChange={() => setCertLang(l.key)}
-              />
-              <span style={PANEL_VALUE_STYLE}>{l.label}</span>
-            </label>
-          ))}
-        </div>
-
-        {certLang !== 'th' && !cardPatient?.englishName ? (
-          <PanelAlert tone='warning' icon='translate' title='ยังไม่มีชื่อผู้รับบริการเป็นอักษรโรมัน'>
-            เวชระเบียนของผู้รับบริการรายนี้ยังไม่มีชื่อภาษาอังกฤษ — ใบรับรองภาษาอังกฤษจะพิมพ์ชื่อเป็นภาษาไทยแทน
-            ให้แจ้งงานเวชระเบียนบันทึกชื่ออักษรโรมันก่อนออกใบ
-          </PanelAlert>
-        ) : null}
-
-        {/* ตัวอย่างหัวข้อทั้งใบตามภาษาที่เลือก */}
-        <div
-          className='flex flex-col w-full'
-          style={{
-            gap: 'var(--dim-space-200, 8px)',
-            borderRadius: 'var(--dim-radius-300, 10px)',
-            border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
-            background: 'var(--surface-neutral-quaternary, #F9FBFB)',
-            paddingTop: 'var(--dim-space-400, 16px)',
-            paddingRight: 'var(--dim-space-400, 16px)',
-            paddingBottom: 'var(--dim-space-400, 16px)',
-            paddingLeft: 'var(--dim-space-400, 16px)',
-          }}
-        >
-          <span style={{ ...PANEL_VALUE_STYLE, fontWeight: 'var(--type-weight-bold)' }}>
-            {certText('title', certLang)}
-          </span>
-          <span style={PANEL_LABEL_STYLE}>{certText('center', certLang)}</span>
-          <InfoPair label={certText('certNo', certLang)} value={form?.certNo} />
-          <InfoPair
-            label={certText('patient', certLang)}
-            value={certLang === 'en' ? (cardPatient?.englishName || cardPatient?.fullName) : cardPatient?.fullName}
-          />
-          <InfoPair label={certText('hn', certLang)} value={patient?.hn} />
-          <InfoPair label={certText('diagnosis', certLang)} value={primaryDx ? `${primaryDx.code || ''} ${primaryDx.name}` : '—'} />
-          <InfoPair
-            label={certText('rest', certLang)}
-            value={form?.restDays ? `${form.restDays} ${certLang === 'en' ? 'day(s)' : 'วัน'}` : '—'}
-          />
-          <InfoPair label={certText('from', certLang)} value={form?.startDate} />
-          <InfoPair label={certText('to', certLang)} value={form?.endDate} />
-          <InfoPair label={certText('doctor', certLang)} value={CURRENT_CLINICIAN.name} />
-          <InfoPair label={certText('license', certLang)} value={CURRENT_CLINICIAN.license} />
-          {/* §1.5.11.5 — ไม่มีลายเซ็นอิเล็กทรอนิกส์ต้องมีเส้นให้เซ็นมือ ไม่ปล่อยว่าง */}
-          {signature?.at || form?.certSignedAt ? (
-            <span style={PANEL_LABEL_STYLE}>
-              {certText('signedAt', certLang)}: {signature?.at || form?.certSignedAt} · {signature?.by || CURRENT_CLINICIAN.name}
-            </span>
-          ) : (
-            <span style={PANEL_VALUE_STYLE}>{certText('manualSign', certLang)}</span>
-          )}
-        </div>
-      </PanelCard>
-      )}
+      {/* การ์ด "ภาษาของใบรับรองแพทย์" (§1.5.11.3) พร้อมใบตัวอย่าง ถูกเอาออก
+          31 ส.ค. 69 (มติผู้ใช้) — ตัวเลือกภาษาและตัวอย่างทั้งใบไม่ถูกใช้ในโฟลว์นี้
+          `CERT_LANGUAGES` / `certText()` ยังอยู่ในไฟล์ พร้อมเสียบกลับถ้าจะเอาคืน */}
 
       {/* การ์ด "พิมพ์เอกสารของการตรวจครั้งนี้" (ศูนย์พิมพ์เอกสาร §1.5.10.1/2)
           ถูกเอาออก 28 ส.ค. 69 */}

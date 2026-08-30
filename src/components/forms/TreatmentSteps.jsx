@@ -5698,10 +5698,13 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
                   color: 'var(--text-table-title)',
                   fontFamily: 'var(--type-family-heading-content)',
                   fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-                  fontSize: 'var(--type-size-base)',
+                  fontSize: 'var(--type-size-sm)',
                   lineHeight: 1.5,
                 }}
               >
+                {/* หัวข้อภายในการ์ดลดจาก base เป็น sm (มติผู้ใช้ 31 ส.ค. 69) —
+                    ขั้นนี้มีหัวข้อย่อยหกอัน ขนาด base ทำให้แต่ละอันอ่านเป็นหัวเรื่อง
+                    ระดับเดียวกับชื่อการ์ด จนไล่ลำดับไม่ออก */}
                 ใบรับรองแพทย์
               </span>
               <div
@@ -5745,7 +5748,7 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
                 color: 'var(--text-content-default)',
                 fontFamily: 'var(--type-family-heading-content)',
                 fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-                fontSize: 'var(--type-size-base)',
+                fontSize: 'var(--type-size-sm)',
               }}>
                 ประเภทใบรับรองแพทย์
               </span>
@@ -5753,7 +5756,7 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
                 role='radiogroup'
                 aria-label='ประเภทใบรับรองแพทย์'
                 className='flex items-start w-full'
-                style={{ gap: 'var(--dim-space-400)' }}
+                style={{ gap: 'var(--dim-space-200)' }}
               >
                 {CERT_TYPE_CARDS.map((opt) => (
                   <RadioButton
@@ -5776,6 +5779,48 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
               </div>
             </div>
 
+            {/* ภาษาใบรับรองแพทย์ (มติผู้ใช้ 31 ส.ค. 69) — TOR §1.5.11.3 กำหนดให้ออก
+                ใบภาษาอังกฤษได้ ย้ายมาอยู่ในการ์ดเดียวกับประเภทใบ แทนที่จะเป็นการ์ด
+                แยกท้ายขั้น เพราะเป็นคุณสมบัติของใบที่กำลังจะออก ไม่ใช่งานคนละชิ้น */}
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              <span style={{
+                color: 'var(--text-content-default)',
+                fontFamily: 'var(--type-family-heading-content)',
+                fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
+                fontSize: 'var(--type-size-sm)',
+              }}>
+                ภาษาใบรับรองแพทย์
+              </span>
+              <div
+                role='radiogroup'
+                aria-label='ภาษาใบรับรองแพทย์'
+                className='flex items-start w-full'
+                style={{ gap: 'var(--dim-space-200)' }}
+              >
+                {[
+                  { value: 'th', titleTh: 'ไทย', titleEn: 'Thai' },
+                  { value: 'en', titleTh: 'อังกฤษ', titleEn: 'English' },
+                ].map((opt) => (
+                  <RadioButton
+                    key={opt.value}
+                    name='cert-language'
+                    value={opt.value}
+                    checked={(form.certLang || 'th') === opt.value}
+                    onChange={set('certLang')}
+                    title={opt.titleTh}
+                    description={opt.titleEn}
+                    className='w-fit min-w-0'
+                    style={{ width: 'fit-content' }}
+                    showRadio={false}
+                    showCircleIcon={false}
+                    showIcon={false}
+                    showBadgeTitle={false}
+                    showBadge={false}
+                  />
+                ))}
+              </div>
+            </div>
+
             <CertSectionDivider />
 
             {/* ข้อมูลผู้ป่วย — read-only auto-fill row (Figma 3263:174928) */}
@@ -5786,7 +5831,7 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
                   color: 'var(--text-content-default)',
                   fontFamily: 'var(--type-family-heading-content)',
                   fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-                  fontSize: 'var(--type-size-base)',
+                  fontSize: 'var(--type-size-sm)',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -5831,7 +5876,7 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
                       color: 'var(--text-content-default)',
                       fontFamily: 'var(--type-family-heading-content)',
                       fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-                      fontSize: 'var(--type-size-base)',
+                      fontSize: 'var(--type-size-sm)',
                       whiteSpace: 'nowrap',
                     }}
                   >
@@ -5869,7 +5914,7 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
                 color: 'var(--text-content-default)',
                 fontFamily: 'var(--type-family-heading-content)',
                 fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-                fontSize: 'var(--type-size-base)',
+                fontSize: 'var(--type-size-sm)',
               }}>
                 คำแนะนำการพักรักษา
               </span>
@@ -5883,7 +5928,9 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
                     role='radiogroup'
                     aria-label='ระยะเวลาพักรักษา'
                     className='flex flex-1 items-end min-w-0'
-                    style={{ gap: 'var(--dim-space-400)' }}
+                    /* ปุ่มชุดเดียวกันควรอยู่ชิดกัน (มติผู้ใช้ 31 ส.ค. 69) — 16px ทำให้
+                       อ่านเป็นปุ่มเดี่ยว ๆ หกอันมากกว่าเป็นตัวเลือกของคำถามเดียว */
+                    style={{ gap: 'var(--dim-space-200)' }}
                   >
                     {CERT_REST_DAY_PILLS.map((pill) => (
                       <RadioButton
@@ -5932,7 +5979,7 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
                 color: 'var(--text-content-default)',
                 fontFamily: 'var(--type-family-heading-content)',
                 fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-                fontSize: 'var(--type-size-base)',
+                fontSize: 'var(--type-size-sm)',
               }}>
                 ผู้ออกใบรับรองแพทย์
               </span>
