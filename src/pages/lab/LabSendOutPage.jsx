@@ -117,13 +117,21 @@ const TABS = [
   { key: 'returned', label: 'รับผลกลับแล้ว',     icon: 'assignment_turned_in' },
 ];
 
-const LabSendOutPage = () => {
+/* `embedded` — เรนเดอร์เฉพาะเนื้อหน้า ไม่ต้องมี QueuePageShell ของตัวเอง
+   ใช้ตอนที่แท็บ "ส่งตรวจภายนอก (Lab-out)" ของหน้าคิวสลับเนื้อหาอยู่ในแท็บเดิม
+   (มติผู้ใช้ — กดแล้วต้องไม่กระโดดออกไปอีกหน้า) route /lab/send-out ยังเปิดตรง
+   ได้เหมือนเดิมโดยไม่ส่ง prop นี้ */
+const LabSendOutPage = ({ embedded = false }) => {
   const history = useHistory();
 
   /* Mock permission, resolved once. Open /lab/send-out?role=viewer to see the
      read-only state — printing and browsing stay available, every write is
      disabled with the reason on the control. */
   const { canEdit, denyReason, roleLabel, readOnly } = useLabPermissions();
+
+  /* ฝังในแท็บของหน้าคิว = ไม่ต้องมีเชลล์ของตัวเอง (หัวหน้า/เมนูโมดูล/ปุ่มประจำ
+     โมดูลของหน้าคิวครอบอยู่แล้ว) เปิด /lab/send-out ตรง ๆ ยังได้เชลล์เต็มใบ */
+  const Shell = embedded ? React.Fragment : QueuePageShell;
 
   const [version, setVersion] = useState(0);
   useEffect(() => subscribeOrders(() => setVersion((v) => v + 1)), []);
@@ -546,17 +554,19 @@ const LabSendOutPage = () => {
         onConfirm={handleMarkReturned}
       />
 
-      <QueuePageShell
-        activeKey='lab'
-        breadcrumb={breadcrumb}
-        title='ส่งตรวจภายนอก (Lab-out)'
-        summaryFlushUnderSubHeader={false}
-        belowSummary={<LabSubNav />}
+      <Shell
+        {...(embedded ? {} : {
+        activeKey: 'lab',
+        breadcrumb,
+        title: 'ส่งตรวจภายนอก (Lab-out)',
+        summaryFlushUnderSubHeader: false,
+        belowSummary: <LabSubNav />,
         /* ปุ่มประจำโมดูลห้องปฏิบัติการ ต้องอยู่ทุกหน้าในโมดูล (มติผู้ใช้ 28 ส.ค. 69)
            หน้านี้ไม่มีตารางสิ่งส่งตรวจของตัวเอง จึงไม่ส่ง `rows` — ปุ่มพิมพ์ฉลาก
            จะครอบทุกรายการใน Worklist ที่ยังไม่เคยพิมพ์ */
-        leadingActions={<><LabAddTestButton /><LabPrintLabelsButton /></>}
-        actions={<LabOrderCtaButton />}
+        leadingActions: <><LabAddTestButton /><LabPrintLabelsButton /></>,
+        actions: <LabOrderCtaButton />,
+        })}
       >
         <div
           className='flex flex-col flex-1 min-w-0'
@@ -793,7 +803,7 @@ const LabSendOutPage = () => {
             </div>
           )}
         </div>
-      </QueuePageShell>
+      </Shell>
 
       {/* The real print target — same component, hidden until printing.
 

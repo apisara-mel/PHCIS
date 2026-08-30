@@ -4,7 +4,6 @@ import VoiceTextarea from '@/components/forms/VoiceTextarea';
 import { setScreeningSection } from '@/data/opdScreeningReview';
 import VitalsGraphPopup from '@/components/popup/VitalsGraphPopup';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
-import RegistrationInfoPanel from '@/components/registration/RegistrationInfoPanel';
 import Icon from '@/components/icons/Icon';
 
 /* ScreeningStep1 — OPD Screening step 1 wrapper (sibling-file pattern, same
@@ -207,15 +206,10 @@ const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
 
   return (
     <div className='flex flex-col'>
-      {/* สิ่งที่ห้องบัตรบันทึกไว้ต้องอ่านได้ที่จุดคัดกรองก่อนลงมือวัดสัญญาณชีพ —
-          สิทธิการรักษา · ประเภทผู้รับบริการ · หมายเหตุและ Flag (ไม่รวมข้อมูล
-          ส่วนตัว/ที่อยู่/การติดต่อ ตามมติผู้ใช้ 29 ส.ค. 69) */}
-      <div
-        className='w-full'
-        style={{ padding: 'var(--dim-space-600) var(--dim-space-600) 0' }}
-      >
-        <RegistrationInfoPanel patient={patient} />
-      </div>
+      {/* ถอดการ์ด "ข้อมูลจากเวชระเบียน" ออกจากขั้นนี้ (มติผู้ใช้ 31 ส.ค. 69) —
+          ทรงเดียวกับที่งานเยี่ยมบ้านถอดออกเมื่อ 30 ส.ค. 69 · สิทธิการรักษา ·
+          แพ้ยา · โรคประจำตัว · ธงต่าง ๆ อ่านได้จากหัวแฟ้มผู้รับบริการด้านบน
+          และขั้น "ประวัติการแพ้ / โรคประจำตัว" ซึ่งบันทึกซ้ำได้ด้วย */}
 
       <VitalsForm
         onValidityChange={onValidityChange}

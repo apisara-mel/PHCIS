@@ -3,7 +3,13 @@ import TabPill, { TabBar } from '@/components/tab/TabPill';
 import AllergyForm from '@/components/forms/AllergyForm';
 import DiseaseForm from '@/components/forms/DiseaseForm';
 import HistoryListForm from '@/components/forms/HistoryListForm';
+import ScreeningFlagForm from '@/components/forms/ScreeningFlagForm';
 import { setScreeningSection } from '@/data/opdScreeningReview';
+import {
+  SAFETY_RISK_OPTIONS,
+  SAFETY_NOTE_SUGGESTIONS,
+  ORGAN_DONATION_SCOPES,
+} from '@/data/registrationForm';
 
 /**
  * OPD Screening — Step 3: ประวัติการแพ้ / โรคประจำตัว.
@@ -13,7 +19,14 @@ import { setScreeningSection } from '@/data/opdScreeningReview';
  * keeps the existing `HistoryListForm` design and splits the categories into
  * pill sub-tabs (DS `TabPill` / `TabBar`):
  *
- *   แพ้ยา · แพ้อาหาร · แพ้สารเคมี · โรคประจำตัว · อื่น ๆ
+ *   แพ้ยา · แพ้อาหาร · แพ้สารเคมี · โรคประจำตัว ·
+ *   ความปลอดภัย · DNR · บริจาคอวัยวะ · อื่น ๆ
+ *
+ * สามหมวดที่เป็น Flag (ความปลอดภัย · DNR · บริจาคอวัยวะ) เพิ่มเข้ามาเมื่อ
+ * 31 ส.ค. 69 — เดิมจุดคัดกรองเห็นแต่หมวดที่เป็น "ประวัติ" ทั้งที่ต้องยืนยัน
+ * Flag ตาม TOR ๑.๑.๑.๑๙ ซ้ำตอนซักประวัติด้วย ทั้งสามใช้ `ScreeningFlagForm`
+ * ที่ขับด้วย schema เดียวกัน · VIP ไม่มีในแถบนี้ (มติผู้ใช้ 31 ส.ค. 69) —
+ * เป็นธงเชิงบริการที่ห้องบัตรตั้ง ไม่ใช่ข้อมูลที่ซักตอนคัดกรอง
  *
  * แพ้ยา reuses `AllergyForm` and โรคประจำตัว reuses `DiseaseForm` verbatim —
  * both are shared DS forms and are NOT modified here. The three new
@@ -206,12 +219,79 @@ const OTHER_SCHEMA = buildSchema({
   deleteConfirmTitle: 'ยืนยันการลบรายการที่แพ้',
 });
 
+/* Flag ระดับผู้รับบริการตาม TOR ๑.๑.๑.๑๙ — ขั้นลงทะเบียนเก็บไว้แล้ว แต่จุด
+   คัดกรองต้องยืนยันซ้ำตอนซักประวัติ จึงมีหมวดเดียวกันที่นี่ด้วย (มติผู้ใช้
+   31 ส.ค. 69) รายละเอียดของแต่ละแผงยึดตามขั้นลงทะเบียนตัวต่อตัว */
+const SAFETY_SCHEMA = {
+  key: 'safety',
+  icon: 'health_and_safety',
+  topic: 'ความปลอดภัยในการรักษา',
+  toggleLabel: 'มีข้อควรระวังด้านความปลอดภัย',
+  choices: {
+    label: 'ประเภทความเสี่ยง',
+    required: true,
+    options: SAFETY_RISK_OPTIONS,
+  },
+  note: {
+    label: 'ที่มา / รายละเอียด',
+    placeholder: 'เช่น ประเมิน Morse Fall Scale อยู่ในระดับเสี่ยงสูง เมื่อ 6 พ.ค. 2569',
+    suggestions: SAFETY_NOTE_SUGGESTIONS,
+  },
+};
+
+const DNR_SCHEMA = {
+  key: 'dnr',
+  icon: 'do_not_disturb_on',
+  topic: 'หนังสือแสดงเจตนาไม่ประสงค์ปั๊มหัวใจ (DNR)',
+  toggleLabel: 'มีหนังสือแสดงเจตนาไม่ปั๊มหัวใจ (DNR)',
+  panelTitle: 'หนังสือแสดงเจตนาไม่ประสงค์ปั๊มหัวใจ (DNR)',
+  presenceRecordName: 'มีหนังสือแสดงเจตนาไม่ปั๊มหัวใจ (DNR)',
+  /* ธงที่มีผลทางกฎหมาย จึงผูกกับเลขที่หนังสือและวันที่ลงนามเสมอ
+     (พ.ร.บ.สุขภาพแห่งชาติ ม.๑๒) ไม่ใช่ติ๊กลอย ๆ */
+  fields: [
+    { key: 'dnrDocNo',      label: 'เลขที่หนังสือแสดงเจตนา', placeholder: 'เช่น LW-2568-0114', required: true },
+    { key: 'dnrSignedDate', label: 'วันที่ลงนาม',            type: 'date', required: true },
+    { key: 'dnrWitness',    label: 'พยาน / ผู้รับมอบอำนาจ',  placeholder: 'ชื่อ-นามสกุล' },
+  ],
+};
+
+const ORGAN_DONOR_SCHEMA = {
+  key: 'organDonor',
+  icon: 'volunteer_activism',
+  topic: 'ความประสงค์บริจาคอวัยวะ',
+  toggleLabel: 'ประสงค์บริจาคอวัยวะ / ดวงตา',
+  panelTitle: 'ความประสงค์บริจาคอวัยวะ',
+  choices: {
+    label: 'สิ่งที่ประสงค์บริจาค',
+    required: true,
+    options: ORGAN_DONATION_SCOPES,
+  },
+  /* เลขบัตร/วันที่ไม่บังคับ เพราะผู้รับบริการแจ้งความประสงค์ก่อนทำบัตรได้ */
+  fields: [
+    { key: 'organDonorCardNo', label: 'เลขที่บัตรผู้แสดงความจำนง (สภากาชาดไทย)', placeholder: 'เช่น OD-6812774' },
+    { key: 'organDonorDate',   label: 'วันที่แสดงเจตนา', type: 'date' },
+  ],
+};
+
+const FLAG_SCHEMAS = {
+  safety:     SAFETY_SCHEMA,
+  dnr:        DNR_SCHEMA,
+  organDonor: ORGAN_DONOR_SCHEMA,
+};
+
+/* ลำดับและชื่อหมวดตรงกับแถบ Flag ของขั้นลงทะเบียนตัวต่อตัว (มติผู้ใช้
+   31 ส.ค. 69) — สองหน้าบันทึกข้อมูลชุดเดียวกัน ถ้าจัดหมวดคนละแบบเจ้าหน้าที่
+   ต้องเรียนรู้สองระบบ · "อื่น ๆ" ของหน้าคัดกรองยังเป็นประวัติการแพ้อื่น ๆ
+   ตามเดิม ไม่ใช่ Flag อื่น ๆ ของขั้นลงทะเบียน */
 const TABS = [
-  { key: 'drug',     label: 'แพ้ยา',        icon: 'pill'       },
-  { key: 'food',     label: 'แพ้อาหาร',     icon: 'restaurant' },
-  { key: 'chemical', label: 'แพ้สารเคมี',   icon: 'science'    },
-  { key: 'disease',  label: 'โรคประจำตัว',  icon: 'sick'       },
-  { key: 'other',    label: 'อื่น ๆ',       icon: 'help'       },
+  { key: 'drug',       label: 'แพ้ยา',        icon: 'pill'               },
+  { key: 'food',       label: 'แพ้อาหาร',     icon: 'restaurant'         },
+  { key: 'chemical',   label: 'แพ้สารเคมี',   icon: 'science'            },
+  { key: 'disease',    label: 'โรคประจำตัว',  icon: 'sick'               },
+  { key: 'safety',     label: 'ความปลอดภัย',  icon: 'health_and_safety'  },
+  { key: 'dnr',        label: 'DNR',          icon: 'do_not_disturb_on'  },
+  { key: 'organDonor', label: 'บริจาคอวัยวะ', icon: 'volunteer_activism' },
+  { key: 'other',      label: 'อื่น ๆ',       icon: 'help'               },
 ];
 
 const ScreeningStep3 = ({ onValidityChange, patient }) => {
@@ -267,6 +347,14 @@ const ScreeningStep3 = ({ onValidityChange, patient }) => {
         </TabBar>
       </div>
 
+      {FLAG_SCHEMAS[tab] && (
+        <ScreeningFlagForm
+          key={tab}
+          schema={FLAG_SCHEMAS[tab]}
+          onValidityChange={reportTab(tab)}
+          onRecordsChange={publish(tab)}
+        />
+      )}
       {tab === 'drug' && (
         <AllergyForm onValidityChange={reportTab('drug')} onRecordsChange={publish('drug')} />
       )}

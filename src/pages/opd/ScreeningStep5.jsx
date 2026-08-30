@@ -210,6 +210,15 @@ const ALLERGY_TABS = [
   { key: 'other',    label: 'อื่น ๆ'      },
 ];
 
+/* Flag ตาม TOR ๑.๑.๑.๑๙ ที่ขั้นที่ 3 เพิ่มเข้ามาเมื่อ 31 ส.ค. 69 — แสดงต่อท้าย
+   หมวดประวัติ แต่ไม่นับเป็น "ยังไม่ได้กรอก" เพราะธงที่ไม่ได้ติ๊กคือไม่มีธง
+   ต่างจากหมวดประวัติที่ต้องตอบให้ครบว่ามีหรือไม่มี */
+const FLAG_TABS = [
+  { key: 'safety',     label: 'ความปลอดภัย'  },
+  { key: 'dnr',        label: 'DNR'          },
+  { key: 'organDonor', label: 'บริจาคอวัยวะ' },
+];
+
 const ScreeningStep5 = ({ onValidityChange, patient = {}, onJumpToStep }) => {
   /* Read once per mount — the nurse reaches this step after every earlier
      step has published, and steps are re-mounted on navigation. */
@@ -316,6 +325,9 @@ const ScreeningStep5 = ({ onValidityChange, patient = {}, onJumpToStep }) => {
       >
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
           {ALLERGY_TABS.map((t) => (
+            <AllergyBlock key={t.key} label={t.label} section={review[`allergy.${t.key}`]} />
+          ))}
+          {FLAG_TABS.map((t) => (
             <AllergyBlock key={t.key} label={t.label} section={review[`allergy.${t.key}`]} />
           ))}
         </div>

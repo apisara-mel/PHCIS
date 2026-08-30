@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
+import LabSendOutPage from '@/pages/lab/LabSendOutPage';
 import { LabAddTestButton, LabPrintLabelsButton, LabOrderCtaButton } from '@/components/lab/LabHeaderActions';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import Table, { EllipsisText } from '@/components/table/Table';
@@ -1068,10 +1069,10 @@ const LabQueuePage = () => {
     () => [...tabs, { key: 'nav:send-out', label: 'ส่งตรวจภายนอก (Lab-out)' }],
     [tabs],
   );
-  const handleShellTabChange = (key) => {
-    if (key === 'nav:send-out') { history.push('/lab/send-out'); return; }
-    setActiveTab(key);
-  };
+  /* กดแล้ว "อยู่แท็บเดิมแต่สลับ content" (มติผู้ใช้) — เดิม history.push
+     พาออกไปอีกหน้าจนแถบแท็บกระพริบและเสียตำแหน่งที่อ่านค้างไว้ · route
+     /lab/send-out ยังเปิดตรงได้เหมือนเดิม */
+  const handleShellTabChange = (key) => setActiveTab(key);
 
   const handleSort = (key) => setSortConfig((prev) => (
     prev.key === key ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' } : { key, direction: 'asc' }
@@ -1225,14 +1226,22 @@ const LabQueuePage = () => {
               สแกนบาร์โค้ด
             </NeutralSubdueButton>
             <LabAddTestButton />
+            {/* บนแท็บ Lab-out ไม่มีตารางคิวเป็นขอบเขต — ส่ง undefined เพื่อให้
+                ปุ่มครอบทุกรายการที่ยังไม่เคยพิมพ์ (พฤติกรรมเดียวกับหน้า
+                /lab/send-out เดิม) ไม่ใช่ผลลัพธ์ของตัวกรองที่ซ่อนอยู่ */}
             <LabPrintLabelsButton
-              rows={sorted}
+              rows={activeTab === 'nav:send-out' ? undefined : sorted}
               onPrint={(printed) => logAudit('พิมพ์สติกเกอร์ติดหลอด (ทั้งชุด)', `${printed.length} รายการจากมุมมองปัจจุบัน`)}
             />
           </>
         )}
         actions={<LabOrderCtaButton />}
       >
+        {/* แท็บ "ส่งตรวจภายนอก (Lab-out)" — เนื้อหาของ `LabSendOutPage` มาแทน
+            ตารางคิวในเชลล์ใบเดียวกัน (prop `embedded` ตัดเชลล์ของหน้านั้นออก) */}
+        {activeTab === 'nav:send-out' ? (
+          <LabSendOutPage embedded />
+        ) : (
         <div
           className='flex flex-col flex-1 min-w-0'
           style={{
@@ -1449,6 +1458,7 @@ const LabQueuePage = () => {
             )}
           </div>
         </div>
+        )}
       </QueuePageShell>
 
       <LabResultEntryPopup

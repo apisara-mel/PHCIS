@@ -21,7 +21,11 @@ const SelectableCardButton = ({
   selected,
   onClick,
   ariaLabel,
-  minHeight = 56,
+  /* สูง 40px = Button Medium (`--dim-size-800`) — เดิมตรึงไว้ที่ 56px ซึ่งไม่ใช่
+     ค่าในสเกลปุ่มของดีไซน์ซิสเต็มเลย แถวตัวเลือกบรรทัดเดียว (พฤติกรรมสุขภาพ ·
+     Triage · คำสั่งการพยาบาล) จึงสูงเกินเนื้อหาเกือบเท่าตัว (มติผู้ใช้ 31 ส.ค. 69)
+     ปุ่มที่เนื้อหาสูงกว่านี้ยังยืดเองได้ เพราะเป็น min ไม่ใช่ความสูงตายตัว */
+  minHeight = 'var(--dim-size-800, 40px)',
   padX = 'var(--dim-space-400, 16px)',
   padY = 'var(--dim-space-200, 8px)',
   showTrailingCheck = true,
