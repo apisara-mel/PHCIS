@@ -479,7 +479,7 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
           onDateFilterChange={setPageDate}
           defaultQuick='thisyear'
           templateValue={activeTemplate?.id}
-          templateOptions={templates.map((t) => ({ value: t.id, label: t.name, leadingIcon: 'dashboard' }))}
+          templateOptions={templates.map((t) => ({ value: t.id, label: t.name }))}
           onSelectTemplate={applyTemplate}
           onCreateTemplate={() => setTemplatePopup(true)}
           onClearFilters={clearFilters}

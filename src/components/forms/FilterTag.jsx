@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import Popover from '@/components/popup/Popover';
 import ActionList from '@/components/list/ActionList';
 import { Icon } from '@/components/icons/Icon';
@@ -250,6 +250,22 @@ export const FilterDropdown = ({
 }) => {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef(null);
+  /* ความกว้างของชิปเป็น "ขั้นต่ำ" ของเมนู (มติผู้ใช้ 30 ส.ค. 69) — เมนูต้องไม่แคบกว่า
+     ตัวที่กด แต่ยังขยายตามรายการที่ยาวที่สุดได้ ถ้าล็อกให้เท่ากันเป๊ะ ตัวเลือกชื่อยาว
+     จะโดนตัด (เช่น "จอเฝ้าระวังโรคเรื้อรัง (NCD)" ตอนชิปอยู่ที่ค่าสั้น ๆ)
+     วัดตอนเปิด เพราะความกว้างชิปเปลี่ยนตามค่าที่เลือกอยู่ */
+  const [menuWidth, setMenuWidth] = useState(null);
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const measure = () => {
+      const el = triggerRef.current;
+      if (el) setMenuWidth(Math.round(el.getBoundingClientRect().width));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [open]);
+
   const selected = options.find((o) => o.value === value);
   const label = selected?.label || placeholder || options[0]?.label;
   const autoActive = Boolean(selected) && options.length > 0 && value !== options[0].value;
@@ -277,7 +293,7 @@ export const FilterDropdown = ({
         anchorRef={triggerRef}
         className='mih-search-popover'
         style={{
-          minWidth: 200,
+          minWidth: menuWidth || 200,
           zIndex: menuZIndex,
           background: 'var(--surface-dropdown-default)',
           border: 'var(--dim-stroke-100) solid var(--border-dropdown-default)',

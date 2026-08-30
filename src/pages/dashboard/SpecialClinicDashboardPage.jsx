@@ -756,7 +756,6 @@ const SpecialClinicDashboardPage = () => {
         >
           <FilterDropdown
             prefix='คลินิก:'
-            leadingIcon={clinicOptions.find((o) => o.value === activeClinic)?.leadingIcon}
             options={clinicOptions}
             value={activeClinic}
             onChange={setActiveClinic}

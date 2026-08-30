@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Badge from '@/components/badge/Badge';
-import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import FilterTag from '@/components/forms/FilterTag';
@@ -9,7 +8,7 @@ import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFi
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Dropdown from '@/components/forms/Dropdown';
 import { screenValue } from '@/components/dashboard/DashboardTemplateSwitcher';
-import { DashboardHeaderActions, DashboardHeaderFilters } from '@/components/dashboard/DashboardPageHeader';
+import { DashboardExportButton, DashboardHeaderFilters } from '@/components/dashboard/DashboardPageHeader';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import { DonutWithLegend, HBarList, VBars } from '@/components/graph/Charts';
 import PHCIS_CHART, { PHCIS_CHART_PALETTE } from '@/data/phcisChartPalette';
@@ -552,7 +551,7 @@ const PharmacyAnalyticsPage = () => {
     <QueuePageShell
       activeKey='dashboard'
       breadcrumb={breadcrumb}
-      title='รายงานเภสัชกรรม (ภาพรวมทุกศูนย์บริการ)'
+      title='รายงานเภสัชกรรม'
       afterTitle={(
         <DashboardHeaderFilters
           dateFilter={dateFilter}
@@ -560,6 +559,11 @@ const PharmacyAnalyticsPage = () => {
           defaultQuick='thisyear'
           templateValue={screenValue('pharmacy')}
         ></DashboardHeaderFilters>
+      )}
+      /* ปุ่มนำส่งออกอยู่หน้าปุ่ม "คำขอเข้าถึงข้อมูล" (มติผู้ใช้ 30 ส.ค. 69) —
+         SubHeader วาง leadingActions ก่อน CreateConsentRequestHeaderAction เสมอ */
+      leadingActions={(
+        <DashboardExportButton label='นำส่งออกรายงานทั้งหมด' onClick={() => openExport('all')} />
       )}
     >
       <div
@@ -580,28 +584,12 @@ const PharmacyAnalyticsPage = () => {
           ))}
         </section>
 
-        <ReportToolbar
-          trailing={(
-            <NeutralSubdueButton leadingIcon='ios_share' size='md' onClick={() => openExport('all')}>
-              นำส่งออกรายงานทั้งหมด
-            </NeutralSubdueButton>
-          )}
-        >
+        <ReportToolbar>
           <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
             <Dropdown size='md' value={center} onChange={setCenter} options={CENTER_OPTIONS} placeholder='ศูนย์บริการ' />
           </div>
           <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
             <Dropdown size='md' value={drugClass} onChange={setDrugClass} options={CLASS_OPTIONS} placeholder='ประเภทยา' />
-          </div>
-          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
-            {GRANULARITY_OPTIONS.map((g) => (
-              <FilterTag
-                key={g.key}
-                value={g.label}
-                selected={granularity === g.key}
-                onClick={() => setGranularity(g.key)}
-              />
-            ))}
           </div>
           <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
         </ReportToolbar>
@@ -616,7 +604,6 @@ const PharmacyAnalyticsPage = () => {
                 และตอนว่างต้องไม่บอกให้ผู้ใช้ “ขยายช่วงวันที่” ซึ่งไม่ช่วยอะไร */}
             <ReportGroupCard
               title='สถิติการใช้ยา'
-              subtitle='TOR 1.20.2.1 / 2.5 / 2.6 · อ่านจากใบสั่งยาของระบบเภสัชกรรมแบบอ่านอย่างเดียว — มีข้อมูล 7 วันล่าสุด'
               onView={() => openViewGroup('usage', 'สถิติการใช้ยา')}
               onExport={() => openExportGroup('usage', 'รายงานสถิติการใช้ยา')}
             >
@@ -793,9 +780,23 @@ const PharmacyAnalyticsPage = () => {
             </ReportGroupCard>
 
             {/* ── 1.20.6.1 / 6.2 ───────────────────────────────────────── */}
+            {/* ชิปช่วงเวลาอยู่ที่การ์ดนี้ ไม่ใช่แถบตัวกรองรวมด้านบน (มติผู้ใช้ 30 ส.ค. 69)
+                — มันคุมเฉพาะกราฟแท่งสองใบในการ์ดนี้ ไม่ได้คุมทั้งหน้า */}
             <ReportGroupCard
               title='ใบสั่งยาและการตีกลับใบสั่งยา'
-              subtitle={`มุมมองปัจจุบัน: ${GRANULARITY_OPTIONS.find((g) => g.key === granularity)?.label || 'รายเดือน'} · ${center === 'all' ? 'ทุกศูนย์บริการ' : centerLabel(center)}`}
+              subtitle={center === 'all' ? 'ทุกศูนย์บริการ' : centerLabel(center)}
+              extraActions={(
+                <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-150)' }}>
+                  {GRANULARITY_OPTIONS.map((g) => (
+                    <FilterTag
+                      key={g.key}
+                      value={g.label}
+                      selected={granularity === g.key}
+                      onClick={() => setGranularity(g.key)}
+                    />
+                  ))}
+                </div>
+              )}
               onView={() => openViewGroup('prescription', 'ใบสั่งยาและการตีกลับใบสั่งยา')}
               onExport={() => openExportGroup('prescription', 'รายงานใบสั่งยา')}
             >

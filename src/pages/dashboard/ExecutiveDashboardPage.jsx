@@ -570,7 +570,7 @@ const ExecutiveDashboardPage = () => {
     <QueuePageShell
       activeKey='dashboard'
       breadcrumb={breadcrumb}
-      title='Dashboard ผู้บริหาร (Area Health Analytics)'
+      title='Dashboard ผู้บริหาร'
       afterTitle={(
         <DashboardHeaderFilters
           dateFilter={dateFilter}

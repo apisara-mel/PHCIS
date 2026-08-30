@@ -13,6 +13,7 @@ export const DASHBOARD_NAV_LINKS = [
   { key: 'checkup',   label: 'รายงานตรวจสุขภาพ',   path: '/dashboard/reports/checkup'    },
   { key: 'clinics',   label: 'คลินิกพิเศษ',        path: '/dashboard/clinics'            },
   { key: 'executive', label: 'ผู้บริหาร',           path: '/dashboard/executive'          },
+  { key: 'mystats',   label: 'สถิติของฉัน',         path: '/dashboard/my-stats'           },
 ];
 
 const TABS = DASHBOARD_NAV_LINKS.map(({ key, label }) => ({ key, label }));
@@ -27,6 +28,7 @@ export const resolveDashboardNavKey = (pathname = '') => {
   if (pathname.startsWith('/dashboard/reports')) return 'reports';
   if (pathname.startsWith('/dashboard/clinics')) return 'clinics';
   if (pathname.startsWith('/dashboard/executive')) return 'executive';
+  if (pathname.startsWith('/dashboard/my-stats')) return 'mystats';
   return 'overview';
 };
 

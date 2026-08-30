@@ -68,15 +68,13 @@ export default function DashboardTemplateSwitcher({
     [templates],
   );
 
+  /* ไม่มี leadingIcon เลยทั้งชิปและทุกแถวในเมนู (มติผู้ใช้ 30 ส.ค. 69) — ไอคอนเดิม
+     เป็นตัวเดียวกันทุกแถวจึงไม่ได้ช่วยแยกอะไร มีแต่ดันชื่อให้เยื้องเข้าไป */
   const options = useMemo(() => ([
-    { value: CREATE_VALUE, label: 'สร้างเทมเพลทใหม่', leadingIcon: 'dashboard_customize' },
+    { value: CREATE_VALUE, label: 'สร้างเทมเพลทใหม่' },
     ...(optionsOverride || [
-      ...DASHBOARD_NAV_LINKS.map((l) => ({
-        value: screenValue(l.key),
-        label: l.label,
-        leadingIcon: 'dashboard',
-      })),
-      ...custom.map((t) => ({ value: t.id, label: t.name, leadingIcon: 'dashboard_customize' })),
+      ...DASHBOARD_NAV_LINKS.map((l) => ({ value: screenValue(l.key), label: l.label })),
+      ...custom.map((t) => ({ value: t.id, label: t.name })),
     ]),
   ]), [custom, optionsOverride]);
 
@@ -102,7 +100,6 @@ export default function DashboardTemplateSwitcher({
       <FilterDropdown
         size={TAG_SIZE_FOR_CONTROL[size] || 'lg'}
         prefix='Template:'
-        leadingIcon='dashboard'
         options={options}
         value={value}
         onChange={handleChange}

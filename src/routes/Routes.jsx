@@ -9,6 +9,7 @@ import DashboardPage from '@/pages/dashboard/DashboardPage';
    <DashboardSubNav> (TabUnderline) เหมือน PharmacySubNav. */
 import DashboardReportsHubPage from '@/pages/dashboard/DashboardReportsHubPage';
 import ServiceReportsPage from '@/pages/dashboard/ServiceReportsPage';
+import MyPracticeStatsPage from '@/pages/dashboard/MyPracticeStatsPage';
 import PharmacyAnalyticsPage from '@/pages/dashboard/PharmacyAnalyticsPage';
 import CheckupAnalyticsPage from '@/pages/dashboard/CheckupAnalyticsPage';
 import SpecialClinicDashboardPage from '@/pages/dashboard/SpecialClinicDashboardPage';
@@ -416,6 +417,9 @@ export default function Routes() {
               /dashboard/reports/checkup   = รายงานตรวจสุขภาพ + แม่แบบพิมพ์/ส่งออก (§1.20.8)
               /dashboard/clinics           = Dashboard คลินิกพิเศษ 11 แท็บ (§1.20.7)
               /dashboard/executive         = Dashboard ผู้บริหาร + แจ้งเตือนอัตโนมัติ (§1.20.10)
+              /dashboard/my-stats          = สถิติการตรวจรักษาของผู้ใช้ที่ล็อกอิน (§1.20.11 +
+                                             มติ คทง.3 ครั้งที่ 7 — Dashboard ที่ผู้ใช้งานทุกระดับ
+                                             เข้าถึงได้เพื่อนำไปปรับปรุงงานคุณภาพ)
             route ย่อยทั้งหมดต้องอยู่**เหนือ** /dashboard เพื่อความชัดเจน (ทุกตัว exact
             อยู่แล้วจึงไม่ชนกัน แต่คงลำดับ specific → less-specific ตามแบบ /lab, /checkup). */}
         <Route exact path='/dashboard/reports/service'  component={ServiceReportsPage} />
@@ -424,6 +428,7 @@ export default function Routes() {
         <Route exact path='/dashboard/reports'          component={DashboardReportsHubPage} />
         <Route exact path='/dashboard/clinics'          component={SpecialClinicDashboardPage} />
         <Route exact path='/dashboard/executive'        component={ExecutiveDashboardPage} />
+        <Route exact path='/dashboard/my-stats'         component={MyPracticeStatsPage} />
         <Route exact path='/dashboard'       component={DashboardPage} />
         <Route exact path='/finance'          component={FinancePaymentPage} />
         <Route exact path='/opd'             component={QueuePage} />

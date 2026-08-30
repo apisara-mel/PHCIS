@@ -1,13 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import QueuePageShell from '@/templates/QueuePageShell';
 import Badge from '@/components/badge/Badge';
-import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import Dropdown from '@/components/forms/Dropdown';
-import { DashboardHeaderActions, DashboardHeaderFilters } from '@/components/dashboard/DashboardPageHeader';
+import { DashboardExportButton, DashboardHeaderActions, DashboardHeaderFilters } from '@/components/dashboard/DashboardPageHeader';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import { DonutWithLegend, HBarList, VBars } from '@/components/graph/Charts';
 import PHCIS_CHART, { PHCIS_CHART_PALETTE } from '@/data/phcisChartPalette';
@@ -517,6 +516,11 @@ const ServiceReportsPage = () => {
           templateValue={undefined}
         ></DashboardHeaderFilters>
       )}
+      /* ปุ่มนำส่งออกอยู่หน้าปุ่ม "คำขอเข้าถึงข้อมูล" (มติผู้ใช้ 30 ส.ค. 69) —
+         SubHeader วาง leadingActions ก่อน CreateConsentRequestHeaderAction เสมอ */
+      leadingActions={(
+        <DashboardExportButton label='นำส่งออกรายงานทั้งหมด' onClick={() => openExport('all')} />
+      )}
       actions={<DashboardHeaderActions />}
     >
       <div
@@ -537,13 +541,7 @@ const ServiceReportsPage = () => {
           ))}
         </section>
 
-        <ReportToolbar
-          trailing={(
-            <NeutralSubdueButton leadingIcon='ios_share' size='md' onClick={() => openExport('all')}>
-              นำส่งออกรายงานทั้งหมด
-            </NeutralSubdueButton>
-          )}
-        >
+        <ReportToolbar>
           <div style={{ width: 'var(--dim-size-2200, 192px)' }}>
             <Dropdown
               size='md'

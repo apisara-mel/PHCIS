@@ -86,7 +86,6 @@ export const DashboardHeaderFilters = ({
     {showFiscalYear && (
       <FilterDropdown
         prefix='ปีงบ:'
-        leadingIcon='event'
         options={FISCAL_YEAR_OPTIONS}
         value={fiscalYearOf(dateFilter)}
         onChange={(be) => onDateFilterChange?.(fiscalYearDateFilter(be))}

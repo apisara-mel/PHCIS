@@ -146,7 +146,7 @@ export default function ConsentDashboardPage() {
           onDateFilterChange={setPageDate}
           defaultQuick='thismonth'
           templateValue={activeTemplate?.id}
-          templateOptions={templates.map((t) => ({ value: t.id, label: t.name, leadingIcon: 'dashboard' }))}
+          templateOptions={templates.map((t) => ({ value: t.id, label: t.name }))}
           onSelectTemplate={applyTemplate}
           onCreateTemplate={() => setTemplatePopup(true)}
           onClearFilters={clearFilters}

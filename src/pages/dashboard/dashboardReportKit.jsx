@@ -145,7 +145,10 @@ export const CHART_PANEL = {
   background: 'var(--surface-card-100)',
   border: 'var(--dim-stroke-100) solid var(--border-card-default)',
   boxSizing: 'border-box',
-  overflow: 'hidden',
+  /* visible ไม่ใช่ hidden — tooltip ของ VBars/LineChart ลอยขึ้นเหนือขอบบนของกราฟ
+     (anchor top, translate -100%) ถ้าแผงตัดขอบ ค่าที่ hover จะโดนบังทันที
+     (มติผู้ใช้ 30 ส.ค. 69) กราฟทุกตัวคุมความกว้างด้วยกล่องของตัวเองอยู่แล้ว */
+  overflow: 'visible',
 };
 
 /** Min height so Top-N HBar panels aren't clipped under shorter sibling donuts. */
