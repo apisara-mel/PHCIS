@@ -31,26 +31,30 @@ export const CONSENT_STATUS = {
   'รอลงนาม':          { tone: 'orange', tab: 'sent',      action: { label: 'ยกเลิกคำขอ', kind: 'brandSubdue', confirm: 'cancel' } },
   'อยู่ระหว่างลงนาม':  { tone: 'orange', tab: 'sent',      action: { label: 'ยกเลิกคำขอ', kind: 'brandSubdue', confirm: 'cancel' } },
   /* ผู้รับบริการ request เพิกถอนผ่าน Mobile App / ที่ศูนย์ — รอเจ้าหน้าที่ดำเนินการ */
-  'ขอเพิกถอน':        { tone: 'red',    tab: 'pending',   action: { label: 'เพิกถอน', kind: 'brand', confirm: 'revoke' } },
+  /* CTA แยกจากแถว «ยินยอมแล้ว» ที่ปุ่มว่า "เพิกถอน" — ที่นี่ผู้รับบริการยื่นคำขอ
+     มาแล้ว เจ้าหน้าที่แค่ "ยืนยัน" คำขอนั้น ไม่ใช่เป็นคนริเริ่มเพิกถอนเอง */
+  'ขอเพิกถอน':        { tone: 'red',    tab: 'pending',   action: { label: 'ยืนยันคำขอเพิกถอน', kind: 'brand', confirm: 'revoke' } },
   'ยินยอมแล้ว':        { tone: 'green',  tab: 'consented', action: { label: 'เพิกถอน',    kind: 'brandSubdue', confirm: 'revoke' } },
   'ปฏิเสธ':           { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
   'ถอนความยินยอม':    { tone: 'red',    tab: 'rejected',  action: { label: 'Reconsent',  kind: 'brand', confirm: 'reconsent' } },
   'ใกล้หมดอายุ':       { tone: 'orange', tab: 'expired', label: 'ใกล้หมดอายุ', action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' } },
   'หมดอายุ':          { tone: 'red',    tab: 'expired', label: 'หมดอายุแล้ว', action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' } },
   /* Edge case (Figma note 312:97428): เทมเพลตออกเวอร์ชันใหม่ — ฉบับเดิมถูกแทนที่
-     (read-only) · ระบบสร้างคำขอ รอลงนาม อัตโนมัติไปเวชระเบียน */
+     · ระบบสร้างคำขอ รอลงนาม อัตโนมัติไปเวชระเบียน
+     ฉบับเดิม "ยังมีผล" จนกว่าจะลงนามฉบับใหม่ (ดู CONSENT_IN_EFFECT_STATUSES)
+     จึงมีชุดการดำเนินการเดียวกับแถว «ยินยอมแล้ว» — ดู/แก้ไข/เพิกถอน */
   'ถูกแทนที่ด้วยเวอร์ชันใหม่': {
     tone: 'blue',
     tab: 'consented',
     label: 'ถูกแทนที่',
-    action: null,
+    action: { label: 'เพิกถอน', kind: 'brandSubdue', confirm: 'revoke' },
   },
   /* legacy localStorage — map ไปพฤติกรรม superseded ใหม่ */
   'มีเวอร์ชันใหม่': {
     tone: 'blue',
     tab: 'consented',
     label: 'ถูกแทนที่',
-    action: null,
+    action: { label: 'เพิกถอน', kind: 'brandSubdue', confirm: 'revoke' },
   },
   /* ด.1.1.7 — Re-Consent ครบวงจร: record เดิมที่มีคำขอ reconsent เกิดขึ้นแล้ว
      ย้ายมาสถานะนี้ (ไม่ hard delete — ประวัติคงอยู่)
@@ -64,6 +68,17 @@ export const CONSENT_STATUS = {
   /* ด.1.1.4 — เจ้าหน้าที่ยกเลิกคำขอที่ยังไม่ลงนาม (audit คงอยู่) */
   'ยกเลิกคำขอ':        { tone: 'grey',   tab: 'rejected',  action: { label: 'Reconsent', kind: 'brand', confirm: 'reconsent' } },
 };
+
+/** ฉบับที่ความยินยอม "ยังมีผล" อยู่ — ยินยอมแล้ว + ฉบับเดิมที่ถูกแทนที่ด้วย
+    เวอร์ชันใหม่ (ยังมีผลจนกว่าผู้รับบริการจะลงนามฉบับใหม่) ชุดเดียวกับที่
+    ConsentAccessRightsPage นับเป็นสิทธิที่ใช้งานอยู่ — แถวเหล่านี้จึงได้ชุด
+    การดำเนินการเดียวกันในคอลัมน์ "การดำเนินการ" (ดู/แก้ไข/เพิกถอน) */
+export const CONSENT_IN_EFFECT_STATUSES = [
+  'ยินยอมแล้ว', 'ถูกแทนที่ด้วยเวอร์ชันใหม่', 'มีเวอร์ชันใหม่',
+];
+
+export const isConsentInEffect = (record) =>
+  CONSENT_IN_EFFECT_STATUSES.includes(typeof record === 'string' ? record : record?.status);
 
 /* ── ช่องทางลงนาม (ด.1.1.6) — re-export จาก consentChannels.js ─────────── */
 export {

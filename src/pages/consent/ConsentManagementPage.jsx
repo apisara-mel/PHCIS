@@ -25,7 +25,7 @@ import { useClinicFilter } from '@/components/layout/HeaderClinicContext';
 import { formatServiceCenterChannel, MOBILE_APP_CHANNEL } from '@/data/consentChannels';
 import {
   CONSENT_TABS, buildConsentSummary, matchesConsentWorklistTab,
-  CONSENT_STATUS, CONSENT_CONFIRM,
+  CONSENT_STATUS, CONSENT_CONFIRM, isConsentInEffect,
 } from '@/data/consentRecords';
 import {
   applySupersededTypesToRecords,
@@ -600,7 +600,7 @@ export default function ConsentManagementPage() {
         {/* ต้องไม่ render กล่องนี้เมื่อไม่มีไอคอนสักปุ่ม — div เปล่ากว้าง 0 ก็จริง
             แต่ `gap` ของ flex แม่ยังนับมันเป็นลูกอยู่ CTA เลยถูกดันขวาไป 16px
             แถวที่ไม่มีไอคอนจึงไม่ชิดซ้ายเท่าแถวที่มี (เห็นชัดในตารางของ popup) */}
-        {(showView || row.status === 'ยินยอมแล้ว') && (
+        {(showView || isConsentInEffect(row)) && (
           <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
             {/* แท็บสถานะ = 1 แถว 1 ฉบับ → เหลือเฉพาะ action ระดับฉบับ
                 เปรียบเทียบ (compare_arrows) และ Timeline การเปลี่ยนแปลง (history)
@@ -616,8 +616,9 @@ export default function ConsentManagementPage() {
                 onClick={() => setViewConsentedFor({ hn: row.hn, name: row.name, record: row })}
               />
             )}
-            {/* ด.1.1.2 — แถว signed แก้ไข/เพิกถอนรายข้อ 5.1/5.2 (ผ่าน verify) */}
-            {row.status === 'ยินยอมแล้ว' && (
+            {/* ด.1.1.2 — แถว signed แก้ไข/เพิกถอนรายข้อ 5.1/5.2 (ผ่าน verify)
+                รวมฉบับที่ถูกแทนที่ด้วยเวอร์ชันใหม่ ซึ่งยังมีผลจนกว่าจะลงนามฉบับใหม่ */}
+            {isConsentInEffect(row) && (
               <NeutralSubdueIconButton
                 icon='edit'
                 variant='outline'
