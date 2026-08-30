@@ -127,10 +127,6 @@ export const buildEmptyRegistrationForm = () => ({
   occupationOther: '',
   religion: '',
   religionOther: '',
-  ethnicity: '',
-  ethnicityOther: '',
-  nationality: '',
-  nationalityOther: '',
   birthPlaceOther: '',
   marital: '',
   spouseFirstName: '',
@@ -558,8 +554,6 @@ export const buildPersonalDataFromPatient = (patient) => {
     education: patient.education ?? '',
     occupation: patient.occupation ?? '',
     religion: patient.religion ?? '',
-    ethnicity: patient.ethnicity ?? '',
-    nationality: patient.nationality ?? '',
     marital: patient.marital ?? '',
     idCardFromChip: true,
     /* Every mock card must show the same person as the registered profile.
@@ -644,29 +638,6 @@ export const EDUCATION_OPTIONS = [
   'ปริญญาตรี',
   'ปริญญาโท',
   'ปริญญาเอก',
-];
-
-/* เชื้อชาติ / สัญชาติ — ฟอร์มไทยถามคู่กันเสมอและใช้รายชื่อชุดเดียวกัน ต่างกัน
-   แค่สัญชาติมี "ไร้สัญชาติ" เพิ่มมา (ToR ๑.๑.๑.๒๐ กลุ่ม ๓ — ผู้ไม่มีเอกสาร
-   แสดงตน) · รายชื่อนี้เป็นชุดที่พบจริงที่ ศบส. ไม่ใช่รหัสสัญชาติมาตรฐาน
-   ๓ หลักของกรมการปกครอง — ถ้าต้องส่งออกตามมาตรฐานต้อง map เพิ่ม */
-const ORIGIN_OPTIONS = [
-  'ไทย',
-  'จีน',
-  'เมียนมา',
-  'ลาว',
-  'กัมพูชา',
-  'เวียดนาม',
-  'อินเดีย',
-  'อื่นๆ',
-];
-
-export const ETHNICITY_OPTIONS = ORIGIN_OPTIONS;
-
-export const NATIONALITY_OPTIONS = [
-  ...ORIGIN_OPTIONS.filter((o) => o !== 'อื่นๆ'),
-  'ไร้สัญชาติ',
-  'อื่นๆ',
 ];
 
 /* ศาสนา — ชุดเดียวกับแบบคัดกรองสุขภาพรายบุคคล (`homeScreeningForm.js`) และ

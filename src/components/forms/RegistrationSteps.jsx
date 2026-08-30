@@ -73,8 +73,6 @@ import {
   EDUCATION_OPTIONS,
   OCCUPATION_OPTIONS,
   RELIGION_OPTIONS,
-  ETHNICITY_OPTIONS,
-  NATIONALITY_OPTIONS,
 } from '@/data/registrationForm';
 import { MR_GENDERS, MR_GENDER_IDENTITIES } from '@/data/mrPatients';
 import { HOMEVISIT_SOURCES } from '@/data/homevisitVisits';
@@ -106,8 +104,6 @@ const BLOOD_TYPES = ['O', 'A', 'B', 'AB'];
 const EDUCATION = EDUCATION_OPTIONS;
 const OCCUPATIONS = OCCUPATION_OPTIONS;
 const RELIGIONS = RELIGION_OPTIONS;
-const ETHNICITIES = ETHNICITY_OPTIONS;
-const NATIONALITIES = NATIONALITY_OPTIONS;
 const MARITAL = ['โสด', 'สมรส', 'หย่า', 'หม้าย'];
 /** Spouse name row — Figma 2373:119045; only when marital status is สมรส. */
 const SHOWS_SPOUSE_FIELDS = (marital) => marital === 'สมรส';
@@ -1267,9 +1263,10 @@ export const Step1Personal = ({
                 placeholder='เลือกสถานภาพ'
               />
             </Field>
-            {/* แถวที่สองเต็มพอดีสามช่อง: ศาสนา · เชื้อชาติ · สัญชาติ — แถวแรก
-                ถูกจองโดยมติ 28 ส.ค. 69 ที่ให้สถานภาพขึ้นมาเป็นช่องที่สาม ·
-                ทั้งสามใช้ SelectWithOther เพราะแคตตาล็อกมี "อื่นๆ" เหมือนอาชีพ */}
+            {/* ศาสนา — ตกไปอยู่แถวที่สองใบเดียว เพราะแถวแรกถูกจองโดยมติ
+                28 ส.ค. 69 ที่ให้สถานภาพขึ้นมาเป็นช่องที่สาม · ใช้ SelectWithOther
+                เพราะแคตตาล็อกมี "อื่นๆ" เหมือนอาชีพ · เชื้อชาติ/สัญชาติ เคยอยู่
+                แถวนี้ด้วย ถอดออกตามมติผู้ใช้ 30 ส.ค. 69 */}
             <Field label='ศาสนา'>
               <SelectWithOther
                 value={form.religion}
@@ -1280,30 +1277,6 @@ export const Step1Personal = ({
                 placeholder='เลือกศาสนา'
                 otherPlaceholder='ระบุศาสนา'
                 otherLabel='ระบุศาสนา'
-              />
-            </Field>
-            <Field label='เชื้อชาติ'>
-              <SelectWithOther
-                value={form.ethnicity}
-                onChange={set('ethnicity')}
-                otherValue={form.ethnicityOther}
-                onOtherChange={set('ethnicityOther')}
-                options={ETHNICITIES}
-                placeholder='เลือกเชื้อชาติ'
-                otherPlaceholder='ระบุเชื้อชาติ'
-                otherLabel='ระบุเชื้อชาติ'
-              />
-            </Field>
-            <Field label='สัญชาติ'>
-              <SelectWithOther
-                value={form.nationality}
-                onChange={set('nationality')}
-                otherValue={form.nationalityOther}
-                onOtherChange={set('nationalityOther')}
-                options={NATIONALITIES}
-                placeholder='เลือกสัญชาติ'
-                otherPlaceholder='ระบุสัญชาติ'
-                otherLabel='ระบุสัญชาติ'
               />
             </Field>
           </FieldGrid>
