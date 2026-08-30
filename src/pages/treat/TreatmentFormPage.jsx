@@ -4,12 +4,10 @@ import React, {
 import { Redirect, useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import QueueSubMenu from '@/components/layout/QueueSubMenu';
+import TabPill, { TabBar } from '@/components/tab/TabPill';
 import { EmrRowAction } from '@/components/patient/EmrRowAction';
 import ScreeningConfirmPopup from '@/components/popup/ScreeningConfirmPopup';
-import Popover from '@/components/popup/Popover';
 import Popup from '@/components/popup/Popup';
-import ActionList from '@/components/list/ActionList';
-import { LabOrderBody } from '@/pages/lab/LabOrderPage';
 import QueueCallActions from '@/components/queue/QueueCallActions';
 import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
 import Header from '@/components/layout/Header';
@@ -34,7 +32,7 @@ import { GuardedAction } from '@/pages/treat/panels/panelHooks';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import { mergePatientFlags } from '@/data/treatmentPatientFlags';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
-import { appendAudit } from '@/data/treatmentAudit';
+import { appendAudit, CURRENT_CLINICIAN } from '@/data/treatmentAudit';
 import {
   TREATMENT_QUEUE_ROWS,
   TREATMENT_QUEUE_SUBMENU_LABELS,
@@ -70,7 +68,22 @@ import {
    MR_PATIENTS so the doctor sees the same identity that ลงทะเบียน
    produced and in PATIENT_PROFILES for PatientCard's display shape. */
 
+import {
+  getUnassignedRows, groupRowsByClinic, comparePoolRows, clinicShortLabel,
+  claimCase, subscribeUnassignedPool,
+} from '@/data/unassignedWorklist';
+
 const breadcrumb = ['บันทึกการรักษา', 'ตรวจรักษาทั่วไป (OPD)'];
+
+/* พาเนลคิวข้างฟอร์มมีสองหน้าตา ขึ้นกับว่าเข้ามาจากไหน (มติผู้ใช้ 30 ส.ค. 69)
+     • เข้าจากคิวตรวจรักษาทั่วไป → คิวของคลินิกนี้ (กำลังตรวจ · คิวที่เหลือวันนี้)
+     • เข้าจาก "คิวรวมรอรับเคส"  → คิวรวมของทุกคลินิก พร้อมตัวสลับมุมมองชุดเดียว
+       กับหน้ากองกลาง (ดูแบบ worklist · ดูแยกตามคลินิก)
+   ป้ายมุมมองใช้คำเดียวกับหน้าคิวรวมเป๊ะ ๆ คนที่กดเข้ามาจึงเจอคำเดิม */
+const POOL_VIEW_MODES = [
+  { key: 'list',   label: 'ดูแบบ worklist' },
+  { key: 'clinic', label: 'ดูแยกตามคลินิก' },
+];
 
 const buildInitialForm = (p) => ({
   // Step 2 — screening summary (read-only)
@@ -334,17 +347,6 @@ const TreatmentFormPage = () => {
   const [queueCancelled, setQueueCancelled] = useState({});
   const [queueCancelCandidate, setQueueCancelCandidate] = useState(null);
 
-  /* เมนู "ส่งตรวจ" บนแถวปุ่มหัวการ์ด */
-  const orderMenuRef = useRef(null);
-  const [orderMenuOpen, setOrderMenuOpen] = useState(false);
-  /* "ส่งตรวจแล็บ" เปิดฟอร์มเดียวกับหน้า /lab/order เป็นป๊อปอัปบนหน้าเดิม
-     (มติผู้ใช้ 28 ส.ค. 69) — หมอไม่ต้องออกจาก visit แล้วค้น HN ใหม่
-     `LabOrderBody` ถูก export ไว้พร้อม `defaultPatientHn` อยู่แล้ว */
-  const [labOrderOpen, setLabOrderOpen] = useState(false);
-  /* ปุ่มของป๊อปอัปเรียก submit ของฟอร์มผ่าน ref — ฟอร์มจึงไม่ต้องมีแถบปุ่มของ
-     ตัวเองซ้อนอีกแถบ */
-  const labOrderActions = useRef(null);
-
   const queueBuckets = useMemo(() => {
     /* หมวด "คิวที่เหลือวันนี้" แสดงครบทุกคิว ไม่ตัดเหลือ preview 2 แถว —
        พาเนลเหลือหมวดเดียวและมี overflow-y อยู่แล้ว ลิสต์ยาวจึงเลื่อนได้ */
@@ -368,9 +370,57 @@ const TreatmentFormPage = () => {
     };
   }, [queueCancelled]);
 
+  /* เข้ามาจากกองกลางหรือไม่ — ตัดสินหน้าตาของพาเนลคิวทั้งใบ */
+  const fromPool = navState?.from === 'unassigned';
+  const [poolView, setPoolView] = useState(navState?.viewMode === 'clinic' ? 'clinic' : 'list');
+  /* กองกลางถูกเขียนจากหลายหน้า (รับเคส/คืนเคส) — subscribe ไว้ให้พาเนลอัปเดตตาม */
+  const [poolTick, setPoolTick] = useState(0);
+  useEffect(() => subscribeUnassignedPool(() => setPoolTick((t) => t + 1)), []);
+
+  /* คิวรวม — แปลงแถวของกองกลางให้เป็นทรงที่ QueueSubMenu อ่านได้
+     · มุมมอง worklist   → หมวดเดียว เรียงตามลำดับความสำคัญเดียวกับหน้ากองกลาง
+     · มุมมองแยกคลินิก   → หนึ่งหมวดต่อหนึ่งคลินิก คีย์หมวดคือ clinicKey */
+  const poolPanel = useMemo(() => {
+    if (!fromPool) return null;
+    const map = (rows) => rows.map((r) => ({
+      id: r.id,
+      hn: r.hn,
+      name: r.name,
+      avatarUrl: r.avatarUrl,
+      queue: r.queue,
+      doctor: r.doctor,
+      /* บอกคลินิกและอาการสำคัญไว้ใต้ชื่อ — กองกลางเห็นเคสข้ามคลินิก ถ้าไม่บอก
+         ก็ไม่รู้ว่าแถวนี้เป็นของคลินิกไหน */
+      sublabel: [clinicShortLabel(r.clinicKey), r.cc].filter(Boolean).join(' · '),
+    }));
+    const rows = getUnassignedRows().filter((r) => !r.doctor || r.doctor === CURRENT_CLINICIAN.name);
+
+    if (poolView === 'clinic') {
+      const groups = groupRowsByClinic(rows);
+      return {
+        queue: Object.fromEntries(groups.map((g) => [g.clinic.key, { items: map(g.rows), total: g.rows.length }])),
+        sections: groups.map((g) => g.clinic.key),
+        labels: Object.fromEntries(groups.map((g) => [
+          g.clinic.key, (c) => `${clinicShortLabel(g.clinic.key)} (${c})`,
+        ])),
+      };
+    }
+    const sorted = [...rows].sort(comparePoolRows);
+    return {
+      queue: { pool: { items: map(sorted), total: sorted.length } },
+      sections: ['pool'],
+      labels: { pool: (c) => `คิวรวมรอรับเคส (${c})` },
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromPool, poolView, poolTick]);
+
   const goToPatientRecord = (p) => history.push({
     pathname: '/treat/record',
-    state: { hn: p.hn, queue: p.queue, name: p.name },
+    /* เข้ามาจากกองกลาง แล้วสลับผู้ป่วยในพาเนล ต้องยังเป็นคิวรวมอยู่ ไม่ใช่ดีดกลับ
+       ไปเป็นคิวคลินิก — มุมมองที่เลือกไว้ก็ติดไปด้วย */
+    state: fromPool
+      ? { hn: p.hn, queue: p.queue, name: p.name, from: 'unassigned', viewMode: poolView }
+      : { hn: p.hn, queue: p.queue, name: p.name },
   });
 
   /* กดแถวในพาเนลคิว = รับผู้ป่วยคนนั้นเข้าตรวจ จึงถามยืนยันก่อนเหมือนกดจาก
@@ -381,6 +431,17 @@ const TreatmentFormPage = () => {
   const confirmPanelAccept = () => {
     const p = panelAcceptTarget;
     if (!p) return;
+    /* เคสในกองกลางต้อง "รับเคส" ให้เป็นของแพทย์คนนี้ก่อน ไม่งั้นเปิดตรวจโดยที่
+       เคสยังลอยอยู่ในกอง แล้วแพทย์อีกคนหยิบซ้ำได้ · ถ้ามีคนชิงไปก่อนให้บอก
+       แล้วหยุด ไม่ใช่เปิดหน้าตรวจของเคสที่ไม่ใช่ของเรา */
+    if (fromPool && !p.doctor) {
+      const claimed = claimCase(p.id, CURRENT_CLINICIAN.name);
+      if (!claimed) {
+        setPanelAcceptTarget(null);
+        setPageToast({ id: Date.now(), variant: 'error', message: `เคส ${p.name} ถูกแพทย์ท่านอื่นรับไปแล้ว` });
+        return;
+      }
+    }
     appendAudit({
       hn: p.hn,
       category: 'note',
@@ -647,18 +708,56 @@ const TreatmentFormPage = () => {
         /* แถวเรียบคั่นด้วยเส้น ไม่ใช่การ์ดซ้อนการ์ด (มติผู้ใช้ 28 ส.ค. 69) —
            กรอบรอบทุกแถวในพาเนลแคบทำให้ดูเป็นกล่องเล็ก ๆ เรียงกันแทนที่จะเป็นคิว */
         rowVariant='divider'
-        queue={queueBuckets}
-        sectionLabels={TREATMENT_QUEUE_SUBMENU_LABELS}
+        queue={poolPanel ? poolPanel.queue : queueBuckets}
+        sectionLabels={poolPanel ? poolPanel.labels : TREATMENT_QUEUE_SUBMENU_LABELS}
+        /* ตัวสลับมุมมองของคิวรวม — ป้ายและพฤติกรรมชุดเดียวกับหน้าคิวรวมรอรับเคส */
+        headerSlot={poolPanel ? (
+          <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
+            <span style={{
+              color: 'var(--text-content-tertiary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+            }}>
+              มุมมอง:
+            </span>
+            <TabBar aria-label='มุมมองคิวรวมรอรับเคส'>
+              {POOL_VIEW_MODES.map((m) => (
+                <TabPill
+                  key={m.key}
+                  size='small'
+                  selected={poolView === m.key}
+                  onClick={() => setPoolView(m.key)}
+                >
+                  {m.label}
+                </TabPill>
+              ))}
+            </TabBar>
+          </div>
+        ) : null}
         /* เห็นแค่ "คิวที่เหลือวันนี้" พร้อมรูปผู้ป่วยและปุ่มจัดการคิว · ไม่มีจุดสี
            นำหน้าและไม่มีปุ่ม "ดูทั้งหมด" แล้ว (มติผู้ใช้ 28 ส.ค. 69) */
         /* สองหมวด: คิวที่รอ + คิวที่กำลังทำอยู่ (มติผู้ใช้ 29 ส.ค. 69) — เดิมเห็น
            แต่คิวที่รอ เจ้าหน้าที่จึงไม่รู้ว่าใครกำลังถูกให้บริการอยู่ ทั้งที่เป็นคน
            ที่ต้องรู้ก่อนจะเรียกคิวถัดไป · คำเรียกหมวดมาจาก sectionLabels ของแต่ละ
            โมดูล (ลงทะเบียน / คัดกรอง / ตรวจ) จึงใช้คำที่ถูกของงานนั้น */
-        sections={['inProgress', 'waiting']}
+        sections={poolPanel ? poolPanel.sections : ['inProgress', 'waiting']}
         showDots={false}
         onPickPatient={(p) => setPanelAcceptTarget(p)}
-        renderRowActions={(p, section, rowIdx) => (
+        renderRowActions={(p, section, rowIdx) => (poolPanel ? (
+          /* กองกลางไม่มีการ "เรียกคิว" — เคสยังไม่มีเจ้าของ สิ่งที่ทำได้คือรับเคส
+             แล้วเข้าห้องตรวจ (เคสที่รับไว้เองแล้วก็แค่เปิดต่อ) */
+          <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+            <EmrRowAction hn={p.hn} name={p.name} />
+            <BrandSubdueButton
+              size='sm'
+              variant='outline'
+              leadingIcon={p.doctor ? 'login' : 'assignment_ind'}
+              onClick={(e) => { e.stopPropagation(); setPanelAcceptTarget(p); }}
+            >
+              {p.doctor ? 'เปิดตรวจ' : 'รับเคส'}
+            </BrandSubdueButton>
+          </div>
+        ) : (
           <QueueCallActions
             /* หมวดที่กำลังทำอยู่ → ปุ่มบอกสถานะจริง · หมวดที่รอ แถวแรกคือคิวที่
                กำลังถูกเรียก (มติผู้ใช้ 29 ส.ค. 69) */
@@ -680,7 +779,7 @@ const TreatmentFormPage = () => {
                 ที่เห็นเสมอ ไม่ใช่คนไข้ที่กำลังเปิดฟอร์มอยู่ */}
             <EmrRowAction hn={p.hn} name={p.name} />
           </QueueCallActions>
-        )}
+        ))}
       />
       <div className='flex-1 min-w-0 flex flex-col'>
         <Header breadcrumb={breadcrumb} />
@@ -701,87 +800,11 @@ const TreatmentFormPage = () => {
             <>
               {/* ปุ่ม "ไป Step 6: CPOE" และ "ส่งยาไปห้องยา" ถูกเอาออกจากหัวการ์ด
                   (มติผู้ใช้ 28 ส.ค. 69) */}
-              {/* ส่งตรวจ — งานสั่งตรวจอยู่ในขั้น "สั่งการรักษา" ของ visit นี้อยู่แล้ว
-                  เมนูจึงพาไปที่นั่นพร้อมเปิดแท็บที่ตรงกับสิ่งที่จะสั่ง แทนที่จะให้หมอ
-                  ออกไปหน้าโมดูลแล็บ/รังสี แล้วค้น HN ใหม่ (มติผู้ใช้ 28 ส.ค. 69) */}
-              <div className='inline-flex shrink-0'>
-                <BrandSubdueButton
-                  ref={orderMenuRef}
-                  variant='outline'
-                  leadingIcon='labs'
-                  trailingIcon='expand_more'
-                  active={orderMenuOpen}
-                  aria-haspopup='menu'
-                  aria-expanded={orderMenuOpen}
-                  onClick={() => setOrderMenuOpen((o) => !o)}
-                >
-                  ส่งตรวจ
-                </BrandSubdueButton>
-                <Popover
-                  open={orderMenuOpen}
-                  onClose={() => setOrderMenuOpen(false)}
-                  anchorRef={orderMenuRef}
-                  style={{
-                    width: 240,
-                    background: 'var(--surface-dropdown-default)',
-                    border: 'var(--dim-stroke-100) solid var(--border-dropdown-default)',
-                    borderRadius: 'var(--dim-radius-500)',
-                    boxShadow: 'var(--shadow-dropdown)',
-                    padding: 'var(--dim-space-100)',
-                    zIndex: 'var(--sm-z-modal-popover, 1450)',
-                  }}
-                >
-                  <div role='menu' aria-label='ส่งตรวจ'>
-                    {[
-                      { key: 'lab', label: 'ส่งตรวจแล็บ', icon: 'biotech' },
-                      { key: 'xray', label: 'ส่งตรวจรังสีวิทยา', icon: 'radiology' },
-                    ].map((item) => (
-                      <ActionList
-                        key={item.key}
-                        as='button'
-                        role='menuitem'
-                        label={item.label}
-                        leadingIcon={item.icon}
-                        showLeadingIcon
-                        showSubtext={false}
-                        showSwitch={false}
-                        showBadge={false}
-                        showCheck={false}
-                        showChevronRight={false}
-                        onClick={() => {
-                          setOrderMenuOpen(false);
-                          if (item.key === 'lab') {
-                            setLabOrderOpen(true);
-                            return;
-                          }
-                          setForm((s2) => ({ ...s2, orderCategory: item.key }));
-                          requestStepChange(CPOE_STEP_ORDERS);
-                        }}
-                      />
-                    ))}
-                  </div>
-                </Popover>
-              </div>
-
-              <Popup
-                open={labOrderOpen}
-                onClose={() => setLabOrderOpen(false)}
-                title='ส่งตรวจแล็บ'
-                subtitle='ฟอร์มเดียวกับหน้าบันทึกส่งตรวจของห้องปฏิบัติการ — ผู้รับบริการถูกเลือกไว้ให้แล้ว'
-                size='extraLarge'
-                primaryAction={{
-                  label: 'ส่งคำขอตรวจ',
-                  onClick: () => labOrderActions.current?.submit?.(),
-                }}
-                secondaryAction={{ label: 'ยกเลิก', onClick: () => setLabOrderOpen(false) }}
-              >
-                <LabOrderBody
-                  hideActions
-                  actionsRef={labOrderActions}
-                  defaultPatientHn={patient?.hn}
-                  onDone={() => setLabOrderOpen(false)}
-                />
-              </Popup>
+              {/* ปุ่ม "ส่งตรวจ" (ส่งตรวจแล็บ / ส่งตรวจรังสีวิทยา) ถูกเอาออกจากหัวการ์ด
+                  30 ส.ค. 69 (มติผู้ใช้) — งานสั่งตรวจอยู่ในขั้น "สั่งการรักษา" ของ
+                  visit นี้อยู่แล้ว โดยเป็นแท็บ "แล็บ" (LabOrderPanel) และ
+                  "X-ray / RIS" ของขั้นนั้น เมนูบนหัวการ์ดจึงเป็นทางลัดซ้ำที่พาไป
+                  ที่เดียวกัน */}
               {/* CPOE §1.5.10.1 — เดิมปุ่มนี้ยังไม่ผูก sheet จริง ตอนนี้พาไป
                   ศูนย์พิมพ์เอกสาร (step 8) ที่ต่อ PharmacyPrescriptionPrint
                   ไว้แล้ว พร้อม preview ก่อนพิมพ์ */}

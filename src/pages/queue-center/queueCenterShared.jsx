@@ -102,8 +102,13 @@ export const CARD_STYLE = {
   gap: 'var(--dim-space-500)',
 };
 
-export const SectionCard = ({ icon, title, subtitle, action, children, footer }) => (
-  <section className='w-full flex flex-col' style={CARD_STYLE}>
+/* `flat` = การ์ดที่วางอยู่ในพื้นขาวใบใหญ่แล้ว จึงเหลือแค่เส้นขอบ ไม่มีเงา
+   ไม่งั้นอ่านเป็นการ์ดซ้อนการ์ด (มติผู้ใช้ 31 ส.ค. 69) */
+export const SectionCard = ({ icon, title, subtitle, action, children, footer, flat = false }) => (
+  <section
+    className='w-full flex flex-col'
+    style={flat ? { ...CARD_STYLE, boxShadow: 'none' } : CARD_STYLE}
+  >
     <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
       {icon ? (
         <div
@@ -380,9 +385,16 @@ export const WaitCell = ({ minutes, overdue, threshold }) => (
 /* ────────────────────────────────────────────────── แถบเมนูย่อยของโมดูล */
 
 const SUB_NAV = [
+  /* เรียง "รายการ" ของทั้งสองอุปกรณ์ไว้ก่อน แล้วค่อยเป็นหน้าตั้งค่าของแต่ละตัว
+     (มติผู้ใช้ 31 ส.ค. 69) — คนเข้ามาดูทะเบียนบ่อยกว่าเข้ามาตั้งค่า */
   { path: '/queue-center/kiosk-settings', label: 'รายการตู้บริการ', icon: 'kiosk', exact: false },
-  { path: '/queue-center/ticket-settings', label: 'ตั้งค่าตู้',     icon: 'receipt_long', exact: false },
-  { path: '/queue-center/display',     label: 'ตั้งค่าจอแสดงผลการเรียกคิว', icon: 'tv',   exact: false },
+  /* เดิมมีแต่หน้าตั้งค่าจอ ทะเบียนจอจึงไม่มีที่อยู่ ต้องเข้าไปเปิดดรอปดาวน์ในหน้า
+     ตั้งค่าถึงจะรู้ว่าศูนย์มีจอกี่จอ ตั้งอยู่ตรงไหนบ้าง */
+  { path: '/queue-center/displays',    label: 'รายการจอแสดงผลการเรียกคิว', icon: 'tv',   exact: false },
+  /* "ตั้งค่าตู้ Kiosk" — หน้านี้ตั้งค่าเป็น *กลุ่ม* ของตู้ (ตู้กดคิว · ตู้ชำระเงิน)
+     ไม่ใช่ตั้งค่าตู้รายเครื่อง ซึ่งอยู่ในรายการตู้บริการ */
+  { path: '/queue-center/ticket-settings', label: 'ตั้งค่าตู้ Kiosk', icon: 'receipt_long', exact: false },
+  { path: '/queue-center/display',     label: 'ตั้งค่าจอแสดงผลการเรียกคิว (TV)', icon: 'settings', exact: false },
 ];
 
 export const QueueCenterSubNav = () => {

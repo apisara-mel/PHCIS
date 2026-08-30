@@ -2098,7 +2098,9 @@ export function TelemedConsultOverlay({ visitId = null, minimized = false, onMin
                     <Sym name='person' size={22} fill={1} color='var(--icon-content-tertiary, #858C92)' />
                   )}
                 </span>
-                <div style={{ width: '100%', minWidth: 0 }}>
+                {/* ทั้งบล็อกจัดกึ่งกลาง (มติผู้ใช้ 31 ส.ค. 69) — ชื่อกับ HN เคยชิดซ้าย
+                    ส่วนบรรทัดสถานะจัดกลาง อ่านเป็นสองแนวในบล็อกเดียว */}
+                <div className='text-center' style={{ width: '100%', minWidth: 0 }}>
                   <div
                     style={{
                       fontFamily: 'var(--type-family-heading-graphic2, "Mitr", sans-serif)',
@@ -2130,7 +2132,7 @@ export function TelemedConsultOverlay({ visitId = null, minimized = false, onMin
                   </div>
                   {waitStatus.timeText && (
                     <div
-                      className='flex items-center'
+                      className='flex items-center justify-center'
                       style={{
                         gap: 'var(--dim-space-100, 4px)',
                         fontSize: 'var(--type-size-xs, 12px)',

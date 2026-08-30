@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
-import { LabPrintLabelsButton, LabOrderCtaButton } from '@/components/lab/LabHeaderActions';
+import { LabAddTestButton, LabPrintLabelsButton, LabOrderCtaButton } from '@/components/lab/LabHeaderActions';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import Table, { EllipsisText } from '@/components/table/Table';
 import Badge from '@/components/badge/Badge';
@@ -19,8 +19,6 @@ import SelectableCardButton from '@/components/button/SelectableCardButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import Pagination from '@/components/pagination/Pagination';
 import { Icon } from '@/components/icons/Icon';
-import LabSubNav from '@/components/lab/LabSubNav';
-import StickyStatusTabBar from '@/components/tab/StickyStatusTabBar';
 import UpcomingAppointmentsPanel from '@/components/queue/UpcomingAppointmentsPanel';
 import { countUpcomingAppointments } from '@/data/upcomingAppointments';
 import {
@@ -96,12 +94,10 @@ const buildSummaryCards = (rows) => [
 /* Tabs are the six pipeline stages, in pipeline order, exactly as the
    mockup's tab strip renders them (รอรับคำขอ 4 · รอเก็บ/รับตัวอย่าง 9 ·
    กำลังตรวจ 6 · ส่งตรวจภายนอก 5 · รอรับรองผล 3 · รายงานผลแล้ว 58). */
-const buildTabs = (rows, advanceCount = 0, upcomingCount = 0) => [
-  /* คำสั่งล่วงหน้าอยู่ก่อน "รอรับคำขอ" เพราะยังไม่เข้าสายพาน — ยังไม่มี
-     Accession จนกว่าผู้ป่วยจะมาถึงแล้วกด "ดึงมาใช้" */
-  ...(advanceCount > 0
-    ? [{ key: 'advance', label: 'คำสั่งตรวจล่วงหน้า', icon: 'event_upcoming', count: advanceCount }]
-    : []),
+const buildTabs = (rows, upcomingCount = 0) => [
+  /* แท็บ "คำสั่งตรวจล่วงหน้า" ถูกลบออก 30 ส.ค. 69 (มติผู้ใช้) — คำสั่งล่วงหน้า
+     ยังอยู่ในตารางใต้แท็บ "ทั้งหมด" (สถานะ `advance` พร้อมปุ่ม "ดึงมาใช้")
+     เหมือนเดิม หายไปเฉพาะแท็บที่แยกออกมาเป็นกองของตัวเอง */
   ...LAB_STATUSES.map((s) => ({
     key: s.key,
     label: s.label,
@@ -759,8 +755,8 @@ const LabQueuePage = () => {
   const summaryCards = useMemo(() => buildSummaryCards(liveRows), [liveRows]);
   const upcomingCount = useMemo(() => countUpcomingAppointments({ days: 7 }), []);
   const tabs = useMemo(
-    () => buildTabs(liveRows, advanceRows.length, upcomingCount),
-    [liveRows, advanceRows.length, upcomingCount],
+    () => buildTabs(liveRows, upcomingCount),
+    [liveRows, upcomingCount],
   );
 
   /* Row-action confirmation — one dialog reused for every destructive-ish
@@ -1065,6 +1061,18 @@ const LabQueuePage = () => {
     return result;
   }, [searchHistory]);
 
+  /* ท้ายแถบเป็นลิงก์ไปหน้าส่งตรวจภายนอก ซึ่งเดิมอยู่ในเมนูโมดูล (LabSubNav)
+     คนละอย่างกับสถานะ "ส่งตรวจภายนอก" ที่กรองรายการในคิวนี้ ป้ายจึงคงคำว่า
+     (Lab-out) ไว้ตามเดิมเพื่อไม่ให้สับสนกับสถานะ */
+  const shellTabs = useMemo(
+    () => [...tabs, { key: 'nav:send-out', label: 'ส่งตรวจภายนอก (Lab-out)' }],
+    [tabs],
+  );
+  const handleShellTabChange = (key) => {
+    if (key === 'nav:send-out') { history.push('/lab/send-out'); return; }
+    setActiveTab(key);
+  };
+
   const handleSort = (key) => setSortConfig((prev) => (
     prev.key === key ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' } : { key, direction: 'asc' }
   ));
@@ -1196,14 +1204,32 @@ const LabQueuePage = () => {
         breadcrumb={breadcrumb}
         title='ห้องปฏิบัติการ'
         summaryFlushUnderSubHeader={false}
-        belowSummary={<LabSubNav />}
+        /* แถบสถานะย้ายขึ้นมารวมกับแถบแท็บขีดเส้นใต้ระดับหน้า (มติผู้ใช้ 30 ส.ค. 69)
+           ของเดิมเป็นแท็บเม็ดยาอยู่ในการ์ด ทำให้หน้ามีแถวแท็บสองชั้นซ้อนกัน คือ
+           เมนูโมดูลด้านบนกับสถานะด้านล่าง แถวเดียวจบ แล้วตัด "คิวห้องปฏิบัติการ"
+           ออกจากเมนูโมดูล เพราะแถบสถานะคือคิวห้องปฏิบัติการอยู่แล้ว */
+        tabs={shellTabs}
+        activeTab={activeTab}
+        onTabChange={handleShellTabChange}
         /* ปุ่มประจำโมดูล — ดูคำอธิบายใน LabHeaderActions.jsx
            ส่งมุมมองปัจจุบันไปเป็นขอบเขตการพิมพ์ ตัวกรองบนหน้าจึงมีผลจริง */
         leadingActions={(
-          <LabPrintLabelsButton
-            rows={sorted}
-            onPrint={(printed) => logAudit('พิมพ์สติกเกอร์ติดหลอด (ทั้งชุด)', `${printed.length} รายการจากมุมมองปัจจุบัน`)}
-          />
+          <>
+            {/* สแกนบาร์โค้ด — ย้ายขึ้นมาจากแถวค้นหา ยังโฟกัสช่องค้นหาเดิมให้อัตโนมัติ */}
+            <NeutralSubdueButton
+              variant='outline'
+              leadingIcon='barcode_scanner'
+              onClick={handleScan}
+              accessibilityLabel='สแกนบาร์โค้ดหลอดตัวอย่าง'
+            >
+              สแกนบาร์โค้ด
+            </NeutralSubdueButton>
+            <LabAddTestButton />
+            <LabPrintLabelsButton
+              rows={sorted}
+              onPrint={(printed) => logAudit('พิมพ์สติกเกอร์ติดหลอด (ทั้งชุด)', `${printed.length} รายการจากมุมมองปัจจุบัน`)}
+            />
+          </>
         )}
         actions={<LabOrderCtaButton />}
       >
@@ -1228,12 +1254,6 @@ const LabQueuePage = () => {
                 gap: 'var(--dim-space-600)',
               }}
             >
-              <StickyStatusTabBar
-                tabs={tabs}
-                value={activeTab}
-                onChange={setActiveTab}
-              />
-
               {activeTab === 'upcoming' ? (
                 <UpcomingAppointmentsPanel
                   emptyMessage='ยังไม่มีนัดล่วงหน้าที่ต้องเตรียมสิ่งส่งตรวจในช่วงนี้'
@@ -1249,9 +1269,15 @@ const LabQueuePage = () => {
                 {summaryCards.map((c) => <SummaryCard key={c.key} card={c} />)}
               </div>
 
-              {/* Search + scan. The mockup puts "สแกนบาร์โค้ด" as the widget's
-                  one primary action, to the right of the search field. */}
-              <div className='w-full flex items-center justify-center' style={{ gap: 'var(--dim-space-300)' }} ref={searchWrapRef}>
+              {/* Search row. "สแกนบาร์โค้ด" moved up to the page header
+                  (มติผู้ใช้ 30 ส.ค. 69) — the bench works barcode-first, so the
+                  action sits with the module's other header buttons instead of
+                  scrolling away with the list. It still drives this field:
+                  handleScan focuses the input inside `searchWrapRef`. */}
+              <div className='w-full flex items-center' style={{ gap: 'var(--dim-space-300)' }} ref={searchWrapRef}>
+                {/* ตัวถ่วงซ้าย — ช่องค้นหายังอยู่กึ่งกลางการ์ด ส่วนปุ่มนำส่งออก
+                    รายงานไปชิดขวา (มติผู้ใช้ 30 ส.ค. 69) */}
+                <div className='flex-1' />
                 <PrimarySearch
                   value={query}
                   onChange={(v) => { setQuery(v); if (scanMode && v === '') setScanMode(false); }}
@@ -1269,24 +1295,18 @@ const LabQueuePage = () => {
                   suggestions={searchSuggestions}
                   avatars={searchAvatars}
                 />
-                <BrandPrimaryButton
-                  size='md'
-                  leadingIcon='barcode_scanner'
-                  onClick={handleScan}
-                  aria-label='สแกนบาร์โค้ดหลอดตัวอย่าง'
-                >
-                  สแกนบาร์โค้ด
-                </BrandPrimaryButton>
-                <NeutralSubdueButton
-                  variant='outline'
-                  size='md'
-                  leadingIcon='ios_share'
-                  collapseLabelBelow='lg'
-                  accessibilityLabel='นำส่งออกรายงาน'
-                  onClick={() => setExportReport(buildExportReport())}
-                >
-                  นำส่งออกรายงาน
-                </NeutralSubdueButton>
+                <div className='flex-1 flex justify-end'>
+                  <NeutralSubdueButton
+                    variant='outline'
+                    size='md'
+                    leadingIcon='ios_share'
+                    collapseLabelBelow='lg'
+                    accessibilityLabel='นำส่งออกรายงาน'
+                    onClick={() => setExportReport(buildExportReport())}
+                  >
+                    นำส่งออกรายงาน
+                  </NeutralSubdueButton>
+                </div>
               </div>
 
               <OverflowFlexRow itemGap='var(--dim-space-200)' moreAriaLabel='แสดงตัวกรองที่ซ่อน'>

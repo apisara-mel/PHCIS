@@ -22,7 +22,7 @@ import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import { Icon } from '@/components/icons/Icon';
 import LabSubNav from '@/components/lab/LabSubNav';
-import { LabPrintLabelsButton, LabOrderCtaButton } from '@/components/lab/LabHeaderActions';
+import { LabAddTestButton, LabPrintLabelsButton, LabOrderCtaButton } from '@/components/lab/LabHeaderActions';
 import StickyStatusTabBar, { QUEUE_STICKY_UNDER_STATUS_TABS } from '@/components/tab/StickyStatusTabBar';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
 import LabSendOutFormPopup from '@/components/lab/LabSendOutFormPopup';
@@ -555,7 +555,7 @@ const LabSendOutPage = () => {
         /* ปุ่มประจำโมดูลห้องปฏิบัติการ ต้องอยู่ทุกหน้าในโมดูล (มติผู้ใช้ 28 ส.ค. 69)
            หน้านี้ไม่มีตารางสิ่งส่งตรวจของตัวเอง จึงไม่ส่ง `rows` — ปุ่มพิมพ์ฉลาก
            จะครอบทุกรายการใน Worklist ที่ยังไม่เคยพิมพ์ */
-        leadingActions={<LabPrintLabelsButton />}
+        leadingActions={<><LabAddTestButton /><LabPrintLabelsButton /></>}
         actions={<LabOrderCtaButton />}
       >
         <div

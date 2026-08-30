@@ -294,6 +294,8 @@ const QueueSubMenu = ({
   showDots = true,
   /** ปุ่มจัดการคิวท้ายแถว — `(item, sectionKey) => ReactNode` */
   renderRowActions,
+  /** โหนดบนสุดของพาเนลตอนกาง (เช่น ตัวสลับมุมมองของคิวรวมรอรับเคส) */
+  headerSlot = null,
   className = '',
   style = {},
 }) => {
@@ -329,12 +331,12 @@ const QueueSubMenu = ({
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [expanded, isControlled, onExpandedChange]);
 
-  const BUCKETS = {
-    done:       normaliseBucket(queue.done),
-    draft:      normaliseBucket(queue.draft),
-    inProgress: normaliseBucket(queue.inProgress),
-    waiting:    normaliseBucket(queue.waiting),
-  };
+  /* หมวดสร้างจาก `sections` ที่ผู้เรียกส่งมา ไม่ใช่สี่คีย์ตายตัว — พาเนลคิวรวม
+     รอรับเคสจัดหมวดตาม "คลินิก" ซึ่งคีย์เป็นอะไรก็ได้ (มติผู้ใช้ 30 ส.ค. 69)
+     สี่คีย์เดิมยังทำงานเหมือนเดิมทุกประการ เพราะมันก็มาทาง `sections` อยู่แล้ว */
+  const BUCKETS = Object.fromEntries(
+    sections.map((key) => [key, normaliseBucket(queue[key])]),
+  );
 
   return (
     <aside
@@ -411,6 +413,7 @@ const QueueSubMenu = ({
           overscrollBehavior: 'contain',
         }}
       >
+        {headerSlot}
         {sections.map((key) => {
           const bucket = BUCKETS[key];
           if (!bucket) return null;
@@ -433,7 +436,7 @@ const QueueSubMenu = ({
                   avatarUrl={p.avatarUrl}
                   newUser={p.newUser}
                   queueNo={showQueueNo ? p.queue : undefined}
-                  tone={DOT_TONES[key]}
+                  tone={DOT_TONES[key] || undefined}
                   badge={p.badge}
                   sublabel={p.sublabel}
                   emphasis={key === 'inProgress'}

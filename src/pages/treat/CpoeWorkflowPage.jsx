@@ -16,6 +16,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import Icon from '@/components/icons/Icon';
 import Alert from '@/components/alert/Alert';
+import Popup from '@/components/popup/Popup';
 import AlertDialog from '@/components/popup/AlertDialog';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
 import { PATIENT_PROFILES } from '@/data/patientProfiles';
@@ -210,6 +211,11 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
   const [step, setStep] = useState(workflowSeed.step || 0);
   const [header, setHeader] = useState(() => workflowSeed.header || buildInitialHeader());
   const [safety, setSafety] = useState(workflowSeed.safety || initialSafety);
+  /* แบบประเมินความปลอดภัยเป็นปุ่ม → ป๊อปอัป (มติผู้ใช้ 30 ส.ค. 69) — ของเดิมกาง
+     ทั้งฟอร์มค้างอยู่กลางขั้นสั่งการรักษา ทั้งที่เป็นงานที่ทำครั้งเดียวจบ ผลลัพธ์
+     จึงเพิ่งขึ้นหลังกด "บันทึกแบบประเมิน" ไม่ใช่ขึ้นเขียวไว้ก่อนตั้งแต่ยังไม่ประเมิน */
+  const [safetyOpen, setSafetyOpen] = useState(false);
+  const [safetyAssessed, setSafetyAssessed] = useState(!!workflowSeed.safetyAssessed);
   const [selectedIds, setSelectedIds] = useState(
     workflowSeed.selectedIds || (embedded ? treatmentOrderIds(form) : CPOE_INITIAL_ORDER_IDS),
   );
@@ -246,6 +252,7 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
   const contrastOrders = selectedOrders.filter((order) => order.contrast);
   const femaleScreeningOrders = selectedOrders.filter((order) => order.femaleScreening);
   const egfrLow = Number(safety.egfr) > 0 && Number(safety.egfr) < 45;
+  const safetyHardStop = contrastOrders.length > 0 && egfrLow;
 
   const readinessIssues = useMemo(() => {
     const issues = [];
@@ -291,13 +298,13 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
   useEffect(() => {
     if (!embedded || !setForm) return;
     const nextWorkflow = {
-      step, header, safety, selectedIds, delivery, routing, trackingRows,
+      step, header, safety, safetyAssessed, selectedIds, delivery, routing, trackingRows,
     };
     setForm((current) => {
       if (JSON.stringify(current.cpoeWorkflow || {}) === JSON.stringify(nextWorkflow)) return current;
       return { ...current, cpoeWorkflow: nextWorkflow };
     });
-  }, [delivery, embedded, header, routing, safety, selectedIds, setForm, step, trackingRows]);
+  }, [delivery, embedded, header, routing, safety, safetyAssessed, selectedIds, setForm, step, trackingRows]);
 
   /* Category panels and the unified picker edit the same order arrays.
      Reconcile curated Lab/Radiology/Procedure IDs back into the workflow
@@ -650,88 +657,148 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
 
       {/* การ์ด "รายการที่เลือก" ถูกเอาออก 28 ส.ค. 69 */}
 
-      <PanelCard title='แบบประเมินความปลอดภัยก่อนส่งคำสั่ง' subtitle='ระบบใช้ข้อมูลนี้ตรวจ warning และ hard stop ตามรายการที่เลือก'>
-        <div className='grid grid-cols-1 xl:grid-cols-2' style={{ gap: 'var(--dim-space-500)' }}>
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
-            <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-400)' }}>
-              <Select
-                label='สถานะการตั้งครรภ์'
-                required={femaleScreeningOrders.length > 0}
-                searchable={false}
-                value={safety.pregnancyStatus}
-                onChange={(value) => setSafetyField('pregnancyStatus', value)}
-                options={[
-                  { value: 'not-pregnant', label: 'ไม่ตั้งครรภ์' },
-                  { value: 'pregnant', label: 'ตั้งครรภ์/สงสัยตั้งครรภ์' },
-                  { value: 'unknown', label: 'ยังไม่ทราบ ต้องซักประวัติเพิ่ม' },
-                  { value: 'not-applicable', label: 'ไม่เกี่ยวข้อง' },
-                ]}
-              />
-              <InputField label='วันแรกของประจำเดือนครั้งสุดท้าย (LMP)' value={safety.lmp} onChange={(value) => setSafetyField('lmp', value)} disabled={safety.pregnancyStatus === 'not-applicable'} />
-              <InputField label='eGFR ล่าสุด' required type='number' value={safety.egfr} onChange={(value) => setSafetyField('egfr', value)} helperText='mL/min/1.73m² · ผลวันที่ 24 ส.ค. 2569' />
-              <div className='grid grid-cols-2' style={{ gap: 'var(--dim-space-300)' }}>
-                <InputField label='น้ำหนัก (kg)' required type='number' value={safety.weight} onChange={(value) => setSafetyField('weight', value)} />
-                <InputField label='ส่วนสูง (cm)' required type='number' value={safety.height} onChange={(value) => setSafetyField('height', value)} />
+      {/* แบบประเมินความปลอดภัย — ปุ่มเปิดป๊อปอัป แล้วสรุปผลกลับมาที่การ์ดนี้
+          (มติผู้ใช้ 30 ส.ค. 69) ก่อนกดประเมินจะยังไม่มีคำว่า "ไม่มีความเสี่ยง"
+          ให้อ่าน เพราะยังไม่มีใครประเมิน */}
+      <PanelCard
+        title='แบบประเมินความปลอดภัยก่อนส่งคำสั่ง'
+        subtitle='ระบบใช้ข้อมูลนี้ตรวจ warning และ hard stop ตามรายการที่เลือก'
+        action={(
+          <BrandSubdueButton
+            size='sm'
+            variant='outline'
+            leadingIcon='health_and_safety'
+            onClick={() => setSafetyOpen(true)}
+          >
+            {safetyAssessed ? 'แก้ไขแบบประเมิน' : 'ทำแบบประเมิน'}
+          </BrandSubdueButton>
+        )}
+      >
+        {!safetyAssessed ? (
+          <span style={PANEL_LABEL_STYLE}>
+            ยังไม่ได้ทำแบบประเมิน — กด “ทำแบบประเมิน” เพื่อบันทึกข้อมูลความปลอดภัยของผู้รับบริการก่อนส่งคำสั่ง
+          </span>
+        ) : safetyHardStop ? (
+          <Alert
+            type='destructive'
+            title='พบข้อห้าม (Hard stop) · eGFR ต่ำกว่า 45 และมีคำสั่งใช้สารทึบรังสี'
+            subtext={`eGFR ${safety.egfr} · ${contrastOrders.map((item) => item.name).join(', ')}`}
+            detail='ต้องระบุเหตุผลทางคลินิกและมาตรการลดความเสี่ยงต่อไตในแบบประเมินก่อนส่งคำสั่ง'
+            showBadge={false}
+            showIndicator={false}
+          />
+        ) : readinessIssues.length ? (
+          <Alert
+            type='warning'
+            title={`ประเมินแล้ว · ยังต้องแก้ไข ${readinessIssues.length} รายการก่อนส่งคำสั่ง`}
+            indicators={readinessIssues}
+            showBadge={false}
+          />
+        ) : (
+          <Alert
+            type='success'
+            title='ประเมินแล้ว · ไม่พบความเสี่ยง'
+            subtext='ข้อมูลความปลอดภัยครบถ้วน ไม่พบข้อห้ามหรือคำเตือนจากรายการที่เลือก'
+            showDetail={false}
+            showBadge={false}
+            showIndicator={false}
+          />
+        )}
+      </PanelCard>
+
+      <Popup
+        open={safetyOpen}
+        onClose={() => setSafetyOpen(false)}
+        size='extraLarge'
+        title='แบบประเมินความปลอดภัยก่อนส่งคำสั่ง'
+        subtitle='ระบบใช้ข้อมูลนี้ตรวจ warning และ hard stop ตามรายการที่เลือก'
+        secondaryAction={{ label: 'ยกเลิก', onClick: () => setSafetyOpen(false) }}
+        primaryAction={{
+          label: 'บันทึกแบบประเมิน',
+          onClick: () => { setSafetyAssessed(true); setSafetyOpen(false); },
+        }}
+      >
+          <div className='grid grid-cols-1 xl:grid-cols-2' style={{ gap: 'var(--dim-space-500)' }}>
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
+              <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-400)' }}>
+                <Select
+                  label='สถานะการตั้งครรภ์'
+                  required={femaleScreeningOrders.length > 0}
+                  searchable={false}
+                  value={safety.pregnancyStatus}
+                  onChange={(value) => setSafetyField('pregnancyStatus', value)}
+                  options={[
+                    { value: 'not-pregnant', label: 'ไม่ตั้งครรภ์' },
+                    { value: 'pregnant', label: 'ตั้งครรภ์/สงสัยตั้งครรภ์' },
+                    { value: 'unknown', label: 'ยังไม่ทราบ ต้องซักประวัติเพิ่ม' },
+                    { value: 'not-applicable', label: 'ไม่เกี่ยวข้อง' },
+                  ]}
+                />
+                <InputField label='วันแรกของประจำเดือนครั้งสุดท้าย (LMP)' value={safety.lmp} onChange={(value) => setSafetyField('lmp', value)} disabled={safety.pregnancyStatus === 'not-applicable'} />
+                <InputField label='eGFR ล่าสุด' required type='number' value={safety.egfr} onChange={(value) => setSafetyField('egfr', value)} helperText='mL/min/1.73m² · ผลวันที่ 24 ส.ค. 2569' />
+                <div className='grid grid-cols-2' style={{ gap: 'var(--dim-space-300)' }}>
+                  <InputField label='น้ำหนัก (kg)' required type='number' value={safety.weight} onChange={(value) => setSafetyField('weight', value)} />
+                  <InputField label='ส่วนสูง (cm)' required type='number' value={safety.height} onChange={(value) => setSafetyField('height', value)} />
+                </div>
+              </div>
+              <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-300)' }}>
+                <Checkbox checked={safety.allergyReviewed} onChange={(value) => setSafetyField('allergyReviewed', value)} label='ทบทวนประวัติแพ้ยา/Contrast แล้ว' description='พบประวัติแพ้ Penicillin แต่ไม่เคยแพ้สารทึบรังสี' />
+                <Checkbox checked={safety.contrastAllergy} onChange={(value) => setSafetyField('contrastAllergy', value)} label='มีประวัติแพ้สารทึบรังสี' />
+                <Checkbox checked={safety.diabetes} onChange={(value) => setSafetyField('diabetes', value)} label='เบาหวาน' />
+                <Checkbox checked={safety.metformin} onChange={(value) => setSafetyField('metformin', value)} label='ใช้ยา Metformin' description='พิจารณาหยุดยาตามแนวทางเมื่อใช้ Contrast' />
+                <Checkbox checked={safety.implant} onChange={(value) => setSafetyField('implant', value)} label='มีโลหะฝัง/Pacemaker' />
+                <Checkbox checked={safety.isolation} onChange={(value) => setSafetyField('isolation', value)} label='ต้องแยกโรค/ใช้ Isolation precaution' />
               </div>
             </div>
-            <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-300)' }}>
-              <Checkbox checked={safety.allergyReviewed} onChange={(value) => setSafetyField('allergyReviewed', value)} label='ทบทวนประวัติแพ้ยา/Contrast แล้ว' description='พบประวัติแพ้ Penicillin แต่ไม่เคยแพ้สารทึบรังสี' />
-              <Checkbox checked={safety.contrastAllergy} onChange={(value) => setSafetyField('contrastAllergy', value)} label='มีประวัติแพ้สารทึบรังสี' />
-              <Checkbox checked={safety.diabetes} onChange={(value) => setSafetyField('diabetes', value)} label='เบาหวาน' />
-              <Checkbox checked={safety.metformin} onChange={(value) => setSafetyField('metformin', value)} label='ใช้ยา Metformin' description='พิจารณาหยุดยาตามแนวทางเมื่อใช้ Contrast' />
-              <Checkbox checked={safety.implant} onChange={(value) => setSafetyField('implant', value)} label='มีโลหะฝัง/Pacemaker' />
-              <Checkbox checked={safety.isolation} onChange={(value) => setSafetyField('isolation', value)} label='ต้องแยกโรค/ใช้ Isolation precaution' />
-            </div>
-          </div>
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
-            {contrastOrders.length > 0 && egfrLow ? (
-              <Alert
-                type='destructive'
-                title='Hard stop · eGFR ต่ำกว่า 45 และมีคำสั่งใช้สารทึบรังสี'
-                subtext={`eGFR ${safety.egfr} · ${contrastOrders.map((item) => item.name).join(', ')}`}
-                detail='ต้องระบุเหตุผลทางคลินิกและมาตรการลดความเสี่ยงต่อไตก่อนส่งคำสั่ง ระบบจะบันทึกทั้งสองรายการใน Audit log'
-                showBadge={false}
-                showIndicator={false}
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+              {contrastOrders.length > 0 && egfrLow ? (
+                <Alert
+                  type='destructive'
+                  title='Hard stop · eGFR ต่ำกว่า 45 และมีคำสั่งใช้สารทึบรังสี'
+                  subtext={`eGFR ${safety.egfr} · ${contrastOrders.map((item) => item.name).join(', ')}`}
+                  detail='ต้องระบุเหตุผลทางคลินิกและมาตรการลดความเสี่ยงต่อไตก่อนส่งคำสั่ง ระบบจะบันทึกทั้งสองรายการใน Audit log'
+                  showBadge={false}
+                  showIndicator={false}
+                />
+              ) : null}
+              {/* แถบเขียว "ไม่พบข้อห้ามจากการทำงานของไต" ถูกเอาออก 28 ส.ค. 69 —
+                  แจ้งเฉพาะตอนมีข้อห้ามจริง (hard stop) พอ */}
+              <InputField
+                label='เหตุผลที่จำเป็นต้องใช้ Contrast'
+                required={contrastOrders.length > 0 && egfrLow}
+                value={safety.renalReason}
+                onChange={(value) => setSafetyField('renalReason', value)}
+                placeholder='ระบุ clinical benefit ที่มากกว่าความเสี่ยง'
+                error={contrastOrders.length > 0 && egfrLow && !safety.renalReason.trim() ? 'จำเป็นต้องระบุเหตุผลก่อนส่งคำสั่ง' : undefined}
               />
-            ) : null}
-            {/* แถบเขียว "ไม่พบข้อห้ามจากการทำงานของไต" ถูกเอาออก 28 ส.ค. 69 —
-                แจ้งเฉพาะตอนมีข้อห้ามจริง (hard stop) พอ */}
-            <InputField
-              label='เหตุผลที่จำเป็นต้องใช้ Contrast'
-              required={contrastOrders.length > 0 && egfrLow}
-              value={safety.renalReason}
-              onChange={(value) => setSafetyField('renalReason', value)}
-              placeholder='ระบุ clinical benefit ที่มากกว่าความเสี่ยง'
-              error={contrastOrders.length > 0 && egfrLow && !safety.renalReason.trim() ? 'จำเป็นต้องระบุเหตุผลก่อนส่งคำสั่ง' : undefined}
-            />
-            <Checkbox
-              checked={safety.renalProtection}
-              onChange={(value) => setSafetyField('renalProtection', value)}
-              label='ยืนยันมาตรการป้องกันไต'
-              description='ให้สารน้ำตามแนวทาง · ทบทวน Metformin · นัดตรวจ Creatinine ซ้ำ'
-            />
-            {safety.contrastAllergy ? (
-              <Checkbox checked={safety.radiologistConsulted} onChange={(value) => setSafetyField('radiologistConsulted', value)} label='ปรึกษารังสีแพทย์และยืนยันแผนแล้ว' description='ระบุ premedication หรือเปลี่ยนวิธีตรวจไว้ใน Physician note' />
-            ) : null}
-            <div
-              className='flex flex-col'
-              style={{
-                gap: 'var(--dim-space-200)',
-                paddingTop: 'var(--dim-space-300)',
-                paddingRight: 'var(--dim-space-300)',
-                paddingBottom: 'var(--dim-space-300)',
-                paddingLeft: 'var(--dim-space-300)',
-                borderRadius: 'var(--dim-radius-200)',
-                background: readinessIssues.length ? 'var(--surface-alert-warning)' : 'var(--surface-alert-success)',
-                border: `var(--dim-stroke-100) solid ${readinessIssues.length ? 'var(--border-alert-warning)' : 'var(--border-alert-success)'}`,
-              }}
-            >
-              <span style={PANEL_TITLE_STYLE}>{readinessIssues.length ? `ยังต้องแก้ไข ${readinessIssues.length} รายการ` : 'พร้อมไปเลือกรายการและตรวจสอบคำสั่ง'}</span>
-              {readinessIssues.map((issue) => <span key={issue} style={PANEL_LABEL_STYLE}>• {issue}</span>)}
+              <Checkbox
+                checked={safety.renalProtection}
+                onChange={(value) => setSafetyField('renalProtection', value)}
+                label='ยืนยันมาตรการป้องกันไต'
+                description='ให้สารน้ำตามแนวทาง · ทบทวน Metformin · นัดตรวจ Creatinine ซ้ำ'
+              />
+              {safety.contrastAllergy ? (
+                <Checkbox checked={safety.radiologistConsulted} onChange={(value) => setSafetyField('radiologistConsulted', value)} label='ปรึกษารังสีแพทย์และยืนยันแผนแล้ว' description='ระบุ premedication หรือเปลี่ยนวิธีตรวจไว้ใน Physician note' />
+              ) : null}
+              <div
+                className='flex flex-col'
+                style={{
+                  gap: 'var(--dim-space-200)',
+                  paddingTop: 'var(--dim-space-300)',
+                  paddingRight: 'var(--dim-space-300)',
+                  paddingBottom: 'var(--dim-space-300)',
+                  paddingLeft: 'var(--dim-space-300)',
+                  borderRadius: 'var(--dim-radius-200)',
+                  background: readinessIssues.length ? 'var(--surface-alert-warning)' : 'var(--surface-alert-success)',
+                  border: `var(--dim-stroke-100) solid ${readinessIssues.length ? 'var(--border-alert-warning)' : 'var(--border-alert-success)'}`,
+                }}
+              >
+                <span style={PANEL_TITLE_STYLE}>{readinessIssues.length ? `ยังต้องแก้ไข ${readinessIssues.length} รายการ` : 'พร้อมไปเลือกรายการและตรวจสอบคำสั่ง'}</span>
+                {readinessIssues.map((issue) => <span key={issue} style={PANEL_LABEL_STYLE}>• {issue}</span>)}
+              </div>
             </div>
           </div>
-        </div>
-      </PanelCard>
+      </Popup>
     </div>
   );
 

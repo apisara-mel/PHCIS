@@ -15,6 +15,9 @@
    make the tube traceable and matchable to a human being. */
 
 export const LAB_STICKER_FIELDS = [
+  /* ชื่อหน่วยบริการเคยพิมพ์ติดมาเสมอโดยไม่มีสวิตช์ — ตอนนี้ปิดได้ (มติผู้ใช้ 31 ส.ค. 69)
+     บางศูนย์ใช้ม้วนสติกเกอร์เล็กจนบรรทัดนี้กินที่ของชื่อผู้ป่วย */
+  { key: 'siteName',    label: 'ชื่อหน่วยบริการ',            required: false, hint: 'พิมพ์หัวสติกเกอร์ทุกใบ' },
   { key: 'barcode',     label: 'บาร์โค้ด + Accession',      required: true,  hint: 'ใช้สแกนที่หน้า Worklist' },
   { key: 'patientName', label: 'ชื่อ-นามสกุลผู้ป่วย',        required: true,  hint: 'ตัวระบุที่ 1' },
   { key: 'hn',          label: 'HN',                        required: true,  hint: 'ตัวระบุที่ 2' },
@@ -39,8 +42,23 @@ const DEFAULT_ENABLED = [
 
 /* Mutable settings + subscribe/notify, same minimal store shape as
    labCatalog.js and labOrders.js — no backend behind any of this. */
+/* ขนาดสติกเกอร์ตามม้วนกระดาษความร้อนที่ห้องแล็บใช้จริง (มติผู้ใช้ 31 ส.ค. 69)
+   50 × 25 มม. เป็นขนาดมาตรฐานที่พันรอบหลอดเลือด 13 × 75 มม. ได้พอดี ส่วนขนาดอื่น
+   มีไว้สำหรับม้วนที่หน่วยงานมีอยู่เดิม (เล็กสำหรับหลอดจิ๋ว · ใหญ่สำหรับติดใบส่งตรวจ) */
+export const LAB_STICKER_SIZES = [
+  { value: '25x13', label: '25 × 13 มม. (หลอดเล็ก / ไมโครเทนเนอร์)', width: '25mm', height: '13mm' },
+  { value: '38x25', label: '38 × 25 มม.', width: '38mm', height: '25mm' },
+  { value: '50x25', label: '50 × 25 มม. (มาตรฐานหลอดเลือด)', width: '50mm', height: '25mm' },
+  { value: '57x32', label: '57 × 32 มม.', width: '57mm', height: '32mm' },
+  { value: '60x30', label: '60 × 30 มม. (ติดใบส่งตรวจ)', width: '60mm', height: '30mm' },
+];
+
+export const getStickerSize = (value) =>
+  LAB_STICKER_SIZES.find((z) => z.value === value) || LAB_STICKER_SIZES[2];
+
 const settings = {
   enabled: [...DEFAULT_ENABLED],
+  stickerSize: '50x25',
   /* Printed at the top of every sticker and report so a tube that travels
      between sites is attributable. */
   siteName: 'ศูนย์บริการสาธารณสุข 4 ดินแดง',
@@ -60,16 +78,19 @@ const notify = () => listeners.forEach((fn) => fn());
 
 export const getPrintSettings = () => ({ ...settings, enabled: [...settings.enabled] });
 
+/* ทุกช่องปิดได้จริง — ไม่บังคับ `required` ให้ติดค้างอีกแล้ว (มติผู้ใช้ 31 ส.ค. 69) */
 export const isStickerFieldOn = (key) => {
   const field = LAB_STICKER_FIELDS.find((f) => f.key === key);
-  if (field?.required) return true;
+  if (!field) return false;
   return settings.enabled.includes(key);
 };
 
+/* ทุกช่องสลับเปิด-ปิดได้ รวมถึงช่องที่เคยตั้งเป็น `required` (มติผู้ใช้ 31 ส.ค. 69)
+   — ธง `required` ยังอยู่ในแคตตาล็อกเพื่อบอกว่าช่องไหนเป็นตัวระบุที่จำเป็นต่อความ
+   ปลอดภัยผู้ป่วย แต่ไม่ใช้บล็อกการปิดอีกแล้ว */
 export const setStickerField = (key, on) => {
   const field = LAB_STICKER_FIELDS.find((f) => f.key === key);
-  /* Required fields are not switchable — see the note above. */
-  if (!field || field.required) return;
+  if (!field) return;
   settings.enabled = on
     ? [...new Set([...settings.enabled, key])]
     : settings.enabled.filter((k) => k !== key);

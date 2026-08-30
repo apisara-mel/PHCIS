@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { useHistory } from 'react-router-dom';
 import Popup from '@/components/popup/Popup';
 import BrandButton from '@/components/button/BrandButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
@@ -22,17 +23,23 @@ import { printLab } from '@/data/labPrintSettings';
 export const LabPrintLabelsButton = ({ rows = null, onPrint }) => {
   const [printRows, setPrintRows] = useState([]);
 
-  const pending = useMemo(() => {
+  /* `printable` = ทุกรายการที่ออกฉลากได้ในขอบเขตนี้ · `pending` = เฉพาะที่ยัง
+     ไม่เคยพิมพ์ คำสั่งตรวจล่วงหน้ายังไม่มี Accession จึงพิมพ์ไม่ได้ทั้งสองกอง
+     ต้องกด "ดึงมาใช้" ก่อน */
+  const { printable, pending } = useMemo(() => {
     const scope = rows ?? LAB_ORDERS.map(withTestLabel);
-    /* คำสั่งตรวจล่วงหน้ายังไม่มี Accession จึงพิมพ์ฉลากไม่ได้ ต้องกด "ดึงมาใช้" ก่อน */
-    return scope.filter((r) => r.status !== 'advance' && !r.labeled);
+    const ready = scope.filter((r) => r.status !== 'advance');
+    return { printable: ready, pending: ready.filter((r) => !r.labeled) };
   }, [rows]);
 
   const handleClick = () => {
-    if (!pending.length) return;
-    setPrintRows(pending);
-    pending.forEach((r) => updateLabOrder(r.id, { labeled: true }));
-    onPrint?.(pending);
+    /* ปุ่มเปิดใช้เสมอ (มติผู้ใช้ 30 ส.ค. 69) — ถ้าไม่เหลือรายการที่ยังไม่พิมพ์
+       ให้พิมพ์ซ้ำทั้งมุมมองปัจจุบัน เพราะฉลากหายหรือติดพลาดเป็นเรื่องปกติหน้างาน */
+    const batch = pending.length ? pending : printable;
+    if (!batch.length) return;
+    setPrintRows(batch);
+    batch.forEach((r) => updateLabOrder(r.id, { labeled: true }));
+    onPrint?.(batch);
     /* ให้แผ่นฉลาก render ด้วยรายการใหม่ก่อน แล้วค่อยสั่งพิมพ์ */
     window.setTimeout(() => printLab('sticker'), 0);
   };
@@ -42,10 +49,9 @@ export const LabPrintLabelsButton = ({ rows = null, onPrint }) => {
       <NeutralSubdueButton
         variant='outline'
         leadingIcon='print'
-        disabled={pending.length === 0}
-        title={pending.length === 0
-          ? 'ทุกรายการพิมพ์ฉลากแล้ว'
-          : `พิมพ์ฉลาก ${pending.length} รายการที่ยังไม่ได้พิมพ์`}
+        title={pending.length
+          ? `พิมพ์ฉลาก ${pending.length} รายการที่ยังไม่ได้พิมพ์`
+          : `ทุกรายการพิมพ์ฉลากแล้ว — กดเพื่อพิมพ์ซ้ำ ${printable.length} รายการในมุมมองนี้`}
         onClick={handleClick}
       >
         พิมพ์ฉลากตรวจแล็บ
@@ -57,6 +63,28 @@ export const LabPrintLabelsButton = ({ rows = null, onPrint }) => {
         <LabSpecimenLabel rows={printRows} />
       </div>
     </>
+  );
+};
+
+/* เพิ่มรายการตรวจเข้าทะเบียน — ปุ่มต้องอยู่ในเมนูห้องปฏิบัติการของระบบ PHCIS
+   ด้วย (มติผู้ใช้ 30 ส.ค. 69) ทะเบียนรายการตรวจย้ายไปอยู่ จัดการระบบ ตั้งแต่
+   28 ส.ค. 69 คนหน้างานที่เจอรายการตรวจใหม่จึงไม่มีทางเข้าถึงจากโมดูลตัวเอง
+   ปุ่มนี้พาไปหน้าทะเบียนพร้อมเปิดฟอร์ม "เพิ่มรายการตรวจใหม่" ให้เลย — ฟอร์มเดียว
+   ที่เดียว ไม่แตกเป็นสองชุดที่ต้องดูแลคู่กัน */
+export const LabAddTestButton = () => {
+  const history = useHistory();
+  return (
+    <NeutralSubdueButton
+      /* md เท่ากับปุ่มเดียวกันบนหัวการ์ดทะเบียน (มติผู้ใช้ 31 ส.ค. 69) — ไม่ปล่อยให้
+         ไปหยิบขนาดจาก ButtonSizeAliasProvider ของ SubHeader ซึ่งเป็น sm */
+      size='md'
+      variant='outline'
+      leadingIcon='add'
+      title='เพิ่มทะเบียนรายการตรวจ (จัดการระบบ › ทะเบียนรายการตรวจ)'
+      onClick={() => history.push('/admin/lab/registry?new=1')}
+    >
+      เพิ่มทะเบียนรายการตรวจ
+    </NeutralSubdueButton>
   );
 };
 

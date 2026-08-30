@@ -466,6 +466,7 @@ export default function Routes() {
         <Route exact path='/queue-center/settings'         component={QueueSettingsPage} />
         <Route exact path='/queue-center/kiosk-settings'   component={QueueKioskSettingsPage} />
         <Route exact path='/queue-center/ticket-settings'  component={QueueKioskSettingsPage} />
+        <Route exact path='/queue-center/displays'         component={QueueKioskSettingsPage} />
         <Route exact path='/queue-center/display'          component={QueueKioskSettingsPage} />
         <Route exact path='/queue-center/display/hall'     component={HallDisplayPage} />
         <Route exact path='/queue-center/display/station'  component={StationDisplayPage} />

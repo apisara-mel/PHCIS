@@ -430,9 +430,12 @@ const UnassignedWorklistPage = () => {
         : allRows.length,
   })), [poolRows, myRows, allRows]);
 
+  /* บอกหน้าตรวจรักษาว่าเข้ามาจากกองกลาง — พาเนลคิวข้างฟอร์มจะได้แสดง "คิวรวม"
+     พร้อมตัวสลับมุมมองชุดเดียวกับหน้านี้ แทนคิวของคลินิกตรวจรักษาทั่วไป
+     (มติผู้ใช้ 30 ส.ค. 69) `viewMode` ติดไปด้วย มุมมองที่เลือกไว้จึงไม่รีเซ็ต */
   const openRecord = (row) => history.push({
     pathname: '/treat/record',
-    state: { hn: row.hn, queue: row.queue, name: row.name },
+    state: { hn: row.hn, queue: row.queue, name: row.name, from: 'unassigned', viewMode },
   });
 
   /* รับเคส = แพทย์กลายเป็นเจ้าของเคสนั้น แล้วเข้าห้องตรวจต่อทันที — การให้กด

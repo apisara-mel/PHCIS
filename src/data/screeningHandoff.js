@@ -85,8 +85,10 @@ export const getCarriedScreening = (patient = {}) => {
     triage: triage
       ? { level: triage.lv, label: triage.en, subLabel: triage.th, tone: triage.tone }
       : null,
+    /* `tone` ติดมาด้วย เพราะฝั่งที่แสดงผลทำเป็น Badge ตามระดับ ไม่ใช่ข้อความเปล่า
+       (มติผู้ใช้ 30 ส.ค. 69) — สีของระดับเป็นของแคตตาล็อก ไม่ใช่ของหน้าจอ */
     pain: pain
-      ? { icon: pain.icon, label: pain.label }
+      ? { icon: pain.icon, label: pain.label, tone: pain.tone }
       : null,
     orders: (symptom?.orders || []).length > 0
       ? [...symptom.orders, ...(symptom.othersNote ? [symptom.othersNote] : [])]

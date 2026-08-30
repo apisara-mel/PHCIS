@@ -1376,16 +1376,21 @@ const ScreeningPage = () => {
               ฟอร์มยาวใบเดียวที่ต้องมีการ์ดครอบ (มติผู้ใช้ 28 ส.ค. 69) */}
           <fieldset
             disabled={readOnlyMode}
+            /* ขั้นที่มีการ์ดของตัวเองต้องไม่ตัดขอบ (มติผู้ใช้ 31 ส.ค. 69) —
+               `overflow-hidden` ที่ตัวห่อไปเฉือนเงาของการ์ดขาวข้างในทั้งซ้าย-ขวา-ล่าง
+               (เห็นชัดที่ขั้น "ตรวจสอบข้อมูล") ขั้นที่ไม่มีการ์ดของตัวเองยังต้องคลิป
+               อยู่ เพราะตัวห่อเองเป็นการ์ดที่ต้องกันเนื้อหาล้นมุมโค้ง
+               เว้นขอบ 4px ให้เงามีที่ลง ไม่งั้นถูกกล่องแม่เฉือนอยู่ดี */
             className={stepHasOwnCards
-              ? 'overflow-hidden'
+              ? 'overflow-visible'
               : 'bg-surface-card rounded-card shadow-card overflow-hidden'}
             style={{
               borderWidth: 0,
               borderStyle: 'none',
-              paddingTop: 'var(--dim-space-0, 0px)',
-              paddingRight: 'var(--dim-space-0, 0px)',
-              paddingBottom: 'var(--dim-space-0, 0px)',
-              paddingLeft: 'var(--dim-space-0, 0px)',
+              paddingTop: stepHasOwnCards ? 'var(--dim-space-100, 4px)' : 'var(--dim-space-0, 0px)',
+              paddingRight: stepHasOwnCards ? 'var(--dim-space-100, 4px)' : 'var(--dim-space-0, 0px)',
+              paddingBottom: stepHasOwnCards ? 'var(--dim-space-100, 4px)' : 'var(--dim-space-0, 0px)',
+              paddingLeft: stepHasOwnCards ? 'var(--dim-space-100, 4px)' : 'var(--dim-space-0, 0px)',
               marginTop: 'var(--dim-space-0, 0px)',
               marginRight: 'var(--dim-space-0, 0px)',
               marginBottom: 'var(--dim-space-0, 0px)',

@@ -22,7 +22,7 @@ import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import SuccessToast from '@/components/toast/SuccessToast';
 import { Icon } from '@/components/icons/Icon';
 import LabSubNav from '@/components/lab/LabSubNav';
-import { LabPrintLabelsButton, LabOrderCtaButton } from '@/components/lab/LabHeaderActions';
+import { LabAddTestButton, LabPrintLabelsButton, LabOrderCtaButton } from '@/components/lab/LabHeaderActions';
 import StickyStatusTabBar, { QUEUE_STICKY_UNDER_STATUS_TABS } from '@/components/tab/StickyStatusTabBar';
 import LabTubeDot from '@/pages/lab/LabTubeDot';
 import LabReceiptFormPopup from '@/components/lab/LabReceiptFormPopup';
@@ -622,7 +622,7 @@ const LabReceivePage = () => {
         summaryFlushUnderSubHeader={false}
         belowSummary={<LabSubNav />}
         /* ปุ่มประจำโมดูลห้องปฏิบัติการ — เหมือนหน้าอื่นในโมดูล */
-        leadingActions={<LabPrintLabelsButton />}
+        leadingActions={<><LabAddTestButton /><LabPrintLabelsButton /></>}
         actions={<LabOrderCtaButton />}
       >
         <div

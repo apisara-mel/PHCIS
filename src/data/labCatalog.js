@@ -92,6 +92,22 @@ export const LAB_TUBES = {
 
 export const LAB_TUBE_LIST = Object.values(LAB_TUBES);
 
+/* จานสีจุกที่เลือกได้ในหน้าทะเบียนรายการตรวจ — ผูกกับโทเคน colorfulbadge bold
+   ชุดเดียวกับที่ Badge ใช้ทั้งระบบ สีจุกจึงไม่หลุดออกนอกชุดสีของดีไซน์ซิสเต็ม */
+export const LAB_CAP_COLORS = [
+  { key: 'purple',    thai: 'ม่วง',      color: 'var(--surface-colorfulbadge-purple-bold, #A855F7)' },
+  { key: 'red',       thai: 'แดง',      color: 'var(--surface-colorfulbadge-red-bold, #EF4444)' },
+  { key: 'grey',      thai: 'เทา',      color: 'var(--surface-colorfulbadge-grey-bold, #858C92)' },
+  { key: 'green',     thai: 'เขียว',     color: 'var(--surface-colorfulbadge-green-bold, #54CF97)' },
+  { key: 'yellow',    thai: 'เหลือง',    color: 'var(--surface-colorfulbadge-yellow-bold, #EAB308)' },
+  { key: 'blue',      thai: 'น้ำเงิน',    color: 'var(--surface-colorfulbadge-blue-bold, #3B82F6)' },
+  { key: 'orange',    thai: 'ส้ม',       color: 'var(--surface-colorfulbadge-orange-bold, #F97316)' },
+  { key: 'pink',      thai: 'ชมพู',      color: 'var(--surface-colorfulbadge-pink-bold, #EC4899)' },
+  { key: 'teal',      thai: 'เขียวน้ำทะเล', color: 'var(--surface-colorfulbadge-teal-bold, #24A899)' },
+  { key: 'indigo',    thai: 'คราม',      color: 'var(--surface-colorfulbadge-indigo-bold, #818CF8)' },
+  { key: 'magenta',   thai: 'บานเย็น',    color: 'var(--surface-colorfulbadge-magenta-bold, #C926E0)' },
+];
+
 /* สิทธิการรักษา — TOR ภาคผนวก ก §1.15.3.3: "สามารถบันทึกราคาและการเบิกแยก
    ตามสิทธิการรักษาได้". Two separate things per right, which is why the
    clause names both:
@@ -522,6 +538,45 @@ export const setLabTestRetired = (id, retired) => {
   test.retired = retired;
   notify();
   return test;
+};
+
+/* สีจุกของชนิดหลอด — ตั้งได้จากหน้าทะเบียนรายการตรวจ (มติผู้ใช้ 30 ส.ค. 69)
+   สีผูกกับ "ชนิดหลอด" ไม่ใช่กับรายการตรวจแต่ละรายการ ตามกฎของทีม ("ถ้าเลือก
+   Heme สีหลอดจะ auto เปลี่ยนตาม") แก้ที่นี่ที่เดียวจึงเปลี่ยนพร้อมกันทุกหน้าจอ
+   ทั้ง worklist สติกเกอร์ติดหลอด และหน้าสั่งตรวจ
+
+   ต้องกลายพันธุ์ object เดิมในที่ ไม่ใช่สร้างใหม่ — `LAB_TUBE_LIST` และ
+   `getTube()` ถือ reference เดียวกันไว้ตั้งแต่ตอน import */
+/* เพิ่มชนิดหลอดใหม่เข้าทะเบียน (มติผู้ใช้ 31 ส.ค. 69) — ศูนย์ที่มีสิ่งส่งตรวจนอก
+   หกชนิดมาตรฐาน (เช่น หลอดจุกดำ ESR · ภาชนะเก็บอุจจาระ) ต้องเพิ่มเองได้ ไม่ต้อง
+   รอแก้โค้ด · ต้องเขียนทั้ง `LAB_TUBES` และ push เข้า `LAB_TUBE_LIST` ตัวเดิม
+   เพราะหน้าจออื่นถือ reference ของ array นี้ไว้ตั้งแต่ตอน import */
+export const addLabTube = ({ key, thai, label, additive, volumeMl, color, capThai, note }) => {
+  const id = key || `tube-${Date.now()}`;
+  if (LAB_TUBES[id]) return LAB_TUBES[id];
+  const tube = {
+    key: id,
+    label: label || thai,
+    thai,
+    capThai: capThai || '',
+    color: color || LAB_CAP_COLORS[0].color,
+    volumeMl: Number(volumeMl) || 0,
+    additive: additive || '—',
+    note: note || '',
+  };
+  LAB_TUBES[id] = tube;
+  LAB_TUBE_LIST.push(tube);
+  notify();
+  return tube;
+};
+
+export const setTubeCapColor = (tubeKey, { color, capThai }) => {
+  const tube = LAB_TUBES[tubeKey];
+  if (!tube) return null;
+  if (color) tube.color = color;
+  if (capThai) tube.capThai = capThai;
+  notify();
+  return tube;
 };
 
 /* Convenience lookups the screens lean on constantly. */

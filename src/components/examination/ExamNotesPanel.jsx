@@ -8,6 +8,8 @@ import Checkbox from '@/components/checkbox/Checkbox';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
 import Tooltip from '@/components/tooltip/Tooltip';
 import Icon from '@/components/icons/Icon';
+import TabCapsule from '@/components/tab/TabCapsule';
+import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import {
   CHIEF_COMPLAINT_SUGGESTIONS,
   PRESENT_ILLNESS_SUGGESTIONS,
@@ -326,6 +328,35 @@ const Field = ({ label, required, children }) => (
   </div>
 );
 
+/* หนึ่งบรรทัดในคอลัมน์ "บันทึกจากพยาบาล" — `row` = [label, value, tone?]
+   ถ้ามี `tone` ค่าจะแสดงเป็น ColorfulBadge สีตามระดับแทนข้อความเปล่า ส่วนข้อความ
+   ที่คัดลอกยังเป็น "หัวข้อ: ค่า" เหมือนกันทั้งสองแบบ */
+const NurseRow = ({ row }) => {
+  const [label, value, tone] = row;
+  return (
+    <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
+      <span style={{
+        color: 'var(--text-content-tertiary)',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-xs)',
+      }}>{label}</span>
+      {tone ? (
+        <span className='ml-auto'>
+          <ColorfulBadge style={tone} size='small' hierarchy='secondary'>{value}</ColorfulBadge>
+        </span>
+      ) : (
+        <span className='ml-auto text-right' style={{
+          color: 'var(--text-content-default)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+        }}>{value}</span>
+      )}
+      {/* คัดลอกได้ทีละหัวข้อ ไม่ใช่เฉพาะทั้งบล็อก */}
+      <CopyIconButton label={`คัดลอก ${label}`} text={`${label}: ${value}`} />
+    </div>
+  );
+};
+
 const ExamNotesPanel = ({
   nurseNotes = {},
   doctorNotes = {},
@@ -342,6 +373,9 @@ const ExamNotesPanel = ({
   embedded = false,
   className = '',
 }) => {
+  /* แท็บหมวดซักประวัติในคอลัมน์ซ้าย (แพ้ยา · แพ้อาหาร · …) */
+  const [historyTab, setHistoryTab] = useState(0);
+
   /* SuggestibleTextarea emits DOM-event-shaped onChange — extract value. */
   const setDoctorFromEvent = (key) => (e) =>
     onDoctorChange?.({ ...doctorNotes, [key]: e?.target?.value ?? '' });
@@ -350,11 +384,37 @@ const ExamNotesPanel = ({
      — สัญญาณชีพ · อาการป่วย · ความเร่งด่วน · Pain score · คำสั่งการพยาบาล ·
      สิ่งที่จุดคัดกรองระบุไว้ · เตียงสังเกตอาการ (มติผู้ใช้ 28 ส.ค. 69) */
   const screening = getCarriedScreening(patient || {});
+
+  /* หนึ่งรายการที่พยาบาลซักไว้ = หนึ่งบรรทัด — ชื่อเป็นหัวแถว ส่วนรายละเอียด
+     (ระดับ · ความน่าจะเป็น/สถานะ · อาการ · หมายเหตุ) ต่อกันเป็นค่าเดียว เพื่อให้
+     คัดลอกไปช่องของแพทย์ได้ทั้งบรรทัดในคลิกเดียว */
+  const recordLine = (r) => [
+    r.severity && `ระดับ${r.severity}`,
+    r.probability || r.status,
+    r.symptom,
+    r.note,
+  ].filter(Boolean).join(' · ');
+
+  /* "ระบุว่าไม่มี" ต้องขึ้นเป็นบรรทัด ไม่ใช่หายไปเฉย ๆ — หมอต้องอ่านออกว่า
+     พยาบาลถามแล้วและได้คำตอบ ต่างจากหมวดที่ยังไม่ได้ซัก (ซึ่งไม่ขึ้นเลย) */
+  const historyBlock = (title, topic) => {
+    const rows = (topic?.records || []).map((r) => [r.name, recordLine(r) || '—']);
+    if (rows.length === 0 && topic?.denied) return { title, rows: [['ผลการซักประวัติ', 'ซักแล้ว — ระบุว่าไม่มี']] };
+    return { title, rows };
+  };
+
+  const behaviour = screening.behaviour || null;
+  const vitalRound = screening.vitalRound;
+
   const nurseBlocks = [
     {
       title: 'สัญญาณชีพล่าสุด',
-      rows: (screening.vitalItems || []).filter((v) => v.value)
-        .map((v) => [v.label, v.value]),
+      rows: [
+        ...(vitalRound?.date
+          ? [['รอบที่วัด', `${vitalRound.date}${vitalRound.time ? ` · ${vitalRound.time}` : ''}`]]
+          : []),
+        ...(screening.vitalItems || []).filter((v) => v.value).map((v) => [v.label, v.value]),
+      ],
     },
     {
       title: 'อาการป่วย',
@@ -364,15 +424,18 @@ const ExamNotesPanel = ({
         ['ประวัติการเจ็บป่วยปัจจุบัน', screening.presentIllness],
       ].filter(([, v]) => v),
     },
+    /* ความเร่งด่วน + Pain score เป็น Badge สีตามระดับ (มติผู้ใช้ 30 ส.ค. 69) —
+       สองค่านี้อ่านเป็น "ระดับ" ไม่ใช่ข้อความ สีจึงต้องบอกความหนักเบาได้ทันที
+       `tone` มาจากแคตตาล็อกจุดคัดกรอง หน้าจอไม่ได้ตั้งสีเอง */
     {
       title: 'ความเร่งด่วน',
       rows: screening.triage
-        ? [['ระดับ', `${screening.triage.label} · ${screening.triage.subLabel}`]]
+        ? [['ระดับ', `${screening.triage.label} · ${screening.triage.subLabel}`, screening.triage.tone]]
         : [],
     },
     {
       title: 'ระดับความเจ็บปวด (Pain Score)',
-      rows: screening.pain ? [['ระดับ', screening.pain.label]] : [],
+      rows: screening.pain ? [['ระดับ', screening.pain.label, screening.pain.tone]] : [],
     },
     {
       title: 'คำสั่งการพยาบาลและการสังเกตอาการ',
@@ -386,6 +449,29 @@ const ExamNotesPanel = ({
       ].filter(([, v]) => v),
     },
   ].filter((b) => b.rows.length > 0);
+
+  /* ซักประวัติทั้งชุดจากจุดคัดกรอง ทำเป็นแท็บ (มติผู้ใช้ 30 ส.ค. 69) — ป้ายและ
+     ลำดับตรงกับแท็บของจุดคัดกรองเป๊ะ ๆ หมอกับพยาบาลจึงอ่านหัวข้อชุดเดียวกัน
+     เดิมข้อมูลชุดนี้ไม่ได้ถูกส่งต่อมาให้หมออ่านตรงนี้เลย ทั้งที่
+     `getCarriedScreening` คืนค่ามาให้อยู่แล้ว · วางเป็นแท็บไม่ใช่บล็อกเรียงลงมา
+     เพราะหกหมวดต่อกันดันคอลัมน์ยาวจนสัญญาณชีพหลุดจอ */
+  const historyTabs = [
+    historyBlock('แพ้ยา', screening.allergyTopics?.drug),
+    historyBlock('แพ้อาหาร', screening.allergyTopics?.food),
+    historyBlock('แพ้สารเคมี', screening.allergyTopics?.chemical),
+    historyBlock('โรคประจำตัว', screening.allergyTopics?.disease),
+    historyBlock('อื่น ๆ', screening.allergyTopics?.other),
+    {
+      title: 'พฤติกรรมสุขภาพ',
+      rows: [
+        ['สูบบุหรี่', behaviour?.smoking],
+        ['ดื่มแอลกอฮอล์', behaviour?.alcohol],
+        ['ออกกำลังกาย', behaviour?.exercise],
+        ['ข้อมูลเพิ่มเติม', behaviour?.detail],
+      ].filter(([, v]) => v),
+    },
+  ];
+  const activeHistory = historyTabs[historyTab] || historyTabs[0];
 
   /* embedded = หน้าที่เรียกใช้เป็นคนวางการ์ดขาวและ padding เอง พาเนลจึงโปร่งใส
      ไม่งั้นจะได้พื้นเทาซ้อนอยู่ในการ์ดขาวอีกชั้น (มติผู้ใช้ 28 ส.ค. 69) */
@@ -465,24 +551,48 @@ const ExamNotesPanel = ({
                 fontSize: 'var(--type-size-xs)',
                 fontWeight: 'var(--type-weight-medium)',
               }}>{block.title}</span>
-              {block.rows.map(([label, value]) => (
-                <div key={label} className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
-                  <span style={{
-                    color: 'var(--text-content-tertiary)',
-                    fontFamily: 'var(--type-family-body)',
-                    fontSize: 'var(--type-size-xs)',
-                  }}>{label}</span>
-                  <span className='ml-auto text-right' style={{
-                    color: 'var(--text-content-default)',
-                    fontFamily: 'var(--type-family-body)',
-                    fontSize: 'var(--type-size-sm)',
-                  }}>{value}</span>
-                  {/* คัดลอกได้ทีละหัวข้อ ไม่ใช่เฉพาะทั้งบล็อก */}
-                  <CopyIconButton label={`คัดลอก ${label}`} text={`${label}: ${value}`} />
-                </div>
-              ))}
+              {block.rows.map((row) => <NurseRow key={row[0]} row={row} />)}
             </div>
           ))}
+
+          {/* หมวดซักประวัติ — แท็บชุดเดียวกับจุดคัดกรอง */}
+          <div
+            className='flex flex-col w-full'
+            style={{
+              gap: 'var(--dim-space-300)',
+              padding: 'var(--dim-space-400)',
+              borderRadius: 'var(--dim-radius-300)',
+              border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+            }}
+          >
+            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+              {historyTabs.map((t, i) => (
+                <TabCapsule
+                  key={t.title}
+                  variant='filter'
+                  label={t.title}
+                  selected={i === historyTab}
+                  showLeadingIcon={false}
+                  showTrailingIcon={false}
+                  onClick={() => setHistoryTab(i)}
+                />
+              ))}
+            </div>
+
+            {activeHistory?.rows.length ? (
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+                {activeHistory.rows.map((row) => <NurseRow key={row[0]} row={row} />)}
+              </div>
+            ) : (
+              <span style={{
+                color: 'var(--text-content-tertiary)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs)',
+              }}>
+                ยังไม่ได้ซักประวัติหมวดนี้ที่จุดคัดกรอง
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Doctor column */}

@@ -69,7 +69,10 @@ export const SYSTEM_NAV = [
   /* เทมเพลตแดชบอร์ด — ตัวสร้างย้ายมาจากหน้าแดชบอร์ดมาเป็นงานผู้ดูแลระบบ
      (มติผู้ใช้ 27 ส.ค. 69) หน้าแดชบอร์ดเหลือแค่ "เลือกใช้" */
   { key: 'system-dashboard-templates', label: 'เทมเพลตแดชบอร์ด', icon: 'dashboard_customize', path: '/admin/dashboard-templates' },
-  { key: 'queue-center', label: 'ระบบบริหารจัดการคิว', icon: 'campaign', path: '/queue-center/kiosk-settings' },
+  /* เมนูนี้คือ "ตั้งค่าอุปกรณ์คิว" ของจัดการระบบ — ตู้กดบัตรคิวและจอแสดงผล
+     (มติผู้ใช้ 31 ส.ค. 69) ชื่อเดิม "ระบบบริหารจัดการคิว" ทับกับระบบคิวฝั่ง
+     ปฏิบัติการใน PHCIS (ออกคิว/เรียกคิว) ซึ่งเป็นคนละเมนูกัน */
+  { key: 'queue-center', label: 'ตู้กดบัตรคิวและจอแสดงผล', icon: 'campaign', path: '/queue-center/kiosk-settings' },
 ];
 
 export default SYSTEM_NAV;

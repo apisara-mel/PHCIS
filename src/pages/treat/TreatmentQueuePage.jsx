@@ -40,8 +40,10 @@ import { withEmrRowAction } from '@/components/patient/EmrRowAction';
    BrandIconButton + ยกเลิก actions. All colours alias design.md tokens. */
 
 /* Figma PHCIS-ALL 2624:122782 — Level-3 breadcrumb in Header. */
-const breadcrumb = ['บันทึกการรักษา', 'ตรวจรักษาทั่วไป (OPD)'];
-const SUMMARY_TITLE = 'คิวตรวจรักษาทั่วไป (OPD)';
+/* ชื่อหน้า = "คิวตรวจรักษาทั่วไป" (มติผู้ใช้ 30 ส.ค. 69) — ตัด "(OPD)" ออก
+   ทั้ง breadcrumb และหัวหน้า ให้เรียกชื่อเดียวกันทุกที่ */
+const breadcrumb = ['บันทึกการรักษา', 'คิวตรวจรักษาทั่วไป'];
+const SUMMARY_TITLE = 'คิวตรวจรักษาทั่วไป';
 
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:treatment-queue';
 

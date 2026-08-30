@@ -39,9 +39,15 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 
 const EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
 
+/* ความสูง/ระยะขอบ/ขนาดตัวอักษร ต้องดึงจากโทเคนชุดเดียวกับ InputBox (_inputBox.jsx
+   SIZES) ไม่ใช่ตัวเลขดิบ — ของเดิม md เขียนความสูงเป็น 36 ตรง ๆ และใช้ระยะขอบ
+   `--dim-space-200` ต่างจากอินพุตที่ใช้ `--dim-space-300` ดรอปดาวน์กับช่องกรอกที่
+   วางอยู่แถวเดียวกันจึงดูไม่เท่ากัน (มติผู้ใช้ 31 ส.ค. 69)
+     md → --dim-size-700 (36) · space-300 · type-size-sm
+     lg → --dim-size-800 (40) · space-400 · type-size-base  */
 const SIZE = {
-  md: { h: 36, px: 'var(--dim-space-200)',  gap: 'var(--dim-space-150)', icon: 16 },
-  lg: { h: 40, px: 'var(--dim-space-400)',  gap: 'var(--dim-space-200)', icon: 20 },
+  md: { h: 'var(--dim-size-700, 36px)', px: 'var(--dim-space-300)', gap: 'var(--dim-space-150)', icon: 16, font: 'var(--type-size-sm)' },
+  lg: { h: 'var(--dim-size-800, 40px)', px: 'var(--dim-space-400)', gap: 'var(--dim-space-200)', icon: 20, font: 'var(--type-size-base)' },
 };
 
 const Dropdown = ({
@@ -62,9 +68,19 @@ const Dropdown = ({
   const [menuPos, setMenuPos] = useState(null);
 
   // Close on outside-click + Escape
+  /* เมนูถูก render ผ่าน portal ไปไว้ที่ <body> จึงไม่ได้เป็นลูกของ `ref` — ตัวเช็ก
+     "คลิกนอกกล่อง" เดิมจึงนับการกดบนตัวเลือกว่าเป็นการคลิกข้างนอก แล้วสั่งปิดเมนู
+     ตั้งแต่ `mousedown` ปุ่มตัวเลือกถูกถอดออกจาก DOM ก่อน `click` จะยิง ผลคือกด
+     เลือกไม่ติดสักที (พบ 31 ส.ค. 69) ต้องเช็กกล่องเมนูด้วยอีกตัว */
+  const menuRef = useRef(null);
   useEffect(() => {
     if (!open) return undefined;
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const handler = (e) => {
+      const t = e.target;
+      if (ref.current?.contains(t)) return;
+      if (menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
     const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('mousedown', handler);
     document.addEventListener('keydown', onKey);
@@ -167,7 +183,7 @@ const Dropdown = ({
           boxShadow: ring,
           color: textColor,
           fontFamily: 'var(--type-family-body)',
-          fontSize: 'var(--type-size-sm)',
+          fontSize: dim.font,
           fontWeight: 'var(--type-weight-regular, 400)',
           lineHeight: 1.5,
           cursor: isDisabled ? 'not-allowed' : 'pointer',
@@ -203,13 +219,23 @@ const Dropdown = ({
 
       {isOpen && !isDisabled && !forced && menuPos && createPortal(
         <div
+          ref={menuRef}
           role='listbox'
-          className='fixed'
+          /* `mih-dropdown-popover` = ป้ายให้ Popup รู้ว่าคลิกนี้เป็นของคอนโทรลที่อยู่
+             ในตัวมันเอง แม้ DOM จะอยู่นอก dialog เพราะเมนูวาดผ่าน portal — ไม่งั้น
+             เลือกตัวเลือกแล้วป๊อปอัปทั้งใบปิดตาม (พบ 31 ส.ค. 69) ชุดเดียวกับ
+             mih-select-popover / mih-datepicker-popover ที่ Popup ยกเว้นไว้อยู่แล้ว */
+          className='fixed mih-dropdown-popover'
           style={{
             top: menuPos.top,
             left: menuPos.left,
             width: menuPos.width,
-            zIndex: 'var(--sm-z-popover, 1200)',
+            /* ชั้นเดียวกับ Select / DatePicker / TimePicker / FilterTag —
+               `--sm-z-popover` (1199) อยู่ต่ำกว่าชั้นของ Popup (--sm-z-modal 1400)
+               ดรอปดาวน์ที่อยู่ในป๊อปอัปจึงกดแล้วเมนูไปโผล่ใต้ป๊อปอัป มองไม่เห็น
+               (พบในป๊อปอัปเพิ่มตู้บริการ 31 ส.ค. 69) เมนูเรนเดอร์เฉพาะตอนเปิด และ
+               ดรอปดาวน์ที่อยู่หลังป๊อปอัปกดไม่ได้อยู่แล้ว การยกชั้นจึงไม่ไปบังอะไร */
+            zIndex: 'var(--sm-z-modal-popover, 1450)',
             padding: 'var(--dim-space-100, 4px)',
             borderRadius: 'var(--dim-radius-500, 16px)',
             background: 'var(--surface-dropdown-default, #FFFFFF)',
