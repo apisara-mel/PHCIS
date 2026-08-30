@@ -34,9 +34,13 @@ const Footer = ({
   /* Primary CTA label — Figma PHCIS pattern: "ถัดไป: [next step]" so the
      clinician sees where they're heading without re-reading the stepper.
      Last step swaps the forward label for the explicit commit action. */
-  const nextStepLabel = isLast
+  /* กันหน้าขาวเมื่อ `stepIndex` หลุดช่วง (เช่น ร่างเก่าที่บันทึกไว้ตอนฟอร์มมี
+     ขั้นมากกว่านี้) — เดิมอ่าน `.title` ของ undefined แล้ว React หยุดทั้งหน้า
+     ก่อนวาด UI (บั๊กที่ผู้ใช้เจอ 30 ส.ค. 69) */
+  const nextStep = steps[stepIndex + 1];
+  const nextStepLabel = isLast || !nextStep
     ? 'จบการบันทึก'
-    : `ถัดไป: ${steps[stepIndex + 1].title}`;
+    : `ถัดไป: ${nextStep.title}`;
   const isFirst = stepIndex === 0;
 
   /* Footer chrome — Figma PHCIS | Medical-examination 330:42666.

@@ -12,12 +12,19 @@
 
 import {
   HOMEVISIT_CURRENT_USER,
+  BARTHEL_MAX_SCORE,
   formatHomeVisitDateTime,
   todayIsoDate,
   addDaysIso,
   readJson,
   writeJson,
 } from '@/data/homevisitVisits';
+import {
+  MNA_MAX_SCORE,
+  SCREEN_9Q_MAX_SCORE,
+  STANDARD_TOOLS,
+  interpretStandardTool,
+} from '@/data/homevisitAssessments';
 
 /* ─── ทะเบียนผู้รับบริการเยี่ยมบ้าน (1.10.12.1) ────────────────────── */
 
@@ -34,6 +41,11 @@ const REGISTRY_SEED = [
     photoLabel: 'ภาพผู้รับบริการ (ถ่ายเมื่อเยี่ยมครั้งที่ 1)',
     illnessHistory: 'อัมพาตครึ่งซีกขวาหลังเส้นเลือดสมองตีบ พ.ศ. 2567 · ความดันโลหิตสูง · แผลกดทับก้นกบ',
     contactName: 'นางสาวจิตรา ปลอดโปร่ง (บุตรสาว)', contactPhone: '081-234-5678',
+    /* แฟ้มครอบครัวระดับครัวเรือน — บันทึกการเยี่ยมทุกครั้งอ่านชุดนี้เป็นค่าตั้งต้น */
+    familyMembers: [
+      { id: 'fam-67-00005-1', name: 'นางสาวจิตรา ปลอดโปร่ง', relation: 'บุตร', age: '41', health: 'caregiver' },
+      { id: 'fam-67-00005-2', name: 'นายสมชาย ปลอดโปร่ง', relation: 'บุตร', age: '38', health: 'ncd' },
+    ],
     recordedBy: 'พว.ศิริพร เยี่ยมสุข', recordedAt: '11 มีนาคม 2568 09:20',
   },
   {
@@ -390,13 +402,63 @@ const buildMockVisitHistory = (hn) => {
   });
 };
 
+/* คะแนนเครื่องมือมาตรฐาน (MNA-SF · 9Q · PPS) ของการเยี่ยมที่บันทึกไว้ก่อนมี
+   ขั้น "ประเมินและคัดกรอง" — seed เดิมเก็บแค่ ADL หน้าติดตามจึงวาดแนวโน้ม
+   ของเครื่องมือไม่ได้เลยทั้งที่ TOR ๑.๑๐.๑๒.๔ บังคับให้แสดง "ผลการประเมิน"
+   ย้อนหลัง. เติมให้แบบคงที่จาก HN + ครั้งที่ (ไม่ใช่ Math.random ค่าจึงไม่
+   เปลี่ยนทุกครั้งที่เปิดหน้า) และผูกกับคะแนน ADL ของครั้งนั้น เพื่อให้
+   เส้นกราฟไปทางเดียวกับสภาพผู้ป่วยจริง ไม่ใช่ตัวเลขสุ่มที่ขัดกันเอง.
+   รายการที่ผู้ใช้บันทึกเองมี `toolScores` มาแล้วจึงไม่ถูกแตะ. */
+
+const clampScore = (v, max) => Math.max(0, Math.min(max, Math.round(v)));
+
+const buildMockToolScores = (hn, entry) => {
+  const seed = hnSeedNumber(hn) + (Number(entry.no) || 0);
+  const adl = Number.isFinite(entry.adl) ? entry.adl : Math.round(BARTHEL_MAX_SCORE / 2);
+  const ratio = adl / BARTHEL_MAX_SCORE; /* 0 = ติดเตียง · 1 = ช่วยเหลือตัวเองได้ */
+  return {
+    mna: clampScore(4 + ratio * 9 + (seed % 3), MNA_MAX_SCORE),
+    /* ยิ่งช่วยเหลือตัวเองไม่ได้ยิ่งมีแนวโน้มซึมเศร้าสูง — กลับทิศกับ ADL */
+    '9q': clampScore((1 - ratio) * 14 + (seed % 4), SCREEN_9Q_MAX_SCORE),
+    /* PPS เป็นขั้นละ 10% ตามแบบประเมินจริง จึงปัดลงเป็นหลักสิบ */
+    pps: Math.max(10, Math.min(100, Math.round((20 + ratio * 70) / 10) * 10)),
+  };
+};
+
+/** ป้ายสรุปเครื่องมือมาตรฐานของการเยี่ยม 1 ครั้ง (ใช้ในไฟล์ส่งออก/ใบพิมพ์). */
+export const formatToolScores = (toolScores = {}) => STANDARD_TOOLS
+  .filter((t) => Number.isFinite(Number(toolScores?.[t.key])))
+  .map((t) => `${t.name} ${toolScores[t.key]}/${t.max}`)
+  .join(' · ');
+
+/** แปลผลทุกเครื่องมือของการเยี่ยม 1 ครั้ง — คืนเฉพาะตัวที่มีคะแนนจริง.
+    เก็บคำแปลผลไว้ใน `interp` ไม่ spread ทับ เพราะทั้งสองฝั่งมีคีย์ `label`
+    (ชื่อเครื่องมือ vs คำแปลผล) ซึ่งต้องแสดงคู่กัน ไม่ใช่แทนกัน. */
+export const describeToolScores = (toolScores = {}) => STANDARD_TOOLS
+  .filter((t) => Number.isFinite(Number(toolScores?.[t.key])))
+  .map((t) => ({
+    ...t,
+    total: Number(toolScores[t.key]),
+    interp: interpretStandardTool(t.key, toolScores[t.key]),
+  }));
+
+const withToolScores = (hn, entry) => {
+  const toolScores = entry.toolScores || buildMockToolScores(hn, entry);
+  return {
+    ...entry,
+    toolScores,
+    toolsMock: !entry.toolScores,
+    tools: entry.tools || formatToolScores(toolScores),
+  };
+};
+
 export const getVisitHistory = (hn) => {
   if (!hn) return [];
   const overlay = readJson(VISIT_HISTORY_OVERLAY_KEY, {});
   const seeded = VISIT_HISTORY_SEED[hn] || [];
   const base = seeded.length > 0 ? seeded : buildMockVisitHistory(hn);
   return [...base, ...(overlay[hn] || [])]
-    .slice()
+    .map((entry) => withToolScores(hn, entry))
     .sort((a, b) => String(a.date).localeCompare(String(b.date)) || a.no - b.no);
 };
 
@@ -414,6 +476,11 @@ export const appendVisitHistory = (hn, record) => {
     vitals: record.vitals || {},
     summary: record.summary || '',
     orders: record.orders || 'ไม่มีคำสั่งการรักษา',
+    /* คะแนนเครื่องมือมาตรฐานของการเยี่ยมครั้งนี้ — เดิมขั้น "ส่งข้อมูลเข้า
+       ศูนย์ฯ" ส่งค่านี้เข้ามาแล้วแต่ถูกทิ้งที่นี่ คอลัมน์ "เครื่องมือมาตรฐาน"
+       ในไฟล์ส่งออกจึงว่างเปล่าเสมอ และหน้าติดตามวาดแนวโน้มไม่ได้. */
+    toolScores: record.toolScores || {},
+    tools: record.tools || formatToolScores(record.toolScores || {}),
     at: formatHomeVisitDateTime(),
   };
   writeJson(VISIT_HISTORY_OVERLAY_KEY, { ...overlay, [hn]: [...(overlay[hn] || []), entry] });
@@ -429,6 +496,91 @@ export const appendVisitHistory = (hn, record) => {
     });
   }
   return entry;
+};
+
+/* สมาชิกในครอบครัวรายครัวเรือน (mock) — เขียนเป็นรายชื่อจริงต่อ HN แทนการ
+   ปั้นชื่อจากเทมเพลต (มติผู้ใช้ 30 ส.ค. 69) เพื่อให้ตารางแฟ้มครอบครัวอ่านได้
+   เหมือนของจริง: นามสกุลตรงกับผู้รับบริการ · อายุสมเหตุสมผลกับอายุเจ้าของแฟ้ม ·
+   ขนาดครัวเรือนต่างกัน 1–4 คนตามบริบทของแต่ละเคส (คนอยู่คนเดียว · อยู่กับคู่สมรส ·
+   สามรุ่นในบ้านเดียว) · `health` ใช้ค่า value ของ FAMILY_HEALTH_OPTIONS */
+const MOCK_FAMILY_BY_HN = {
+  /* ติดเตียงหลังเส้นเลือดสมองตีบ — บุตรสาวลาออกจากงานมาดูแล อยู่กัน 3 คน */
+  '67-00012': [
+    { name: 'สมพร รุ่งเรือง', relation: 'คู่สมรส', age: '58', health: 'ncd' },
+    { name: 'ณัฐพล รุ่งเรือง', relation: 'บุตร', age: '31', health: 'away' },
+    { name: 'ณัฐริกา รุ่งเรือง', relation: 'บุตร', age: '27', health: 'caregiver' },
+  ],
+  /* ผู้ป่วยระยะสุดท้าย — ภรรยาดูแลหลัก มีหลานเล็กอยู่ด้วย */
+  '67-00018': [
+    { name: 'ปราณี อัครพงศ์', relation: 'คู่สมรส', age: '52', health: 'caregiver' },
+    { name: 'ธนกฤต อัครพงศ์', relation: 'บุตร', age: '26', health: 'healthy' },
+    { name: 'ด.ญ.พิมพ์ชนก อัครพงศ์', relation: 'หลาน', age: '6', health: 'child' },
+  ],
+  /* มารดาหลังคลอด — อยู่กับสามีและทารก */
+  '67-00027': [
+    { name: 'อนุชา มณีโชติ', relation: 'คู่สมรส', age: '26', health: 'healthy' },
+    { name: 'ด.ช.ปุณณ์ มณีโชติ', relation: 'บุตร', age: '0', health: 'child' },
+  ],
+  /* หกล้มบ่อย เดินด้วย walker — อยู่กับน้องสาวสองคน */
+  '67-00003': [
+    { name: 'ปราณีต รัตนา', relation: 'พี่/น้อง', age: '49', health: 'ncd' },
+  ],
+  /* โรคไตเรื้อรัง — สามีเป็นผู้ดูแลหลัก บุตรทำงานต่างจังหวัด */
+  '67-00021': [
+    { name: 'สมศักดิ์ ทองดี', relation: 'คู่สมรส', age: '54', health: 'caregiver' },
+    { name: 'พิมพ์ใจ ทองดี', relation: 'บุตร', age: '24', health: 'away' },
+  ],
+  /* บาดเจ็บไขสันหลัง ให้อาหารทางสายยาง — มารดาสูงอายุกับพี่สาวช่วยกันดูแล */
+  '67-00014': [
+    { name: 'บุญมี ก้องเกียรติ', relation: 'บิดา/มารดา', age: '74', health: 'elderly' },
+    { name: 'ชไมพร ก้องเกียรติ', relation: 'พี่/น้อง', age: '50', health: 'caregiver' },
+    { name: 'ด.ช.กันตพัฒน์ ก้องเกียรติ', relation: 'หลาน', age: '11', health: 'child' },
+  ],
+  '67-00011': [
+    { name: 'ประเสริฐ ดวงสว่าง', relation: 'คู่สมรส', age: '51', health: 'ncd' },
+    { name: 'ธิดารัตน์ ดวงสว่าง', relation: 'บุตร', age: '22', health: 'caregiver' },
+  ],
+  '67-00009': [
+    { name: 'สุนีย์ ศรีสมบูรณ์', relation: 'คู่สมรส', age: '50', health: 'caregiver' },
+  ],
+  '67-00025': [
+    { name: 'จินตนา ชาญฉลาด', relation: 'บิดา/มารดา', age: '68', health: 'elderly' },
+  ],
+  '67-00007': [
+    { name: 'ประจักษ์ อ่อนน้อม', relation: 'คู่สมรส', age: '47', health: 'healthy' },
+    { name: 'ด.ญ.ณิชา อ่อนน้อม', relation: 'บุตร', age: '14', health: 'child' },
+    { name: 'ด.ช.ณัฐ อ่อนน้อม', relation: 'บุตร', age: '9', health: 'child' },
+  ],
+  '67-00017': [
+    { name: 'วิรัช วงศ์อนันต์', relation: 'คู่สมรส', age: '44', health: 'caregiver' },
+  ],
+};
+
+const buildMockFamily = (entry) => (MOCK_FAMILY_BY_HN[entry.hn] || []).map((m, i) => ({
+  id: `fam-${entry.hn}-${i + 1}`,
+  ...m,
+  mock: true,
+}));
+
+/** สมาชิกในครอบครัวของครัวเรือนนี้ — ที่บันทึกไว้จริง มิฉะนั้นเป็นชุด mock. */
+export const getFamilyMembers = (hn) => {
+  const reg = hn ? findRegistryEntryByHn(hn) : null;
+  if (!reg) return [];
+  if ((reg.familyMembers || []).length > 0) return reg.familyMembers;
+  return buildMockFamily(reg);
+};
+
+/** บันทึกสมาชิกในครอบครัวกลับเข้าทะเบียน (ระดับครัวเรือน — S011).
+    เรียกตอน "ส่งข้อมูลเข้าศูนย์ฯ" เพื่อให้การเยี่ยมครั้งถัดไปเปิดมาเจอรายชื่อเดิม
+    ไม่ต้องพิมพ์ใหม่ทั้งชุด (มติผู้ใช้ 30 ส.ค. 69). */
+export const saveFamilyMembers = (hn, familyMembers = []) => {
+  if (!hn) return null;
+  const reg = findRegistryEntryByHn(hn);
+  if (!reg) return null;
+  return upsertRegistryEntry({
+    id: reg.id,
+    familyMembers: familyMembers.map((m) => ({ ...m })),
+  });
 };
 
 /* ─── ผล Lab / X-ray ย้อนหลัง (1.10.12.4) ─────────────────────────── */

@@ -42,6 +42,11 @@ import {
   HOMEVISIT_XRAY_HISTORY,
 } from '@/data/homevisitRegistry';
 import {
+  STANDARD_TOOLS,
+  resolveStandardTool,
+  interpretStandardTool,
+} from '@/data/homevisitAssessments';
+import {
   getQuotaUsage,
   fiscalYearLabel,
 } from '@/data/homevisitHhc';
@@ -65,8 +70,9 @@ import {
    ของตัวเอง" (แผงไม่เคยถูกซ่อน เพื่อให้ “ไม่มีข้อมูล” ต่างจาก “ไม่ได้แสดง”):
      1. ผลตรวจร่างกาย (สัญญาณชีพ) — timeline รายครั้ง + กราฟแนวโน้ม 1 ชุดข้อมูล/1 แกน
      2. คะแนน ADL (ดัชนีบาร์เธล)  — กราฟ + ตารางรายครั้ง พร้อมการแปลผล
-     3. ผล Lab                     — แถวผิดปกติถูกทำเครื่องหมาย
-     4. ผล X-ray
+     3. เครื่องมือมาตรฐาน          — MNA-SF / 9Q / PPS กราฟ + ตาราง พร้อมการแปลผล
+     4. ผล Lab                     — แถวผิดปกติถูกทำเครื่องหมาย
+     5. ผล X-ray
    เข้าถึงได้ตามสิทธิสำนักอนามัย (§1.18.3) — ผู้ไม่มีสิทธิเห็น locked state
    ไม่ใช่รายการว่าง. Deep link: /homevisit/follow-up?hn=… จากหน้าทะเบียน. */
 
@@ -76,6 +82,7 @@ const VISIT_PAGE_SIZE = 8;
 
 const ADL_SERIES_COLOR = 'var(--surface-colorfulbadge-teal-bold, #24A899)';
 const VITAL_SERIES_COLOR = 'var(--surface-colorfulbadge-blue-bold, #2580EA)';
+const TOOL_SERIES_COLOR = 'var(--surface-colorfulbadge-purple-bold, #7C5CE0)';
 
 const QUICK_RANGES = [
   { key: '6m', label: '6 เดือน', from: () => isoMonthsAgo(6) },
@@ -115,6 +122,7 @@ const HomeVisitFollowUpPage = () => {
   const [range, setRange] = useState({ from: isoMonthsAgo(12), to: isoToday() });
   const [visitPage, setVisitPage] = useState(1);
   const [vitalSeriesKey, setVitalSeriesKey] = useState('sys');
+  const [toolSeriesKey, setToolSeriesKey] = useState(STANDARD_TOOLS[0].key);
   const [selectedVisitNo, setSelectedVisitNo] = useState(null);
   const [deepLinkMiss, setDeepLinkMiss] = useState(null);
   const [exportReport, setExportReport] = useState(null);
@@ -226,6 +234,17 @@ const HomeVisitFollowUpPage = () => {
     .map((v) => ({ date: v.date, value: Number(v.vitals?.[vitalSeriesKey]) }))
     .filter((p) => Number.isFinite(p.value)),
   [visits, vitalSeriesKey]);
+
+  /* เครื่องมือมาตรฐาน (TOR ๑.๑๐.๑๒.๔ “ผลการประเมิน … ในช่วงเวลา”) — คะแนน
+     มาจากขั้น "ประเมินและคัดกรอง" ของแต่ละครั้งที่ส่งข้อมูลเข้าศูนย์ฯ แล้ว */
+  const toolPoints = useMemo(() => visits
+    .map((v) => ({ date: v.date, value: Number(v.toolScores?.[toolSeriesKey]) }))
+    .filter((p) => Number.isFinite(p.value)),
+  [visits, toolSeriesKey]);
+
+  /* ครั้งที่คะแนนยังเป็นค่าจำลอง (บันทึกไว้ก่อนมีขั้นประเมิน) ต้องบอกให้รู้ —
+     ไม่ใช่ปล่อยให้อ่านเป็นผลประเมินจริง */
+  const toolsHaveMock = useMemo(() => visits.some((v) => v.toolsMock), [visits]);
 
   const summaryCards = useMemo(() => ([
     { key: 'visits',  label: 'จำนวนครั้งที่เยี่ยมในช่วง', value: visits.length, color: 'info', icon: 'home_health' },
@@ -345,6 +364,35 @@ const HomeVisitFollowUpPage = () => {
     { key: 'orders', label: 'คำสั่งการรักษา', flex: true, minWidth: 220 },
   ];
 
+  /* หนึ่งแถวคือการเยี่ยม 1 ครั้ง หนึ่งคอลัมน์คือเครื่องมือ 1 ชิ้น — อ่านง่ายกว่า
+     แยกตารางต่อเครื่องมือ เพราะพยาบาลอ่านทั้งชุดของครั้งเดียวกันพร้อมกัน */
+  const toolColumns = [
+    { key: 'no', label: 'ครั้งที่' },
+    { key: 'date', label: 'วันที่เยี่ยม', render: (r) => formatHomeVisitDate(r.date) },
+    ...STANDARD_TOOLS.map((tool) => ({
+      key: `tool_${tool.key}`,
+      label: `${tool.name} (เต็ม ${tool.max}${tool.unit === '%' ? '%' : ''})`,
+      sortable: false,
+      flex: true,
+      minWidth: 240,
+      render: (r) => {
+        const raw = r.toolScores?.[tool.key];
+        if (!Number.isFinite(Number(raw))) return '—';
+        const interp = interpretStandardTool(tool.key, raw);
+        return (
+          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            <span>{tool.unit === '%' ? `${raw}%` : `${raw}/${tool.max}`}</span>
+            {interp && (
+              <ColorfulBadge style={interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={260}>
+                {interp.label}
+              </ColorfulBadge>
+            )}
+          </div>
+        );
+      },
+    })),
+  ];
+
   const labColumns = [
     { key: 'date', label: 'วันที่ตรวจ', render: (r) => formatHomeVisitDate(r.date) },
     { key: 'test', label: 'รายการตรวจ', flex: true, minWidth: 240 },
@@ -415,6 +463,12 @@ const HomeVisitFollowUpPage = () => {
   });
 
   const vitalSeriesLabel = VITAL_SERIES.find((s) => s.key === vitalSeriesKey)?.label || '';
+  const toolSeries = resolveStandardTool(toolSeriesKey);
+  /* แปลผล "ครั้งล่าสุดในช่วงที่เลือก" ไม่ใช่ครั้งล่าสุดทั้งหมด — ต้องตรงกับ
+     เส้นกราฟที่ผู้ใช้กำลังมองอยู่ */
+  const latestToolInterp = toolPoints.length
+    ? interpretStandardTool(toolSeriesKey, toolPoints[toolPoints.length - 1].value)
+    : null;
   const selectedVisit = visits.find((v) => v.no === selectedVisitNo) || null;
 
   return (
@@ -769,7 +823,103 @@ const HomeVisitFollowUpPage = () => {
                 )}
               </SectionCard>
 
-              {/* ── 3. ผล Lab ───────────────────────────────────────── */}
+              {/* ── 3. เครื่องมือประเมินมาตรฐาน ─────────────────────── */}
+              <SectionCard
+                icon='clipboard'
+                title='ผลการประเมินด้วยเครื่องมือมาตรฐาน (MNA-SF · 9Q · PPS)'
+                aside={(
+                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                    {toolSeries?.scale}
+                  </span>
+                )}
+              >
+                {visits.length === 0 ? (
+                  <EmptyHint icon='assignment'>
+                    ไม่มีการเยี่ยมบ้านในช่วง {formatHomeVisitDate(effRange.from)} – {formatHomeVisitDate(effRange.to)}
+                    {' '}— จึงยังไม่มีผลการประเมินให้เปรียบเทียบ
+                  </EmptyHint>
+                ) : (
+                  <>
+                    <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                      {STANDARD_TOOLS.map((t) => (
+                        <SelectableTag
+                          key={t.key}
+                          label={t.label}
+                          size='md'
+                          selected={toolSeriesKey === t.key}
+                          onClick={() => setToolSeriesKey(t.key)}
+                        />
+                      ))}
+                    </div>
+
+                    {toolPoints.length === 0 ? (
+                      <EmptyHint icon='show_chart'>
+                        ยังไม่มีคะแนน “{toolSeries?.label}” ที่บันทึกไว้ในช่วงเวลานี้ —
+                        {' '}เลือกเครื่องมืออื่นหรือขยายช่วงเวลา
+                      </EmptyHint>
+                    ) : toolPoints.length === 1 ? (
+                      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                        <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+                          {formatHomeVisitDate(toolPoints[0].date)} · {toolSeries?.name}
+                          {' '}{toolSeries?.unit === '%' ? `${toolPoints[0].value}%` : `${toolPoints[0].value}/${toolSeries?.max}`}
+                        </span>
+                        {latestToolInterp && (
+                          <ColorfulBadge style={latestToolInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={320}>
+                            {latestToolInterp.label}
+                          </ColorfulBadge>
+                        )}
+                        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                          มีผลประเมินครั้งเดียวในช่วงนี้ — ต้องมีอย่างน้อย 2 ครั้งจึงแสดงเป็นเส้นแนวโน้ม
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <LineChart
+                          months={toolPoints.map((p) => shortThaiDate(p.date))}
+                          series={[{
+                            label: `${toolSeries?.label}${toolSeries?.unit === '%' ? ' (%)' : ' (คะแนน)'}`,
+                            color: TOOL_SERIES_COLOR,
+                            values: toolPoints.map((p) => p.value),
+                          }]}
+                          height={200}
+                        />
+                        <NoticeBand tone='neutral' icon='info'>
+                          {toolSeries?.better === 'low'
+                            ? 'เครื่องมือนี้ “คะแนนยิ่งต่ำยิ่งดี” — เส้นที่ไต่ขึ้นหมายถึงอาการแย่ลง'
+                            : 'เครื่องมือนี้ “คะแนนยิ่งสูงยิ่งดี” — เส้นที่ลดลงหมายถึงสภาพถดถอย'}
+                          {latestToolInterp && ` · ผลล่าสุด: ${latestToolInterp.label}`}
+                          {latestToolInterp?.advice && ` — ${latestToolInterp.advice}`}
+                        </NoticeBand>
+                      </>
+                    )}
+
+                    {/* ใช้หน้าเดียวกับตาราง ADL ด้านบนโดยตั้งใจ — สองตารางคือการเยี่ยม
+                        ชุดเดียวกันคนละมุม ถ้าเลื่อนหน้าแยกกันจะอ่านเทียบกันไม่ได้ */}
+                    <Table
+                      columns={toolColumns}
+                      rows={visitPageRows}
+                      rowKey={(r) => `tool-${selectedHn}-${r.no}`}
+                      emptyMessage='ไม่มีการเยี่ยมในช่วงเวลาที่เลือก'
+                    />
+                    {totalVisitPages > 1 && (
+                      <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                        ตารางนี้แสดงการเยี่ยมชุดเดียวกับตารางด้านบน — เปลี่ยนหน้าได้ที่ตัวเลือกหน้าของแผง “คะแนน ADL”
+                        {' '}(หน้า {visitPage} จาก {totalVisitPages}) · กราฟด้านบนใช้ทุกครั้งในช่วงเวลา ไม่ใช่เฉพาะหน้านี้
+                      </span>
+                    )}
+
+                    {toolsHaveMock && (
+                      <NoticeBand tone='warning' icon='science'>
+                        บางครั้งที่เยี่ยมถูกบันทึกไว้ก่อนระบบมีขั้น “ประเมินและคัดกรอง” —
+                        {' '}คะแนนของครั้งเหล่านั้นเป็น<b>ค่าจำลอง (mock)</b> เพื่อให้เห็นรูปแบบของแนวโน้ม
+                        {' '}ไม่ใช่ผลประเมินจริง ใช้อ้างอิงทางคลินิกไม่ได้
+                      </NoticeBand>
+                    )}
+                  </>
+                )}
+              </SectionCard>
+
+              {/* ── 4. ผล Lab ───────────────────────────────────────── */}
               <SectionCard
                 icon='biotech'
                 title='ผลตรวจทางห้องปฏิบัติการในช่วงเวลา'
@@ -788,7 +938,7 @@ const HomeVisitFollowUpPage = () => {
                 )}
               </SectionCard>
 
-              {/* ── 4. ผล X-ray ─────────────────────────────────────── */}
+              {/* ── 5. ผล X-ray ─────────────────────────────────────── */}
               <SectionCard
                 icon='radiology'
                 title='ผลเอกซเรย์ในช่วงเวลา'

@@ -56,11 +56,13 @@ export const StepCard = ({ children }) => (
 
 /** Flat section inside a step body — no card chrome, only a scroll anchor
     (same convention as AncSteps' AssessmentCard). */
-export const StepSection = React.forwardRef(({ children }, ref) => (
+export const StepSection = React.forwardRef(({ children, gap }, ref) => (
   <div
     ref={ref}
     className='flex flex-col w-full'
-    style={{ gap: 'var(--dim-space-300, 12px)', scrollMarginTop: 110 }}
+    /* `gap` เผื่อขั้นที่อยู่ในการ์ดร่วมกับคอมโพเนนต์ของหน้าเวชระเบียน ซึ่งใช้
+       จังหวะ 24px — ค่าเริ่มต้น 12px ยังเป็นของเดิมทุกที่ที่ไม่ได้ส่งมา */
+    style={{ gap: gap || 'var(--dim-space-300, 12px)', scrollMarginTop: 110 }}
   >
     {children}
   </div>

@@ -1,38 +1,68 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import DatePicker from '@/components/forms/DatePicker';
 import TimePicker from '@/components/forms/TimePicker';
 import SelectableTag from '@/components/forms/SelectableTag';
+import { FieldGrid } from '@/components/forms/Fields';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import PhotoUploadField from '@/components/forms/PhotoUploadField';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
 import CarriedDentalPanel from '@/components/dental/CarriedDentalPanel';
 import {
-  PersonalProfileFields,
   DtxFields,
   HealthRiskFields,
+  MinorIllnessFields,
 } from '@/components/homevisit/homeScreeningSections';
 import { PATIENT_GROUP_OPTIONS, MOBILITY_OPTIONS } from '@/data/registrationForm';
-import { Step2Address as RegistrationAddressStep } from '@/components/forms/RegistrationSteps';
+import { MEDICATION_NAME_OPTIONS } from '@/data/medicationCatalog';
+import {
+  NATIONALITY_OPTIONS,
+  ETHNICITY_OPTIONS,
+  RELIGION_OPTIONS,
+} from '@/data/homeScreeningForm';
+/* ยกชุดคำ/ระดับของขั้น "อาการป่วย" ที่จุดคัดกรอง OPD มาใช้ตรง ๆ
+   (มติผู้ใช้ 30 ส.ค. 69) — ถ้าประกาศใหม่ที่นี่ คำที่พยาบาลเลือกจะไม่ตรงกัน
+   ระหว่างจุดคัดกรองกับที่บ้าน แล้วเอามาเทียบ/รวมรายงานไม่ได้ */
+import {
+  CHIEF_COMPLAINT_SUGGESTIONS,
+  DURATION_SUGGESTIONS,
+  PRESENT_ILLNESS_SUGGESTIONS,
+} from '@/pages/opd/ScreeningPage';
+/* พฤติกรรมสุขภาพ (ToR ๑.๒.๒.๖) — ยกขั้นของจุดคัดกรองมาทั้งก้อนเช่นกัน
+   สูบบุหรี่ · ดื่มสุรา · ออกกำลังกาย + รายละเอียด เก็บที่ทะเบียนกลางคีย์ด้วย HN */
+import ScreeningStep4 from '@/pages/opd/ScreeningStep4';
+import {
+  StepConsent as RegistrationConsentStep,
+  Step2Address as RegistrationAddressStep,
+  Step1Personal as RegistrationPersonalStep,
+  Step3Contact as RegistrationContactStep,
+  Step4Rights as RegistrationRightsStep,
+  Step5Flags as RegistrationFlagsStep,
+  PatientStatusCard,
+} from '@/components/forms/RegistrationSteps';
+import { findMrPatientByHn } from '@/data/mrPatients';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
-import BrandIconButton from '@/components/button/BrandIconButton';
+/* ปุ่มลบแถวเป็นสีเทา ไม่ใช่สีแบรนด์ (มติผู้ใช้ 30 ส.ค. 69) — การลบแถวเป็น
+   การกระทำรอง ไม่ควรเด่นเท่าปุ่มหลักของฟอร์ม */
+import NeutralIconButton from '@/components/button/NeutralIconButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
-import VitalReadingCard from '@/components/card/VitalReadingCard';
+/* ฟอร์มสัญญาณชีพชุดเดียวกับขั้น "สัญญาณชีพ" ของจุดคัดกรอง OPD — การ์ดตัวเลข
+   ใหญ่ + ปุ่ม −/+ + เกณฑ์ปกติ + "เพิ่มรอบการวัด" + ไทม์ไลน์รอบก่อนหน้า
+   (มติผู้ใช้ 30 ส.ค. 69) */
+import VitalsForm from '@/components/forms/VitalsForm';
 import Table from '@/components/table/Table';
 import Popup from '@/components/popup/Popup';
 import {
   HOMEVISIT_TIME_SLOTS,
   HOMEVISIT_CENTER,
   HOMEVISIT_CENTER_LOCATION,
-  HOMEVISIT_DEVICE,
   VITAL_FIELDS,
   BARTHEL_ITEMS,
   BARTHEL_MAX_SCORE,
-  HOME_ENVIRONMENT_ITEMS,
   CAREGIVER_OPTIONS,
   SCREEN_2Q_QUESTIONS,
   PAIN_SCALE,
@@ -41,11 +71,7 @@ import {
   ROLE_NOTE_SECTIONS,
   CARE_ACTIVITIES,
   FAMILY_RELATIONS,
-  HOUSE_TYPE_OPTIONS,
-  HOUSE_OWNERSHIP_OPTIONS,
-  WATER_SOURCE_OPTIONS,
-  TOILET_OPTIONS,
-  HOMEVISIT_ILLNESS_SUGGESTIONS,
+  FAMILY_HEALTH_OPTIONS,
   HOMEVISIT_ASSESSMENT_SUGGESTIONS,
   HOMEVISIT_PLAN_SUGGESTIONS,
   HOMEVISIT_FAMILY_SUGGESTIONS,
@@ -71,6 +97,8 @@ import {
   saveVisitSubmission,
   saveHomeVisitDraft,
   summarizeOrders,
+  HOMEVISIT_MED_OTHER,
+  HOMEVISIT_MED_SIG_OPTIONS,
   getHomeVisitAccess,
   resolveGroup,
   resolveSource,
@@ -95,6 +123,7 @@ import {
   PPS_LEVELS,
   interpretPps,
   summarizeStandardTools,
+  toolScoresFromSummary,
 } from '@/data/homevisitAssessments';
 import {
   sendNhsoClaim,
@@ -110,13 +139,14 @@ import {
   sendOrdersToCpoe,
   getCpoeHandoff,
 } from '@/data/homevisitCpoe';
-import { getVisitHistory, appendVisitHistory } from '@/data/homevisitRegistry';
+import { getVisitHistory, appendVisitHistory, saveFamilyMembers, getFamilyMembers } from '@/data/homevisitRegistry';
 import { printHomeVisitSummary } from '@/pages/homevisit/homevisitPrint';
 import {
   TopicHeader,
   Field,
   StepCard,
   StepSection,
+  SectionCard,
   NoticeBand,
   EmptyHint,
   AuditStamp,
@@ -127,30 +157,94 @@ import {
    `TreatmentFormShell` ผ่าน `HomeVisitRecordPage` — โครงเดียวกับ
    AncSteps / AddictionSteps ทุกประการ.
 
-     1 ข้อมูลทั่วไปและการเดินทาง  — GPS (1.18.8) + เวลาถึงบ้าน (1.18.9)
-     2 ประวัติ                     — ประวัติเจ็บป่วย + ย้อนหลังตามสิทธิ (1.18.3)
-     3 สัญญาณชีพ                   — บันทึกเอง + อ่านจากอุปกรณ์ (1.18.4)
-     4 ประเมิน/คัดกรอง/ADL         — ดัชนีบาร์เธล ป้อนหน้าติดตาม (1.10.12.4)
-     5 บันทึกตามบทบาท + กิจกรรม    — EMR รายวิชาชีพ (1.18.5) · กิจกรรม (1.18.7)
+     1 แบบฟอร์มความยินยอม         — ชุดเดียวกับหน้าเวชระเบียน (PDPA · ด.1.x)
+     2 ข้อมูลส่วนตัว               — สถานะผู้รับบริการ + `Step1Personal` ของเวชระเบียน
+     3 ที่อยู่และการเดินทาง        — `Step2Address` + GPS (1.18.8) + เวลาถึงบ้าน (1.18.9)
+     4 สัญญาณชีพ                   — บันทึกเอง + อ่านจากอุปกรณ์ (1.18.4)
+     5 อาการป่วย                    — ชุดฟิลด์เดียวกับจุดคัดกรอง OPD + ยาที่บ้าน
+                                     · ประวัติการแพ้ · ผลทันตกรรม (1.18.3)
+     6 พฤติกรรมสุขภาพ               — ขั้นของจุดคัดกรอง (ToR ๑.๒.๒.๖)
+     6 ประเมิน/คัดกรอง/ADL         — ดัชนีบาร์เธล ป้อนหน้าติดตาม (1.10.12.4)
+     7 บันทึกตามบทบาท + กิจกรรม    — EMR รายวิชาชีพ (1.18.5) · กิจกรรม (1.18.7)
                                      · ปรึกษาแพทย์ทางไกล (1.18.10)
-     6 สั่งการรักษา                — CPOE (1.18.6)
-     7 Family Folder + ส่งศูนย์ฯ   — (1.10.12.3) + ลิงก์โมดูลงานชุมชน + พิมพ์ */
+     8 สั่งการรักษา                — CPOE (1.18.6)
+     9 Family Folder + ส่งศูนย์ฯ   — (1.10.12.3) + ลิงก์โมดูลงานชุมชน + พิมพ์ */
+
+/* ระยะเวลาที่มีอาการ — ใช้ชุดเดียวกับจุดคัดกรอง แต่ตัดกลุ่ม "เริ่มวันนี้"
+   (ตั้งแต่ตื่นนอน · ตั้งแต่เช้านี้ · ตั้งแต่เมื่อคืน) ออก (มติผู้ใช้ 30 ส.ค. 69)
+   — คำพวกนี้เป็นภาษาของคนเดินมาห้องฉุกเฉินในวันเดียวกัน ส่วนการเยี่ยมบ้านนัด
+   ล่วงหน้าเป็นรอบ อาการที่ทีมเจอจึงนับเป็นวัน/สัปดาห์/เดือนขึ้นไป */
+const HOMEVISIT_DURATION_EXCLUDED = ['ตั้งแต่ตื่นนอน', 'ตั้งแต่เช้านี้', 'ตั้งแต่เมื่อคืน'];
+
+const HOMEVISIT_DURATION_OPTIONS = DURATION_SUGGESTIONS
+  .filter((v) => !HOMEVISIT_DURATION_EXCLUDED.includes(v))
+  .map((v) => ({ value: v, label: v }));
+
+/* ทะเบียนยากลาง + "อื่นๆ" ท้ายสุดเสมอ — ตัวเลือกชุดเดียวกับที่ห้องยา/CPOE ใช้
+   พร้อมรูปแผงยาจากแคตตาล็อกเดียวกัน (มติผู้ใช้ 30 ส.ค. 69) — ที่บ้านผู้รับบริการ
+   มักหยิบซองยามาให้ดูโดยไม่รู้ชื่อ ทีมจึงเทียบจากรูปได้เร็วกว่าอ่านชื่อทีละตัว */
+const HOMEVISIT_MED_NAME_OPTIONS = [
+  ...MEDICATION_NAME_OPTIONS.map((o) => ({ value: o.value, label: o.value, image: o.image })),
+  { value: HOMEVISIT_MED_OTHER, label: 'อื่นๆ (ไม่มีในทะเบียนยา)', icon: 'edit' },
+];
+
+/* วิธีใช้ก็ต้องมี "อื่นๆ" เหมือนชื่อยา (มติผู้ใช้ 30 ส.ค. 69) — ยาพ่น ยาหยอด
+   ยาอมใต้ลิ้น มีวิธีใช้ที่ไม่เข้ารูปความถี่×เวลาของยาเม็ด */
+const HOMEVISIT_MED_SIG_OPTIONS_WITH_OTHER = [
+  ...HOMEVISIT_MED_SIG_OPTIONS.map((v) => ({ value: v, label: v })),
+  { value: HOMEVISIT_MED_OTHER, label: 'อื่นๆ (ระบุเอง)', icon: 'edit' },
+];
+
+/* ── Step 1 — แบบฟอร์มความยินยอม ───────────────────────────────────
+   ยกขั้น "แบบฟอร์มยินยอม" ของหน้าเวชระเบียนมาทั้งก้อน (`StepConsent`) —
+   เหตุผลเดียวกับ `Step1Personal` / `Step2Address` (มติผู้ใช้ 30 ส.ค. 69):
+   ทะเบียนความยินยอมเป็นทะเบียนกลางใบเดียว ถ้าหน้านี้ทำฟอร์มของตัวเองขึ้นมา
+   ใบที่ลงนามที่บ้านจะไม่ไปโผล่ที่ห้องบัตร และเวอร์ชันของแบบฟอร์มจะหลุดกัน */
+export const HomeVisitStep0Consent = ({ form, setForm, hn, blockedMsg }) => {
+  const mrPatient = useMemo(() => findMrPatientByHn(hn) || null, [hn]);
+  return (
+    <StepCard>
+      {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+      <RegistrationConsentStep form={form} setForm={setForm} patient={mrPatient} />
+    </StepCard>
+  );
+};
 
 /* ── Step 1 — ข้อมูลทั่วไปและการเดินทาง ───────────────────────────── */
 
-/* ── Step 1 — ข้อมูลทั่วไป ─────────────────────────────────────────
-   ข้อมูลของการเยี่ยมครั้งนี้ล้วน ๆ · ที่อยู่/แผนที่/บันทึกการเดินทางย้ายไปขั้นที่ 2
-   (มติผู้ใช้ 30 ส.ค. 69) */
-export const HomeVisitStep1Service = ({ form, setForm, readOnly, blockedMsg }) => {
+/* ── Step 1 — ข้อมูลส่วนตัว ────────────────────────────────────────
+   สามส่วนเรียงจาก "ใครคือคนนี้" ไป "การเยี่ยมครั้งนี้":
+     1. สถานะผู้รับบริการ + ข้อมูลส่วนตัว — ยกการ์ด `PatientStatusCard` และขั้น
+        `Step1Personal` ของหน้าเวชระเบียนมาทั้งก้อน (มติผู้ใช้ 30 ส.ค. 69)
+        เหตุผลเดียวกับที่ขั้นที่ 2 ยก `Step2Address` มา: ทีมเยี่ยมบ้านต้องกรอก
+        ด้วยหน้าตาเดียวกันเป๊ะ และข้อมูลสองที่ต้องเทียบกันได้
+     2. ข้อมูลการเยี่ยมครั้งนี้ (กลุ่มผู้รับบริการ · ที่มาของเคส · ประเภทการเยี่ยม)
+     3. รูปถ่ายระหว่างการเยี่ยม
+   ที่อยู่/แผนที่/บันทึกการเดินทางอยู่ขั้นที่ 2 */
+export const HomeVisitStep1Service = ({ form, setForm, readOnly, hn, blockedMsg }) => {
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
+  /* ผู้รับบริการในทะเบียนกลาง — `Step1Personal` ใช้เป็นค่าสำรองของ HN
+     และรูปบัตร ค่าฟิลด์จริงถูกเติมไว้ตั้งแต่ `createEmptyHomeVisitForm` แล้ว */
+  const mrPatient = useMemo(() => findMrPatientByHn(hn) || null, [hn]);
 
   return (
     <StepCard>
       {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
 
-      <StepSection>
+      {/* สถานะผู้รับบริการ — การ์ดใบเดียวกับที่หน้าเวชระเบียนวางไว้เหนือฟอร์ม */}
+      <PatientStatusCard form={form} setForm={setForm} patient={mrPatient} />
+
+      {/* ข้อมูลส่วนตัวทั้งขั้นจากหน้าเวชระเบียน · `Step1Personal` ยังไม่มี prop
+          readOnly เหมือน `Step2Address` ที่ขั้น 2 — การเยี่ยมที่ปิดแล้วจึงยัง
+          แก้ช่องชุดนี้ได้ ตรงกันทั้งสองขั้น ถ้าจะล็อกต้องเพิ่ม prop ที่ต้นทาง */}
+      <SectionCard>
+      {/* จังหวะห่างหัวข้อ→เนื้อหาใช้ `--dim-space-600` ให้เท่ากับการ์ด
+          "ข้อมูลส่วนตัว" ของหน้าเวชระเบียนที่อยู่เหนือมัน (STEP1_FIELD_GAP) —
+          `StepSection` ใช้ 12px ซึ่งชิดกว่าการ์ดอื่นในขั้นเดียวกันอย่างเห็นได้ */}
+      <StepSection gap='var(--dim-space-600)'>
         <TopicHeader icon='event'>ข้อมูลการให้บริการ</TopicHeader>
-        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+        {/* 24px เท่ากับจังหวะฟิลด์ของการ์ด "ข้อมูลส่วนตัว" (STEP1_FIELD_GAP) */}
+        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-600, 24px)' }}>
           {/* ถอด "วันที่ให้บริการ" กับ "เวลาออกเดินทางจากศูนย์บริการฯ" ออก
               (มติผู้ใช้ 30 ส.ค. 69) — วันที่ยังถูกบันทึกเป็นวันนี้อัตโนมัติ
               (`serviceDate` ตั้งค่าเริ่มต้นใน `buildEmptyHomeVisitForm`) และ
@@ -214,88 +308,69 @@ export const HomeVisitStep1Service = ({ form, setForm, readOnly, blockedMsg }) =
               — ToR §๑.๑๐.๑๒ ไม่ได้ขอช่องนี้ และฟอร์มกระดาษของทีมเยี่ยมบ้านก็ไม่มี
               `form.team` ยังอยู่ในบันทึก โดยตั้งค่าเป็นผู้รับผิดชอบของนัด (หรือ
               ผู้ใช้ที่ล็อกอิน) ให้เอง — §๑.๑๘.๕ ยังต้องรู้ว่าวิชาชีพไหนเป็นผู้บันทึก */}
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-150, 6px)', minWidth: 260 }}>
-            <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-              รูปถ่ายระหว่างการเยี่ยม
-            </span>
-            <PhotoUploadField
-              label={form.photos.length ? `เพิ่มรูป (มีแล้ว ${form.photos.length} รูป)` : 'ถ่าย/อัปโหลดรูป'}
-              icon='photo_camera'
-              capture='environment'
-              multiple
-              disabled={readOnly}
-              /* เก็บ previewUrl ไว้ด้วย ไม่ใช่เก็บแค่ชื่อไฟล์ (มติผู้ใช้ 30 ส.ค. 69)
-                 — อัปแล้วต้องเห็นรูป ไม่ใช่เห็นแต่ชื่อไฟล์ซึ่งบอกไม่ได้ว่าถ่ายอะไรมา
-                 รูปเก่าที่บันทึกไว้เป็นสตริงยังอ่านได้ (แสดงเป็นชื่อไฟล์เหมือนเดิม) */
-              /* อ่านเป็น data URL ไม่ใช่ blob URL (มติผู้ใช้ 30 ส.ค. 69) — blob URL
-                 ใช้ได้เฉพาะในหน้าที่เปิดอยู่ พอบันทึกร่างลง sessionStorage แล้ว
-                 กลับมาเปิดใหม่ ลิงก์จะตายและเหลือแค่ชื่อไฟล์เหมือนเดิม */
-              onFiles={(files) => Array.from(files).forEach((file, i) => {
-                const entryId = `hv-photo-${Date.now()}-${i}`;
-                const push = (previewUrl) => setForm((f) => ({
-                  ...f,
-                  photos: [...f.photos, { id: entryId, name: file.name, previewUrl }],
-                }));
-                if (typeof FileReader === 'undefined') {
-                  push('');
-                  return;
-                }
-                const reader = new FileReader();
-                reader.onload = () => push(String(reader.result || ''));
-                reader.onerror = () => push('');
-                reader.readAsDataURL(file);
-              })}
-            />
-            {form.photos.length > 0 && (
-              <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                {form.photos.map((photo, i) => {
-                  const entry = typeof photo === 'string' ? { name: photo, previewUrl: '' } : photo;
-                  const key = entry.id || `${entry.name}-${i}`;
-                  return entry.previewUrl ? (
-                    <div
-                      key={key}
-                      className='relative'
-                      style={{
-                        width: 96,
-                        height: 96,
-                        borderRadius: 'var(--dim-radius-300, 8px)',
-                        overflow: 'hidden',
-                        border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #E5E7EB)',
-                        background: 'var(--surface-neutral-quaternary, #F3F4F6)',
-                      }}
-                    >
-                      <img
-                        src={entry.previewUrl}
-                        alt={entry.name}
-                        title={entry.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                      />
-                      {!readOnly && (
-                        <div className='absolute' style={{ top: 2, right: 2 }}>
-                          <BrandIconButton
-                            icon='close'
-                            variant='fill'
-                            size='sm'
-                            aria-label={`ลบรูป ${entry.name}`}
-                            onClick={() => setForm((f) => ({
-                              ...f,
-                              photos: f.photos.filter((_, idx) => idx !== i),
-                            }))}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <ColorfulBadge key={key} style='grey' size='small' hierarchy='secondary' width='hug' maxWidth={220}>
-                      {entry.name}
-                    </ColorfulBadge>
-                  );
-                })}
-              </div>
-            )}
-          </div>
         </div>
       </StepSection>
+      </SectionCard>
+
+      {/* ห่อการ์ดขาวเอง เพราะขั้นนี้ถูกตั้งเป็น plain body ใน shell แล้ว
+          (`Step1Personal` เป็นเนื้อการ์ด ไม่ได้พกการ์ดมาเองเหมือน
+          `PatientStatusCard` / `Step2Address`) */}
+      <SectionCard>
+        <RegistrationPersonalStep
+          form={form}
+          setForm={setForm}
+          patient={mrPatient}
+          /* ศาสนา · เชื้อชาติ · สัญชาติ วางเหนือแถวเลขบัตรประชาชน
+             (มติผู้ใช้ 30 ส.ค. 69) — ฟอร์มกระดาษ ศบส. เก็บสามอย่างนี้ไว้ใน
+             ส่วนข้อมูลประชากร ระบบนี้ย้ายมาอยู่กับข้อมูลส่วนตัว เก็บที่คีย์เดิม
+             ของแบบคัดกรอง (`homeScreening.*`) จึงไม่มีข้อมูลซ้ำสองชุด */
+          beforeIdRow={(
+            <FieldGrid cols={3} rowGap='var(--dim-space-600)' columnGap='var(--dim-space-600)'>
+              {[
+                { key: 'religion', other: 'religionOther', label: 'ศาสนา', options: RELIGION_OPTIONS, placeholder: 'เช่น ซิกข์ · ฮินดู · ไม่นับถือศาสนา' },
+                { key: 'ethnicity', other: 'ethnicityOther', label: 'เชื้อชาติ', options: ETHNICITY_OPTIONS, placeholder: 'เช่น จีน · มอญ · กะเหรี่ยง' },
+                { key: 'nationality', other: 'nationalityOther', label: 'สัญชาติ', options: NATIONALITY_OPTIONS, placeholder: 'เช่น เมียนมา · กัมพูชา · ลาว' },
+              ].map((f) => (
+                <React.Fragment key={f.key}>
+                  <Field label={f.label}>
+                    <Select
+                      showLabel={false} showHelperText={false} searchable={false} size='lg'
+                      value={form.homeScreening?.[f.key] || ''}
+                      onChange={(v) => setForm((s2) => ({
+                        ...s2,
+                        homeScreening: {
+                          ...s2.homeScreening,
+                          [f.key]: v,
+                          /* เปลี่ยนใจจาก "อื่นๆ" ต้องล้างข้อความที่พิมพ์ไว้ ไม่งั้น
+                             ค่าที่ไม่ตรงกับตัวเลือกจะติดไปกับบันทึก */
+                          ...(v === 'อื่นๆ' ? {} : { [f.other]: '' }),
+                        },
+                      }))}
+                      disabled={readOnly}
+                      options={f.options.map((o) => ({ value: o, label: o }))}
+                      placeholder={`เลือก${f.label}`}
+                    />
+                  </Field>
+                  {form.homeScreening?.[f.key] === 'อื่นๆ' && (
+                    <Field label={`ระบุ${f.label}`}>
+                      <InputField
+                        showLabel={false} showHelperText={false}
+                        value={form.homeScreening?.[f.other] || ''}
+                        onChange={(v) => setForm((s2) => ({
+                          ...s2, homeScreening: { ...s2.homeScreening, [f.other]: v },
+                        }))}
+                        disabled={readOnly}
+                        placeholder={f.placeholder}
+                      />
+                    </Field>
+                  )}
+                </React.Fragment>
+              ))}
+            </FieldGrid>
+          )}
+        />
+      </SectionCard>
+
     </StepCard>
   );
 };
@@ -307,83 +382,13 @@ export const HomeVisitStep1Service = ({ form, setForm, readOnly, blockedMsg }) =
 export const HomeVisitStep2Address = ({
   form, setForm, readOnly, visitId, appointment, registryEntry, onDataChanged, blockedMsg,
 }) => {
-  const [geoBusy, setGeoBusy] = useState(false);
-  const [geoError, setGeoError] = useState('');
-  const [confirmArrival, setConfirmArrival] = useState(null); /* {reason:'far'|'restamp'} */
-  const [restampNote, setRestampNote] = useState('');
-  const [restampError, setRestampError] = useState('');
-
-  const home = registryEntry?.home || appointment?.home || null;
-  const checkIn = visitId ? getArrivalCheckIn(visitId) : null;
-
-  const distance = useMemo(
-    () => (form.currentLocation && home ? distanceMeters(form.currentLocation, home) : null),
-    [form.currentLocation, home],
-  );
-  const tooFar = distance !== null && distance > ARRIVAL_DISTANCE_THRESHOLD_M;
+  /* state ของ GPS check-in / เวลาถึงบ้าน ถูกถอดพร้อมหมวด "การเดินทางและ
+     เวลาถึงบ้าน" (มติผู้ใช้ 30 ส.ค. 69) — ตัวช่วยฝั่งข้อมูล (saveArrivalCheckIn ·
+     distanceMeters · ARRIVAL_DISTANCE_THRESHOLD_M) ยังอยู่ครบใน
+     `homevisitVisits.js` รอวันที่ปุ่มถูกวางกลับเข้าไปในการ์ดที่อยู่ปัจจุบัน */
 
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
-  const captureLocation = () => {
-    setGeoError('');
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setForm((f) => ({ ...f, geolocationDenied: true }));
-      setGeoError('อุปกรณ์นี้ไม่รองรับการอ่านพิกัด (Geolocation) — ให้ปักหมุดตำแหน่งปัจจุบันด้วยตนเองแทน');
-      return;
-    }
-    setGeoBusy(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setGeoBusy(false);
-        setForm((f) => ({
-          ...f,
-          geolocationDenied: false,
-          currentLocation: {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            pinSaved: true,
-            source: 'gps',
-            at: nowHHMM(),
-          },
-        }));
-      },
-      () => {
-        setGeoBusy(false);
-        setForm((f) => ({ ...f, geolocationDenied: true }));
-        setGeoError('ไม่ได้รับอนุญาตให้เข้าถึงตำแหน่ง (Geolocation permission denied) — ให้ปักหมุดตำแหน่งปัจจุบันด้วยตนเองแทน');
-      },
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
-  };
-
-  const stampArrival = (note = '') => {
-    const entry = saveArrivalCheckIn(visitId, {
-      distanceMeters: distance,
-      location: form.currentLocation,
-      note,
-    });
-    setForm((f) => ({ ...f, arrivalTime: entry.time }));
-    setConfirmArrival(null);
-    setRestampNote('');
-    onDataChanged?.();
-  };
-
-  const requestStampArrival = () => {
-    if (!form.currentLocation) {
-      setGeoError('ต้องบันทึกพิกัดปัจจุบันก่อน จึงจะเทียบระยะและบันทึกเวลาถึงบ้านได้');
-      return;
-    }
-    if (checkIn) {
-      setRestampError('');
-      setConfirmArrival({ reason: 'restamp' });
-      return;
-    }
-    if (tooFar) {
-      setConfirmArrival({ reason: 'far' });
-      return;
-    }
-    stampArrival();
-  };
 
   return (
     <StepCard>
@@ -397,13 +402,16 @@ export const HomeVisitStep2Address = ({
         form={form}
         setForm={setForm}
         mapHeading='ตำแหน่งบ้านและการเดินทาง'
+        /* 640 = เพดานความกว้างช่องกรอกของ `FieldShell` — แผนที่กับกล่อง
+           "บันทึกการเดินทาง" ใต้มันจึงกว้างเท่ากันพอดี (มติผู้ใช้ 30 ส.ค. 69) */
+        mapMaxWidth={640}
         /* บันทึกการเดินทางอยู่ในการ์ด "ที่อยู่ปัจจุบัน" (มติผู้ใช้ 30 ส.ค. 69) —
            เป็นเรื่องของการเดินทางไปยังที่อยู่นั้นโดยตรง ไม่ใช่หัวข้อแยก */
         currentAddressExtra={(
         <SuggestibleTextarea
           label='บันทึกการเดินทาง'
           required
-          voice
+          /* ถอดแถบปุ่ม (เลือกภาษา + ไมค์) ออก (มติผู้ใช้ 30 ส.ค. 69) */
           value={form.travelNote}
           onChange={(e) => set('travelNote')(e.target.value)}
           suggestions={[
@@ -418,142 +426,108 @@ export const HomeVisitStep2Address = ({
         )}
       />
 
-      <StepSection>
-        <TopicHeader icon='map-pin'>การเดินทางและเวลาถึงบ้าน</TopicHeader>
-        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-600, 24px)' }}>
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)', flex: '1 1 380px', minWidth: 320 }}>
-            {/* ปักหมุดบ้านได้จากหน้านี้เลย — ชุดเดียวกับหน้าเวชระเบียน (ค้นหาชุมชน/
-                สถานที่ + ลากหมุด) ไม่ใช่แผนที่อ่านอย่างเดียว (มติผู้ใช้ 30 ส.ค. 69)
-                ทีมเยี่ยมบ้านคือคนที่ไปยืนอยู่หน้าบ้านจริง ถ้าหมุดในทะเบียนผิด
-                คนที่แก้ได้ถูกต้องที่สุดคือคนที่อยู่ตรงนั้น */}
-            <AddressMapBlock
-              value={form.homeLocation || home || {}}
-              onChange={(next) => set('homeLocation')({ ...(form.homeLocation || home || {}), ...next })}
-              readOnly={readOnly}
-              heading='ตำแหน่งบ้านผู้รับบริการ'
-            />
-            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-              {registryEntry?.address || appointment?.address || '—'}
-            </span>
-          </div>
+      {/* ถอดหมวด "การเดินทางและเวลาถึงบ้าน" ออกทั้งก้อน (มติผู้ใช้ 30 ส.ค. 69)
+          — หลังถอดแผนที่ซ้ำออก เหลือแค่บรรทัดที่อยู่กับปุ่มเดียวลอย ๆ
+          ⚠️ ผลข้างเคียง: หน้าจอไม่มีทางบันทึก "เวลาถึงบ้าน" (GPS check-in ตาม
+          ToR §1.18.8/.9) อีกแล้ว — `saveArrivalCheckIn` / `form.arrivalTime`
+          ยังอยู่ในโมเดลและใน `homevisitVisits.js` ครบ ถ้าจะเอากลับมาให้ย้าย
+          ปุ่มไปไว้ในการ์ด "ที่อยู่ปัจจุบัน" คู่กับแผนที่ ไม่ใช่สร้างหมวดใหม่ */}
 
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)', flex: '1 1 360px', minWidth: 300 }}>
-            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              <BrandSubdueButton
-                variant='outline' size='md' leadingIcon='my_location'
-                onClick={captureLocation} disabled={readOnly || geoBusy}
-              >
-                {geoBusy ? 'กำลังอ่านพิกัด…' : 'บันทึกพิกัดปัจจุบัน'}
-              </BrandSubdueButton>
-            </div>
-
-            {geoError && <NoticeBand tone='danger' icon='location_off'>{geoError}</NoticeBand>}
-
-            {tooFar && (
-              <NoticeBand tone='warning' icon='social_distance'>
-                พิกัดปัจจุบันห่างจากบ้านผู้รับบริการ {formatDistance(distance)}
-                {' '}(เกินเกณฑ์ {ARRIVAL_DISTANCE_THRESHOLD_M} เมตร) — ระบบจะให้ยืนยันก่อนบันทึกเวลาถึงบ้าน
-              </NoticeBand>
-            )}
-
-            {checkIn && (
-              <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug' maxWidth={420}>
-                  บันทึกเวลาถึงบ้านแล้ว {checkIn.time} น.
-                </ColorfulBadge>
-                <AuditStamp by={checkIn.by} at={checkIn.at} prefix='บันทึกเวลาถึงบ้านโดย' />
-                {(checkIn.restamps || []).length > 0 && (
-                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-                    ประทับเวลาซ้ำ {checkIn.restamps.length} ครั้ง — ครั้งก่อนหน้า{' '}
-                    {checkIn.restamps.map((r) => `${r.time} (${r.note || 'ไม่ระบุเหตุผล'})`).join(' · ')}
-                  </span>
-                )}
-              </div>
-            )}
-
-            {form.geolocationDenied && (
-              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                <NoticeBand tone='warning' icon='edit_location_alt'>
-                  ใช้การปักหมุดด้วยตนเองแทนพิกัดอัตโนมัติ — ระบบจะบันทึกว่าเป็นพิกัดที่เจ้าหน้าที่ระบุเอง
-                </NoticeBand>
-                <AddressMapBlock
-                  value={form.currentLocation || {}}
-                  readOnly={readOnly}
-                  compact
-                  heading='ปักหมุดตำแหน่งปัจจุบันด้วยตนเอง'
-                  onChange={(next) => set('currentLocation')({ ...next, source: 'manual', at: nowHHMM() })}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-      </StepSection>
-
-      <Popup
-        open={!!confirmArrival}
-        onClose={() => setConfirmArrival(null)}
-        title={confirmArrival?.reason === 'restamp' ? 'บันทึกเวลาถึงบ้านซ้ำ' : 'ยืนยันการบันทึกเวลาถึงบ้าน'}
-        subtitle={distance === null ? '' : `ระยะจากพิกัดปัจจุบันถึงบ้าน ${formatDistance(distance)}`}
-        tertiaryAction={{ label: 'ยกเลิก', onClick: () => setConfirmArrival(null) }}
-        primaryAction={{
-          label: 'ยืนยันบันทึกเวลา',
-          onClick: () => {
-            if (confirmArrival?.reason === 'restamp' && !restampNote.trim()) {
-              setRestampError('การประทับเวลาซ้ำต้องระบุเหตุผล เพื่อเก็บเป็น audit trail');
-              return;
-            }
-            stampArrival(restampNote.trim());
-          },
-        }}
-      >
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          {confirmArrival?.reason === 'far' ? (
-            <NoticeBand tone='warning' icon='social_distance'>
-              พิกัดปัจจุบันอยู่ห่างจากตำแหน่งบ้านในทะเบียนเกิน {ARRIVAL_DISTANCE_THRESHOLD_M} เมตร
-              — ยืนยันว่าถึงบ้านผู้รับบริการแล้วจริงหรือไม่ (อาจเกิดจากพิกัดบ้านในทะเบียนคลาดเคลื่อน)
-            </NoticeBand>
-          ) : (
-            <>
-              <NoticeBand tone='warning' icon='replay'>
-                การเยี่ยมครั้งนี้บันทึกเวลาถึงบ้านไว้แล้วเมื่อ {checkIn?.time} น. — ระบบอนุญาตให้บันทึกซ้ำได้
-                แต่ต้องระบุเหตุผลและจะเก็บเวลาเดิมไว้ในประวัติ
-              </NoticeBand>
-              <SuggestibleTextarea
-                label='เหตุผลที่บันทึกเวลาซ้ำ'
-                required
-                voice
-                value={restampNote}
-                onChange={(e) => { setRestampNote(e.target.value); if (e.target.value.trim()) setRestampError(''); }}
-                suggestions={[
-                  'บันทึกเวลาผิดพลาดในครั้งแรก',
-                  'ออกจากบ้านแล้วกลับเข้ามาเยี่ยมซ้ำในวันเดียวกัน',
-                  'ระบบบันทึกเวลาก่อนถึงบ้านจริง',
-                ]}
-                minChars={2}
-                placeholder='ระบุเหตุผลการประทับเวลาซ้ำ'
-              />
-              {restampError && (
-                <span style={{ color: 'var(--text-input-errorHelper, #DC2626)', fontSize: 'var(--type-size-xs)' }}>
-                  {restampError}
-                </span>
-              )}
-            </>
-          )}
-        </div>
-      </Popup>
     </StepCard>
   );
 };
 
 /* ── Step 2 — ประวัติ ─────────────────────────────────────────────── */
 
-export const HomeVisitStep2History = ({ form, setForm, readOnly, hn, registryEntry, blockedMsg }) => {
+/* ── Step 7 — ประวัติการแพ้ / โรคประจำตัว ─────────────────────────
+   แยกออกมาเป็นขั้นของตัวเองต่อจากสัญญาณชีพ (มติผู้ใช้ 30 ส.ค. 69) — เป็นชุด
+   ข้อมูลระดับผู้ป่วยที่ต้องอ่าน/แก้ก่อนลงมือประเมินอาการ ไม่ใช่ส่วนหนึ่งของ
+   การซักอาการครั้งนี้ · ใช้ขั้น "หมายเหตุและ Flag" ของหน้าเวชระเบียนทั้งก้อน */
+export const HomeVisitStepAllergy = ({ form, setForm, blockedMsg }) => (
+  <StepCard>
+    {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+    <RegistrationFlagsStep form={form} setForm={setForm} showMobilityCard={false} />
+  </StepCard>
+);
+
+/* ── ปรึกษาแพทย์ทางไกล (Telemedicine · TOR 1.18.10) ────────────────
+   ย้ายมาอยู่ในขั้น "ประเมินอาการป่วย" (มติผู้ใช้ 30 ส.ค. 69) — ทีมตัดสินใจว่า
+   ต้องปรึกษาแพทย์ตอนที่กำลังประเมินอาการอยู่ ไม่ใช่ตอนพิมพ์บันทึกตามบทบาท
+   ซึ่งเป็นขั้นหลังจากนั้น · แยกเป็นคอมโพเนนต์เพราะถือ state ป๊อปอัปของตัวเอง */
+export const HomeVisitTelemedSection = ({ form, setForm, readOnly, visitId, hn, appointment }) => {
+  const routerHistory = useHistory();
+  const [telemedOpen, setTelemedOpen] = useState(false);
+
+  const launchTelemed = () => {
+    /* push ด้านล่างจะ unmount HomeVisitRecordPage ใน commit เดียวกับ setForm —
+       autosave effect ของหน้าไม่ทันทำงาน จึงต้องบันทึกร่างตรงนี้เองก่อนออก
+       (ตรงกับข้อความใน popup ว่า "แบบร่างจะถูกบันทึกอัตโนมัติก่อนออกจากหน้านี้")
+       stepIndex 6 = ขั้น "ประเมินอาการป่วย" ซึ่งเป็นที่อยู่ใหม่ของปุ่มนี้. */
+    saveHomeVisitDraft(visitId, { ...form, telemedRequested: true }, 6);
+    setForm((f) => ({ ...f, telemedRequested: true }));
+    setTelemedOpen(false);
+    routerHistory.push({
+      pathname: '/telemed/worklist',
+      state: {
+        hn,
+        name: appointment?.name,
+        from: 'homevisit',
+        reason: 'ปรึกษาแพทย์ทางไกลระหว่างการเยี่ยมบ้าน',
+      },
+    });
+  };
+
+  return (
+    <>
+      <StepSection>
+        <TopicHeader icon='videocam'>ปรึกษาแพทย์ทางไกล (Telemedicine · TOR 1.18.10)</TopicHeader>
+        <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <BrandSubdueButton
+            variant='fill' size='md' leadingIcon='videocam'
+            onClick={() => setTelemedOpen(true)}
+            disabled={readOnly}
+          >
+            ปรึกษาแพทย์ทางไกล
+          </BrandSubdueButton>
+          {form.telemedRequested && (
+            <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug' maxWidth={420}>
+              ส่งคำขอปรึกษาแพทย์ทางไกลจากการเยี่ยมครั้งนี้แล้ว
+            </ColorfulBadge>
+          )}
+          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+            เปิดห้องปรึกษาในระบบ Telemedicine ที่มีอยู่ พร้อมส่งบริบทผู้รับบริการไปด้วย
+            (ระบบเยี่ยมบ้านไม่แก้ไขหน้าจอ Telemedicine)
+          </span>
+        </div>
+      </StepSection>
+      <Popup
+        open={telemedOpen}
+        onClose={() => setTelemedOpen(false)}
+        title='เปิดห้องปรึกษาแพทย์ทางไกล'
+        subtitle={appointment ? `${appointment.name} · HN: ${appointment.hn}` : ''}
+        tertiaryAction={{ label: 'ยกเลิก', onClick: () => setTelemedOpen(false) }}
+        primaryAction={{ label: 'เปิดระบบ Telemedicine', onClick: launchTelemed }}
+      >
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary, #636B72)' }}>
+            ระบบจะพาไปยังรายการปรึกษาทางไกลของ PHCIS พร้อมบริบทผู้รับบริการรายนี้
+            — เมื่อสนทนาเสร็จ ให้กลับมาบันทึกผลการปรึกษาในช่อง “บันทึกแพทย์” ของขั้นตอนนี้
+          </span>
+          <NoticeBand tone='neutral' icon='info'>
+            แบบร่างการเยี่ยมจะถูกบันทึกอัตโนมัติก่อนออกจากหน้านี้ กลับมาทำต่อได้จากแท็บ “ที่ร่างไว้” ในคิวเยี่ยมบ้าน
+          </NoticeBand>
+        </div>
+      </Popup>
+    </>
+  );
+};
+
+export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, appointment, registryEntry, blockedMsg }) => {
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
   const addMedication = () => setForm((f) => ({
     ...f,
-    medications: [...f.medications, { id: `med-${Date.now()}`, name: '', dose: '', adherence: '' }],
+    medications: [...f.medications, { id: `med-${Date.now()}`, name: '', nameOther: '', dose: '', doseOther: '', adherence: '' }],
   }));
   const updateMedication = (id, key, value) => setForm((f) => ({
     ...f,
@@ -573,37 +547,120 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, hn, registryEnt
           ส่วน ๖ กลุ่มผู้รับบริการ · ประเภทรับ–ส่งต่อ · การเคลื่อนไหว ย้ายไปกรอกที่
           ขั้นที่ 1 ของบันทึกการเยี่ยมโดยตรง */}
 
-      <StepSection>
-        <TopicHeader icon='file-text'>ประวัติการเจ็บป่วย</TopicHeader>
-        <SuggestibleTextarea
-          label='ประวัติการเจ็บป่วยและการรักษาปัจจุบัน'
-          required
-          voice
-          value={form.illnessHistory}
-          onChange={(e) => set('illnessHistory')(e.target.value)}
-          suggestions={HOMEVISIT_ILLNESS_SUGGESTIONS}
-          minChars={3}
-          disabled={readOnly}
-          placeholder='โรคประจำตัว การรักษาที่ได้รับ อุปกรณ์การแพทย์ที่ใช้ที่บ้าน และการเปลี่ยนแปลงตั้งแต่ครั้งก่อน'
-        />
-      </StepSection>
+      {/* สามหัวข้อนี้แยกเป็นการ์ดคนละใบ (มติผู้ใช้ 30 ส.ค. 69) — เดิมอยู่ใน
+          การ์ดขาวใบเดียวกันทั้งหมด อ่านแล้วเหมือนเป็นเรื่องเดียวกัน ทั้งที่
+          ประวัติเจ็บป่วย / ยาที่บ้าน / ผลตรวจทันตกรรม มาจากคนละแหล่งและคนละ
+          จังหวะการบันทึก */}
+      <SectionCard>
+      <StepSection gap='var(--dim-space-600)'>
+        <TopicHeader icon='stethoscope'>อาการป่วยที่พบในการเยี่ยมครั้งนี้</TopicHeader>
+        {/* กริด 2 คอลัมน์ — อาการสำคัญ / ระยะเวลา / ประวัติปัจจุบัน กว้างเท่ากันหมด
+            (มติผู้ใช้ 30 ส.ค. 69) เดิมประวัติปัจจุบันเป็นแถวเต็มความกว้างอยู่ใต้
+            สองช่องนั้น ขนาดจึงไม่ตรงกัน */}
+        <FieldGrid cols={2} rowGap='var(--dim-space-600)' columnGap='var(--dim-space-600)'>
+          <Field label='อาการสำคัญ (Chief Complaint)' required>
+            <SuggestibleTextarea
+              showLabel={false}
+              value={form.chiefComplaint}
+              onChange={(e) => set('chiefComplaint')(e?.target ? e.target.value : e)}
+              suggestions={CHIEF_COMPLAINT_SUGGESTIONS}
+              minChars={2}
+              rows={3}
+              voice
+              disabled={readOnly}
+              placeholder='อาการที่ผู้รับบริการหรือผู้ดูแลแจ้งในการเยี่ยมครั้งนี้'
+            />
+          </Field>
+          {/* ระยะเวลาเป็นดรอปดาวน์ (มติผู้ใช้ 30 ส.ค. 69) — ใช้ชุดคำเดียวกับ
+              จุดคัดกรอง ข้อความอิสระอย่าง "3 วัน" กับ "สามวัน" นับรวมกันไม่ได้ */}
+          <Field label='ระยะเวลาที่มีอาการ'>
+            <Select
+              showLabel={false} showHelperText={false} searchable size='lg'
+              value={form.symptomDuration} onChange={set('symptomDuration')} disabled={readOnly}
+              options={HOMEVISIT_DURATION_OPTIONS}
+              placeholder='เลือกระยะเวลาที่มีอาการ'
+            />
+          </Field>
 
-      <StepSection>
+          <Field label='ประวัติปัจจุบัน (Present Illness)'>
+            <SuggestibleTextarea
+              showLabel={false}
+              value={form.presentIllness}
+              onChange={(e) => set('presentIllness')(e?.target ? e.target.value : e)}
+              suggestions={PRESENT_ILLNESS_SUGGESTIONS}
+              minChars={3}
+              rows={3}
+              voice
+              disabled={readOnly}
+              placeholder='ลำดับอาการ สิ่งที่ทำมาแล้ว และการตอบสนองต่อการรักษาที่บ้าน'
+            />
+          </Field>
+        </FieldGrid>
+
+      </StepSection>
+      </SectionCard>
+
+      {/* ถอดการ์ด "ประวัติการเจ็บป่วยและการรักษาปัจจุบัน" ออก (มติผู้ใช้ 30 ส.ค. 69)
+          — ซ้ำกับ "ประวัติปัจจุบัน (Present Illness)" ในการ์ดอาการป่วยด้านบน
+          คีย์ `illnessHistory` ยังอยู่ในโมเดล (ทะเบียนเยี่ยมบ้านเติมค่ามาให้ และ
+          ประวัติเก่าที่บันทึกไว้แล้วยังอ่านได้) แค่ไม่มีช่องให้กรอกซ้ำอีก */}
+
+      <SectionCard>
+      <StepSection gap='var(--dim-space-600)'>
         <TopicHeader icon='pill'>ยาที่ใช้อยู่ที่บ้าน</TopicHeader>
         {form.medications.length === 0 ? (
           <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary, #858C92)' }}>
             ยังไม่ได้บันทึกรายการยา — กดปุ่มด้านล่างเพื่อเพิ่มรายการยาที่พบที่บ้าน
           </span>
         ) : (
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          /* 24px ทั้งแนวตั้ง (ระหว่างแถวยา) และแนวนอน (ระหว่างช่อง)
+             เท่าจังหวะฟิลด์ของการ์ดอื่นในฟอร์มนี้ (มติผู้ใช้ 30 ส.ค. 69) */
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-600, 24px)' }}>
             {form.medications.map((m) => (
-              <div key={m.id} className='flex items-end w-full flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              <div key={m.id} className='flex items-end w-full flex-wrap' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+                {/* เลือกจากทะเบียนยากลางแทนการพิมพ์อิสระ (มติผู้ใช้ 30 ส.ค. 69)
+                    — ชื่อยาที่พิมพ์เองสะกดไม่ตรงกัน เอาไปทบทวนยาหรือจับคู่กับ
+                    รายการที่ห้องยาจ่ายไปไม่ได้ · ยาที่ไม่มีในทะเบียน (ยาสมุนไพร
+                    ยาซื้อเอง ยาจากคลินิกอื่น) เลือก "อื่นๆ" แล้วพิมพ์ชื่อได้ */}
                 <Field label='ชื่อยา'>
-                  <InputField showLabel={false} showHelperText={false} value={m.name} onChange={(v) => updateMedication(m.id, 'name', v)} disabled={readOnly} placeholder='เช่น Amlodipine 5 มก.' />
+                  <Select
+                    showLabel={false} showHelperText={false} searchable size='lg'
+                    value={m.name} onChange={(v) => updateMedication(m.id, 'name', v)} disabled={readOnly}
+                    options={HOMEVISIT_MED_NAME_OPTIONS}
+                    placeholder='พิมพ์เพื่อค้นหาจากทะเบียนยา'
+                  />
                 </Field>
+                {m.name === HOMEVISIT_MED_OTHER && (
+                  <Field label='ระบุชื่อยา (ไม่มีในทะเบียน)'>
+                    <InputField
+                      showLabel={false} showHelperText={false}
+                      value={m.nameOther || ''}
+                      onChange={(v) => updateMedication(m.id, 'nameOther', v)}
+                      disabled={readOnly}
+                      placeholder='เช่น ยาสมุนไพรฟ้าทะลายโจร · ยาชุดที่ซื้อจากร้านชำ'
+                    />
+                  </Field>
+                )}
+                {/* วิธีใช้เลือกจากคำศัพท์ชุดเดียวกับหน้าทะเบียนยา (มติผู้ใช้ 30 ส.ค. 69) */}
                 <Field label='วิธีใช้'>
-                  <InputField showLabel={false} showHelperText={false} value={m.dose} onChange={(v) => updateMedication(m.id, 'dose', v)} disabled={readOnly} placeholder='เช่น 1x1 เช้า' />
+                  <Select
+                    showLabel={false} showHelperText={false} searchable size='lg'
+                    value={m.dose} onChange={(v) => updateMedication(m.id, 'dose', v)} disabled={readOnly}
+                    options={HOMEVISIT_MED_SIG_OPTIONS_WITH_OTHER}
+                    placeholder='เลือกวิธีใช้'
+                  />
                 </Field>
+                {m.dose === HOMEVISIT_MED_OTHER && (
+                  <Field label='ระบุวิธีใช้'>
+                    <InputField
+                      showLabel={false} showHelperText={false}
+                      value={m.doseOther || ''}
+                      onChange={(v) => updateMedication(m.id, 'doseOther', v)}
+                      disabled={readOnly}
+                      placeholder='เช่น อมใต้ลิ้นเมื่อเจ็บหน้าอก · พ่น 2 ครั้งเช้า-เย็น'
+                    />
+                  </Field>
+                )}
                 <Field label='ความร่วมมือในการใช้ยา'>
                   <Select
                     showLabel={false} showHelperText={false} searchable={false} size='lg'
@@ -617,8 +674,19 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, hn, registryEnt
                     placeholder='เลือก'
                   />
                 </Field>
+                {/* เหลือรายการเดียวลบไม่ได้ (มติผู้ใช้ 30 ส.ค. 69) — ลิสต์ที่เปิด
+                    ไว้แล้วต้องมีอย่างน้อยหนึ่งแถวให้กรอกเสมอ ถ้าลบหมดจะเหลือ
+                    ข้อความว่างที่ต้องกด "เพิ่มรายการ" ใหม่ทุกครั้ง */}
                 {!readOnly && (
-                  <BrandIconButton icon='close' variant='ghost' size='sm' onClick={() => removeMedication(m.id)} aria-label='ลบรายการยา' />
+                  <NeutralIconButton
+                    icon='delete'
+                    variant='ghost'
+                    size='sm'
+                    disabled={form.medications.length <= 1}
+                    onClick={() => removeMedication(m.id)}
+                    aria-label={form.medications.length <= 1 ? 'ลบไม่ได้ — ต้องเหลืออย่างน้อย 1 รายการ' : 'ลบรายการยา'}
+                    title={form.medications.length <= 1 ? 'ต้องเหลืออย่างน้อย 1 รายการ' : 'ลบรายการยา'}
+                  />
                 )}
               </div>
             ))}
@@ -626,18 +694,44 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, hn, registryEnt
         )}
         {!readOnly && <BrandDashedAddButton onClick={addMedication}>เพิ่มรายการยาที่พบที่บ้าน</BrandDashedAddButton>}
       </StepSection>
+      </SectionCard>
 
+      {/* ใช้ขั้น "หมายเหตุและ Flag" ของหน้าเวชระเบียนทั้งก้อน (มติผู้ใช้ 30 ส.ค. 69)
+          — ต้องมีหมวดครบเท่ากันทั้ง 9: VIP · แพ้ยา · แพ้อาหาร · แพ้สารเคมี ·
+          โรคประจำตัว · ความปลอดภัย · DNR · บริจาคอวัยวะ · อื่น ๆ (แผงของจุด
+          คัดกรองมีแค่ 5 หมวด ไม่มี VIP/ความปลอดภัย/DNR/บริจาคอวัยวะ)
+          ⚠️ ค่าที่กรอกที่นี่ผูกกับ *ร่างการเยี่ยมครั้งนี้* ไม่ใช่ทะเบียนกลาง
+          ตาม D-043 ซึ่งกำหนดให้เวชระเบียนเป็นเจ้าของ Flag เพียงที่เดียว —
+          ต้องต่อสะพานเขียนกลับก่อนใช้งานจริง */}
       {/* มติ คทง.6 — งานทันตกรรมของทีมเยี่ยมบ้านต้องเชื่อมกลับมาที่ระบบ
           ทันตกรรม: พยาบาลเยี่ยมบ้านเห็นผลตรวจฟันล่าสุดได้โดยไม่ต้องเปิด
           Visit ทันตกรรมใหม่ และส่งตรวจได้เมื่อพบปัญหาช่องปากที่บ้าน */}
-      <StepSection>
+      {/* แบบประเมินทั้งชุดจากขั้น "ประเมิน" เดิม (ADL · MNA-SF · 2Q/9Q · PPS ·
+          ความปวด · DTX · สรุปผลการประเมิน · รูปถ่าย) ย้ายมารวมที่ขั้นนี้และลบ
+          ขั้นเดิมทิ้ง (มติผู้ใช้ 30 ส.ค. 69) — การซักอาการกับการประเมินเป็น
+          จังหวะเดียวกันของการเยี่ยม แยกสองขั้นทำให้ต้องเดินกลับไปกลับมา
+          หัวข้อย่อยของแต่ละแบบประเมินยังแยก section ชัดเหมือนเดิม */}
+      <SectionCard>
+        <HomeVisitStep4Assessment form={form} setForm={setForm} readOnly={readOnly} />
+      </SectionCard>
+
+      {/* การ์ด "ปรึกษาแพทย์ทางไกล" ถูกถอดออก (มติผู้ใช้ 30 ส.ค. 69) — ปุ่มเดียวกัน
+          อยู่บนหัวหน้าจอแล้ว (SubHeader) ซึ่งกดได้จากทุกขั้น */}
+
+      <SectionCard>
+      <StepSection gap='var(--dim-space-600)'>
         <CarriedDentalPanel
           hn={hn}
           patientName={registryEntry?.name}
           from='homevisit'
           readOnly={readOnly}
+          showReadOnlyNote={false}
+          showSummaryRow={false}
+          showStatusBadge={false}
+          bordered={false}
         />
       </StepSection>
+      </SectionCard>
 
       {/* ตารางประวัติการเยี่ยมย้อนหลังถูกถอดออก (มติผู้ใช้ 30 ส.ค. 69) — ย้ายไปดูที่
           ปุ่ม "ประวัติการเยี่ยมบ้าน" บนแถบหัวข้อ ซึ่งเปิดอ่านทีละครั้งได้เต็ม ๆ
@@ -648,197 +742,450 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, hn, registryEnt
 
 /* ── Step 3 — สัญญาณชีพ ──────────────────────────────────────────── */
 
-export const HomeVisitStep3Vitals = ({ form, setForm, readOnly, onDataChanged, blockedMsg }) => {
-  const [deviceMsg, setDeviceMsg] = useState('');
-  const connected = getDeviceConnected();
+/* ช่องที่วาดเป็นการ์ดเดี่ยว — ความดันใช้ `PressureCard` (บน/ล่างในใบเดียว)
+   ส่วนน้ำหนัก/ส่วนสูงต้องอยู่ติดกับ BMI จึงแยกออกมาอีกชุด */
+const CARD_VITALS = VITAL_FIELDS.filter((f) => ['temp', 'pulse', 'respiration', 'oxygen'].includes(f.key));
+const ANTHRO_VITALS = VITAL_FIELDS.filter((f) => ['weight', 'height'].includes(f.key));
 
-  const setVital = (key) => (value) => setForm((f) => ({ ...f, vitals: { ...f.vitals, [key]: value } }));
+export const HomeVisitStep3Vitals = ({ form, setForm, readOnly, blockedMsg, hn }) => {
+  /* ยกฟอร์มสัญญาณชีพของจุดคัดกรองมาทั้งก้อน (มติผู้ใช้ 30 ส.ค. 69) — ได้
+     "เพิ่มรอบการวัด" · ไทม์ไลน์รอบก่อนหน้า · กราฟ · BMI/กราฟการเจริญเติบโต
+     ครบชุดเหมือนกัน แทนกริดการ์ดที่ประกอบเอง.
 
-  const summary = useMemo(() => summarizeVitals(form.vitals), [form.vitals]);
-  const bmi = useMemo(() => calcBmi(form.vitals.weight, form.vitals.height), [form.vitals.weight, form.vitals.height]);
+     ⚠️ `VitalsForm` ถือ state ของตัวเองและไม่มี prop ให้เติมค่าเริ่มต้น (ไฟล์นั้น
+     เป็นของโมดูล OPD และมี terminal อื่นแก้ค้างอยู่ จึงไม่แตะ) — ค่าที่พยาบาล
+     กรอกจึงถูก *มิเรอร์* กลับเข้า `form.vitals` ผ่าน `onValuesChange` เพื่อให้
+     ใบสรุป/การส่งข้อมูล/หน้าติดตามยังอ่านได้ที่เดิม แต่ถ้าปิดแล้วเปิดร่างใหม่
+     การ์ดจะเริ่มจากค่าว่างของมันเอง (ค่าที่บันทึกไว้ยังอยู่ในร่าง) */
+  const [historyOpen, setHistoryOpen] = useState(false);
 
-  const readFromDevice = () => {
-    const reading = readDeviceVitals();
-    if (!reading) {
-      setDeviceMsg('อ่านค่าจากอุปกรณ์ไม่สำเร็จ — อุปกรณ์ยังไม่เชื่อมต่อ กรุณาบันทึกค่าด้วยตนเอง');
-      return;
-    }
-    setForm((f) => ({
-      ...f,
-      vitals: {
+  const mirrorVitals = useCallback((v) => {
+    setForm((f) => {
+      const next = {
         ...f.vitals,
-        temp: reading.temp,
-        pulse: reading.pulse,
-        respiration: reading.respiration,
-        oxygen: reading.oxygen,
-        sys: reading.sys,
-        dia: reading.dia,
-      },
-      deviceReading: reading,
-    }));
-    setDeviceMsg('');
-    onDataChanged?.();
-  };
+        temp: v.temp ?? '',
+        pulse: v.pulse ?? '',
+        respiration: v.respiration ?? '',
+        oxygen: v.oxygen ?? '',
+        sys: v.pressureSys ?? '',
+        dia: v.pressureDia ?? '',
+        weight: v.weight ?? '',
+        height: v.height ?? '',
+      };
+      /* อย่าเขียนทับด้วยค่าว่างตอน mount — ร่างที่บันทึกไว้จะหายทันทีที่เปิดขั้น */
+      const allEmpty = Object.values(next).every((x) => String(x).trim() === '');
+      if (allEmpty) return f;
+      const same = Object.keys(next).every((k) => String(f.vitals?.[k] ?? '') === String(next[k]));
+      return same ? f : { ...f, vitals: next };
+    });
+  }, [setForm]);
 
-  const badgeFor = (key) => {
-    const res = evaluateVital(key, form.vitals[key]);
-    if (res.status === 'normal') return { tone: 'success', label: 'ปกติ' };
-    if (res.status === 'abnormal') return { tone: 'warning', label: 'ผิดปกติ' };
-    if (res.status === 'invalid') return { tone: 'error', label: 'ค่าไม่ถูกต้อง' };
-    return undefined;
-  };
+  /* ประวัติสัญญาณชีพของงานเยี่ยมบ้านคือ "การเยี่ยมครั้งก่อน ๆ" ของ HN นี้
+     ไม่ใช่ชุดจำลองของ OPD — ใช้ข้อมูลเดียวกับหน้าติดตามการเยี่ยมบ้าน */
+  const vitalHistory = useMemo(() => (hn ? getVisitHistory(hn) : []), [hn]);
 
   return (
     <StepCard>
       {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
 
-      <StepSection>
-        <TopicHeader
-          icon='activity'
-          aside={(
-            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              <NeutralSubdueButton
-                variant='outline' size='sm'
-                leadingIcon={connected ? 'bluetooth_connected' : 'bluetooth_disabled'}
-                onClick={() => { setDeviceConnected(!connected); setDeviceMsg(''); onDataChanged?.(); }}
-              >
-                {connected ? 'จำลองอุปกรณ์ไม่เชื่อมต่อ' : 'จำลองอุปกรณ์เชื่อมต่อแล้ว'}
-              </NeutralSubdueButton>
-              <BrandSubdueButton
-                variant='fill' size='sm' leadingIcon='download'
-                onClick={readFromDevice}
-                disabled={readOnly || !connected}
-              >
-                อ่านค่าจากอุปกรณ์
-              </BrandSubdueButton>
-            </div>
-          )}
-        >
-          สัญญาณชีพ (TOR 1.18.4)
-        </TopicHeader>
-
-        {!connected && (
-          <NoticeBand tone='warning' icon='bluetooth_disabled'>
-            ยังไม่ได้เชื่อมต่อ{HOMEVISIT_DEVICE.label} — ปุ่ม “อ่านค่าจากอุปกรณ์” ถูกปิดใช้งาน
-            ให้บันทึกค่าที่วัดได้ด้วยตนเองในช่องด้านล่าง
-          </NoticeBand>
+      <VitalsForm
+        onValuesChange={mirrorVitals}
+        beforeAddRoundSlot={(
+          <SuggestibleTextarea
+            label='บันทึกเพิ่มเติมเกี่ยวกับการวัดสัญญาณชีพ'
+            value={form.vitalsNote}
+            onChange={(e) => setForm((f) => ({ ...f, vitalsNote: e?.target ? e.target.value : e }))}
+            suggestions={[
+              'วัดความดันในท่านั่งหลังพัก 5 นาที ค่าอยู่ในเกณฑ์เดิม',
+              'ผู้ป่วยมีไข้ต่ำ ๆ ให้เช็ดตัวและติดตามซ้ำใน 2 ชั่วโมง',
+              'ค่าออกซิเจนต่ำกว่าปกติ ปรับอัตราออกซิเจนที่บ้านและแจ้งแพทย์',
+            ]}
+            minChars={2}
+            disabled={readOnly}
+            style={{ width: '100%', maxWidth: 'none' }}
+            placeholder='สภาวะขณะวัด ความผิดปกติที่พบ และการดูแลเบื้องต้น'
+          />
         )}
-        {deviceMsg && <NoticeBand tone='danger' icon='error'>{deviceMsg}</NoticeBand>}
-
-        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-          {VITAL_FIELDS.map((f) => {
-            const res = evaluateVital(f.key, form.vitals[f.key]);
-            return (
-              <Field
-                key={f.key}
-                label={`${f.label} (${f.unit})`}
-                error={res.status === 'invalid' ? res.message : undefined}
-                hint={res.status === 'abnormal'
-                  ? res.message
-                  : f.normal ? `เกณฑ์ปกติ ${f.normal[0]}–${f.normal[1]} ${f.unit}` : undefined}
-              >
-                <InputField
-                  showLabel={false} showHelperText={false}
-                  value={form.vitals[f.key]}
-                  onChange={setVital(f.key)}
-                  disabled={readOnly}
-                  placeholder={f.normal ? `${f.normal[0]}–${f.normal[1]}` : f.unit}
-                  error={res.status === 'invalid' ? ' ' : undefined}
-                />
-              </Field>
-            );
-          })}
-        </div>
-
-        {summary.invalid.length > 0 && (
-          <NoticeBand tone='danger' icon='error'>
-            ค่าที่บันทึกไม่ถูกต้อง {summary.invalid.length} รายการ — {summary.invalid.join(' · ')}
-          </NoticeBand>
+        headerAction={(
+          <BrandSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon='monitoring'
+            onClick={() => setHistoryOpen(true)}
+          >
+            ดูประวัติสัญญาณชีพ
+          </BrandSubdueButton>
         )}
-        {summary.invalid.length === 0 && summary.abnormal.length > 0 && (
-          <NoticeBand tone='warning' icon='warning'>
-            พบค่าผิดปกติ {summary.abnormal.length} รายการ — {summary.abnormal.join(' · ')}
-            {' '}(บันทึกต่อได้ แต่ควรระบุการดูแลในขั้นตอนบันทึกตามบทบาทวิชาชีพ)
-          </NoticeBand>
-        )}
-      </StepSection>
+      />
 
-      <StepSection>
-        <TopicHeader icon='monitor_heart'>ค่าที่อ่านได้ล่าสุด</TopicHeader>
-        {form.deviceReading ? (
-          <AuditStamp
-            by={form.deviceReading.by}
-            at={form.deviceReading.at}
-            prefix={`อ่านจาก ${form.deviceReading.device} โดย`}
-          />
-        ) : (
-          <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary, #858C92)' }}>
-            ยังไม่ได้อ่านค่าจากอุปกรณ์ในการเยี่ยมครั้งนี้ — การ์ดด้านล่างแสดงค่าที่บันทึกด้วยตนเอง
-          </span>
-        )}
-        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <VitalReadingCard
-            bordered horizontal type='reading' iconName='thermostat'
-            label='อุณหภูมิ' value={form.vitals.temp ? `${form.vitals.temp} °C` : '—'}
-            badge={badgeFor('temp')} showBadge={!!badgeFor('temp')}
-          />
-          <VitalReadingCard
-            bordered horizontal type='reading' iconName='monitor_heart'
-            label='ชีพจร' value={form.vitals.pulse ? `${form.vitals.pulse} /นาที` : '—'}
-            badge={badgeFor('pulse')} showBadge={!!badgeFor('pulse')}
-          />
-          <VitalReadingCard
-            bordered horizontal type='reading' iconName='blood_pressure'
-            label='ความดันโลหิต'
-            value={form.vitals.sys && form.vitals.dia ? `${form.vitals.sys}/${form.vitals.dia}` : '—'}
-            badge={badgeFor('sys')} showBadge={!!badgeFor('sys')}
-          />
-          <VitalReadingCard
-            bordered horizontal type='reading' iconName='pulmonology'
-            label='อัตราการหายใจ' value={form.vitals.respiration ? `${form.vitals.respiration} /นาที` : '—'}
-            badge={badgeFor('respiration')} showBadge={!!badgeFor('respiration')}
-          />
-          <VitalReadingCard
-            bordered horizontal type='reading' iconName='spo2'
-            label='ออกซิเจนปลายนิ้ว' value={form.vitals.oxygen ? `${form.vitals.oxygen} %` : '—'}
-            badge={badgeFor('oxygen')} showBadge={!!badgeFor('oxygen')}
-          />
-          <VitalReadingCard
-            bordered horizontal={false} type='bmi'
-            label='BMI' value={bmi ? String(bmi) : '—'}
-            bmiMarkerPercent={bmi ? Math.max(0, Math.min(100, ((bmi - 15) / 25) * 100)) : 0}
-            showBadge={false}
-          />
-        </div>
-
-        <SuggestibleTextarea
-          label='บันทึกเพิ่มเติมเกี่ยวกับการวัดสัญญาณชีพ'
-          voice
-          value={form.vitalsNote}
-          onChange={(e) => setForm((f) => ({ ...f, vitalsNote: e.target.value }))}
-          suggestions={[
-            'วัดความดันในท่านั่งหลังพัก 5 นาที ค่าอยู่ในเกณฑ์เดิม',
-            'ผู้ป่วยมีไข้ต่ำ ๆ ให้เช็ดตัวและติดตามซ้ำใน 2 ชั่วโมง',
-            'ค่าออกซิเจนต่ำกว่าปกติ ปรับอัตราออกซิเจนที่บ้านและแจ้งแพทย์',
+      <Popup
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        size='large'
+        title='ประวัติสัญญาณชีพจากการเยี่ยมครั้งก่อน'
+        subtitle={hn ? `HN ${hn}` : undefined}
+        primaryAction={{ label: 'ปิด', onClick: () => setHistoryOpen(false) }}
+      >
+        <Table
+          columns={[
+            { key: 'no', label: 'ครั้งที่' },
+            { key: 'date', label: 'วันที่เยี่ยม', render: (r) => formatHomeVisitDate(r.date) },
+            { key: 'bp', label: 'ความดัน (mmHg)', render: (r) => (r.vitals?.sys && r.vitals?.dia ? `${r.vitals.sys}/${r.vitals.dia}` : '—') },
+            { key: 'pulse', label: 'ชีพจร', render: (r) => r.vitals?.pulse || '—' },
+            { key: 'temp', label: 'อุณหภูมิ', render: (r) => r.vitals?.temp || '—' },
+            { key: 'oxygen', label: 'SpO2', render: (r) => (r.vitals?.oxygen ? `${r.vitals.oxygen}%` : '—') },
+            { key: 'weight', label: 'น้ำหนัก', render: (r) => r.vitals?.weight || '—' },
+            { key: 'by', label: 'ผู้เยี่ยม', flex: true, minWidth: 160 },
           ]}
-          minChars={2}
-          disabled={readOnly}
-          placeholder='สภาวะขณะวัด ความผิดปกติที่พบ และการดูแลเบื้องต้น'
+          rows={[...vitalHistory].reverse()}
+          rowKey={(r) => `${hn}-${r.no}`}
+          emptyMessage='ยังไม่มีประวัติการวัดสัญญาณชีพของผู้รับบริการรายนี้'
         />
-      </StepSection>
+      </Popup>
     </StepCard>
   );
 };
 
-/* ── Step 4 — ประเมินการเยี่ยม + คัดกรอง + ADL ────────────────────── */
+/* ── Step 4 — ข้อมูลการติดต่อ · Step 5 — สิทธิการรักษา ─────────────
+   ยกสองขั้นของหน้าเวชระเบียนมาทั้งก้อนแบบเดียวกับที่อยู่/ข้อมูลส่วนตัว
+   (มติผู้ใช้ 30 ส.ค. 69) — ทีมเยี่ยมบ้านเป็นคนที่ได้เบอร์ผู้ดูแลตัวจริงและ
+   เห็นบัตรสิทธิที่บ้าน จึงควรแก้ได้ตรงนั้นด้วยหน้าตาเดียวกับห้องบัตร */
+export const HomeVisitStepContact = ({ form, setForm, blockedMsg }) => (
+  <StepCard>
+    {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+    <RegistrationContactStep form={form} setForm={setForm} />
+  </StepCard>
+);
+
+export const HomeVisitStepRights = ({ form, setForm, blockedMsg }) => (
+  <StepCard>
+    {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+    <RegistrationRightsStep form={form} setForm={setForm} />
+  </StepCard>
+);
+
+/* ── Step 8 — พฤติกรรมสุขภาพ ───────────────────────────────────── */
+export const HomeVisitStepBehaviour = ({ form, setForm, readOnly, hn, blockedMsg }) => (
+  /* การ์ดขาวใบเดียวของทั้งขั้น (มติผู้ใช้ 30 ส.ค. 69) — แถวสูบบุหรี่/แอลกอฮอล์/
+     ออกกำลังกายของจุดคัดกรอง กับความเสี่ยงจากฟอร์มกระดาษ ศบส. เป็นเรื่องเดียวกัน
+     ทั้งหมด แยกเป็นสองการ์ดทำให้อ่านเหมือนคนละหัวข้อ · `ScreeningStep4` ไม่มี
+     พื้นหลังการ์ดของตัวเอง จึงต้องห่อให้ */
+  <StepCard>
+    {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+    <SectionCard>
+      <ScreeningStep4 patient={{ hn }} />
+      <HealthRiskFields
+        value={form.homeScreening}
+        onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
+        readOnly={readOnly}
+      />
+
+      <StepSection gap='var(--dim-space-200)'>
+        <span style={{
+          color: 'var(--text-content-secondary, #636B72)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+        }}>
+          การปฏิบัติตัวเมื่อเจ็บป่วยเล็กน้อย (เลือกได้หลายข้อ)
+        </span>
+        <MinorIllnessFields
+          value={form.homeScreening}
+          onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
+          readOnly={readOnly}
+        />
+      </StepSection>
+    </SectionCard>
+  </StepCard>
+);
+
+/* รูปถ่ายระหว่างการเยี่ยม — อยู่ในขั้น "ประเมิน" (มติผู้ใช้ 30 ส.ค. 69)
+   รูปเป็นหลักฐานประกอบ *การประเมิน* (แผล สภาพแวดล้อม อุปกรณ์) จึงต้องอยู่ที่
+   เดียวกับที่ทีมกำลังตัดสินใจ ไม่ใช่ขั้นข้อมูลส่วนตัวซึ่งเป็นเรื่องตัวตนผู้ป่วย.
+   แยกเป็นคอมโพเนนต์เพราะถือ state ป๊อปอัปดูรูปของตัวเอง. */
+
+export const HOMEVISIT_PHOTO_LIMIT = 20;
+
+export const HomeVisitPhotoSection = ({ form, setForm, readOnly }) => {
+  const [photoPreview, setPhotoPreview] = useState(null);
+  /* เตือนเมื่อเลือกไฟล์มาเกินโควตา — ตัดทิ้งเงียบ ๆ แล้วทีมจะไม่รู้ว่ารูปหาย */
+  const [limitMsg, setLimitMsg] = useState('');
+  const remaining = HOMEVISIT_PHOTO_LIMIT - form.photos.length;
+
+  const removePhotoAt = (index) => setForm((f) => ({
+    ...f,
+    photos: f.photos.filter((_, idx) => idx !== index),
+  }));
+
+  return (
+    <StepSection>
+      <TopicHeader icon='photo_camera'>รูปถ่ายระหว่างการเยี่ยม</TopicHeader>
+      {limitMsg && <NoticeBand tone='warning' icon='filter_alt'>{limitMsg}</NoticeBand>}
+
+      {/* คำแนะนำว่าควรถ่ายอะไร (มติผู้ใช้ 30 ส.ค. 69) — เดิมเป็นช่องอัปโหลด
+          เปล่า ๆ แต่ละทีมจึงถ่ายไม่เหมือนกัน พอเอารูปมาเทียบข้ามครั้งหรือ
+          ส่งต่อให้ทีมถัดไปจึงใช้ไม่ได้ */}
+      <div
+        className='flex flex-col w-full'
+        style={{
+          gap: 'var(--dim-space-100, 4px)',
+          padding: 'var(--dim-space-300, 12px)',
+          borderRadius: 'var(--dim-radius-300, 8px)',
+          background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+          fontSize: 'var(--type-size-xs)',
+          color: 'var(--text-content-secondary, #636B72)',
+        }}
+      >
+        <span style={{ color: 'var(--text-content-default, #363B3F)', fontWeight: 'var(--type-weight-medium, 500)' }}>
+          {form.photos.length === 0
+            ? 'รูปแรก: ถ่าย “หน้าบ้านพร้อมเลขที่บ้าน” — ใช้ยืนยันว่าไปถึงบ้านถูกหลังคู่กับพิกัดที่บันทึกไว้'
+            : 'ถ่ายให้ครบตามรายการนี้ เพื่อให้ทีมครั้งถัดไปเทียบความเปลี่ยนแปลงได้'}
+        </span>
+        <span>1. หน้าบ้าน + เลขที่บ้าน · 2. สภาพแวดล้อมที่เป็นความเสี่ยง (ทางเดิน ห้องน้ำ ราวจับ พื้นลื่น)</span>
+        <span>3. แผล/รอยโรค — ถ่ายระยะเดิมทุกครั้งและวางวัตถุเทียบขนาดไว้ข้าง ๆ · 4. ยาที่พบในบ้านทั้งหมด</span>
+        <span>5. อุปกรณ์การแพทย์ที่ใช้อยู่ (สายให้อาหาร ออกซิเจน เตียง ที่นอนลม)</span>
+        <span style={{ color: 'var(--text-warning-default, #B45309)' }}>
+          ขอความยินยอมจากผู้รับบริการหรือผู้ดูแลก่อนถ่ายทุกครั้ง และไม่ถ่ายใบหน้าคนอื่นในบ้านที่ไม่ใช่ผู้รับบริการ
+        </span>
+      </div>
+
+      {/* ปุ่มอัปโหลดกับรูปย่ออยู่แถวเดียวกัน — เดิมรูปย่อต่อท้ายลงข้างล่าง
+          บล็อกจึงยาวขึ้นเรื่อย ๆ และมองไม่เห็นพร้อมกันว่าถ่ายอะไรไปแล้วบ้าง */}
+      <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        <PhotoUploadField
+          label={form.photos.length
+            ? `เพิ่มรูป (${form.photos.length}/${HOMEVISIT_PHOTO_LIMIT} รูป)`
+            : 'ถ่าย/อัปโหลดรูป'}
+          icon='photo_camera'
+          capture='environment'
+          multiple
+          disabled={readOnly || remaining <= 0}
+          /* อ่านเป็น data URL ไม่ใช่ blob URL — blob URL ใช้ได้เฉพาะในหน้าที่เปิดอยู่
+             พอบันทึกร่างลง sessionStorage แล้วกลับมาเปิดใหม่ ลิงก์จะตาย */
+          onFiles={(files) => {
+            /* รับได้ไม่เกินโควตาที่เหลือ ส่วนที่เกินถูกตัดพร้อมบอกให้รู้ */
+            const picked = Array.from(files);
+            const accepted = picked.slice(0, Math.max(0, remaining));
+            setLimitMsg(accepted.length < picked.length
+              ? `เลือกมา ${picked.length} รูป แต่เก็บได้อีก ${Math.max(0, remaining)} รูป (สูงสุด ${HOMEVISIT_PHOTO_LIMIT} รูปต่อการเยี่ยม 1 ครั้ง) — เก็บให้ ${accepted.length} รูปแรก`
+              : '');
+            accepted.forEach((file, i) => {
+              const entryId = `hv-photo-${Date.now()}-${i}`;
+              const push = (previewUrl) => setForm((f) => ({
+                ...f,
+                photos: [...f.photos, { id: entryId, name: file.name, previewUrl }],
+              }));
+              if (typeof FileReader === 'undefined') {
+                push('');
+                return;
+              }
+              const reader = new FileReader();
+              reader.onload = () => push(String(reader.result || ''));
+              reader.onerror = () => push('');
+              reader.readAsDataURL(file);
+            });
+          }}
+        />
+        {form.photos.length > 0 && (
+          <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            {form.photos.map((photo, i) => {
+              const entry = typeof photo === 'string' ? { name: photo, previewUrl: '' } : photo;
+              const key = entry.id || `${entry.name}-${i}`;
+              return entry.previewUrl ? (
+                <div
+                  key={key}
+                  className='relative'
+                  style={{
+                    /* สูงเท่ากล่องอัปโหลด และกว้างตามอัตราส่วน 4:3 ของกล้อง —
+                       กรอบจัตุรัสครอบรูปแนวนอนจนดูไม่ออกว่าถ่ายอะไร */
+                    width: 171,
+                    height: 'var(--dim-size-2000, 128px)',
+                    borderRadius: 'var(--dim-radius-300, 8px)',
+                    overflow: 'hidden',
+                    border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #E5E7EB)',
+                    background: 'var(--surface-neutral-quaternary, #F3F4F6)',
+                  }}
+                >
+                  {/* กดที่รูปเพื่อเปิดดูขนาดเต็ม — ปุ่มลบเป็นพี่น้องกันข้างนอก
+                      ไม่ใช่ปุ่มซ้อนปุ่ม (HTML ห้าม) */}
+                  <button
+                    type='button'
+                    onClick={() => setPhotoPreview(entry)}
+                    aria-label={`ดูรูป ${entry.name} ขนาดเต็ม`}
+                    title={entry.name}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      padding: 0,
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'zoom-in',
+                      display: 'block',
+                    }}
+                  >
+                    <img
+                      src={entry.previewUrl}
+                      alt={entry.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
+                  </button>
+                  {/* ปุ่มลบเป็นวงกลมเทาเล็ก ไม่ใช่ปุ่มแบรนด์สี่เหลี่ยมขนาดปกติ —
+                      ปุ่มเต็มใบทับรูปย่อจนดูไม่ออกว่ารูปอะไร และสีเขียวอ่านเป็น
+                      "ปุ่มหลัก" ทั้งที่เป็นการกระทำรอง */}
+                  {!readOnly && (
+                    <button
+                      type='button'
+                      aria-label={`ลบรูป ${entry.name}`}
+                      title={`ลบรูป ${entry.name}`}
+                      /* หยุด event ไม่ให้ทะลุไปเปิดป๊อปอัปดูรูปของกรอบด้านหลัง */
+                      onClick={(e) => { e.stopPropagation(); removePhotoAt(i); }}
+                      className='absolute inline-flex items-center justify-center'
+                      style={{
+                        top: 'var(--dim-space-150, 6px)',
+                        right: 'var(--dim-space-150, 6px)',
+                        width: 24,
+                        height: 24,
+                        borderRadius: 'var(--dim-radius-full, 9999px)',
+                        background: 'var(--surface-neutralButton-secondary, #6B7280)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                        zIndex: 1,
+                      }}
+                    >
+                      <span
+                        className='material-symbols-outlined'
+                        aria-hidden
+                        style={{
+                          fontFamily: 'Material Symbols Outlined',
+                          fontSize: 16,
+                          lineHeight: 1,
+                          color: 'var(--icon-neutralButton-on-neutral, #FFFFFF)',
+                        }}
+                      >
+                        close
+                      </span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <ColorfulBadge key={key} style='grey' size='small' hierarchy='secondary' width='hug' maxWidth={220}>
+                  {entry.name}
+                </ColorfulBadge>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ดูรูปขนาดเต็ม — ลบจากในป๊อปอัปได้เลย จะได้ไม่ต้องปิดแล้วไปหาปุ่มกากบาท
+          บนรูปย่ออีกที หลังจากเพิ่งเห็นว่ารูปนี้ถ่ายพลาด */}
+      <Popup
+        open={!!photoPreview}
+        onClose={() => setPhotoPreview(null)}
+        title='รูปถ่ายระหว่างการเยี่ยม'
+        subtitle={photoPreview?.name}
+        size='large'
+        primaryAction={{ label: 'ปิด', onClick: () => setPhotoPreview(null) }}
+        tertiaryAction={readOnly ? undefined : {
+          label: 'ลบรูปนี้',
+          onClick: () => {
+            const index = form.photos.findIndex((ph) => (
+              typeof ph === 'string' ? ph === photoPreview?.name : ph.id === photoPreview?.id
+            ));
+            if (index >= 0) removePhotoAt(index);
+            setPhotoPreview(null);
+          },
+        }}
+      >
+        {photoPreview?.previewUrl && (
+          <img
+            src={photoPreview.previewUrl}
+            alt={photoPreview.name}
+            style={{
+              width: '100%',
+              maxHeight: '70vh',
+              objectFit: 'contain',
+              display: 'block',
+              borderRadius: 'var(--dim-radius-300, 8px)',
+              background: 'var(--surface-neutral-quaternary, #F3F4F6)',
+            }}
+          />
+        )}
+      </Popup>
+    </StepSection>
+  );
+};
+
+/* การ์ดแบบประเมินมาตรฐาน — ทรงเดียวกับการ์ดใบยินยอมของหน้าเวชระเบียน
+   (หัวการ์ดพื้นอ่อน + รหัส/ป้ายเวอร์ชัน + ชื่อ + แถวปุ่มล่าง) แต่ "เวอร์ชัน"
+   ของแบบประเมินคือ *คะแนน* และป้ายคือ *การแปลผล* ซึ่งเป็นสิ่งที่พยาบาลต้อง
+   เห็นก่อนตัดสินใจว่าจะเปิดชุดไหน (มติผู้ใช้ 30 ส.ค. 69) */
+const AssessmentToolCard = ({ code, title, done, scoreLabel, interp, readOnly, onOpen }) => (
+  <section
+    className='flex flex-col w-full min-w-0'
+    style={{
+      borderRadius: 'var(--dim-radius-400, 12px)',
+      border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
+      background: 'var(--surface-card-100, #FFFFFF)',
+      overflow: 'hidden',
+    }}
+  >
+    <div
+      className='flex flex-col items-center w-full'
+      style={{
+        gap: 'var(--dim-space-100, 4px)',
+        paddingTop: 'var(--dim-space-500, 20px)',
+        paddingBottom: 'var(--dim-space-500, 20px)',
+        background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+      }}
+    >
+      <span style={{
+        color: 'var(--text-brandPrimary-default, #007549)',
+        fontFamily: 'var(--type-family-heading-content)',
+        fontSize: 'var(--type-size-xl)',
+      }}>
+        {scoreLabel}
+      </span>
+      <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+        {code}
+      </span>
+    </div>
+
+    <div
+      className='flex flex-col w-full flex-1'
+      style={{
+        gap: 'var(--dim-space-200, 8px)',
+        padding: 'var(--dim-space-400, 16px)',
+      }}
+    >
+      <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+        {title}
+      </span>
+      {done && interp ? (
+        <ColorfulBadge style={interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={260}>
+          {interp.label}
+        </ColorfulBadge>
+      ) : (
+        <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
+          ยังไม่ได้ประเมิน
+        </ColorfulBadge>
+      )}
+      <div className='flex-1' />
+      <BrandSubdueButton
+        variant='outline'
+        size='sm'
+        leadingIcon={done ? 'edit' : 'clipboard-list'}
+        onClick={onOpen}
+      >
+        {readOnly ? 'ดูผลประเมิน' : (done ? 'แก้ไข' : 'ทำแบบประเมิน')}
+      </BrandSubdueButton>
+    </div>
+  </section>
+);
 
 export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }) => {
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
-  const toggleEnvironment = (key) => setForm((f) => ({
-    ...f,
-    environment: { ...f.environment, [key]: !f.environment[key] },
-  }));
 
   const setAdl = (itemKey, value) => setForm((f) => ({
     ...f,
@@ -850,7 +1197,9 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
   const adlInterp = useMemo(() => interpretBarthel(adlTotal), [adlTotal]);
 
   const q2Positive = SCREEN_2Q_QUESTIONS.filter((q) => form.screen2q?.[q.key] === true).length;
-  const envRisks = HOME_ENVIRONMENT_ITEMS.filter((i) => form.environment?.[i.key] !== true);
+  /* เครื่องมือที่กำลังเปิดทำอยู่ในป๊อปอัป — null = ยังไม่เปิด */
+  const [openTool, setOpenTool] = useState(null);
+
 
   /* ── เครื่องมือมาตรฐาน (มติ คทง.4 ต่อ §1.18.5) ──────────────────
      MNA-SF · 9Q (เมื่อ 2Q ผลบวก) · PPS — คำนวณคะแนนและแปลผลอัตโนมัติ
@@ -891,32 +1240,56 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
 
   const ppsInterp = useMemo(() => interpretPps(form.pps), [form.pps]);
 
+  /* meta ของการ์ดสี่ใบ — คะแนน/การแปลผลอ่านจากตัวแปรเดียวกับที่ฟอร์มข้างในใช้
+     จึงไม่มีทางที่การ์ดกับป๊อปอัปจะบอกคนละเรื่อง */
+  const q2Answered = SCREEN_2Q_QUESTIONS.filter((q) => typeof form.screen2q?.[q.key] === 'boolean').length;
+  const q2Done = q2Answered === SCREEN_2Q_QUESTIONS.length;
+  const ASSESSMENT_TOOL_CARDS = [
+    {
+      key: '2q',
+      code: '2Q / 9Q',
+      title: 'คัดกรองภาวะซึมเศร้า 2Q',
+      done: q2Done,
+      scoreLabel: q2Done ? `${q2Positive}/${SCREEN_2Q_QUESTIONS.length} ข้อ` : '—',
+      interp: q2Done
+        ? (q2Positive > 0
+          ? { badge: 'orange', label: `2Q ผลบวก ${q2Positive} ข้อ — ต้องทำ 9Q ต่อ` }
+          : { badge: 'green', label: 'ไม่พบความเสี่ยงซึมเศร้า' })
+        : null,
+    },
+    {
+      key: 'mna',
+      code: 'MNA-SF',
+      title: 'ประเมินภาวะโภชนาการ',
+      done: mnaDone,
+      scoreLabel: mnaDone ? `${mnaTotal}/${MNA_MAX_SCORE}` : `${mnaAnswered}/${MNA_ITEMS.length} ข้อ`,
+      interp: mnaDone ? mnaInterp : null,
+    },
+    {
+      key: 'pps',
+      code: 'PPS',
+      title: 'ระดับความสามารถผู้ป่วยประคับประคอง',
+      done: !!ppsInterp,
+      scoreLabel: ppsInterp ? `${form.pps}%` : '—',
+      interp: ppsInterp,
+    },
+    {
+      key: 'adl',
+      code: 'Barthel Index',
+      title: 'ประเมิน ADL — ดัชนีบาร์เธล',
+      done: isBarthelComplete(form.adlAnswers),
+      scoreLabel: `${adlTotal}/${BARTHEL_MAX_SCORE}`,
+      interp: isBarthelComplete(form.adlAnswers) ? adlInterp : null,
+    },
+  ];
+
   return (
     <StepCard>
       {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
 
-      <StepSection>
-        <TopicHeader icon='home'>ประเมินสภาพแวดล้อมในบ้าน</TopicHeader>
-        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-          เลือกข้อที่ “ผ่านเกณฑ์” — ข้อที่ไม่ได้เลือกจะถูกสรุปเป็นความเสี่ยงของบ้านหลังนี้
-        </span>
-        <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {HOME_ENVIRONMENT_ITEMS.map((item) => (
-            <SelectableTag
-              key={item.key}
-              label={item.label}
-              size='md'
-              selected={!!form.environment?.[item.key]}
-              onClick={readOnly ? undefined : () => toggleEnvironment(item.key)}
-            />
-          ))}
-        </div>
-        {envRisks.length > 0 && (
-          <NoticeBand tone='warning' icon='report'>
-            ความเสี่ยงของสภาพแวดล้อมที่ยังไม่ผ่านเกณฑ์ {envRisks.length} ข้อ — {envRisks.map((i) => i.label).join(' · ')}
-          </NoticeBand>
-        )}
-      </StepSection>
+      {/* ถอด "ประเมินสภาพแวดล้อมในบ้าน" ออกจากงานเยี่ยมบ้าน (มติผู้ใช้ 30 ส.ค. 69)
+          — สภาพบ้าน/สุขาภิบาลเป็นหมวดของ "แบบสำรวจบ้าน" ซึ่งเป็นระบบของทีมอื่น
+          คีย์ `form.environment` ยังอยู่ในโมเดลเผื่อบันทึกเก่า */}
 
       {/* แบบคัดกรองสุขภาพรายบุคคล — ฟอร์มเดียวกับหน้า "คัดกรองเยี่ยมบ้าน" ที่เคยทำไว้
           ยกมาไว้ทั้งชุดในขั้น "ประเมินและคัดกรอง" (มติผู้ใช้ 30 ส.ค. 69) ซึ่งเป็นที่ของ
@@ -924,23 +1297,13 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
           ช่องที่ระบบมีอยู่แล้วไม่ถูกยกมาซ้ำ: ชื่อ-ที่อยู่-เบอร์-สิทธิ (เวชระเบียน) ·
           น้ำหนัก/ส่วนสูง/BMI/BP/PR/RR/T (ขั้นสัญญาณชีพ) · รายการยา/อาหารที่แพ้และ
           โรคประจำตัว (ขั้นประวัติ) · วันที่สำรวจ (ใช้วันที่ให้บริการของบันทึกนี้) */}
-      <StepSection>
-        <TopicHeader icon='assignment_ind'>แบบคัดกรองสุขภาพรายบุคคล — ข้อมูลประชากรและสิทธิ</TopicHeader>
-        <PersonalProfileFields
-          value={form.homeScreening}
-          onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
-          readOnly={readOnly}
-        />
-      </StepSection>
+      {/* ถอดแผง "แบบคัดกรองสุขภาพรายบุคคล — ข้อมูลประชากรและสิทธิ" ออก
+          (มติผู้ใช้ 30 ส.ค. 69) — สัญชาติ/เชื้อชาติ/ศาสนา ย้ายไปขั้นข้อมูลส่วนตัว
+          แล้ว ส่วนสถานะบุคคล/สถานะในชุมชน/การใช้สิทธิ ผู้ใช้ให้ตัดออก
+          คีย์ใน `form.homeScreening` ยังอยู่ครบเผื่อบันทึกเก่า */}
 
-      <StepSection>
-        <TopicHeader icon='warning'>ความเสี่ยงด้านสุขภาพ (เลือกได้หลายข้อ)</TopicHeader>
-        <HealthRiskFields
-          value={form.homeScreening}
-          onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
-          readOnly={readOnly}
-        />
-      </StepSection>
+      {/* "ความเสี่ยงด้านสุขภาพ 15 ข้อ" ย้ายไปขั้น "พฤติกรรมสุขภาพ" แล้ว
+          (มติผู้ใช้ 30 ส.ค. 69) — เป็นเรื่องพฤติกรรม ไม่ใช่ผลการประเมิน */}
 
       {/* DTX คู่กับสถานะการอดอาหาร — ค่าน้ำตาลอ่านไม่ได้ถ้าไม่รู้ว่าอดอาหารมาหรือไม่ */}
       <StepSection>
@@ -1028,228 +1391,267 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
           )}
         </div>
 
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
-          <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-            คัดกรองภาวะซึมเศร้า 2Q
-          </span>
-          {SCREEN_2Q_QUESTIONS.map((q, idx) => (
-            <div key={q.key} className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              <span className='flex-1 min-w-0' style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary, #636B72)' }}>
-                {idx + 1}. {q.label}
-              </span>
-              <SelectableTag
-                label='มี'
-                size='md'
-                selected={form.screen2q?.[q.key] === true}
-                onClick={readOnly ? undefined : () => setForm((f) => ({ ...f, screen2q: { ...f.screen2q, [q.key]: true } }))}
-              />
-              <SelectableTag
-                label='ไม่มี'
-                size='md'
-                selected={form.screen2q?.[q.key] === false}
-                onClick={readOnly ? undefined : () => setForm((f) => ({ ...f, screen2q: { ...f.screen2q, [q.key]: false } }))}
-              />
-            </div>
-          ))}
-          {q2Positive > 0 && (
-            <NoticeBand tone='warning' icon='psychology'>
-              คัดกรอง 2Q ผลบวก {q2Positive} ข้อ — ต้องประเมิน 9Q ต่อให้ครบก่อนไปขั้นตอนถัดไป
-              และส่งต่อคลินิกสุขภาพจิตหากเข้าเกณฑ์
-            </NoticeBand>
-          )}
-        </div>
-
-        {/* 9Q — บังคับเมื่อ 2Q ผลบวก (มติ คทง.4 ต่อ §1.18.5) */}
-        {q2Positive > 0 && (
-          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-            <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              <span style={{
-                fontSize: 'var(--type-size-sm)',
-                fontWeight: 'var(--type-weight-bold)',
-                color: 'var(--text-content-default, #363B3F)',
-              }}>
-                แบบประเมินโรคซึมเศร้า 9Q
-              </span>
-              <div className='flex-1' />
-              <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default, #363B3F)' }}>
-                {q9Total}/{SCREEN_9Q_MAX_SCORE} คะแนน
-              </span>
-              {q9Done && (
-                <ColorfulBadge style={q9Interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
-                  {q9Interp.label}
-                </ColorfulBadge>
-              )}
-            </div>
-            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-              ถามความถี่ของอาการใน 2 สัปดาห์ที่ผ่านมา ระบบรวมคะแนนและแปลผลระดับความรุนแรงให้อัตโนมัติ
-              (ตอบแล้ว {q9Answered}/{SCREEN_9Q_QUESTIONS.length} ข้อ)
-            </span>
-            {SCREEN_9Q_QUESTIONS.map((q, idx) => (
-              <div key={q.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
-                <span style={{
-                  fontSize: 'var(--type-size-sm)',
-                  color: q.critical ? 'var(--text-pill-red, #B91C1C)' : 'var(--text-content-default, #363B3F)',
-                }}>
-                  {idx + 1}. {q.label}
-                </span>
-                <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                  {SCREEN_9Q_FREQUENCY.map((opt) => (
-                    <SelectableTag
-                      key={opt.value}
-                      label={`${opt.label} (${opt.value})`}
-                      size='md'
-                      selected={form.screen9q?.[q.key] === opt.value}
-                      onClick={readOnly ? undefined : () => set9q(q.key, opt.value)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-            {q9Suicidal && (
-              <NoticeBand tone='danger' icon='crisis_alert'>
-                ผู้รับบริการตอบข้อ 9 (คิดทำร้ายตนเอง) — ต้องประเมินความเสี่ยงฆ่าตัวตาย (8Q)
-                และส่งต่อจิตแพทย์ทันทีในการเยี่ยมครั้งนี้ ห้ามรอรอบเยี่ยมถัดไป
-              </NoticeBand>
-            )}
-            {q9Done && !q9Suicidal && (
-              <NoticeBand tone={q9Interp.key === 'none' ? 'info' : 'warning'} icon='psychology_alt'>
-                {q9Interp.label} — {q9Interp.advice}
-              </NoticeBand>
-            )}
-          </div>
-        )}
-      </StepSection>
-
-      {/* ── MNA-SF (มติ คทง.4 ต่อ §1.18.5) ─────────────────────────── */}
-      <StepSection>
-        <TopicHeader
-          icon='nutrition'
-          aside={(
-            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default, #363B3F)' }}>
-                {mnaTotal}/{MNA_MAX_SCORE} คะแนน
-              </span>
-              <ColorfulBadge style={mnaInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
-                {mnaDone ? mnaInterp.label : `ตอบแล้ว ${mnaAnswered}/${MNA_ITEMS.length} ข้อ`}
-              </ColorfulBadge>
-            </div>
-          )}
-        >
-          ประเมินภาวะโภชนาการ — MNA-SF
-        </TopicHeader>
-        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-          ใช้แบบประเมินมาตรฐานแทนการเลือก “ดี/เสี่ยง/ขาดสารอาหาร” เอง — ระบบรวมคะแนน แปลผล
-          และเติมช่อง “ภาวะโภชนาการ” ด้านบนให้อัตโนมัติเมื่อตอบครบทั้ง {MNA_ITEMS.length} ข้อ
-        </span>
-        {MNA_ITEMS.map((item, idx) => (
-          <div key={item.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-            <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              <span className='flex-1 min-w-0' style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-                {idx + 1}. {item.label}
-              </span>
-              {item.autoFromBmi && bmiScore !== null && form.mna?.f !== bmiScore && !readOnly && (
-                <NeutralSubdueButton variant='outline' size='sm' leadingIcon='calculate' onClick={applyBmiToMna}>
-                  ใช้ค่า BMI {bmi} ที่ระบบคำนวณ
-                </NeutralSubdueButton>
-              )}
-            </div>
-            {item.autoFromBmi && bmiScore === null && (
-              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-                ยังไม่มีค่า BMI — กรอกน้ำหนักและส่วนสูงในขั้นตอนสัญญาณชีพ แล้วกลับมากดใช้ค่าอัตโนมัติได้
-              </span>
-            )}
-            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              {item.options.map((opt) => (
-                <SelectableTag
-                  key={opt.value}
-                  label={`${opt.label} (${opt.value})`}
-                  size='md'
-                  selected={form.mna?.[item.key] === opt.value}
-                  onClick={readOnly ? undefined : () => setMna(item.key, opt.value)}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-        {mnaDone && (
-          <NoticeBand tone={mnaInterp.key === 'normal' ? 'info' : 'warning'} icon='restaurant'>
-            {mnaInterp.label} — {mnaInterp.advice}
-          </NoticeBand>
-        )}
-      </StepSection>
-
-      {/* ── PPS (มติ คทง.4 ต่อ §1.18.5) ────────────────────────────── */}
-      <StepSection>
-        <TopicHeader
-          icon='monitor_heart'
-          aside={ppsInterp ? (
-            <ColorfulBadge style={ppsInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
-              {ppsInterp.label}
-            </ColorfulBadge>
-          ) : undefined}
-        >
-          ระดับความสามารถ — PPS (Palliative Performance Scale)
-        </TopicHeader>
-        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-          เลือกระดับที่ตรงกับผู้รับบริการมากที่สุด — ระบบใช้ผลนี้เสนอรอบการเยี่ยมครั้งถัดไปให้อัตโนมัติ
-        </span>
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
-          {PPS_LEVELS.map((level) => (
-            <SelectableTag
-              key={level.value}
-              label={level.label}
-              size='md'
-              selected={Number(form.pps) === level.value && form.pps !== ''}
-              onClick={readOnly ? undefined : () => set('pps')(level.value)}
+        {/* แบบประเมินมาตรฐาน 4 ชุดเป็น "การ์ด" ทรงเดียวกับใบยินยอมของหน้า
+            เวชระเบียน (มติผู้ใช้ 30 ส.ค. 69) — เดิมกางเป็นฟอร์มยาวเรียงกันสี่ชุด
+            ในขั้นเดียว ทำให้เลื่อนหาไม่เจอว่าเหลือชุดไหนยังไม่ได้ทำ · การ์ดบอก
+            สถานะ/คะแนน/การแปลผลของแต่ละชุดในบรรทัดเดียว แล้วค่อยกดเข้าไปทำ */}
+        <FieldGrid cols={4} rowGap='var(--dim-space-400)' columnGap='var(--dim-space-400)'>
+          {ASSESSMENT_TOOL_CARDS.map((t) => (
+            <AssessmentToolCard
+              key={t.key}
+              code={t.code}
+              title={t.title}
+              done={t.done}
+              scoreLabel={t.scoreLabel}
+              interp={t.interp}
+              readOnly={readOnly}
+              onOpen={() => setOpenTool(t.key)}
             />
           ))}
-        </div>
-        {ppsInterp && (
-          <NoticeBand tone={ppsInterp.key === 'stable' ? 'info' : 'warning'} icon='event_repeat'>
-            {ppsInterp.label} — {ppsInterp.advice}
-            {ppsInterp.followUpDays ? ` (ระบบเสนอรอบเยี่ยมถัดไปทุก ${ppsInterp.followUpDays} วัน)` : ''}
-          </NoticeBand>
-        )}
-      </StepSection>
+        </FieldGrid>
 
-      <StepSection>
-        <TopicHeader
-          icon='accessible'
-          aside={(
-            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default, #363B3F)' }}>
-                {adlTotal}/{BARTHEL_MAX_SCORE} คะแนน
-              </span>
-              <ColorfulBadge style={adlInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
-                {adlInterp.label}
-              </ColorfulBadge>
-            </div>
-          )}
+        <Popup
+          open={!!openTool}
+          onClose={() => setOpenTool(null)}
+          size='extraLarge'
+          title={ASSESSMENT_TOOL_CARDS.find((t) => t.key === openTool)?.title || ''}
+          primaryAction={{ label: 'เสร็จสิ้น', onClick: () => setOpenTool(null) }}
         >
-          ประเมิน ADL — ดัชนีบาร์เธล (Barthel Index)
-        </TopicHeader>
-        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-          ตอบครบทุกข้อ ระบบคำนวณคะแนนรวมและแปลผลกลุ่มติดสังคม/ติดบ้าน/ติดเตียงให้อัตโนมัติ
-          และส่งคะแนนไปแสดงเป็นแนวโน้มในหน้าติดตามการเยี่ยมบ้าน (ตอบแล้ว {adlAnswered}/{BARTHEL_ITEMS.length} ข้อ)
-        </span>
-        {BARTHEL_ITEMS.map((item, idx) => (
-          <div key={item.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-            <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-              {idx + 1}. {item.label}
-            </span>
-            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              {item.options.map((opt) => (
-                <SelectableTag
-                  key={opt.value}
-                  label={`${opt.label} (${opt.value})`}
-                  size='md'
-                  selected={form.adlAnswers?.[item.key] === opt.value}
-                  onClick={readOnly ? undefined : () => setAdl(item.key, opt.value)}
-                />
+          {/* ระยะจากเนื้อหาถึงขอบป๊อปอัป 24px ทุกด้าน (มติผู้ใช้ 30 ส.ค. 69) */}
+          <div
+            className='flex flex-col w-full'
+            style={{ gap: 'var(--dim-space-600, 24px)', padding: 'var(--dim-space-600, 24px)' }}
+          >
+            {openTool === '2q' && (
+              <>
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+                <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+                  คัดกรองภาวะซึมเศร้า 2Q
+                </span>
+                {SCREEN_2Q_QUESTIONS.map((q, idx) => (
+                  <div key={q.key} className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    <span className='flex-1 min-w-0' style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary, #636B72)' }}>
+                      {idx + 1}. {q.label}
+                    </span>
+                    <SelectableTag
+                      label='มี'
+                      size='md'
+                      selected={form.screen2q?.[q.key] === true}
+                      onClick={readOnly ? undefined : () => setForm((f) => ({ ...f, screen2q: { ...f.screen2q, [q.key]: true } }))}
+                    />
+                    <SelectableTag
+                      label='ไม่มี'
+                      size='md'
+                      selected={form.screen2q?.[q.key] === false}
+                      onClick={readOnly ? undefined : () => setForm((f) => ({ ...f, screen2q: { ...f.screen2q, [q.key]: false } }))}
+                    />
+                  </div>
+                ))}
+                {q2Positive > 0 && (
+                  <NoticeBand tone='warning' icon='psychology'>
+                    คัดกรอง 2Q ผลบวก {q2Positive} ข้อ — ต้องประเมิน 9Q ต่อให้ครบก่อนไปขั้นตอนถัดไป
+                    และส่งต่อคลินิกสุขภาพจิตหากเข้าเกณฑ์
+                  </NoticeBand>
+                )}
+              </div>
+
+              {/* 9Q — บังคับเมื่อ 2Q ผลบวก (มติ คทง.4 ต่อ §1.18.5) */}
+              {q2Positive > 0 && (
+                <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    <span style={{
+                      fontSize: 'var(--type-size-sm)',
+                      fontWeight: 'var(--type-weight-bold)',
+                      color: 'var(--text-content-default, #363B3F)',
+                    }}>
+                      แบบประเมินโรคซึมเศร้า 9Q
+                    </span>
+                    <div className='flex-1' />
+                    <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default, #363B3F)' }}>
+                      {q9Total}/{SCREEN_9Q_MAX_SCORE} คะแนน
+                    </span>
+                    {q9Done && (
+                      <ColorfulBadge style={q9Interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
+                        {q9Interp.label}
+                      </ColorfulBadge>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                    ถามความถี่ของอาการใน 2 สัปดาห์ที่ผ่านมา ระบบรวมคะแนนและแปลผลระดับความรุนแรงให้อัตโนมัติ
+                    (ตอบแล้ว {q9Answered}/{SCREEN_9Q_QUESTIONS.length} ข้อ)
+                  </span>
+                  {SCREEN_9Q_QUESTIONS.map((q, idx) => (
+                    <div key={q.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+                      <span style={{
+                        fontSize: 'var(--type-size-sm)',
+                        color: q.critical ? 'var(--text-pill-red, #B91C1C)' : 'var(--text-content-default, #363B3F)',
+                      }}>
+                        {idx + 1}. {q.label}
+                      </span>
+                      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                        {SCREEN_9Q_FREQUENCY.map((opt) => (
+                          <SelectableTag
+                            key={opt.value}
+                            label={`${opt.label} (${opt.value})`}
+                            size='md'
+                            selected={form.screen9q?.[q.key] === opt.value}
+                            onClick={readOnly ? undefined : () => set9q(q.key, opt.value)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  {q9Suicidal && (
+                    <NoticeBand tone='danger' icon='crisis_alert'>
+                      ผู้รับบริการตอบข้อ 9 (คิดทำร้ายตนเอง) — ต้องประเมินความเสี่ยงฆ่าตัวตาย (8Q)
+                      และส่งต่อจิตแพทย์ทันทีในการเยี่ยมครั้งนี้ ห้ามรอรอบเยี่ยมถัดไป
+                    </NoticeBand>
+                  )}
+                  {q9Done && !q9Suicidal && (
+                    <NoticeBand tone={q9Interp.key === 'none' ? 'info' : 'warning'} icon='psychology_alt'>
+                      {q9Interp.label} — {q9Interp.advice}
+                    </NoticeBand>
+                  )}
+                </div>
+              )}
+              </>
+            )}
+            {openTool === 'mna' && (
+              <>
+              <TopicHeader
+                icon='nutrition'
+                aside={(
+                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default, #363B3F)' }}>
+                      {mnaTotal}/{MNA_MAX_SCORE} คะแนน
+                    </span>
+                    <ColorfulBadge style={mnaInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
+                      {mnaDone ? mnaInterp.label : `ตอบแล้ว ${mnaAnswered}/${MNA_ITEMS.length} ข้อ`}
+                    </ColorfulBadge>
+                  </div>
+                )}
+              >
+                ประเมินภาวะโภชนาการ — MNA-SF
+              </TopicHeader>
+              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                ใช้แบบประเมินมาตรฐานแทนการเลือก “ดี/เสี่ยง/ขาดสารอาหาร” เอง — ระบบรวมคะแนน แปลผล
+                และเติมช่อง “ภาวะโภชนาการ” ด้านบนให้อัตโนมัติเมื่อตอบครบทั้ง {MNA_ITEMS.length} ข้อ
+              </span>
+              {MNA_ITEMS.map((item, idx) => (
+                <div key={item.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    <span className='flex-1 min-w-0' style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+                      {idx + 1}. {item.label}
+                    </span>
+                    {item.autoFromBmi && bmiScore !== null && form.mna?.f !== bmiScore && !readOnly && (
+                      <NeutralSubdueButton variant='outline' size='sm' leadingIcon='calculate' onClick={applyBmiToMna}>
+                        ใช้ค่า BMI {bmi} ที่ระบบคำนวณ
+                      </NeutralSubdueButton>
+                    )}
+                  </div>
+                  {item.autoFromBmi && bmiScore === null && (
+                    <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                      ยังไม่มีค่า BMI — กรอกน้ำหนักและส่วนสูงในขั้นตอนสัญญาณชีพ แล้วกลับมากดใช้ค่าอัตโนมัติได้
+                    </span>
+                  )}
+                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    {item.options.map((opt) => (
+                      <SelectableTag
+                        key={opt.value}
+                        label={`${opt.label} (${opt.value})`}
+                        size='md'
+                        selected={form.mna?.[item.key] === opt.value}
+                        onClick={readOnly ? undefined : () => setMna(item.key, opt.value)}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
-            </div>
+              {mnaDone && (
+                <NoticeBand tone={mnaInterp.key === 'normal' ? 'info' : 'warning'} icon='restaurant'>
+                  {mnaInterp.label} — {mnaInterp.advice}
+                </NoticeBand>
+              )}
+              </>
+            )}
+            {openTool === 'pps' && (
+              <>
+              <TopicHeader
+                icon='monitor_heart'
+                aside={ppsInterp ? (
+                  <ColorfulBadge style={ppsInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
+                    {ppsInterp.label}
+                  </ColorfulBadge>
+                ) : undefined}
+              >
+                ระดับความสามารถ — PPS (Palliative Performance Scale)
+              </TopicHeader>
+              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                เลือกระดับที่ตรงกับผู้รับบริการมากที่สุด — ระบบใช้ผลนี้เสนอรอบการเยี่ยมครั้งถัดไปให้อัตโนมัติ
+              </span>
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+                {PPS_LEVELS.map((level) => (
+                  <SelectableTag
+                    key={level.value}
+                    label={level.label}
+                    size='md'
+                    selected={Number(form.pps) === level.value && form.pps !== ''}
+                    onClick={readOnly ? undefined : () => set('pps')(level.value)}
+                  />
+                ))}
+              </div>
+              {ppsInterp && (
+                <NoticeBand tone={ppsInterp.key === 'stable' ? 'info' : 'warning'} icon='event_repeat'>
+                  {ppsInterp.label} — {ppsInterp.advice}
+                  {ppsInterp.followUpDays ? ` (ระบบเสนอรอบเยี่ยมถัดไปทุก ${ppsInterp.followUpDays} วัน)` : ''}
+                </NoticeBand>
+              )}
+              </>
+            )}
+            {openTool === 'adl' && (
+              <>
+              <TopicHeader
+                icon='accessible'
+                aside={(
+                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default, #363B3F)' }}>
+                      {adlTotal}/{BARTHEL_MAX_SCORE} คะแนน
+                    </span>
+                    <ColorfulBadge style={adlInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
+                      {adlInterp.label}
+                    </ColorfulBadge>
+                  </div>
+                )}
+              >
+                ประเมิน ADL — ดัชนีบาร์เธล (Barthel Index)
+              </TopicHeader>
+              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                ตอบครบทุกข้อ ระบบคำนวณคะแนนรวมและแปลผลกลุ่มติดสังคม/ติดบ้าน/ติดเตียงให้อัตโนมัติ
+                และส่งคะแนนไปแสดงเป็นแนวโน้มในหน้าติดตามการเยี่ยมบ้าน (ตอบแล้ว {adlAnswered}/{BARTHEL_ITEMS.length} ข้อ)
+              </span>
+              {BARTHEL_ITEMS.map((item, idx) => (
+                <div key={item.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+                    {idx + 1}. {item.label}
+                  </span>
+                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    {item.options.map((opt) => (
+                      <SelectableTag
+                        key={opt.value}
+                        label={`${opt.label} (${opt.value})`}
+                        size='md'
+                        selected={form.adlAnswers?.[item.key] === opt.value}
+                        onClick={readOnly ? undefined : () => setAdl(item.key, opt.value)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              </>
+            )}
           </div>
-        ))}
+        </Popup>
+
       </StepSection>
 
       <StepSection>
@@ -1266,20 +1668,17 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
           placeholder='สภาพผู้รับบริการ สภาพแวดล้อม ผู้ดูแล และปัญหาที่ต้องแก้ไขเร่งด่วน'
         />
       </StepSection>
+
+      <HomeVisitPhotoSection form={form} setForm={setForm} readOnly={readOnly} />
     </StepCard>
   );
 };
 
-/* ── Step 5 — บันทึกตามบทบาทวิชาชีพ + กิจกรรมการดูแล + Telemed ────── */
+/* ── Step 10 — บันทึกตามบทบาทวิชาชีพ + กิจกรรมการดูแล ───────────────
+   ปุ่มปรึกษาแพทย์ทางไกลย้ายไปขั้น "ประเมินอาการป่วย" แล้ว
+   (ดู `HomeVisitTelemedSection`) */
 
-export const HomeVisitStep5Care = ({ form, setForm, readOnly, visitId, hn, appointment, blockedMsg }) => {
-  const routerHistory = useHistory();
-  const [telemedOpen, setTelemedOpen] = useState(false);
-
-  const setRoleNote = (profession, value) => setForm((f) => ({
-    ...f,
-    roleNotes: { ...f.roleNotes, [profession]: value },
-  }));
+export const HomeVisitStep5Care = ({ form, setForm, readOnly, blockedMsg }) => {
 
   const toggleActivity = (key) => setForm((f) => ({
     ...f,
@@ -1296,61 +1695,14 @@ export const HomeVisitStep5Care = ({ form, setForm, readOnly, visitId, hn, appoi
   }, []);
 
   const selectedActivities = CARE_ACTIVITIES.filter((a) => form.activities?.[a.key]);
-  const filledRoles = ROLE_NOTE_SECTIONS.filter((s) => String(form.roleNotes?.[s.profession] || '').trim());
 
-  const launchTelemed = () => {
-    /* push ด้านล่างจะ unmount HomeVisitRecordPage ใน commit เดียวกับ setForm —
-       autosave effect ของหน้าไม่ทันทำงาน จึงต้องบันทึกร่างตรงนี้เองก่อนออก
-       (ตรงกับข้อความใน popup ว่า "แบบร่างจะถูกบันทึกอัตโนมัติก่อนออกจากหน้านี้")
-       stepIndex 4 = ขั้นตอนที่ 5 ใน HOMEVISIT_STEP_RENDERERS. */
-    saveHomeVisitDraft(visitId, { ...form, telemedRequested: true }, 4);
-    setForm((f) => ({ ...f, telemedRequested: true }));
-    setTelemedOpen(false);
-    routerHistory.push({
-      pathname: '/telemed/worklist',
-      state: {
-        hn,
-        name: appointment?.name,
-        from: 'homevisit',
-        reason: 'ปรึกษาแพทย์ทางไกลระหว่างการเยี่ยมบ้าน',
-      },
-    });
-  };
 
   return (
     <StepCard>
       {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
 
-      <StepSection>
-        <TopicHeader
-          icon='stethoscope'
-          aside={(
-            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-              บันทึกแล้ว {filledRoles.length}/{ROLE_NOTE_SECTIONS.length} วิชาชีพ (TOR 1.18.5)
-            </span>
-          )}
-        >
-          บันทึกเวชระเบียนตามบทบาทวิชาชีพ
-        </TopicHeader>
-        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-          แต่ละวิชาชีพบันทึกเฉพาะส่วนของตนเอง ระบบเก็บรวมเป็นเวชระเบียนของการเยี่ยมครั้งนี้
-          — ต้องบันทึกอย่างน้อย 1 วิชาชีพจึงจะไปขั้นตอนถัดไปได้
-        </span>
-        {ROLE_NOTE_SECTIONS.map((section) => (
-          <div key={section.profession} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
-            <SuggestibleTextarea
-              label={section.label}
-              voice
-              value={form.roleNotes?.[section.profession] || ''}
-              onChange={(e) => setRoleNote(section.profession, e.target.value)}
-              suggestions={section.suggestions}
-              minChars={3}
-              disabled={readOnly}
-              placeholder={section.placeholder}
-            />
-          </div>
-        ))}
-      </StepSection>
+      {/* ถอดหมวด "บันทึกเวชระเบียนตามบทบาทวิชาชีพ" ออก (มติผู้ใช้ 30 ส.ค. 69)
+          — คีย์ `form.roleNotes` ยังอยู่ในโมเดลและในใบสรุป/บันทึกเก่า */}
 
       <StepSection>
         <TopicHeader
@@ -1379,53 +1731,8 @@ export const HomeVisitStep5Care = ({ form, setForm, readOnly, visitId, hn, appoi
             </div>
           </div>
         ))}
-        {selectedActivities.length === 0 && (
-          <NoticeBand tone='warning' icon='checklist'>
-            ยังไม่ได้เลือกกิจกรรมการดูแล — ต้องเลือกอย่างน้อย 1 รายการก่อนไปขั้นตอนสั่งการรักษา
-          </NoticeBand>
-        )}
       </StepSection>
 
-      <StepSection>
-        <TopicHeader icon='videocam'>ปรึกษาแพทย์ทางไกล (Telemedicine · TOR 1.18.10)</TopicHeader>
-        <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <BrandSubdueButton
-            variant='fill' size='md' leadingIcon='videocam'
-            onClick={() => setTelemedOpen(true)}
-            disabled={readOnly}
-          >
-            ปรึกษาแพทย์ทางไกล
-          </BrandSubdueButton>
-          {form.telemedRequested && (
-            <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug' maxWidth={420}>
-              ส่งคำขอปรึกษาแพทย์ทางไกลจากการเยี่ยมครั้งนี้แล้ว
-            </ColorfulBadge>
-          )}
-          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-            เปิดห้องปรึกษาในระบบ Telemedicine ที่มีอยู่ พร้อมส่งบริบทผู้รับบริการไปด้วย
-            (ระบบเยี่ยมบ้านไม่แก้ไขหน้าจอ Telemedicine)
-          </span>
-        </div>
-      </StepSection>
-
-      <Popup
-        open={telemedOpen}
-        onClose={() => setTelemedOpen(false)}
-        title='เปิดห้องปรึกษาแพทย์ทางไกล'
-        subtitle={appointment ? `${appointment.name} · HN: ${appointment.hn}` : ''}
-        tertiaryAction={{ label: 'ยกเลิก', onClick: () => setTelemedOpen(false) }}
-        primaryAction={{ label: 'เปิดระบบ Telemedicine', onClick: launchTelemed }}
-      >
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary, #636B72)' }}>
-            ระบบจะพาไปยังรายการปรึกษาทางไกลของ PHCIS พร้อมบริบทผู้รับบริการรายนี้
-            — เมื่อสนทนาเสร็จ ให้กลับมาบันทึกผลการปรึกษาในช่อง “บันทึกแพทย์” ของขั้นตอนนี้
-          </span>
-          <NoticeBand tone='neutral' icon='info'>
-            แบบร่างการเยี่ยมจะถูกบันทึกอัตโนมัติก่อนออกจากหน้านี้ กลับมาทำต่อได้จากแท็บ “ที่ร่างไว้” ในคิวเยี่ยมบ้าน
-          </NoticeBand>
-        </div>
-      </Popup>
     </StepCard>
   );
 };
@@ -1654,8 +1961,12 @@ export const HomeVisitStep7Family = ({
       vitals: form.vitals,
       summary: form.assessmentNote,
       orders: summarizeOrders(form, homeVisitOrderLabel),
-      tools: summarizeStandardTools(form).map((t) => `${t.name} ${t.total}/${t.max}`).join(' · '),
+      /* ส่งเป็น "คะแนนดิบรายเครื่องมือ" ไม่ใช่ข้อความสรุป — หน้าติดตามต้อง
+         เอาไปวาดกราฟแนวโน้มตาม TOR ๑.๑๐.๑๒.๔ ซึ่งทำจากสตริงไม่ได้ */
+      toolScores: toolScoresFromSummary(summarizeStandardTools(form)),
     });
+    /* แฟ้มครอบครัวกลับเข้าทะเบียนระดับครัวเรือน — ครั้งถัดไปเปิดมาเจอรายชื่อเดิม */
+    saveFamilyMembers(hn, form.familyMembers);
     /* ส่งชุดข้อมูลเบิกจ่าย สปสช. ต่อทันทีในขั้นตอนเดียวกัน */
     sendClaim();
     setSubmitOpen(false);
@@ -1702,234 +2013,146 @@ export const HomeVisitStep7Family = ({
     });
   };
 
+  /* ── Family Folder — แสดงข้อมูล แก้ไขในป๊อปอัป (มติผู้ใช้ 30 ส.ค. 69) ──
+     ToR ให้แฟ้มครอบครัวเป็นข้อมูลที่ *อ่าน* ระหว่างเยี่ยมเป็นหลัก (ระดับครัวเรือน
+     ตามคู่มือระบบงานสาธารณสุขในชุมชน S011) การแก้จึงไม่ควรกางเป็นฟอร์มยาว
+     กลางขั้นตอน แต่เปิดเป็นป๊อปอัปเมื่อพบว่าข้อมูลไม่ตรงกับที่บ้านจริง
+
+     ⚠️ ปุ่ม "ส่งข้อมูลเข้ารักษาที่ศูนย์ฯ" ถูกถอดออกตามคำสั่ง — ฟังก์ชันที่หายไป
+     จากหน้าจอคือ `appendVisitHistory` (ป้อนหน้าติดตาม TOR ๑.๑๐.๑๒.๔) ·
+     ชุดเบิกจ่าย สปสช. (§1.7.1.1) · เขียนแฟ้มครอบครัวกลับทะเบียน
+     โค้ดยังอยู่ครบในไฟล์นี้ รอต่อกลับเข้าปุ่มใหม่ */
+  const [familyEditOpen, setFamilyEditOpen] = useState(false);
+  /* ครัวเรือนที่ยังไม่เคยบันทึกสมาชิกได้ชุด mock คงที่ต่อ HN — ตารางจะได้ไม่ว่าง
+     เปล่าทุกราย (มติผู้ใช้ 30 ส.ค. 69) กดแก้ไขแล้วบันทึกจึงกลายเป็นข้อมูลจริง */
+  const familyRows = form.familyMembers.length > 0 ? form.familyMembers : getFamilyMembers(hn);
+
+  /* เปิดป๊อปอัปครั้งแรกบนครัวเรือนที่ยังใช้ชุด mock — ย้ายเข้าฟอร์มก่อน
+     เพื่อให้แก้ไข/ลบทีละแถวทำงานกับ state จริง */
+  const openFamilyEdit = () => {
+    if (form.familyMembers.length === 0 && familyRows.length > 0) {
+      setForm((f) => ({ ...f, familyMembers: familyRows.map(({ mock, ...m }) => m) }));
+    }
+    setFamilyEditOpen(true);
+  };
+
+  const saveFamily = () => {
+    saveFamilyMembers(hn, form.familyMembers);
+    setFamilyEditOpen(false);
+    onDataChanged?.();
+  };
+
+  const householdRows = [
+    { label: 'ที่อยู่ครัวเรือน', value: registryEntry?.address || appointment?.address || '—' },
+    { label: 'ชุมชน', value: registryEntry?.community || '—' },
+    { label: 'เขต', value: registryEntry?.district || '—' },
+    { label: 'ผู้ติดต่อหลัก', value: registryEntry?.contactName || '—' },
+    { label: 'เบอร์ผู้ติดต่อ', value: registryEntry?.contactPhone || '—' },
+  ];
+
   return (
     <StepCard>
       {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
 
-      <StepSection>
-        <TopicHeader icon='family_restroom'>Family Folder — ข้อมูลครอบครัวและที่อยู่อาศัย</TopicHeader>
-        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-          แฟ้มครอบครัว (Family Folder) ตามคู่มือระบบงานสาธารณสุขในชุมชน — ใช้ร่วมกับงานเชิงรุกในชุมชน
-        </span>
-
-        {form.familyMembers.length === 0 ? (
-          <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary, #858C92)' }}>
-            ยังไม่ได้บันทึกสมาชิกในครอบครัว — กดปุ่มด้านล่างเพื่อเพิ่มสมาชิกที่อาศัยอยู่ในบ้านหลังนี้
-          </span>
-        ) : (
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-            {form.familyMembers.map((m) => (
-              <div key={m.id} className='flex items-end w-full flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-                <Field label='ชื่อ-สกุล'>
-                  <InputField showLabel={false} showHelperText={false} value={m.name} onChange={(v) => updateMember(m.id, 'name', v)} disabled={readOnly} placeholder='ชื่อสมาชิกในครอบครัว' />
-                </Field>
-                <Field label='ความสัมพันธ์'>
-                  <Select
-                    showLabel={false} showHelperText={false} searchable={false} size='lg'
-                    value={m.relation} onChange={(v) => updateMember(m.id, 'relation', v)} disabled={readOnly}
-                    options={FAMILY_RELATIONS.map((r) => ({ value: r, label: r }))}
-                    placeholder='เลือกความสัมพันธ์'
-                  />
-                </Field>
-                <Field label='อายุ (ปี)'>
-                  <InputField showLabel={false} showHelperText={false} value={m.age} onChange={(v) => updateMember(m.id, 'age', v)} disabled={readOnly} placeholder='ปี' />
-                </Field>
-                <Field label='ภาวะสุขภาพ'>
-                  <InputField showLabel={false} showHelperText={false} value={m.health} onChange={(v) => updateMember(m.id, 'health', v)} disabled={readOnly} placeholder='เช่น สุขภาพดี / เบาหวาน' />
-                </Field>
-                {!readOnly && (
-                  <BrandIconButton icon='close' variant='ghost' size='sm' onClick={() => removeMember(m.id)} aria-label='ลบสมาชิก' />
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-        {!readOnly && <BrandDashedAddButton onClick={addMember}>เพิ่มสมาชิกในครอบครัว</BrandDashedAddButton>}
-
-        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-          <Field label='ลักษณะที่อยู่อาศัย'>
-            <Select showLabel={false} showHelperText={false} searchable={false} size='lg' value={form.houseType} onChange={set('houseType')} disabled={readOnly} options={HOUSE_TYPE_OPTIONS} placeholder='เลือกลักษณะบ้าน' />
-          </Field>
-          <Field label='กรรมสิทธิ์ที่อยู่อาศัย'>
-            <Select showLabel={false} showHelperText={false} searchable={false} size='lg' value={form.houseOwnership} onChange={set('houseOwnership')} disabled={readOnly} options={HOUSE_OWNERSHIP_OPTIONS} placeholder='เลือกกรรมสิทธิ์' />
-          </Field>
-          <Field label='แหล่งน้ำดื่ม'>
-            <Select showLabel={false} showHelperText={false} searchable={false} size='lg' value={form.waterSource} onChange={set('waterSource')} disabled={readOnly} options={WATER_SOURCE_OPTIONS} placeholder='เลือกแหล่งน้ำ' />
-          </Field>
-          <Field label='ส้วม/สุขา'>
-            <Select showLabel={false} showHelperText={false} searchable={false} size='lg' value={form.toilet} onChange={set('toilet')} disabled={readOnly} options={TOILET_OPTIONS} placeholder='เลือกลักษณะส้วม' />
-          </Field>
-        </div>
-
-        <SuggestibleTextarea
-          label='บันทึก Family Folder'
-          voice
-          value={form.familyNote}
-          onChange={(e) => set('familyNote')(e.target.value)}
-          suggestions={HOMEVISIT_FAMILY_SUGGESTIONS}
-          minChars={3}
-          disabled={readOnly}
-          placeholder='โครงสร้างครอบครัว ผู้ดูแลหลัก เศรษฐานะ และปัจจัยเสี่ยงของครัวเรือน'
-        />
-      </StepSection>
-
-      <StepSection>
-        <TopicHeader icon='send'>ส่งข้อมูลกลับศูนย์บริการสาธารณสุขและงานเชิงรุกในชุมชน</TopicHeader>
-        <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <BrandSubdueButton
-            variant='fill' size='md' leadingIcon='send'
-            onClick={() => setSubmitOpen(true)}
-            disabled={readOnly || !!submission}
-          >
-            ส่งข้อมูลเข้ารักษาที่ศูนย์บริการสาธารณสุข
-          </BrandSubdueButton>
-          <NeutralSubdueButton
-            variant='outline' size='md' leadingIcon='diversity_3'
-            onClick={() => routerHistory.push({
-              pathname: '/checkup/community',
-              state: { hn, from: 'homevisit', name: registryEntry?.name || appointment?.name },
-            })}
-          >
-            บันทึกงานเชิงรุกในโมดูลงานชุมชน
-          </NeutralSubdueButton>
-          <NeutralSubdueButton variant='outline' size='md' leadingIcon='print' onClick={doPrint}>
-            พิมพ์ใบสรุปเยี่ยมบ้าน
-          </NeutralSubdueButton>
-        </div>
-
-        {submission ? (
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-            <ColorfulBadge style='teal' size='small' hierarchy='secondary' width='hug' maxWidth={520}>
-              ส่งข้อมูลเข้า{submission.center}แล้ว
-            </ColorfulBadge>
-            <AuditStamp by={submission.by} at={submission.at} prefix='ส่งโดย' />
-            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-              ส่งซ้ำไม่ได้ — หากต้องแก้ไขข้อมูลที่ส่งไปแล้ว ให้แก้ที่บันทึกการเยี่ยมและแจ้งศูนย์บริการฯ โดยตรง
-            </span>
-          </div>
-        ) : (
-          <NoticeBand tone='warning' icon='outbox'>
-            ยังไม่ได้ส่งข้อมูลการเยี่ยมครั้งนี้เข้าศูนย์บริการฯ — ระบบจะสรุปสัญญาณชีพ ผลประเมิน ADL
-            คำสั่งการรักษา และแผนการดูแล ส่งเข้าเวชระเบียนของศูนย์บริการฯ เมื่อกดปุ่มด้านบน
-          </NoticeBand>
-        )}
-      </StepSection>
-
-      {/* §1.7.1.1 (มติ คทง.4) — ส่งชุดข้อมูลเบิกจ่าย สปสช. ต่ออัตโนมัติ */}
-      <StepSection>
+      <StepSection gap='var(--dim-space-600)'>
         <TopicHeader
-          icon='cloud_sync'
-          aside={nhsoClaim ? (
-            <ColorfulBadge
-              style={nhsoClaim.status === 'accepted' ? 'teal' : 'orange'}
-              size='small' hierarchy='secondary' width='hug' maxWidth={420}
+          icon='family_restroom'
+          aside={!readOnly && (
+            <BrandSubdueButton
+              variant='outline' size='sm' leadingIcon='edit'
+              onClick={openFamilyEdit}
             >
-              {nhsoClaim.status === 'accepted' ? `ส่งสำเร็จ · เลขอ้างอิง ${nhsoClaim.ref}` : 'ข้อมูลไม่ครบ — ยังส่งไม่ผ่าน'}
-            </ColorfulBadge>
-          ) : undefined}
+              แก้ไข Family Folder
+            </BrandSubdueButton>
+          )}
         >
-          ส่งข้อมูลเบิกจ่ายให้ สปสช. อัตโนมัติ
+          Family Folder — แฟ้มครอบครัว
         </TopicHeader>
-        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-          คีย์ข้อมูลที่ระบบนี้ที่เดียว ระบบส่งชุดข้อมูลที่ สปสช. ต้องการต่อให้เอง —
-          ไม่ต้องคีย์ซ้ำในระบบ BKK Home Care ซึ่งเป็นต้นเหตุที่ข้อมูลไม่ครบจนเบิกจ่ายไม่ได้
-        </span>
-
-        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-          {NHSO_REQUIRED_FIELDS.map((f) => {
-            const ok = !!String(f.get(claimContext) || '').trim();
-            return (
-              <ColorfulBadge
-                key={f.key}
-                style={ok ? 'teal' : 'red'}
-                size='small'
-                hierarchy='secondary'
-                width='hug'
-                maxWidth={320}
-                showIcon
-                icon={ok ? 'check' : 'close'}
-              >
-                {f.label}
-              </ColorfulBadge>
-            );
-          })}
+        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+          {householdRows.map((r) => (
+            <div key={r.label} className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)', minWidth: 200 }}>
+              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                {r.label}
+              </span>
+              <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+                {r.value}
+              </span>
+            </div>
+          ))}
         </div>
 
-        {nhsoClaim ? (
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-            <AuditStamp by={nhsoClaim.by} at={nhsoClaim.at} prefix='ส่งชุดข้อมูล สปสช. โดย' />
-            {nhsoClaim.status === 'incomplete' && (
-              <>
-                <NoticeBand tone='danger' icon='sync_problem'>
-                  สปสช. ตีกลับเพราะข้อมูลไม่ครบ — ขาด {nhsoClaim.missing.join(' · ')}
-                  {' '}กรุณากลับไปเติมให้ครบแล้วกดส่งอีกครั้ง
-                </NoticeBand>
-                <div>
-                  <NeutralSubdueButton variant='outline' size='sm' leadingIcon='refresh' onClick={sendClaim} disabled={readOnly}>
-                    ส่งชุดข้อมูลอีกครั้ง
-                  </NeutralSubdueButton>
-                </div>
-              </>
-            )}
-          </div>
-        ) : (
-          <NoticeBand tone='neutral' icon='schedule_send'>
-            ระบบจะส่งชุดข้อมูลให้ สปสช. อัตโนมัติทันทีที่กด “ส่งข้อมูลเข้ารักษาที่ศูนย์บริการสาธารณสุข”
-            ด้านบน — ไม่ต้องกดส่งแยกอีกขั้นตอน
-          </NoticeBand>
-        )}
-      </StepSection>
-
-      <StepSection>
-        <TopicHeader icon='calendar'>นัดเยี่ยมครั้งถัดไปและแผนการดูแล</TopicHeader>
-        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-          <Field label='วันนัดเยี่ยมครั้งถัดไป' required>
-            <DatePicker
-              showLabel={false}
-              value={form.nextVisitDate ? new Date(form.nextVisitDate) : null}
-              onChange={(d) => set('nextVisitDate')(d ? d.toISOString().slice(0, 10) : '')}
-              disabled={readOnly}
-              placeholder='เลือกวันที่'
-            />
-          </Field>
-          <Field label='ช่วงเวลา'>
-            <Select
-              showLabel={false} showHelperText={false} searchable={false} size='lg'
-              value={form.nextVisitSlot} onChange={set('nextVisitSlot')} disabled={readOnly}
-              options={HOMEVISIT_TIME_SLOTS}
-              placeholder='เลือกช่วงเวลา'
-            />
-          </Field>
-        </div>
-        <SuggestibleTextarea
-          label='แผนการดูแลต่อเนื่อง'
-          voice
-          value={form.planNote}
-          onChange={(e) => set('planNote')(e.target.value)}
-          suggestions={HOMEVISIT_PLAN_SUGGESTIONS}
-          minChars={3}
-          disabled={readOnly}
-          placeholder='สิ่งที่ต้องติดตามครั้งถัดไป ผู้รับผิดชอบ และการประสานหน่วยงานที่เกี่ยวข้อง'
+        <Table
+          columns={[
+            { key: 'name', label: 'ชื่อ-สกุล', flex: true, minWidth: 220 },
+            { key: 'relation', label: 'ความสัมพันธ์', flex: true, minWidth: 140 },
+            { key: 'age', label: 'อายุ (ปี)', flex: true, minWidth: 100 },
+            {
+              key: 'health',
+              label: 'ภาวะสุขภาพ',
+              flex: true,
+              minWidth: 260,
+              /* เก็บเป็น value ของดรอปดาวน์ ตารางจึงต้องแปลงกลับเป็นคำอ่าน —
+                 ข้อมูลเก่าที่เคยพิมพ์อิสระไว้ยังแสดงตามที่พิมพ์ */
+              render: (r) => FAMILY_HEALTH_OPTIONS.find((o) => o.value === r.health)?.label || r.health || '—',
+            },
+          ]}
+          rows={familyRows}
+          rowKey={(r) => r.id}
+          emptyMessage='ยังไม่มีข้อมูลสมาชิกในครอบครัวในทะเบียนของครัวเรือนนี้'
         />
+
       </StepSection>
 
+      {/* แก้ไขในป๊อปอัป — บันทึกแล้วเขียนกลับทะเบียนระดับครัวเรือนทันที
+          ครั้งถัดไปที่เยี่ยมบ้านหลังนี้จึงเห็นรายชื่อชุดใหม่ */}
       <Popup
-        open={submitOpen}
-        onClose={() => setSubmitOpen(false)}
-        title='ยืนยันส่งข้อมูลเข้ารักษาที่ศูนย์บริการสาธารณสุข'
-        subtitle={`${registryEntry?.name || appointment?.name || ''} · HN: ${hn || '—'}`}
-        tertiaryAction={{ label: 'ยกเลิก', onClick: () => setSubmitOpen(false) }}
-        primaryAction={{ label: 'ยืนยันส่งข้อมูล', onClick: confirmSubmit }}
+        open={familyEditOpen}
+        onClose={() => setFamilyEditOpen(false)}
+        size='extraLarge'
+        title='แก้ไข Family Folder'
+        tertiaryAction={{ label: 'ยกเลิก', onClick: () => setFamilyEditOpen(false) }}
+        primaryAction={{ label: 'บันทึกแฟ้มครอบครัว', onClick: saveFamily }}
       >
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary, #636B72)' }}>
-          <span>ระบบจะส่งข้อมูลต่อไปนี้เข้าเวชระเบียนของ{HOMEVISIT_CENTER}:</span>
-          <span>· สัญญาณชีพและผลการประเมินการเยี่ยมครั้งนี้</span>
-          <span>· คะแนน ADL {adlTotal}/{BARTHEL_MAX_SCORE} ({adlInterp.label})</span>
-          <span>· คำสั่งการรักษา: {summarizeOrders(form, homeVisitOrderLabel)}</span>
-          <span>· นัดเยี่ยมครั้งถัดไป: {form.nextVisitDate ? formatHomeVisitDate(form.nextVisitDate) : 'ยังไม่กำหนด'}</span>
-          <NoticeBand tone='warning' icon='warning'>
-            เมื่อส่งแล้วจะส่งซ้ำไม่ได้ และข้อมูลจะปรากฏในหน้าติดตามการเยี่ยมบ้านทันที
-          </NoticeBand>
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+          {familyRows.map((m) => (
+            <div key={m.id} className='flex items-end w-full flex-wrap' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+              <Field label='ชื่อ-สกุล'>
+                <InputField showLabel={false} showHelperText={false} value={m.name} onChange={(v) => updateMember(m.id, 'name', v)} placeholder='ชื่อสมาชิกในครอบครัว' />
+              </Field>
+              <Field label='ความสัมพันธ์'>
+                <Select
+                  showLabel={false} showHelperText={false} searchable={false} size='lg'
+                  value={m.relation} onChange={(v) => updateMember(m.id, 'relation', v)}
+                  options={FAMILY_RELATIONS}
+                  placeholder='เลือกความสัมพันธ์'
+                />
+              </Field>
+              <Field label='อายุ (ปี)'>
+                <InputField showLabel={false} showHelperText={false} value={m.age} onChange={(v) => updateMember(m.id, 'age', v)} placeholder='ปี' />
+              </Field>
+              <Field label='ภาวะสุขภาพ'>
+                <Select
+                  showLabel={false} showHelperText={false} searchable={false} size='lg'
+                  value={m.health} onChange={(v) => updateMember(m.id, 'health', v)}
+                  options={FAMILY_HEALTH_OPTIONS}
+                  placeholder='เลือกภาวะสุขภาพ'
+                />
+              </Field>
+              <NeutralIconButton icon='delete' variant='ghost' size='sm' onClick={() => removeMember(m.id)} aria-label='ลบสมาชิก' />
+            </div>
+          ))}
+          <BrandDashedAddButton onClick={addMember}>เพิ่มสมาชิกในครอบครัว</BrandDashedAddButton>
+
+          <SuggestibleTextarea
+            label='บันทึก Family Folder'
+            voice
+            value={form.familyNote}
+            onChange={(e) => set('familyNote')(e.target.value)}
+            suggestions={HOMEVISIT_FAMILY_SUGGESTIONS}
+            minChars={3}
+            style={{ maxWidth: 'none' }}
+            placeholder='โครงสร้างครอบครัว ผู้ดูแลหลัก เศรษฐานะ และปัจจัยเสี่ยงของครัวเรือน'
+          />
         </div>
       </Popup>
     </StepCard>
@@ -1937,13 +2160,21 @@ export const HomeVisitStep7Family = ({
 };
 
 export const HOMEVISIT_STEP_RENDERERS = [
+  HomeVisitStep0Consent,
   HomeVisitStep1Service,
   HomeVisitStep2Address,
-  HomeVisitStep2History,
+  HomeVisitStepContact,
+  HomeVisitStepRights,
   HomeVisitStep3Vitals,
-  HomeVisitStep4Assessment,
+  HomeVisitStepAllergy,
+  HomeVisitStep2History,
+  HomeVisitStepBehaviour,
+  /* ขั้น "ประเมิน" ถูกยุบเข้าไปในขั้น "ประเมินอาการป่วย" แล้ว
+     (มติผู้ใช้ 30 ส.ค. 69) — `HomeVisitStep4Assessment` ยัง export อยู่และถูก
+     เรียกจากขั้นนั้นโดยตรง */
   HomeVisitStep5Care,
-  HomeVisitStep6Orders,
+  /* ขั้น "สั่งการรักษา" (CPOE) ถูกถอดออกจากโฟลว์ (มติผู้ใช้ 30 ส.ค. 69) —
+     `HomeVisitStep6Orders` กับสะพาน `homevisitCpoe.js` ยังอยู่ครบ รอที่ทางใหม่ */
   HomeVisitStep7Family,
 ];
 

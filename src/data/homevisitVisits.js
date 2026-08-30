@@ -13,7 +13,8 @@
    (ซึ่ง import ไฟล์นี้ — ห้าม import กลับทางเพื่อกัน circular import). */
 
 import { buildEmptyHomeScreening } from '@/data/homeScreeningForm';
-import { EMPTY_ADDRESS } from '@/data/registrationForm';
+import { EMPTY_ADDRESS, buildPersonalDataFromPatient } from '@/data/registrationForm';
+import { REGISTRATION_REQUIRED_CONSENT_IDS } from '@/data/registrationConsentForms';
 import { findMrPatientByHn } from '@/data/mrPatients';
 import {
   MNA_ITEMS,
@@ -982,6 +983,21 @@ export const CARE_ACTIVITIES = [
 
 /* ─── Family Folder (TOR 1.10.12.3) ───────────────────────────────── */
 
+/* ภาวะสุขภาพของสมาชิกในครอบครัว — ดรอปดาวน์แทนช่องพิมพ์อิสระ (มติผู้ใช้
+   30 ส.ค. 69) ข้อความอิสระอย่าง "เบาหวาน" กับ "เป็นเบาหวานมานาน" นับรวมกัน
+   ไม่ได้เวลาสรุปภาพครัวเรือนของชุมชน */
+export const FAMILY_HEALTH_OPTIONS = [
+  { value: 'healthy',    label: 'สุขภาพดี ไม่มีโรคประจำตัว' },
+  { value: 'caregiver',  label: 'สุขภาพดี · เป็นผู้ดูแลหลัก' },
+  { value: 'ncd',        label: 'มีโรคประจำตัว (เบาหวาน/ความดัน/ไขมัน)' },
+  { value: 'chronic',    label: 'มีโรคเรื้อรังอื่น ๆ' },
+  { value: 'disability', label: 'มีความพิการ/ต้องพึ่งพิง' },
+  { value: 'elderly',    label: 'ผู้สูงอายุที่ช่วยเหลือตัวเองได้' },
+  { value: 'child',      label: 'เด็ก/วัยเรียน' },
+  { value: 'away',       label: 'ไม่ได้อาศัยอยู่ประจำ (ทำงานต่างพื้นที่)' },
+  { value: 'unknown',    label: 'ไม่ทราบ/ไม่ได้ซักถาม' },
+];
+
 export const FAMILY_RELATIONS = [
   'หัวหน้าครอบครัว', 'คู่สมรส', 'บุตร', 'บิดา', 'มารดา', 'พี่/น้อง', 'ญาติอื่น', 'ผู้ดูแล',
 ];
@@ -1114,9 +1130,57 @@ const emptyVitals = () => ({
   temp: '', pulse: '', respiration: '', oxygen: '', sys: '', dia: '', weight: '', height: '',
 });
 
+/* ข้อมูลส่วนตัวจากเวชระเบียน — ขั้นแรกของบันทึกการเยี่ยมใช้ `Step1Personal`
+   ของหน้าเวชระเบียนทั้งก้อน (มติผู้ใช้ 30 ส.ค. 69) จึงต้องเติมค่าตั้งต้นด้วย
+   ชุดฟิลด์เดียวกับที่หน้านั้นใช้ ไม่ใช่คัดมาเป็นช่อง ๆ
+
+   ตัดสองอย่างออกจากชุดที่ยืมมา:
+     • คีย์ที่อยู่ — ขั้น "ที่อยู่และการเดินทาง" เป็นเจ้าของ ถ้าปล่อยไว้จะทับ
+       ที่อยู่ที่ตั้งค่าไว้ด้านล่างในอ็อบเจกต์เดียวกัน
+     • `idCardFromChip` — ธงนี้ล็อกช่องที่มาจากชิปบัตร แต่เราเติมจากทะเบียนกลาง
+       ไม่ได้เสียบบัตรจริง ทีมเยี่ยมบ้านจึงต้องแก้ได้ (ปุ่มอ่านบัตรที่หัวหน้า
+       เป็นคนตั้งธงนี้เอง) */
+const ADDRESS_KEYS_FROM_REGISTRATION = [
+  'addressRegistered', 'addressCurrent', 'addressContact',
+  'useRegisteredForCurrent', 'useRegisteredForContact', 'useCurrentForContact',
+];
+
+/* ฟิลด์ที่ `buildPersonalDataFromPatient` หยิบมาจาก "แถวในทะเบียน MR" ตรง ๆ
+   ไม่ได้มาจากโปรไฟล์ผู้ป่วย — ในข้อมูลจำลองชุดนี้แถว MR ของ HN เดียวกัน
+   *เป็นคนละคน* กับผู้รับบริการเยี่ยมบ้าน (เช่น 67-00005 = สุดา ปลอดโปร่ง อายุ 67
+   ในทะเบียนเยี่ยมบ้าน/โปรไฟล์ แต่แถว MR เป็นเด็กนักเรียนอายุ 10) ถ้าเติมมาทั้งชุด
+   หน้าจอจะโชว์ "นักเรียน เกิด 2558" คู่กับผู้ป่วยติดเตียงอายุ 67 — ปล่อยว่างไว้
+   ให้ทีมกรอกที่บ้านดีกว่าโชว์ข้อมูลของคนอื่น */
+const MR_ROW_ONLY_FIELDS = ['dob', 'ageDisplay', 'education', 'occupation', 'marital', 'idCardAddress'];
+
+const personalFromRegistry = (hn, registryEntry = null) => {
+  const patient = findMrPatientByHn(hn);
+  if (!patient) return {};
+  const data = { ...buildPersonalDataFromPatient(patient) };
+  ADDRESS_KEYS_FROM_REGISTRATION.forEach((k) => { delete data[k]; });
+  delete data.idCardFromChip;
+  MR_ROW_ONLY_FIELDS.forEach((k) => { data[k] = ''; });
+  /* ทะเบียนเยี่ยมบ้านเป็นเจ้าของข้อมูลระบุตัวตนของเคสนี้ — ทับค่าที่มันรู้จริง
+     ทับทีหลังเสมอ เพื่อให้ช่องในฟอร์มตรงกับหัวแฟ้มที่แสดงอยู่ด้านบนหน้าจอ */
+  if (registryEntry?.nationalId) data.nationalId = registryEntry.nationalId;
+  if (registryEntry?.gender) data.gender = registryEntry.gender;
+  if (registryEntry?.age) data.ageDisplay = `${registryEntry.age} ปี`;
+  return data;
+};
+
 /** โครงฟอร์มเปล่าของการบันทึกเยี่ยมบ้าน 1 ครั้ง. */
 export const createEmptyHomeVisitForm = (appointment = null, registryEntry = null) => ({
-  /* 1 — ข้อมูลทั่วไปและการเดินทาง */
+  /* 1 — ข้อมูลส่วนตัว · สถานะผู้รับบริการ · ข้อมูลการเยี่ยมครั้งนี้
+     ข้อมูลส่วนตัวมาก่อนเสมอ แล้วค่าของงานเยี่ยมทับได้ถ้าชื่อคีย์ชนกัน */
+  ...personalFromRegistry(registryEntry?.hn || appointment?.hn, registryEntry),
+  /* แบบฟอร์มความยินยอม — ขั้นแรก ใช้ `StepConsent` ของหน้าเวชระเบียน
+     ซึ่งอ่าน/เขียนคีย์นี้ (ทะเบียนความยินยอมกลางเป็นตัวจริง ค่านี้คือใบที่
+     เพิ่งลงนามในรอบนี้ก่อนบันทึกลงทะเบียน) */
+  consentCompletedIds: [],
+  /* สถานะผู้รับบริการ (การ์ดเดียวกับหน้าเวชระเบียน) */
+  patientStatus: 'active',
+  lifeStatus: 'alive',
+  deceasedDate: '',
   serviceDate: todayIsoDate(),
   /* `departTime` ยังอยู่ในโมเดลเผื่อรายงานเวลาเดินทาง แต่ไม่มีที่กรอกบนหน้าจอแล้ว */
   departTime: '',
@@ -1140,6 +1204,45 @@ export const createEmptyHomeVisitForm = (appointment = null, registryEntry = nul
   useRegisteredForContact: false,
   useCurrentForContact: false,
   addressContact: { ...EMPTY_ADDRESS },
+  /* 4 — ข้อมูลการติดต่อ · 5 — สิทธิการรักษา (ใช้ `Step3Contact` / `Step4Rights`
+     ของหน้าเวชระเบียนทั้งก้อน จึงต้องมีคีย์ตั้งต้นชุดเดียวกัน — `emergency`
+     ต้องเป็นอาร์เรย์เสมอ ไม่งั้น `.map` ในขั้นนั้นพัง) */
+  phone: '',
+  altPhone: '',
+  email: '',
+  emergency: [{ name: '', last: '', relation: '', relationOther: '', phone: '', tag: '' }],
+  rightsLookupDone: false,
+  rightsGroups: [],
+  /* 7 — ประวัติการแพ้ · โรคประจำตัว · ข้อควรระวัง (ใช้ `Step5Flags` ของหน้า
+     เวชระเบียนทั้งก้อน) ต้องมีคีย์ตั้งต้นครบชุดเดียวกัน — ทุกลิสต์ต้องเป็น
+     อาร์เรย์และ `flags` ต้องเป็นอ็อบเจกต์ ไม่งั้นสลับแท็บแล้ว `.map` / การอ่าน
+     `flags.xxx` พังทันที (บั๊กที่ผู้ใช้เจอ 30 ส.ค. 69) */
+  flags: {
+    vip: false,
+    allergyDrug: false,
+    allergyOther: false,
+    skinReaction: false,
+    chronic: false,
+    safety: false,
+    dnr: false,
+    organDonor: false,
+    flagOther: false,
+  },
+  flagOtherNote: '',
+  drugAllergies: [],
+  foodAllergies: [],
+  chemicalAllergies: [],
+  chronicConditions: [],
+  safetyRisks: [],
+  safetyNote: '',
+  dnrDocNo: '',
+  dnrSignedDate: '',
+  dnrWitness: '',
+  dnrDocuments: [],
+  organDonorScopes: [],
+  organDonorCardNo: '',
+  organDonorDate: '',
+  organDonorDocuments: [],
   /* หมุดบ้านที่แก้ได้จากหน้าเยี่ยมบ้าน — ตั้งต้นจากทะเบียน ถ้าทีมแก้ที่หน้างาน
      ค่าจะอยู่ที่นี่ (ทะเบียนกลางยังไม่ถูกเขียนทับ) */
   homeLocation: null,
@@ -1152,9 +1255,19 @@ export const createEmptyHomeVisitForm = (appointment = null, registryEntry = nul
      การเยี่ยมเป็นเจ้าของข้อมูลชุดนี้ทั้งหมดก่อนที่ทะเบียนเล่มนั้นจะถูกยกเลิก */
   mobility: '',
   mobilityOther: '',
-  /* 2 — ประวัติ */
+  /* 4 — อาการป่วย (ชุดฟิลด์เดียวกับขั้น "อาการป่วย" ของหน้าคัดกรอง OPD
+     — มติผู้ใช้ 30 ส.ค. 69 · ทีมเยี่ยมบ้านซักอาการแบบเดียวกับที่จุดคัดกรอง
+     ข้อมูลสองที่จึงเทียบกันได้และส่งต่อเข้าห้องตรวจได้ตรงช่อง) */
+  chiefComplaint: '',
+  symptomDuration: '',
+  presentIllness: '',
+  triageLevel: null,
   illnessHistory: registryEntry?.illnessHistory || appointment?.note || '',
-  medications: [],
+  /* เปิดฟอร์มมาต้องมีแถวยาว่าง 1 แถวรออยู่เลย (มติผู้ใช้ 30 ส.ค. 69) — ของเดิม
+     เป็นข้อความว่างเปล่าที่ต้องกด "เพิ่มรายการ" ก่อนถึงจะกรอกได้ ทั้งที่แทบทุกบ้าน
+     มียาอย่างน้อยหนึ่งรายการ · คู่กับกติกา "เหลือแถวเดียวลบไม่ได้" ที่หน้าจอ
+     ลิสต์นี้จึงมีอย่างน้อยหนึ่งแถวเสมอ */
+  medications: [{ id: 'med-1', name: '', nameOther: '', dose: '', doseOther: '', adherence: '' }],
   /* แบบคัดกรองสุขภาพรายบุคคล (ฟอร์มกระดาษของทีมเยี่ยมบ้าน) — ช่องถูกกระจายไป
      ตามขั้นที่ควรอยู่ (ประวัติ · สัญญาณชีพ · ประเมินและคัดกรอง) แต่เก็บรวมเป็น
      ก้อนเดียวเพื่อให้บันทึก/พิมพ์/ส่งต่อได้ทั้งชุด */
@@ -1188,7 +1301,13 @@ export const createEmptyHomeVisitForm = (appointment = null, registryEntry = nul
   procedureOrders: [],
   orderNote: '',
   /* 7 — Family Folder + ส่งศูนย์ */
-  familyMembers: [],
+  /* แฟ้มครอบครัวเป็นข้อมูลระดับ *ครัวเรือน* ไม่ใช่ระดับการเยี่ยม 1 ครั้ง
+     (คู่มือระบบงานสาธารณสุขในชุมชน S011 — แฟ้มครอบครัวผูกกับบ้าน) จึงเก็บตัวจริง
+     ไว้ที่ทะเบียนเยี่ยมบ้านของ HN นั้น แล้วเปิดฟอร์มมาเจอรายชื่อเดิมทุกครั้ง
+     (มติผู้ใช้ 30 ส.ค. 69) — เดิมเก็บในร่างของแต่ละครั้ง ทีมจึงต้องพิมพ์
+     รายชื่อสมาชิกใหม่ทั้งชุดทุกรอบ · ค่าที่แก้จะถูกเขียนกลับทะเบียนตอนกด
+     "ส่งข้อมูลเข้าศูนย์ฯ" */
+  familyMembers: (registryEntry?.familyMembers || appointment?.familyMembers || []).map((m) => ({ ...m })),  /* เติม mock ให้ครัวเรือนที่ยังไม่มีข้อมูลที่ `HomeVisitStep7Family` (getFamilyMembers) */
   houseType: '',
   houseOwnership: '',
   waterSource: '',
@@ -1223,63 +1342,53 @@ export const buildHomeVisitForm = (visitId, appointment = null, registryEntry = 
 
 /** ขั้นตอนที่ยัง "ไม่ครบ" จะบล็อกปุ่มถัดไป — คืนข้อความ error หรือ null. */
 export const getStepValidationError = (form, stepIndex) => {
+  /* ⚠️ ดัชนีต้องตรงกับ `HOMEVISIT_STEPS` ใน HomeVisitRecordPage เสมอ — ตอนแทรก
+     ขั้น "ที่อยู่และการเดินทาง" เข้ามา เลข case ไม่ได้ถูกเลื่อน จน `case 4`
+     ซ้ำกันสองอัน และด่านของขั้น "บันทึกตามบทบาท" กลายเป็นโค้ดที่ไม่มีวันทำงาน
+     (แก้พร้อมกับการแทรกขั้น "แบบฟอร์มความยินยอม" 30 ส.ค. 69) */
   switch (stepIndex) {
     case 0:
-      /* ไม่ต้องตรวจ `serviceDate` แล้ว — ช่องถูกถอดออกจากหน้าจอ ค่าตั้งเป็นวันนี้
-         อัตโนมัติเสมอ ด่านที่ผู้ใช้แก้ไม่ได้จึงไม่ใช่ด่าน (มติผู้ใช้ 30 ส.ค. 69) */
-      /* ปุ่ม "บันทึกเวลาถึงบ้าน" ถูกถอดออกจากหน้าจอแล้ว (มติผู้ใช้ 30 ส.ค. 69)
-         จึงไม่มีทางผ่านด่านนี้ได้ — ด่านที่ผู้ใช้ทำตามไม่ได้ไม่ใช่ด่าน */
-      /* บันทึกการเดินทางยังติดดาว (required) บนหน้าจอ แต่ไม่บล็อกการไปขั้นถัดไป
-         (มติผู้ใช้ 30 ส.ค. 69) — แถบแดงขึ้นค้างตั้งแต่เปิดหน้าทั้งที่ยังไม่ได้เริ่มกรอก */
+      /* แบบฟอร์มความยินยอม — ไม่บล็อก บางบ้านลงนามไม่ได้ในรอบนี้ (ผู้รับบริการ
+         ไม่รู้สึกตัว / ผู้มีอำนาจลงนามไม่อยู่) ทีมยังต้องบันทึกการเยี่ยมต่อได้ */
       return null;
     case 1:
-      /* ขั้นที่อยู่และการเดินทาง — ไม่บังคับ ทีมบางบ้านสำรวจที่อยู่ไม่ครบ */
+      /* ไม่ต้องตรวจ `serviceDate` — ช่องถูกถอดออกจากหน้าจอ ค่าตั้งเป็นวันนี้
+         อัตโนมัติเสมอ ด่านที่ผู้ใช้แก้ไม่ได้จึงไม่ใช่ด่าน (มติผู้ใช้ 30 ส.ค. 69) */
       return null;
     case 2:
-      if (!String(form.illnessHistory || '').trim()) return 'กรุณาบันทึกประวัติการเจ็บป่วยของผู้รับบริการ';
+      /* ขั้นที่อยู่และการเดินทาง — ไม่บังคับ ทีมบางบ้านสำรวจที่อยู่ไม่ครบ */
       return null;
-    case 3: {
-      /* ไม่บังคับให้มีสัญญาณชีพอย่างน้อย 1 ค่าแล้ว (มติผู้ใช้ 30 ส.ค. 69) — แถบแดง
-         ขึ้นค้างตั้งแต่เพิ่งเปิดขั้นนี้ทั้งที่ยังไม่ได้เริ่มวัด · ค่าที่ "กรอกผิด"
-         ยังบล็อกอยู่เหมือนเดิม เพราะค่าที่ผิดช่วงเป็นข้อมูลที่เชื่อไม่ได้ */
-      const { invalid } = summarizeVitals(form.vitals);
-      if (invalid.length > 0) return invalid[0];
+    case 3:
+      /* ข้อมูลการติดต่อ — ไม่บังคับ (เบอร์ผู้ดูแลอาจได้จากทะเบียนอยู่แล้ว) */
       return null;
-    }
-    case 4: {
-      /* มติ คทง.4 ต่อ §1.18.5 — เครื่องมือมาตรฐานต้องประเมินให้ครบ
-         ระบบจึงคำนวณคะแนนและวิเคราะห์ข้อมูลย้อนหลังได้ */
-      if (!isMnaComplete(form.mna)) {
-        return `ยังประเมินภาวะโภชนาการ MNA-SF ไม่ครบ — ตอบแล้ว ${countMnaAnswered(form.mna)}/${MNA_ITEMS.length} ข้อ`;
-      }
-      if (!isBarthelComplete(form.adlAnswers)) {
-        const missing = BARTHEL_ITEMS
-          .map((item, i) => (Number.isFinite(form.adlAnswers?.[item.key]) ? null : i + 1))
-          .filter(Boolean);
-        return `ยังประเมิน ADL (ดัชนีบาร์เธล) ไม่ครบ — เหลือข้อ ${missing.join(', ')} จาก ${BARTHEL_ITEMS.length} ข้อ`;
-      }
-      const q2Answered = SCREEN_2Q_QUESTIONS.every((q) => typeof form.screen2q?.[q.key] === 'boolean');
-      if (!q2Answered) return 'กรุณาตอบแบบคัดกรองซึมเศร้า 2Q ให้ครบทั้ง 2 ข้อ';
-      const q2Positive = SCREEN_2Q_QUESTIONS.some((q) => form.screen2q?.[q.key] === true);
-      if (q2Positive && !is9qComplete(form.screen9q)) {
-        return `2Q ผลบวก — ต้องประเมิน 9Q ต่อให้ครบ (ตอบแล้ว ${count9qAnswered(form.screen9q)}/${SCREEN_9Q_QUESTIONS.length} ข้อ)`;
-      }
-      if (form.pps === '' || !Number.isFinite(Number(form.pps))) {
-        return 'กรุณาเลือกระดับความสามารถ PPS (Palliative Performance Scale) ของผู้รับบริการ';
-      }
-      if (!String(form.assessmentNote || '').trim()) return 'กรุณาสรุปผลการประเมินการเยี่ยมบ้าน';
+    case 4:
+      /* สิทธิการรักษา — ไม่บังคับ ที่บ้านตรวจสอบสิทธิออนไลน์ไม่ได้เสมอไป */
       return null;
-    }
-    case 4: {
-      const hasNote = Object.values(form.roleNotes || {}).some((v) => String(v || '').trim());
-      if (!hasNote) return 'กรุณาบันทึกอย่างน้อย 1 วิชาชีพในบันทึกตามบทบาท';
+    case 6:
+      /* ประวัติการแพ้/โรคประจำตัว — ไม่มีฟิลด์บังคับ (ผู้รับบริการบางรายปฏิเสธ
+         การแพ้ทั้งหมด ซึ่งก็คือ "ไม่ต้องกรอกอะไร") */
+      return null;
+    case 5:
+      /* ขั้นสัญญาณชีพไม่มีด่าน (มติผู้ใช้ 30 ส.ค. 69) — ทั้งการบังคับให้วัดครบ
+         และแถบแดง "ค่าไม่ถูกต้อง" ถูกถอดออกแล้ว การ์ดแต่ละใบติดป้ายบอกค่าที่
+         ผิดช่วงของตัวเองอยู่ตรงจุดที่กรอก ซึ่งอ่านง่ายกว่าแถบรวมด้านบน */
+      return null;
+    case 7:
+      /* ขั้น "ประเมินอาการป่วย" (รวมแบบประเมินทั้งชุดแล้ว) ไม่มีด่าน (มติผู้ใช้ 30 ส.ค. 69) — แถบแดงขึ้นค้างตั้งแต่
+         เพิ่งเปิดขั้นทั้งที่ยังไม่ได้เริ่มซักอาการ · ช่องยังติดดาว required
+         บนหน้าจอเพื่อบอกว่าควรกรอก แต่ไม่ขวางการไปขั้นถัดไป */
+      return null;
+    case 8:
+      /* พฤติกรรมสุขภาพ — ไม่มีฟิลด์บังคับ (เหมือนขั้นเดียวกันที่จุดคัดกรอง) */
+      return null;
+    case 9: {
+      /* หมวด "บันทึกตามบทบาทวิชาชีพ" ถูกถอดออกจากหน้าจอแล้ว (มติผู้ใช้
+         30 ส.ค. 69) เหลือด่านเดียวคือกิจกรรมการดูแล */
       const hasActivity = Object.values(form.activities || {}).some(Boolean);
       if (!hasActivity) return 'กรุณาเลือกกิจกรรมการดูแลที่ให้ในการเยี่ยมครั้งนี้อย่างน้อย 1 รายการ';
       return null;
     }
-    case 5:
-      return null; /* CPOE ไม่บังคับ — บางการเยี่ยมไม่มีคำสั่งการรักษา */
-    case 6:
+    case 10:
       if (!form.nextVisitDate) return 'กรุณาระบุวันนัดเยี่ยมครั้งถัดไป (หรือระบุเหตุผลในบันทึกแผนการดูแล)';
       return null;
     default:
@@ -1289,21 +1398,29 @@ export const getStepValidationError = (form, stepIndex) => {
 
 /** สถานะ "ทำครบแล้ว" ของแต่ละขั้น สำหรับแถบ stepper. */
 export const getHomeVisitCompletedSteps = (form, stepIndex = 0) => ([
-  /* 1 ข้อมูลทั่วไป — ถือว่าครบเมื่อเลือกประเภทการเยี่ยมแล้ว */
+  /* 1 แบบฟอร์มความยินยอม — ครบเมื่อลงนามครบทุกใบที่ทะเบียนกำหนดว่าจำเป็น */
+  REGISTRATION_REQUIRED_CONSENT_IDS.every(
+    (id) => (form.consentCompletedIds || []).includes(id),
+  ),
+  /* 2 ข้อมูลส่วนตัว — ถือว่าครบเมื่อเลือกประเภทการเยี่ยมแล้ว */
   !!form.visitType,
   /* 2 ที่อยู่และการเดินทาง — มีที่อยู่ (อย่างน้อยเลขที่บ้าน/เขต) หรือปักหมุดแล้ว */
   !!(form.addressRegistered?.houseNo || form.addressRegistered?.district
     || form.addressCurrent?.houseNo || form.homeLocation?.pinSaved),
-  !!String(form.illnessHistory || '').trim(),
+  /* 4 ข้อมูลการติดต่อ — ครบเมื่อมีเบอร์ติดต่ออย่างน้อยหนึ่งช่อง */
+  !!(String(form.phone || '').trim() || (form.emergency || []).some((e) => String(e.phone || '').trim())),
+  /* 5 สิทธิการรักษา — ครบเมื่อตรวจสอบสิทธิแล้ว (ธงเดียวกับหน้าเวชระเบียน) */
+  !!form.rightsLookupDone,
   summarizeVitals(form.vitals).filled > 0 && summarizeVitals(form.vitals).invalid.length === 0,
-  isBarthelComplete(form.adlAnswers) && isMnaComplete(form.mna)
-    && form.pps !== '' && Number.isFinite(Number(form.pps))
-    && !!String(form.assessmentNote || '').trim(),
-  Object.values(form.roleNotes || {}).some((v) => String(v || '').trim())
-    && Object.values(form.activities || {}).some(Boolean),
-  stepIndex > 5
-    || form.drugOrders.length > 0 || form.labOrders.length > 0
-    || form.xrayOrders.length > 0 || form.procedureOrders.length > 0,
+  /* ขั้น "ประวัติการแพ้ / โรคประจำตัว" — ครบเมื่อติดธงอย่างน้อยหนึ่งใบ
+     (รวม "ไม่มี" ที่พยาบาลกดยืนยันแล้ว) */
+  Object.values(form.flags || {}).some(Boolean),
+  /* ขั้น "ประเมินอาการป่วย" — ครบเมื่อมีอาการสำคัญหรือประวัติเจ็บป่วย */
+  !!(String(form.chiefComplaint || '').trim() || String(form.illnessHistory || '').trim()),
+  /* พฤติกรรมสุขภาพเก็บที่ทะเบียนกลางของจุดคัดกรอง ไม่ได้อยู่ในร่างของการเยี่ยม
+     จึงไม่มีอะไรให้เช็ก — ถือว่าผ่านเสมอ (ขั้นนี้ไม่มีฟิลด์บังคับ) */
+  true,
+  Object.values(form.activities || {}).some(Boolean),
   !!form.nextVisitDate,
 ]);
 
@@ -1312,6 +1429,47 @@ export const getHomeVisitCompletedSteps = (form, stepIndex = 0) => ([
     ส่ง `homeVisitOrderLabel` (จาก `homevisitCpoe.js`) เข้ามาแปลงชื่อ —
     ไฟล์นี้ import ไม่ได้เพราะ homevisitCpoe import ไฟล์นี้อยู่ (circular). */
 const defaultOrderLabel = (v) => (typeof v === 'string' ? v : v?.name || '');
+
+/* ยาที่พบที่บ้านเลือกจากทะเบียนยากลาง (MEDICATION_NAME_OPTIONS) — รายการที่
+   ไม่มีในทะเบียนเลือก "อื่นๆ" แล้วพิมพ์ชื่อเอง เก็บแยกคีย์กันเพื่อให้รู้ได้ว่า
+   ตัวไหนคีย์ตรงกับทะเบียน (เอาไปทบทวนยา/ส่ง สปสช. ต่อได้) ตัวไหนเป็นข้อความ
+   อิสระ. ทุกที่ที่ต้องแสดงชื่อยาให้เรียกฟังก์ชันนี้ ไม่ใช่อ่าน `.name` ตรง ๆ */
+export const HOMEVISIT_MED_OTHER = '__other__';
+
+/* วิธีใช้ — ประกอบจากคำศัพท์ชุดเดียวกับที่หน้าทะเบียนยา/CPOE ใช้
+   (ความถี่ `FREQUENCY_OPTIONS` × เวลา `WHEN_OPTIONS` ใน `AddMedicationPopup`
+   และ `administrationDefaultsFor` ใน `pharmacyRegistry.js`) เลือกเฉพาะคู่ที่
+   ทีมเยี่ยมบ้านเจอจริงในบ้าน ไม่ใช่ผลคูณทั้งหมดซึ่งยาวเกินกว่าจะกวาดตา.
+   พิมพ์เองไม่ได้แล้ว — ข้อความอิสระอย่าง "1x1 เช้า" กับ "1×1 หลังอาหารเช้า"
+   คือคนละสตริง เอาไปทบทวนยาข้ามครั้งไม่ได้ */
+export const HOMEVISIT_MED_SIG_OPTIONS = [
+  'วันละ 1 ครั้ง เช้า หลังอาหาร',
+  'วันละ 1 ครั้ง เช้า ก่อนอาหาร',
+  'วันละ 1 ครั้ง ก่อนนอน',
+  'วันละ 2 ครั้ง เช้า-เย็น หลังอาหาร',
+  'วันละ 2 ครั้ง เช้า-เย็น ก่อนอาหาร',
+  'วันละ 3 ครั้ง หลังอาหาร',
+  'วันละ 3 ครั้ง ก่อนอาหาร',
+  'วันละ 4 ครั้ง หลังอาหาร',
+  'ทุก 4 ชม. เมื่อมีอาการ',
+  'ทุก 6 ชม. เมื่อมีอาการ',
+  'ทุก 8 ชม. หลังอาหาร',
+  'ทุก 12 ชม. หลังอาหาร',
+  'เมื่อมีอาการ (PRN)',
+  'ใช้ภายนอก ทาบริเวณที่มีอาการ',
+];
+
+export const homeVisitMedicationSig = (med = {}) => (
+  med.dose === HOMEVISIT_MED_OTHER
+    ? String(med.doseOther || '').trim()
+    : String(med.dose || '').trim()
+);
+
+export const homeVisitMedicationName = (med = {}) => (
+  med.name === HOMEVISIT_MED_OTHER
+    ? String(med.nameOther || '').trim()
+    : String(med.name || '').trim()
+);
 
 /** สรุปคำสั่งการรักษาทั้งหมดเป็นข้อความเดียว (ใช้ในใบสรุป/ตารางย้อนหลัง). */
 export const summarizeOrders = (form, labelOf = defaultOrderLabel) => {

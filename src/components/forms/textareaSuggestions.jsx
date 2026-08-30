@@ -229,10 +229,24 @@ export function useTextareaSuggestions({
     notifyChange(next, e);
   };
 
+  /* เลือกคำแนะนำ = "ต่อประโยค" ไม่ใช่ทับทั้งช่อง (มติผู้ใช้ 30 ส.ค. 69)
+     ของเดิมเซ็ตค่าทั้งช่องเป็นข้อความที่เลือก ประโยคที่พิมพ์/เลือกไว้ก่อนหน้า
+     จึงหายไปทั้งดุ้น. ตัดเฉพาะ "คำค้นที่กำลังพิมพ์ค้างอยู่ท้ายช่อง" ออกแล้ว
+     ต่อข้อความที่เลือกเข้าไปแทน — ช่องที่ยังว่าง (พิมพ์แต่คำค้น) จึงยังได้
+     พฤติกรรมเดิมคือแทนที่ทั้งช่อง */
   const pick = (text) => {
-    onChange({ target: { value: text } });
-    setInputQuery(String(text ?? '').trim());
-    setPickedBase(String(text ?? '').trim());
+    const picked = String(text ?? '').trim();
+    const current = String(inputQuery ?? '');
+    const q = activeQuery;
+    let head = current;
+    if (q && current.toLowerCase().endsWith(q.toLowerCase())) {
+      head = current.slice(0, current.length - q.length);
+    }
+    head = head.replace(/[\s,·/–—-]+$/u, '').trim();
+    const nextValue = head ? `${head} ${picked}` : picked;
+    onChange({ target: { value: nextValue } });
+    setInputQuery(nextValue);
+    setPickedBase(nextValue);
     setHoveredRow(null);
     setOpen(false);
   };

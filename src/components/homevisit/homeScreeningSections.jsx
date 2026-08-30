@@ -1,18 +1,21 @@
 import React from 'react';
 import SelectableCardButton from '@/components/button/SelectableCardButton';
 import CheckboxButton from '@/components/checkbox/CheckboxButton';
+/* ตัวเลือกความเสี่ยง/พฤติกรรมใช้ชิปแบบไม่มีช่องติ๊กด้านหน้า (มติผู้ใช้
+   30 ส.ค. 69) — ทรงเดียวกับแถวสูบบุหรี่/ดื่มสุราของขั้นพฤติกรรมสุขภาพที่อยู่
+   เหนือมันในการ์ดเดียวกัน จะได้อ่านเป็นชุดเดียวกัน */
+import SelectableTag from '@/components/forms/SelectableTag';
 import InputField from '@/components/forms/InputField';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import { Field } from '@/components/forms/Fields';
 import {
-  NATIONALITY_OPTIONS,
-  ETHNICITY_OPTIONS,
   RELIGION_OPTIONS,
   PERSON_STATUS_OPTIONS,
   COMMUNITY_ROLE_OPTIONS,
   RIGHTS_USAGE_OPTIONS,
   MINOR_ILLNESS_OPTIONS,
   HEALTH_RISK_OPTIONS,
+  HEALTH_RISK_GROUPS,
   PRESENCE_OPTIONS,
   ALLERGY_STATUS_OPTIONS,
   FAMILY_HISTORY_SUGGESTIONS,
@@ -76,26 +79,10 @@ export const PersonalProfileFields = ({ value, onChange, readOnly }) => {
   const { v, set, setWithOther, toggle } = useSetters(value, onChange);
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-      <ChoiceRow label='สัญชาติ' options={NATIONALITY_OPTIONS} value={v.nationality} onChange={setWithOther('nationality', 'nationalityOther')} readOnly={readOnly} />
-      {v.nationality === OTHER && (
-        <Field label='ระบุสัญชาติ'>
-          <InputField showLabel={false} showHelperText={false} value={v.nationalityOther || ''} onChange={set('nationalityOther')} disabled={readOnly} />
-        </Field>
-      )}
-
-      <ChoiceRow label='เชื้อชาติ' options={ETHNICITY_OPTIONS} value={v.ethnicity} onChange={setWithOther('ethnicity', 'ethnicityOther')} readOnly={readOnly} />
-      {v.ethnicity === OTHER && (
-        <Field label='ระบุเชื้อชาติ'>
-          <InputField showLabel={false} showHelperText={false} value={v.ethnicityOther || ''} onChange={set('ethnicityOther')} disabled={readOnly} />
-        </Field>
-      )}
-
-      <ChoiceRow label='ศาสนา' options={RELIGION_OPTIONS} value={v.religion} onChange={setWithOther('religion', 'religionOther')} readOnly={readOnly} />
-      {v.religion === OTHER && (
-        <Field label='ระบุศาสนา'>
-          <InputField showLabel={false} showHelperText={false} value={v.religionOther || ''} onChange={set('religionOther')} disabled={readOnly} />
-        </Field>
-      )}
+      {/* สัญชาติ · เชื้อชาติ · ศาสนา ย้ายไปขั้น "ข้อมูลส่วนตัว" ทั้งสามช่อง
+          (มติผู้ใช้ 30 ส.ค. 69) — เป็นข้อมูลระบุตัวบุคคล อยู่กับชื่อ/เพศ/วันเกิด
+          ไม่ใช่กับแบบคัดกรอง · ใช้คีย์เดิมทั้งหมด (`nationality` · `ethnicity` ·
+          `religion` + `…Other`) จึงไม่มีข้อมูลสองชุด */}
 
       <ChoiceRow label='สถานะบุคคล' options={PERSON_STATUS_OPTIONS} value={v.personStatus} onChange={set('personStatus')} readOnly={readOnly} />
 
@@ -175,21 +162,88 @@ export const DtxFields = ({ value, onChange, readOnly }) => {
   );
 };
 
-/* ── ขั้นที่ 4 ประเมินและคัดกรอง — ความเสี่ยงด้านสุขภาพ 15 ข้อ ──────── */
-export const HealthRiskFields = ({ value, onChange, readOnly }) => {
+/* ── การปฏิบัติตัวเมื่อเจ็บป่วยเล็กน้อย — ขั้น "พฤติกรรมสุขภาพ" ──────
+   (มติผู้ใช้ 30 ส.ค. 69) เป็นพฤติกรรมการใช้บริการ ไม่ใช่ข้อมูลประชากร
+   ใช้คีย์เดิม `minorIllness` ของแบบคัดกรอง จึงไม่มีข้อมูลสองชุด */
+export const MinorIllnessFields = ({ value, onChange, readOnly }) => {
   const { v, toggle } = useSetters(value, onChange);
   return (
     <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-      {HEALTH_RISK_OPTIONS.map((o) => (
+      {MINOR_ILLNESS_OPTIONS.map((opt) => (
         <CheckboxButton
-          key={o.key}
-          checked={(v.risks || []).includes(o.key)}
-          onChange={readOnly ? undefined : toggle('risks', o.key)}
-          label={o.label}
+          key={opt}
+          checked={(v.minorIllness || []).includes(opt)}
+          onChange={readOnly ? undefined : toggle('minorIllness', opt)}
+          label={opt}
           showCircleIcon={false}
           showIcon={false}
           disabled={readOnly}
         />
+      ))}
+    </div>
+  );
+};
+
+/* ── ความเสี่ยงด้านสุขภาพ 15 ข้อ — อยู่ในขั้น "พฤติกรรมสุขภาพ" ────────
+   แยกเป็นกลุ่มตาม `HEALTH_RISK_GROUPS` (มติผู้ใช้ 30 ส.ค. 69) แทนแถวยาว
+   แถวเดียวที่ไล่หาข้อที่ต้องการไม่เจอ */
+export const HealthRiskFields = ({ value, onChange, readOnly }) => {
+  const { v, toggle } = useSetters(value, onChange);
+  const labelOf = (key) => HEALTH_RISK_OPTIONS.find((o) => o.key === key)?.label || key;
+  return (
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500, 20px)' }}>
+      {HEALTH_RISK_GROUPS.map((g) => (
+        <div key={g.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          <span style={{
+            color: 'var(--text-content-secondary, #636B72)',
+            fontFamily: 'var(--type-family-body)',
+            fontSize: 'var(--type-size-sm)',
+          }}>
+            {g.label}
+          </span>
+          <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+            {g.keys.map((key) => (
+              /* สารเสพติดถามเป็นสองตัวเลือก "ไม่ใช้ / ใช้" (มติผู้ใช้ 30 ส.ค. 69)
+                 — ทรงเดียวกับแถวสูบบุหรี่/ดื่มสุราของขั้นพฤติกรรมสุขภาพที่อยู่
+                 เหนือมันในหน้าเดียวกัน · เก็บที่คีย์เดิม: เลือก "ใช้" = ติ๊ก
+                 `substance` ในลิสต์ความเสี่ยง เลือก "ไม่ใช้" = ถอดออก */
+              key === 'substance' ? (
+                <div key={key} className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  <CheckboxButton
+                    checked={!(v.risks || []).includes(key)}
+                    onChange={readOnly ? undefined : () => {
+                      if ((v.risks || []).includes(key)) toggle('risks', key)();
+                    }}
+                    label='ไม่ใช้สารเสพติด'
+                    showCircleIcon={false}
+                    showIcon={false}
+                    disabled={readOnly}
+                  />
+                  <CheckboxButton
+                    checked={(v.risks || []).includes(key)}
+                    onChange={readOnly ? undefined : () => {
+                      if (!(v.risks || []).includes(key)) toggle('risks', key)();
+                    }}
+                    label='ใช้สารเสพติด'
+                    showCircleIcon={false}
+                    showIcon={false}
+                    disabled={readOnly}
+                  />
+                </div>
+              ) : (
+                <CheckboxButton
+                  key={key}
+                  checked={(v.risks || []).includes(key)}
+                  onChange={readOnly ? undefined : toggle('risks', key)}
+                  label={labelOf(key)}
+                  showCircleIcon={false}
+                  showIcon={false}
+                  disabled={readOnly}
+                />
+              )
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   );

@@ -52,15 +52,27 @@ import {
 const breadcrumb = ['ระบบเยี่ยมบ้าน', 'บันทึกประเมินการเยี่ยมบ้าน'];
 
 const HOMEVISIT_STEPS = [
-  { title: 'ข้อมูลทั่วไป',              subtitle: 'Visit Information' },
+  /* ลำดับเดียวกับหน้าเวชระเบียน: ยินยอมก่อน แล้วจึงข้อมูลส่วนตัว
+     (มติผู้ใช้ 30 ส.ค. 69) */
+  { title: 'แบบฟอร์มความยินยอม',        subtitle: 'Consent Forms' },
+  { title: 'ข้อมูลส่วนตัว',             subtitle: 'Personal Information' },
   /* ที่อยู่ + ปักหมุด + บันทึกการเดินทาง แยกเป็นขั้นของตัวเอง
      (มติผู้ใช้ 30 ส.ค. 69) */
   { title: 'ที่อยู่และการเดินทาง',       subtitle: 'Address & GPS Check-in' },
-  { title: 'ประวัติ',                    subtitle: 'History' },
+  /* ต่อจากที่อยู่ ตามลำดับเดียวกับหน้าเวชระเบียน (มติผู้ใช้ 30 ส.ค. 69) */
+  { title: 'ข้อมูลการติดต่อ',            subtitle: 'Contact Information' },
+  { title: 'สิทธิการรักษา',              subtitle: 'Healthcare Rights' },
+  /* สัญญาณชีพมาก่อนอาการป่วย (มติผู้ใช้ 30 ส.ค. 69) — ถึงบ้านแล้ววัดสัญญาณชีพ
+     เป็นอย่างแรก แล้วค่อยซักอาการโดยมีค่าที่วัดได้อยู่ตรงหน้า */
   { title: 'สัญญาณชีพ',                  subtitle: 'Vital Signs' },
-  { title: 'ประเมินและคัดกรอง',          subtitle: 'Assessment & ADL' },
+  /* ประวัติการแพ้/โรคประจำตัวเป็นขั้นของตัวเองต่อจากสัญญาณชีพ
+     (มติผู้ใช้ 30 ส.ค. 69) */
+  { title: 'ประวัติการแพ้ / โรคประจำตัว', subtitle: 'Allergies & Chronic Conditions' },
+  { title: 'ประเมินอาการป่วย',            subtitle: 'Chief Complaint & History' },
+  /* ลำดับเดียวกับจุดคัดกรอง OPD: อาการป่วย → พฤติกรรมสุขภาพ → ประเมิน
+     (มติผู้ใช้ 30 ส.ค. 69) */
+  { title: 'พฤติกรรมสุขภาพ',             subtitle: 'Health Behaviour' },
   { title: 'บันทึกตามบทบาท/กิจกรรม',     subtitle: 'Care Records' },
-  { title: 'สั่งการรักษา',               subtitle: 'Treatment Order' },
   { title: 'Family Folder และส่งศูนย์ฯ', subtitle: 'Family Folder & Submit' },
 ];
 
@@ -97,7 +109,12 @@ const HomeVisitRecordPage = () => {
     [visitId, appointment, registryEntry],
   );
 
-  const [stepIndex, setStepIndexRaw] = useState(seed.stepIndex);
+  /* ร่างที่บันทึกไว้ก่อนหน้าอาจชี้ขั้นที่ไม่มีแล้ว (จำนวนขั้นถูกเพิ่ม/ลบระหว่างทาง)
+     — ถ้าไม่หนีบช่วง `TreatmentFormShell` จะอ่าน `steps[stepIndex + 1].title`
+     ของ undefined แล้วหน้าขาวทั้งหน้า (บั๊กที่ผู้ใช้เจอ 30 ส.ค. 69) */
+  const [stepIndex, setStepIndexRaw] = useState(
+    () => Math.min(Math.max(0, seed.stepIndex ?? 0), HOMEVISIT_STEPS.length - 1),
+  );
   const [form, setFormRaw] = useState(() => seed.form);
   const [dirty, setDirty] = useState(false);
   const [blockedMsg, setBlockedMsg] = useState('');
@@ -236,6 +253,30 @@ const HomeVisitRecordPage = () => {
               (มติผู้ใช้ 30 ส.ค. 69) — สองปุ่มนี้เป็นทางเข้าไปดูข้อมูลย้อนหลังเหมือนกัน
               ควรอยู่ที่เดียวกัน ไม่ใช่กระจายอยู่บนหัวแฟ้มอีกจุด */}
           <SubHeader title={`บันทึกประเมินการเยี่ยมบ้าน — ครั้งที่ ${visitNo}`} hideBottomBorder>
+            {/* ปรึกษาแพทย์ทางไกลอยู่หน้าสุดของแถว (มติผู้ใช้ 30 ส.ค. 69) — ที่บ้าน
+                ต้องเรียกแพทย์ได้ทันทีที่เจอเรื่องเกินมือ ไม่ต้องเดินไปหาปุ่มในขั้น
+                ที่กำลังกรอกอยู่ · พาไปที่เดียวกับปุ่มในขั้น "ประเมินอาการป่วย"
+                และบันทึกร่างก่อนออกจากหน้าเหมือนกัน */}
+            <BrandSubdueButton
+              variant='fill'
+              size='sm'
+              leadingIcon='videocam'
+              onClick={() => {
+                saveHomeVisitDraft(visitId, formRef.current, stepIndex);
+                setForm((f) => ({ ...f, telemedRequested: true }));
+                history.push({
+                  pathname: '/telemed/worklist',
+                  state: {
+                    hn,
+                    name: registryEntry?.name || appointment?.name,
+                    from: 'homevisit',
+                    reason: 'ปรึกษาแพทย์ทางไกลระหว่างการเยี่ยมบ้าน',
+                  },
+                });
+              }}
+            >
+              ปรึกษาแพทย์ทางไกล
+            </BrandSubdueButton>
             <BrandSubdueButton
               variant='outline'
               size='sm'
@@ -323,18 +364,9 @@ const HomeVisitRecordPage = () => {
               )}
             />
 
-            {!registryEntry && (
-              <div style={{
-                paddingTop: 'var(--dim-space-300)',
-                paddingLeft: 'var(--dim-space-600)',
-                paddingRight: 'var(--dim-space-600)',
-              }}>
-                <NoticeBand tone='warning' icon='assignment_late'>
-                  ผู้รับบริการรายนี้ยังไม่มีทะเบียนเยี่ยมบ้าน — บันทึกการเยี่ยมได้
-                  แต่ควรลงทะเบียนก่อนเพื่อให้มีกลุ่มผู้รับบริการ ตำแหน่งบ้าน และรอบการติดตามที่ถูกต้อง
-                </NoticeBand>
-              </div>
-            )}
+            {/* ถอดแถบเตือน "ยังไม่มีทะเบียนเยี่ยมบ้าน" ออก (มติผู้ใช้ 30 ส.ค. 69)
+                — เตือนสิ่งที่คนบันทึกแก้ที่หน้านี้ไม่ได้ และไม่ได้ห้ามอะไร
+                (หน้าติดตามยังมีแถบของตัวเองอยู่ ที่นั่นเกี่ยวกับรอบติดตามจริง) */}
 
             {sameDayVisit && !readOnly && (
               <div style={{
@@ -411,7 +443,15 @@ const HomeVisitRecordPage = () => {
               /* ขั้น "ที่อยู่และการเดินทาง" ยกการ์ดที่อยู่ของหน้าเวชระเบียนมาทั้งก้อน
                  ซึ่งเป็นการ์ดขาวอยู่แล้ว — ไม่ต้องมีพื้นขาวของ shell ครอบอีกชั้น
                  (มติผู้ใช้ 30 ส.ค. 69) */
-              plainBodySteps={[1]}
+              /* ขั้นที่เนื้อหา "เป็นการ์ดขาวของตัวเองอยู่แล้ว" ต้องไม่มีการ์ดขาว
+                 ของ shell รองอีกชั้น ไม่งั้นเป็นขาวซ้อนขาว (มติผู้ใช้ 30 ส.ค. 69)
+                 0 ยินยอม · 1 ข้อมูลส่วนตัว · 2 ที่อยู่ — ทั้งสามยกคอมโพเนนต์
+                 ของหน้าเวชระเบียนมา ซึ่งมาพร้อมการ์ดของมันเอง */
+              /* ขั้นที่ 5 (index 4) = อาการป่วย ซึ่งเนื้อหาเป็นการ์ดของตัวเอง —
+                 เลื่อนมาจาก index 3 ตอนสลับกับสัญญาณชีพ */
+              /* ขั้นที่เนื้อหาเป็นการ์ดของตัวเอง: ยินยอม · ข้อมูลส่วนตัว · ที่อยู่ ·
+                 ติดต่อ · สิทธิ · อาการป่วย */
+              plainBodySteps={[0, 1, 2, 3, 4, 6, 7, 8]}
               stepIndex={stepIndex}
               onStepChange={setStepIndex}
               completedSteps={completedSteps}

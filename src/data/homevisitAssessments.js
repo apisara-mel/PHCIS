@@ -242,3 +242,61 @@ export const summarizeStandardTools = (form = {}) => {
   }
   return out;
 };
+
+/* ─── เครื่องมือมาตรฐานในมุมมอง “แนวโน้มข้ามครั้ง” (TOR ๑.๑๐.๑๒.๔) ───
+   ข้อนี้บังคับให้ “ติดตามผลการเยี่ยมบ้านโดยแสดงผลการประเมิน … ในช่วงเวลา
+   ทั้งในรูปแบบตารางข้อมูล แผนภูมิ กราฟ” — หน้าติดตามจึงต้องอ่านช่วงคะแนน
+   และวิธีแปลผลของแต่ละเครื่องมือจาก *ที่เดียวกับฟอร์ม* ไม่ใช่ประกาศซ้ำเอง
+   มิฉะนั้นเกณฑ์จะเพี้ยนกันเมื่อแก้ข้างใดข้างหนึ่ง.
+
+   `better` บอกทิศทางที่ถือว่าดีขึ้น (MNA/PPS ยิ่งสูงยิ่งดี · 9Q ยิ่งต่ำยิ่งดี)
+   เพื่อให้หน้าติดตามอธิบายเส้นกราฟได้ถูก ไม่ใช่ให้ผู้ใช้เดาเอง. */
+
+export const STANDARD_TOOLS = [
+  {
+    key: 'mna',
+    name: 'MNA-SF',
+    label: 'ภาวะโภชนาการ (MNA-SF)',
+    max: MNA_MAX_SCORE,
+    unit: 'คะแนน',
+    better: 'high',
+    scale: `เต็ม ${MNA_MAX_SCORE} คะแนน · ปกติ 12–14 · เสี่ยง 8–11 · ทุพโภชนาการ 0–7`,
+  },
+  {
+    key: '9q',
+    name: '9Q',
+    label: 'ภาวะซึมเศร้า (9Q)',
+    max: SCREEN_9Q_MAX_SCORE,
+    unit: 'คะแนน',
+    better: 'low',
+    scale: `เต็ม ${SCREEN_9Q_MAX_SCORE} คะแนน · ไม่มีอาการ < 7 · น้อย 7–12 · ปานกลาง 13–18 · รุนแรง ≥ 19`,
+  },
+  {
+    key: 'pps',
+    name: 'PPS',
+    label: 'ความสามารถผู้ป่วยประคับประคอง (PPS)',
+    max: 100,
+    unit: '%',
+    better: 'high',
+    scale: 'ระยะคงที่ 70–100% · ระยะเปลี่ยนผ่าน 40–60% · ระยะท้าย 10–30%',
+  },
+];
+
+export const resolveStandardTool = (key) => STANDARD_TOOLS.find((t) => t.key === key) || null;
+
+/** แปลผลคะแนนเครื่องมือมาตรฐานจาก key + คะแนน (ใช้กับประวัติที่เก็บไว้แล้ว
+    ซึ่งมีแต่ตัวเลข ไม่มีคำตอบรายข้อให้คำนวณซ้ำ). */
+export const interpretStandardTool = (key, total) => {
+  if (total === '' || total === null || total === undefined) return null;
+  const v = Number(total);
+  if (!Number.isFinite(v)) return null;
+  if (key === 'mna') return interpretMna(v);
+  if (key === '9q') return interpret9q(v);
+  if (key === 'pps') return interpretPps(v);
+  return null;
+};
+
+/** รูปทรงที่เก็บลงประวัติการเยี่ยม — เก็บ “คะแนน” ไว้ ไม่เก็บคำแปลผล
+    เพราะเกณฑ์อาจถูกแก้ภายหลัง แล้วประวัติเก่าต้องแปลด้วยเกณฑ์ล่าสุดเสมอ. */
+export const toolScoresFromSummary = (tools = []) =>
+  tools.reduce((acc, t) => ({ ...acc, [t.key]: t.total }), {});

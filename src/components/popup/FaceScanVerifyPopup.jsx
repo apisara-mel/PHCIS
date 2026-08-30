@@ -396,14 +396,9 @@ const FaceScanVerifyPopup = ({
         {/* Figma 404:17850 — หัวข้อจริงอยู่ในเนื้อ ไม่ใช่ subtitle ของ Popup */}
         {!shot && (
           <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-050, 2px)', textAlign: 'center' }}>
-            <span style={{
-              color: 'var(--text-content-default)',
-              fontFamily: 'var(--type-family-heading-graphic2, var(--type-family-heading-content))',
-              fontSize: 'var(--type-size-xl)',
-              lineHeight: 1.375,
-            }}>
-              {is360 ? 'สแกนใบหน้าเพื่อยืนยันตัวตน' : 'ถ่ายรูปหน้าตรงเพื่อยืนยันตัวตน'}
-            </span>
+            {/* ถอดหัวข้อ "สแกนใบหน้า/ถ่ายรูปหน้าตรงเพื่อยืนยันตัวตน" ออก
+                (มติผู้ใช้ 30 ส.ค. 69) — หัวป๊อปอัปด้านบนพิมพ์เรื่องเดียวกันอยู่แล้ว
+                เหลือไว้แต่บรรทัดบอกวิธีทำซึ่งเป็นสิ่งที่ผู้ใช้ต้องอ่านจริง */}
             <span style={{
               color: 'var(--text-content-tertiary)',
               fontFamily: 'var(--type-family-body)',

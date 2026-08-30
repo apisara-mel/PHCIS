@@ -53,7 +53,7 @@ export const MINOR_ILLNESS_OPTIONS = [
    "พฤติกรรมสุขภาพ" ของคัดกรองที่ศูนย์ ซึ่งถามละเอียดกว่า — flow เยี่ยมบ้าน
    จึงใช้ชุดนี้แทนทั้งขั้น ไม่ถามซ้ำสองที่ */
 export const HEALTH_RISK_OPTIONS = [
-  { key: 'game',        label: 'ติดเกม / ติดโทรศัพท์มือถือ', icon: 'smartphone' },
+  { key: 'game',        label: 'ติดเกมส์/โทรศัพท์มือถือ',    icon: 'smartphone' },
   { key: 'substance',   label: 'ใช้สารเสพติด',              icon: 'medication_liquid' },
   { key: 'smoking',     label: 'สูบบุหรี่',                  icon: 'smoking_rooms' },
   { key: 'alcohol',     label: 'ติดเหล้า',                   icon: 'liquor' },
@@ -68,6 +68,48 @@ export const HEALTH_RISK_OPTIONS = [
   { key: 'appetite',    label: 'เบื่ออาหาร',                 icon: 'no_meals' },
   { key: 'noCheckup',   label: 'ไม่เคยตรวจสุขภาพ',           icon: 'event_busy' },
   { key: 'disability',  label: 'มีความพิการ',                icon: 'accessible' },
+];
+
+/* จัดกลุ่มความเสี่ยง 15 ข้อตามหมวดที่ควรอยู่ (มติผู้ใช้ 30 ส.ค. 69) — ฟอร์ม
+   กระดาษเรียงเป็นแถวยาวแถวเดียว พอขึ้นจอแล้วอ่านไม่ออกว่าข้อไหนเป็นเรื่อง
+   เดียวกัน · ทุก key ต้องอยู่ในกลุ่มใดกลุ่มหนึ่งเสมอ (มี test ทางอ้อมคือ
+   `HEALTH_RISK_GROUPS` ต้องครอบคลุม `HEALTH_RISK_OPTIONS` ครบ) */
+export const HEALTH_RISK_GROUPS = [
+  {
+    key: 'substance',
+    label: 'สารเสพติด',
+    icon: 'smoking_rooms',
+    /* ไม่ใส่ `smoking` / `alcohol` ซ้ำ — แถว "การสูบบุหรี่" กับ "การดื่มแอลกอฮอล์"
+       ของขั้นพฤติกรรมสุขภาพที่อยู่เหนือมันในการ์ดเดียวกันถามละเอียดกว่า
+       (มติผู้ใช้ 30 ส.ค. 69) */
+    keys: ['substance'],
+  },
+  {
+    /* ติดเกม/โทรศัพท์เป็น "พฤติกรรมเสพติด" คนละเรื่องกับสารเสพติด จึงแยกหัวข้อ
+       (มติผู้ใช้ 30 ส.ค. 69) */
+    key: 'behaviouralAddiction',
+    label: 'พฤติกรรมเสพติด',
+    icon: 'smartphone',
+    keys: ['game'],
+  },
+  {
+    key: 'lifestyle',
+    label: 'การกินและการเคลื่อนไหว',
+    icon: 'restaurant',
+    keys: ['diet', 'overweight', 'appetite', 'exercise'],
+  },
+  {
+    key: 'mental',
+    label: 'สุขภาพจิตและความเสี่ยงส่วนบุคคล (เลือกได้หลายข้อ)',
+    icon: 'sentiment_stressed',
+    keys: ['stress', 'forgetful', 'sexual'],
+  },
+  {
+    key: 'dependency',
+    label: 'ภาวะพึ่งพิงและการเข้าถึงบริการ (เลือกได้หลายข้อ)',
+    icon: 'accessible',
+    keys: ['falls', 'bedbound', 'disability', 'noCheckup'],
+  },
 ];
 
 /* ── ประวัติ/การแพ้ ที่ฟอร์มมีสามสถานะ ไม่ใช่ มี/ไม่มี ───────────── */

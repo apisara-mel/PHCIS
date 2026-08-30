@@ -9,6 +9,7 @@
    surface-brandPrimary-quaternary #F4FBF8). */
 
 import { formatHomeVisitDate, formatHomeVisitDateTime, HOMEVISIT_CENTER } from '@/data/homevisitVisits';
+import { STANDARD_TOOLS, interpretStandardTool } from '@/data/homevisitAssessments';
 
 const esc = (v) => String(v ?? '')
   .replace(/&/g, '&amp;')
@@ -164,6 +165,21 @@ export const printHomeVisitFollowUp = ({
       v.adl ?? '—', v.summary || '—',
     ]),
     'ไม่มีการเยี่ยมในช่วงเวลาที่เลือก',
+  )}
+
+    <h2>ผลการประเมินด้วยเครื่องมือมาตรฐาน</h2>
+    ${tableHtml(
+    ['ครั้งที่', 'วันที่เยี่ยม', ...STANDARD_TOOLS.map((t) => `${t.name} (เต็ม ${t.max})`)],
+    (visits || []).map((v) => [
+      v.no, formatHomeVisitDate(v.date),
+      ...STANDARD_TOOLS.map((t) => {
+        const raw = v.toolScores?.[t.key];
+        if (!Number.isFinite(Number(raw))) return '—';
+        const interp = interpretStandardTool(t.key, raw);
+        return `${raw}${t.unit === '%' ? '%' : ''}${interp ? ` — ${interp.label}` : ''}`;
+      }),
+    ]),
+    'ไม่มีผลการประเมินในช่วงเวลาที่เลือก',
   )}
 
     <h2>ผลตรวจทางห้องปฏิบัติการ</h2>

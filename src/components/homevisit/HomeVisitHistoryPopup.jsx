@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import Popup from '@/components/popup/Popup';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
-import { getVisitHistory } from '@/data/homevisitRegistry';
+import { getVisitHistory, describeToolScores } from '@/data/homevisitRegistry';
 import {
   BARTHEL_MAX_SCORE,
   interpretBarthel,
@@ -127,6 +127,7 @@ const HomeVisitHistoryPopup = ({ open, onClose, hn, patientName }) => {
   const round = rounds[selected] || null;
   const adl = round && round.adl !== null && round.adl !== undefined ? round.adl : null;
   const adlInterp = adl === null ? null : interpretBarthel(adl);
+  const toolScores = round ? describeToolScores(round.toolScores) : [];
 
   return (
     <Popup
@@ -208,6 +209,33 @@ const HomeVisitHistoryPopup = ({ open, onClose, hn, patientName }) => {
                     {adlInterp.label}
                   </ColorfulBadge>
                 </div>
+              )}
+            </div>
+
+            {/* เครื่องมือมาตรฐานของครั้งนั้น (TOR ๑.๑๐.๑๒.๔) — ต้องอ่านได้จาก
+                ป๊อปอัปนี้ด้วย ไม่ใช่เฉพาะหน้าติดตาม เพราะทีมเยี่ยมเปิดดูระหว่าง
+                กำลังบันทึกอยู่เพื่อเทียบกับที่กำลังประเมินอยู่ตรงหน้า */}
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+              <SectionTitle icon='clipboard'>แบบประเมินมาตรฐาน (MNA-SF · 9Q · PPS)</SectionTitle>
+              {toolScores.length === 0 ? (
+                <Row label='ผลการประเมิน' value='' />
+              ) : toolScores.map((t) => (
+                <div key={t.key} className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                  <span style={labelStyle}>{t.label}</span>
+                  <span style={{ ...valueStyle, flex: '0 0 auto' }}>
+                    {t.unit === '%' ? `${t.total}%` : `${t.total}/${t.max}`}
+                  </span>
+                  {t.interp?.badge && (
+                    <ColorfulBadge badgeStyle={t.interp.badge} hierarchy='secondary' size='small' width='hug'>
+                      {t.interp.label}
+                    </ColorfulBadge>
+                  )}
+                </div>
+              ))}
+              {round.toolsMock && (
+                <span style={{ ...valueStyle, fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                  ครั้งนี้บันทึกไว้ก่อนระบบมีขั้น “ประเมินและคัดกรอง” — คะแนนเป็นค่าจำลอง ไม่ใช่ผลประเมินจริง
+                </span>
               )}
             </div>
 
