@@ -6,6 +6,7 @@ import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import DatePicker from '@/components/forms/DatePicker';
 import SelectableTag from '@/components/forms/SelectableTag';
+import Checkbox from '@/components/checkbox/Checkbox';
 import TabCapsule from '@/components/tab/TabCapsule';
 import FileUploadField from '@/components/forms/FileUploadField';
 import DragAndDrop from '@/components/form-builder/DragAndDrop';
@@ -42,6 +43,9 @@ import {
   FP_PV_UTERUS_POSITION_OPTIONS,
   FP_PV_UTERUS_SIZE_OPTIONS,
   FP_PV_ADNEXA_OPTIONS,
+  FP_SPECIMEN_TYPES,
+  FP_CYTOLOGY_ADEQUACY,
+  FP_CYTOLOGY_CATEGORIES,
   FP_PAP_METHOD_OPTIONS,
   FP_PAP_RESULT_OPTIONS,
   FP_PAP_AUTO_DETAIL,
@@ -106,6 +110,47 @@ const TopicHeader = ({ icon, children, trailing }) => (
     <h2 className='text-base font-bold text-brand-500'>{children}</h2>
     {trailing ? (<><div className='flex-1' />{trailing}</>) : null}
   </div>
+);
+
+/* ใบผลเซลล์วิทยา (§2.1.3 ข้อ 7) เป็นรหัสหลายสิบตัวจัดเป็นชั้น — เขียนซ้ำทีละ
+   ช่องจะยาวจนอ่านไม่ออก จึงมีตัวเรนเดอร์กลุ่มรหัสตัวเดียวใช้ทั้งใบ
+   `freeText` คือรหัสที่ใบเดิมมีช่องพิมพ์ต่อท้าย (029 Other · 241 SLI) */
+const CodeCheckList = ({ items, selected, onToggle, disabled, freeTextValue, onFreeTextChange }) => (
+  <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+    {items.map((item) => (
+      <div key={item.code} className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        <Checkbox
+          checked={selected.includes(item.code)}
+          onChange={() => onToggle(item.code)}
+          disabled={disabled}
+          label={`${item.code} ${item.label}`}
+        />
+        {item.freeText && selected.includes(item.code) ? (
+          <InputField
+            value={freeTextValue[item.code] || ''}
+            onChange={(value) => onFreeTextChange(item.code, value)}
+            disabled={disabled}
+            placeholder='ระบุ'
+          />
+        ) : null}
+      </div>
+    ))}
+  </div>
+);
+
+const CodeGroupLabel = ({ children }) => (
+  children ? (
+    <span
+      style={{
+        color: 'var(--text-content-tertiary, #858C92)',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-xs)',
+        lineHeight: 1.5,
+      }}
+    >
+      {children}
+    </span>
+  ) : null
 );
 
 const Field = ({ label, required, children, hint, hintTone }) => (
@@ -939,6 +984,25 @@ export const FpStep4WomenExam = ({ form, setForm, fpHn, locked }) => {
     ...f,
     cytologyRequest: { ...f.cytologyRequest, [key]: value },
   }));
+  const setCytologyResult = (key) => (value) => setForm((f) => ({
+    ...f,
+    cytologyResult: { ...f.cytologyResult, [key]: value },
+  }));
+  const toggleInList = (list, code) => (
+    list.includes(code) ? list.filter((c) => c !== code) : [...list, code]
+  );
+  const toggleSpecimen = (value) => {
+    if (locked) return;
+    setCytology('specimenTypes')(toggleInList(form.cytologyRequest.specimenTypes || [], value));
+  };
+  const toggleAdequacy = (code) => {
+    if (locked) return;
+    setCytologyResult('adequacy')(toggleInList(form.cytologyResult.adequacy || [], code));
+  };
+  const toggleCategory = (code) => {
+    if (locked) return;
+    setCytologyResult('categories')(toggleInList(form.cytologyResult.categories || [], code));
+  };
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
   /* คู่มือ §2.1.3 ข้อ 5.2 — เลือกผล "ปกติ" → เติมรายละเอียดอัตโนมัติ;
@@ -1272,6 +1336,29 @@ export const FpStep4WomenExam = ({ form, setForm, fpHn, locked }) => {
             <Banner tone='neutral' icon='info'>
               ประวัติประกอบการขอตรวจเซลล์วิทยา - บันทึกเฉพาะเมื่อมีการส่งตรวจมะเร็งปากมดลูก
             </Banner>
+            <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              <CodeGroupLabel>Type of Specimen — เลือกได้มากกว่าหนึ่งชนิด</CodeGroupLabel>
+              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                {FP_SPECIMEN_TYPES.map((type) => (
+                  <Checkbox
+                    key={type.value}
+                    checked={(form.cytologyRequest.specimenTypes || []).includes(type.value)}
+                    onChange={() => toggleSpecimen(type.value)}
+                    disabled={locked}
+                    label={type.label}
+                  />
+                ))}
+                {(form.cytologyRequest.specimenTypes || []).includes('other') ? (
+                  <InputField
+                    value={form.cytologyRequest.specimenOther}
+                    onChange={setCytology('specimenOther')}
+                    disabled={locked}
+                    placeholder='ระบุชนิดสิ่งส่งตรวจ'
+                  />
+                ) : null}
+              </div>
+            </div>
+            <CodeGroupLabel>Pertinent Clinical History</CodeGroupLabel>
             <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
               <Field label='คลอดครบกำหนด (คน)'>
                 <InputField value={form.cytologyRequest.termBirths} onChange={setCytology('termBirths')} disabled={locked} type='number' placeholder='0' />
@@ -1317,7 +1404,112 @@ export const FpStep4WomenExam = ({ form, setForm, fpHn, locked }) => {
                   placeholder='เลือก'
                 />
               </Field>
+              {/* ของเดิมถามต่อว่า "เคยทำเมื่อกี่ปีก่อน" — ถามเฉพาะเมื่อตอบว่าเคย */}
+              {form.cytologyRequest.previousSmear === 'yes' ? (
+                <Field label='เคยทำ smear เมื่อ (ปี)'>
+                  <InputField
+                    value={form.cytologyRequest.previousSmearYears}
+                    onChange={setCytology('previousSmearYears')}
+                    disabled={locked}
+                    type='number'
+                    placeholder='เช่น 3'
+                  />
+                </Field>
+              ) : null}
             </div>
+            <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+              <Field label='Previous treatment'>
+                <InputField value={form.cytologyRequest.previousTreatment} onChange={setCytology('previousTreatment')} disabled={locked} placeholder='การรักษาที่เคยได้รับ' />
+              </Field>
+              <Field label='Last Pap in 5 years'>
+                <InputField value={form.cytologyRequest.lastPapInFiveYears} onChange={setCytology('lastPapInFiveYears')} disabled={locked} placeholder='ผล Pap ครั้งล่าสุดใน 5 ปี' />
+              </Field>
+            </div>
+            <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+              <Field label='Clinical Findings'>
+                <InputField value={form.cytologyRequest.clinicalFindings} onChange={setCytology('clinicalFindings')} disabled={locked} placeholder='สิ่งที่ตรวจพบทางคลินิก' />
+              </Field>
+              <Field label='Clinical Dx'>
+                <InputField value={form.cytologyRequest.clinicalDx} onChange={setCytology('clinicalDx')} disabled={locked} placeholder='การวินิจฉัยทางคลินิก' />
+              </Field>
+            </div>
+          </div>
+
+          {/* §2.1.3 ข้อ 7 — แท็บ "ผลการตรวจ" ของใบเดิม ห้องเซลล์วิทยาเป็นคน
+              กรอกกลับมา จึงเปิดให้บันทึกเฉพาะเมื่อส่งสิ่งส่งตรวจไปแล้ว */}
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+            <TopicHeader icon='biotech'>ผลการตรวจเซลล์วิทยา (Bethesda)</TopicHeader>
+            {!form.papSentToLab ? (
+              <Banner tone='neutral' icon='info'>
+                ยังไม่ได้ส่งสิ่งส่งตรวจไปห้องปฏิบัติการ — ติ๊ก “ส่งสิ่งส่งตรวจไปห้องปฏิบัติการแล้ว”
+                ด้านบนก่อน จึงจะบันทึกผลที่ห้องเซลล์วิทยาอ่านกลับมาได้
+              </Banner>
+            ) : (
+              <>
+                <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+                  <Field label='วันที่รับสิ่งส่งตรวจ'>
+                    <DatePicker
+                      showLabel={false}
+                      disabled={locked}
+                      value={form.cytologyResult.receivedDate ? new Date(form.cytologyResult.receivedDate) : null}
+                      onChange={(d) => setCytologyResult('receivedDate')(d ? d.toISOString().slice(0, 10) : '')}
+                    />
+                  </Field>
+                </div>
+
+                <CodeGroupLabel>Specimen Adequacy</CodeGroupLabel>
+                {FP_CYTOLOGY_ADEQUACY.map((group) => (
+                  <div key={group.code} className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    <Checkbox
+                      checked={(form.cytologyResult.adequacy || []).includes(group.code)}
+                      onChange={() => toggleAdequacy(group.code)}
+                      disabled={locked}
+                      label={`${group.code} ${group.label}`}
+                    />
+                    <div style={{ paddingInlineStart: 'var(--dim-space-600, 24px)' }}>
+                      <CodeCheckList
+                        items={group.items}
+                        selected={form.cytologyResult.adequacy || []}
+                        onToggle={toggleAdequacy}
+                        disabled={locked}
+                        freeTextValue={{ '029': form.cytologyResult.adequacyOther }}
+                        onFreeTextChange={(_code, value) => setCytologyResult('adequacyOther')(value)}
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                <CodeGroupLabel>General Categorization (optional)</CodeGroupLabel>
+                {FP_CYTOLOGY_CATEGORIES.map((group) => (
+                  <div key={group.code} className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    <Checkbox
+                      checked={(form.cytologyResult.categories || []).includes(group.code)}
+                      onChange={() => toggleCategory(group.code)}
+                      disabled={locked}
+                      label={`${group.code} ${group.label}`}
+                    />
+                    <div
+                      className='flex flex-col'
+                      style={{ paddingInlineStart: 'var(--dim-space-600, 24px)', gap: 'var(--dim-space-200, 8px)' }}
+                    >
+                      {group.groups.map((sub, index) => (
+                        <div key={sub.label || `${group.code}-${index}`} className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                          <CodeGroupLabel>{sub.label}</CodeGroupLabel>
+                          <CodeCheckList
+                            items={sub.items}
+                            selected={form.cytologyResult.categories || []}
+                            onToggle={toggleCategory}
+                            disabled={locked}
+                            freeTextValue={{ 241: form.cytologyResult.sliDetail }}
+                            onFreeTextChange={(_code, value) => setCytologyResult('sliDetail')(value)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         </>
       )}

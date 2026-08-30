@@ -347,6 +347,175 @@ export const FP_PV_DETAIL_SUGGESTIONS = [
   'ส่งปรึกษาสูตินรีแพทย์เพื่อประเมินเพิ่มเติม',
 ];
 
+/* ── §2.1.3 ข้อ 6 · Cytologic Request — ช่องที่เหลือของใบคำขอ ────────
+   หน้าจอเดิม (คู่มือ หน้า 2-15) มีมากกว่า Pertinent Clinical History:
+   ชนิดสิ่งส่งตรวจ · การรักษาเดิม · Clinical Findings / Dx · Pap ครั้งล่าสุด
+   ใน 5 ปี ทั้งหมดเป็นข้อมูลที่ห้องเซลล์วิทยาใช้อ่านสไลด์ ขาดไปแล้วใบคำขอ
+   ไม่ครบตามของเดิม */
+export const FP_SPECIMEN_TYPES = [
+  { value: 'vaginal',      label: 'Vaginal' },
+  { value: 'cervical',     label: 'Cervical' },
+  { value: 'endocervical', label: 'Endocervical' },
+  { value: 'endometrial',  label: 'Endometrial' },
+  { value: 'other',        label: 'Other' },
+];
+
+/* ── §2.1.3 ข้อ 7 · แท็บ "ผลการตรวจ" — รหัสผลเซลล์วิทยาระบบ Bethesda ──
+   ของเดิมเก็บเป็นรหัสตัวเลข ไม่ใช่ข้อความอิสระ เพราะต้องนับรวมเป็นรายงาน
+   ได้ โครงจึงเป็น "กลุ่มหลัก → ตัวเลือกย่อย" ตามใบเดิมทุกรหัส */
+export const FP_CYTOLOGY_ADEQUACY = [
+  {
+    code: '010',
+    label: 'Satisfactory',
+    items: [
+      { code: '011', label: 'Presence of endocervical/transformation zone component' },
+      { code: '012', label: 'Absence of endocervical/transformation zone component' },
+    ],
+  },
+  {
+    code: '020',
+    label: 'Satisfactory but limited by …',
+    items: [
+      { code: '021', label: 'Smear too thickly spread' },
+      { code: '022', label: 'Partial or complete obscuring inflame/blood' },
+      { code: '023', label: 'Scant cellularity' },
+      { code: '029', label: 'Other', freeText: true },
+    ],
+  },
+  {
+    code: '030',
+    label: 'Unsatisfactory for evaluation',
+    items: [
+      { code: '031', label: 'Specimen reject/not processed (See comment)' },
+      { code: '032', label: 'Specimen processed and examined (See comment)' },
+    ],
+  },
+];
+
+export const FP_CYTOLOGY_CATEGORIES = [
+  {
+    code: '100',
+    label: 'Negative for Intraepithelial Lesion or Malignancy',
+    groups: [
+      {
+        label: 'Organism',
+        items: [
+          { code: '101', label: 'Trichomonas spp.' },
+          { code: '102', label: 'Candida spp.' },
+          { code: '103', label: 'Bacterial vaginosis' },
+          { code: '104', label: 'Actinomyces spp.' },
+          { code: '105', label: 'HSV' },
+          { code: '109', label: 'Other organism' },
+        ],
+      },
+      {
+        label: 'Other non Reactive cellular changes associated with',
+        items: [
+          { code: '121', label: 'Inflammation' },
+          { code: '122', label: 'Radiation' },
+          { code: '123', label: 'IUD' },
+        ],
+      },
+      {
+        label: 'neoplastic finding',
+        items: [
+          { code: '124', label: 'Glandular cells status post hysterectomy' },
+          { code: '125', label: 'Atrophy' },
+        ],
+      },
+    ],
+  },
+  {
+    code: '200',
+    label: 'Epithelial cells abnormalities',
+    groups: [
+      {
+        label: 'Squamous cell : Atypical squamous cells',
+        items: [
+          { code: '211', label: 'of undetermined significance (ASC-US)' },
+          { code: '212', label: 'cannot exclude HSIL (ASC-H)' },
+        ],
+      },
+      {
+        label: 'Law grade squamous intraepithelial lesion (LSIL) encompassing',
+        items: [
+          { code: '221', label: 'HPV change' },
+          { code: '222', label: 'CIN I' },
+        ],
+      },
+      {
+        label: 'High grade squamous intraepithelial lesion (HSIL) encompassing',
+        items: [
+          { code: '231', label: 'CIN II' },
+          { code: '232', label: 'CIN III' },
+          { code: '234', label: 'with features suspicious for invasion' },
+          { code: '241', label: 'SLI', freeText: true },
+          { code: '251', label: 'Squamous cell carcinoma' },
+        ],
+      },
+      {
+        label: 'Glandular cell : Atypical glandular cells',
+        items: [
+          { code: '261', label: 'Endocervical' },
+          { code: '262', label: 'Endometrial' },
+          { code: '263', label: 'Not otherwise specified (NOS)' },
+        ],
+      },
+      {
+        label: 'Atypical glandular favor neoplasia',
+        items: [
+          { code: '271', label: 'Endocervical' },
+          { code: '272', label: 'Endometrial' },
+          { code: '273', label: 'Not otherwise specified (NOS)' },
+          { code: '281', label: 'Endocervical adenocarcinoma in situ' },
+        ],
+      },
+      {
+        label: 'Adenocarcinoma',
+        items: [
+          { code: '291', label: 'Endocervical' },
+          { code: '292', label: 'Endometrial' },
+          { code: '293', label: 'Not otherwise specified (NOS)' },
+        ],
+      },
+    ],
+  },
+  {
+    code: '300',
+    label: 'Other malignant neoplasms',
+    groups: [
+      {
+        label: '',
+        items: [
+          { code: '301', label: 'Adenosquamous carcinoma' },
+          { code: '302', label: 'Poorly differentiated squamous carcinoma with small cell' },
+          { code: '303', label: 'Small cell undifferentiated carcinoma' },
+          { code: '304', label: 'Carcinosarcoma' },
+          { code: '305', label: 'Carcinoid tumors' },
+          { code: '306', label: 'Malignant melanoma' },
+          { code: '307', label: 'Malignant lymphoma' },
+          { code: '308', label: 'Extrauterine carcinomas' },
+        ],
+      },
+    ],
+  },
+];
+
+/** ทุกรหัสในใบผลเซลล์วิทยา แบนเป็นลิสต์เดียวไว้แปลรหัส → ข้อความ
+    เวลาสรุปลงใบผลตรวจหรือรายงาน. */
+export const FP_CYTOLOGY_CODE_LABEL = (() => {
+  const map = {};
+  FP_CYTOLOGY_ADEQUACY.forEach((group) => {
+    map[group.code] = group.label;
+    group.items.forEach((item) => { map[item.code] = item.label; });
+  });
+  FP_CYTOLOGY_CATEGORIES.forEach((group) => {
+    map[group.code] = group.label;
+    group.groups.forEach((sub) => sub.items.forEach((item) => { map[item.code] = item.label; }));
+  });
+  return map;
+})();
+
 export const FP_COUNSELING_TYPES = [
   { value: 'preTest',       label: 'ให้คำปรึกษาก่อนตรวจ' },
   { value: 'postTest',      label: 'ให้คำปรึกษาหลังตรวจ/แจ้งผล' },
@@ -563,6 +732,8 @@ export const DEFAULT_FP_VISIT = {
   /* Cytologic Request - คู่มือ §2.1.3 ข้อ 6.
      เก็บเป็นก้อนเดียว เพราะเป็นข้อมูลประกอบใบคำขอตรวจ ไม่ใช่ผล Pap. */
   cytologyRequest: {
+    specimenTypes: [],
+    specimenOther: '',
     termBirths: '',
     pretermBirths: '',
     abortions: '',
@@ -573,6 +744,21 @@ export const DEFAULT_FP_VISIT = {
     lmpOther: '',
     contraception: '',
     previousSmear: '',
+    /* ข้อ 6.6 ของเดิมเป็น "ทำครั้งแรก / เคยทำ __ ปี" — จำนวนปีจึงต้องมีช่องของ
+       ตัวเอง ไม่ใช่แค่เคย/ไม่เคย */
+    previousSmearYears: '',
+    previousTreatment: '',
+    clinicalFindings: '',
+    clinicalDx: '',
+    lastPapInFiveYears: '',
+  },
+  /* §2.1.3 ข้อ 7 — แท็บผลการตรวจ (ห้องเซลล์วิทยาเป็นคนกรอกกลับมา) */
+  cytologyResult: {
+    receivedDate: '',
+    adequacy: [],
+    adequacyOther: '',
+    categories: [],
+    sliDetail: '',
   },
 
   /* S5 — ดูแลหลังคลอด */
