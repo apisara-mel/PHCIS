@@ -935,6 +935,10 @@ export const FpStep4WomenExam = ({ form, setForm, fpHn, locked }) => {
   }));
 
   const setPv = (key) => (value) => setForm((f) => ({ ...f, pv: { ...f.pv, [key]: value } }));
+  const setCytology = (key) => (value) => setForm((f) => ({
+    ...f,
+    cytologyRequest: { ...f.cytologyRequest, [key]: value },
+  }));
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
   /* คู่มือ §2.1.3 ข้อ 5.2 — เลือกผล "ปกติ" → เติมรายละเอียดอัตโนมัติ;
@@ -1229,6 +1233,31 @@ export const FpStep4WomenExam = ({ form, setForm, fpHn, locked }) => {
                 selected={form.papNotifyClient}
                 onClick={() => { if (!locked) set('papNotifyClient')(!form.papNotifyClient); }}
               />
+              <SelectableTag
+                label='ติดตามการรักษา / นัดแจ้งผล'
+                size='md'
+                selected={form.papFollowUp}
+                onClick={() => { if (!locked) set('papFollowUp')(!form.papFollowUp); }}
+              />
+            </div>
+            <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+              <Field label='ค่าใช้จ่ายบริการรวม (บาท)'>
+                <InputField
+                  value={form.papServiceCost}
+                  onChange={set('papServiceCost')}
+                  disabled={locked}
+                  type='number'
+                  placeholder='0.00'
+                />
+              </Field>
+              <Field label='การเบิกค่าบริการ'>
+                <SelectableTag
+                  label='ขอเบิกค่าบริการ'
+                  size='md'
+                  selected={form.papReimbursement}
+                  onClick={() => { if (!locked) set('papReimbursement')(!form.papReimbursement); }}
+                />
+              </Field>
             </div>
             {form.papResult === 'abnormal' && (
               <Banner tone='danger' icon='warning'>
@@ -1236,6 +1265,59 @@ export const FpStep4WomenExam = ({ form, setForm, fpHn, locked }) => {
                 และนัดแจ้งผลในขั้นตอนที่ 7
               </Banner>
             )}
+          </div>
+
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+            <TopicHeader icon='description'>Cytologic Request</TopicHeader>
+            <Banner tone='neutral' icon='info'>
+              ประวัติประกอบการขอตรวจเซลล์วิทยา - บันทึกเฉพาะเมื่อมีการส่งตรวจมะเร็งปากมดลูก
+            </Banner>
+            <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+              <Field label='คลอดครบกำหนด (คน)'>
+                <InputField value={form.cytologyRequest.termBirths} onChange={setCytology('termBirths')} disabled={locked} type='number' placeholder='0' />
+              </Field>
+              <Field label='คลอดก่อนกำหนด (คน)'>
+                <InputField value={form.cytologyRequest.pretermBirths} onChange={setCytology('pretermBirths')} disabled={locked} type='number' placeholder='0' />
+              </Field>
+              <Field label='แท้ง (ครั้ง)'>
+                <InputField value={form.cytologyRequest.abortions} onChange={setCytology('abortions')} disabled={locked} type='number' placeholder='0' />
+              </Field>
+              <Field label='บุตรมีชีวิต (คน)'>
+                <InputField value={form.cytologyRequest.livingChildren} onChange={setCytology('livingChildren')} disabled={locked} type='number' placeholder='0' />
+              </Field>
+              <Field label='อายุบุตรคนสุดท้าย'>
+                <InputField value={form.cytologyRequest.youngestChildAge} onChange={setCytology('youngestChildAge')} disabled={locked} placeholder='เช่น 2 ปี 3 เดือน' />
+              </Field>
+            </div>
+            <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+              <Field label='Yrs. L.M.P. (ปี)'>
+                <InputField value={form.cytologyRequest.lmpYears} onChange={setCytology('lmpYears')} disabled={locked} type='number' placeholder='0' />
+              </Field>
+              <Field label='ระยะเวลามีประจำเดือน (วัน)'>
+                <InputField value={form.cytologyRequest.lmpDays} onChange={setCytology('lmpDays')} disabled={locked} type='number' placeholder='เช่น 5' />
+              </Field>
+              <Field label='L.M.P. อื่น / จำวันไม่ได้'>
+                <InputField value={form.cytologyRequest.lmpOther} onChange={setCytology('lmpOther')} disabled={locked} placeholder='เช่น หมดประจำเดือน 3 เดือน' />
+              </Field>
+              <Field label='การคุมกำเนิด'>
+                <Select
+                  showLabel={false} searchable={false} size='lg' disabled={locked}
+                  value={form.cytologyRequest.contraception}
+                  onChange={setCytology('contraception')}
+                  options={FP_LAST_METHODS}
+                  placeholder='เลือกวิธีคุมกำเนิด'
+                />
+              </Field>
+              <Field label='เคยทำ smear มาก่อน'>
+                <Select
+                  showLabel={false} searchable={false} size='lg' disabled={locked}
+                  value={form.cytologyRequest.previousSmear}
+                  onChange={setCytology('previousSmear')}
+                  options={[{ value: 'yes', label: 'เคย' }, { value: 'no', label: 'ไม่เคย' }]}
+                  placeholder='เลือก'
+                />
+              </Field>
+            </div>
           </div>
         </>
       )}

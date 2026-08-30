@@ -180,6 +180,17 @@ export const Icon = ({ name, size = 16, className = '', style, color, ...rest })
       return (<svg {...s} className={className} style={iconStyle}><polygon points='4 5 13 12 4 19 4 5' /><polygon points='13 5 22 12 13 19 13 5' /></svg>);
     case 'clipboard-list':
       return (<svg {...s} className={className} style={iconStyle}><rect x='8' y='3' width='8' height='4' rx='1' /><path d='M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2' /><line x1='9' y1='12' x2='15' y2='12' /><line x1='9' y1='16' x2='15' y2='16' /></svg>);
+    /* Self-service kiosk — prevents the raw `kiosk` fallback text from
+       appearing in the queue-centre heading. */
+    case 'kiosk':
+      return (
+        <svg {...s} className={className} style={iconStyle}>
+          <rect x='5' y='2' width='14' height='20' rx='2' />
+          <rect x='8' y='5' width='8' height='5' rx='1' />
+          <circle cx='12' cy='14' r='1.25' fill='currentColor' stroke='none' />
+          <path d='M9 18h6M10.5 18v2M13.5 18v2' />
+        </svg>
+      );
     case 'file-text':
       return (<svg {...s} className={className} style={iconStyle}><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' /><polyline points='14 2 14 8 20 8' /><line x1='8' y1='13' x2='16' y2='13' /><line x1='8' y1='17' x2='13' y2='17' /></svg>);
     case 'file':

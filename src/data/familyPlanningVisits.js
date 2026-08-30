@@ -557,6 +557,23 @@ export const DEFAULT_FP_VISIT = {
   papExaminedBy: '',
   papSentToLab: false,
   papNotifyClient: false,
+  papFollowUp: false,
+  papServiceCost: '',
+  papReimbursement: false,
+  /* Cytologic Request - คู่มือ §2.1.3 ข้อ 6.
+     เก็บเป็นก้อนเดียว เพราะเป็นข้อมูลประกอบใบคำขอตรวจ ไม่ใช่ผล Pap. */
+  cytologyRequest: {
+    termBirths: '',
+    pretermBirths: '',
+    abortions: '',
+    livingChildren: '',
+    youngestChildAge: '',
+    lmpYears: '',
+    lmpDays: '',
+    lmpOther: '',
+    contraception: '',
+    previousSmear: '',
+  },
 
   /* S5 — ดูแลหลังคลอด */
   hasPostpartum: false,

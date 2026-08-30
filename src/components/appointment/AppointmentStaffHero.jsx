@@ -58,9 +58,32 @@ function HeroMetaColumn({ label, value }) {
   );
 }
 
-const AppointmentStaffHero = ({ staff }) => {
+function formatDuration(seconds) {
+  const total = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(total / 60);
+  const remainingSeconds = total % 60;
+  return `${minutes} นาที ${String(remainingSeconds).padStart(2, '0')} วินาที`;
+}
+
+const AppointmentStaffHero = ({ staff, showAvgExamTime = true }) => {
   const policyLabel =
     staff.groupPolicyLabel || GROUP_POLICY_FALLBACK[staff.groupPolicy] || staff.groupPolicy;
+  const thisMonthSeconds = Number.isFinite(staff.avgExamThisMonthSec)
+    ? Math.max(0, Math.round(staff.avgExamThisMonthSec))
+    : null;
+  const lastMonthSeconds = Number.isFinite(staff.avgExamLastMonthSec)
+    ? Math.max(0, Math.round(staff.avgExamLastMonthSec))
+    : null;
+  const hasMonthComparison = thisMonthSeconds !== null && lastMonthSeconds !== null && lastMonthSeconds > 0;
+  const differenceSeconds = hasMonthComparison ? thisMonthSeconds - lastMonthSeconds : 0;
+  const differencePercent = hasMonthComparison
+    ? Math.abs((differenceSeconds / lastMonthSeconds) * 100)
+    : 0;
+  const comparisonLabel = differenceSeconds > 0
+    ? 'มากกว่าเดือนก่อน'
+    : differenceSeconds < 0
+      ? 'น้อยกว่าเดือนก่อน'
+      : 'เท่ากับเดือนก่อน';
 
   return (
     <div
@@ -139,18 +162,19 @@ const AppointmentStaffHero = ({ staff }) => {
         {staff.dept && <HeroMetaColumn label='แผนก' value={staff.dept} />}
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 0,
-          justifyContent: 'center',
-          padding: 'var(--dim-space-200) var(--dim-space-300)',
-          borderRadius: 'var(--dim-radius-200)',
-          background: 'var(--surface-card-100)',
-          flexShrink: 0,
-        }}
-      >
+      {showAvgExamTime ? (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 0,
+            justifyContent: 'center',
+            padding: 'var(--dim-space-200) var(--dim-space-300)',
+            borderRadius: 'var(--dim-radius-200)',
+            background: 'var(--surface-card-100)',
+            flexShrink: 0,
+          }}
+        >
         <span
           style={{
             fontFamily: 'var(--type-family-body)',
@@ -160,7 +184,7 @@ const AppointmentStaffHero = ({ staff }) => {
             color: 'var(--text-neutral-default)',
           }}
         >
-          เวลาตรวจโดยเฉลี่ย
+          {hasMonthComparison ? 'เวลาตรวจโดยเฉลี่ยเดือนนี้' : 'เวลาตรวจโดยเฉลี่ย'}
         </span>
         <span
           style={{
@@ -171,9 +195,39 @@ const AppointmentStaffHero = ({ staff }) => {
             color: 'var(--text-brandPrimary-default)',
           }}
         >
-          {staff.avgExamMin} นาที
+          {hasMonthComparison ? formatDuration(thisMonthSeconds) : `${staff.avgExamMin} นาที`}
         </span>
-      </div>
+        {hasMonthComparison ? (
+          <span
+            style={{
+              color: 'var(--text-content-tertiary)',
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+              fontWeight: 'var(--type-weight-regular)',
+              lineHeight: 1.5,
+              marginTop: 'var(--dim-space-050)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {comparisonLabel} {formatDuration(Math.abs(differenceSeconds))}
+          </span>
+        ) : null}
+        {hasMonthComparison ? (
+          <span
+            style={{
+              color: 'var(--text-statussummarycard-increase)',
+              fontFamily: 'var(--type-family-heading-graphic2)',
+              fontSize: 'var(--type-size-xs)',
+              fontWeight: 'var(--type-weight-medium)',
+              lineHeight: 1.5,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            ({differencePercent.toFixed(1)}%)
+          </span>
+        ) : null}
+        </div>
+      ) : null}
     </div>
   );
 };

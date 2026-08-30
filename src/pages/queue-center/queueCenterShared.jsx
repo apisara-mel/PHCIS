@@ -380,8 +380,8 @@ export const WaitCell = ({ minutes, overdue, threshold }) => (
 /* ────────────────────────────────────────────────── แถบเมนูย่อยของโมดูล */
 
 const SUB_NAV = [
-  { path: '/queue-center/kiosk-settings', label: 'ตั้งค่าตู้บริการ(Kiosk)', icon: 'print', exact: false },
-  { path: '/queue-center/ticket-settings', label: 'ตั้งค่าใบคิว',     icon: 'receipt_long', exact: false },
+  { path: '/queue-center/kiosk-settings', label: 'รายการตู้บริการ', icon: 'kiosk', exact: false },
+  { path: '/queue-center/ticket-settings', label: 'ตั้งค่าตู้',     icon: 'receipt_long', exact: false },
   { path: '/queue-center/display',     label: 'ตั้งค่าจอแสดงผลการเรียกคิว', icon: 'tv',   exact: false },
 ];
 

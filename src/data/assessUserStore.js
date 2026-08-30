@@ -447,7 +447,9 @@ export function writeAssessUsers(records) {
 }
 
 export function computeAssessUserStats(records) {
-  const list = records || [];
+  /* ลบบัญชีแบบ soft delete เพื่อเก็บเหตุผล/เวลาไว้ตรวจสอบ แต่ไม่ให้นับหรือ
+     แสดงในทะเบียนบุคลากรที่ยังใช้งานอยู่. */
+  const list = (records || []).filter((r) => r.accountStatus !== 'deleted');
   return {
     total: list.length,
     active: list.filter((r) => r.active).length,

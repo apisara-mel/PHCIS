@@ -29,7 +29,9 @@ import {
   dataScopeLabel,
   piiLabel,
   formatDailyWindow,
+  resolveUserAccess,
 } from '@/data/accessControlStore';
+import { ACCESS_SYSTEMS, PERM_NONE, systemLeafKeys } from '@/data/accessMenuCatalog';
 import { readActivities } from '@/data/activityStore';
 import { readDepartments } from '@/data/departmentStore';
 import { readPositions } from '@/data/positionStore';
@@ -116,7 +118,13 @@ export default function AssessUserPage() {
     window.setTimeout(() => setToast(null), 2800);
   };
 
-  const stats = useMemo(() => computeAssessUserStats(records), [records]);
+  /* บัญชีที่ถูกลบเป็น soft delete เพื่อเก็บเหตุผลสำหรับตรวจสอบ จึงไม่กลับมา
+     ปรากฏในทะเบียน/ยอดสรุปของบุคลากรที่ยังบริหารจัดการอยู่. */
+  const directoryRecords = useMemo(
+    () => records.filter((record) => record.accountStatus !== 'deleted'),
+    [records],
+  );
+  const stats = useMemo(() => computeAssessUserStats(directoryRecords), [directoryRecords]);
 
   const summaryCards = useMemo(() => [
     { key: 'total', icon: 'group', color: 'info', value: String(stats.total), label: 'บุคลากรทั้งหมด' },
@@ -137,7 +145,7 @@ export default function AssessUserPage() {
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return records.filter((r) => {
+    return directoryRecords.filter((r) => {
       const primary = primaryAssignment(r);
       if ((tab === 'draft') !== !!r.draft) return false;
       if (filterCenter && primary?.centerId !== filterCenter) return false;
@@ -148,9 +156,9 @@ export default function AssessUserPage() {
       const hay = [fullName(r), r.email, r.licenseNo, r.nameEn, r.surnameEn].join(' ').toLowerCase();
       return hay.includes(q);
     });
-  }, [records, search, tab, filterCenter, filterRole, filterDept, filterPosition]);
+  }, [directoryRecords, search, tab, filterCenter, filterRole, filterDept, filterPosition]);
 
-  const hasRecords = records.length > 0;
+  const hasRecords = directoryRecords.length > 0;
   const filtersActive = !!(filterCenter || filterRole || filterDept || filterPosition || search.trim());
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     filtersActive,
@@ -184,9 +192,9 @@ export default function AssessUserPage() {
   };
 
   const tabDefs = useMemo(() => ([
-    { key: 'all', label: 'ทั้งหมด', icon: 'group', count: records.filter((r) => !r.draft).length },
-    { key: 'draft', label: 'บันทึกร่าง', icon: 'save', count: records.filter((r) => r.draft).length },
-  ]), [records]);
+    { key: 'all', label: 'ทั้งหมด', icon: 'group', count: directoryRecords.filter((r) => !r.draft).length },
+    { key: 'draft', label: 'บันทึกร่าง', icon: 'save', count: directoryRecords.filter((r) => r.draft).length },
+  ]), [directoryRecords]);
 
   const columns = useMemo(() => [
     {
@@ -300,6 +308,16 @@ export default function AssessUserPage() {
     return readAccessControls()
       .map((rec) => ({ rec, matched: matchingAssignments(rec, accessOf) }))
       .filter((x) => x.matched.length > 0);
+  }, [accessOf]);
+
+  /* รายชื่อระบบที่เข้าใช้ได้จริงต้องอิงสิทธิ์ที่มีผลแล้ว ไม่ใช่แค่ชื่อแม่แบบ
+     ที่ผูกกับบุคลากร — แม่แบบที่ยังไม่อนุมัติ/หมดอายุจึงไม่ถูกแสดงเป็นสิทธิ์จริง. */
+  const grantedAccessSystems = useMemo(() => {
+    if (!accessOf) return [];
+    const effectiveAccess = resolveUserAccess(accessOf, readAccessControls());
+    return ACCESS_SYSTEMS.filter((system) => (
+      systemLeafKeys(system).some((key) => effectiveAccess.modules[key]?.level !== PERM_NONE)
+    ));
   }, [accessOf]);
 
   const filterOpts = {
@@ -447,6 +465,30 @@ export default function AssessUserPage() {
         tertiaryAction={{ label: 'ปิด', onClick: () => setAccessOf(null) }}
       >
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+          <section
+            className='flex flex-col'
+            style={{
+              gap: 'var(--dim-space-200)',
+              padding: 'var(--dim-space-400)',
+              border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+              borderRadius: 'var(--dim-radius-400)',
+            }}
+          >
+            <span style={{ ...TEXT_CELL, fontFamily: 'var(--type-family-heading-graphic2)' }}>
+              ระบบที่มีสิทธิ์เข้าถึง ({grantedAccessSystems.length} ระบบ)
+            </span>
+            {grantedAccessSystems.length ? (
+              <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                {grantedAccessSystems.map((system) => (
+                  <PolicyBadge key={system.key} style='green'>{system.label}</PolicyBadge>
+                ))}
+              </div>
+            ) : (
+              <span style={{ ...TEXT_CELL, color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-xs)' }}>
+                ยังไม่มีสิทธิ์ที่มีผลใช้งานในขณะนี้
+              </span>
+            )}
+          </section>
           {accessRows.length === 0 ? (
             <p style={{ ...TEXT_CELL, color: 'var(--text-content-tertiary)', margin: 0 }}>
               ยังไม่มีแม่แบบสิทธิ์ที่ตรงกับหน่วยงาน/ตำแหน่งของบุคลากรคนนี้

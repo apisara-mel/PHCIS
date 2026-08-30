@@ -1,11 +1,16 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
-import { SummaryCard } from '@/components/layout/SummaryCardsBar';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
-import Icon from '@/components/icons/Icon';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
+import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import Table from '@/components/table/Table';
+import AppointmentStaffHero from '@/components/appointment/AppointmentStaffHero';
+import AssessUserCreatePage from '@/pages/assess/AssessUserCreatePage';
+import Popup from '@/components/popup/Popup';
+import AlertDialog from '@/components/popup/AlertDialog';
+import Textarea from '@/components/forms/Textarea';
 import ASSESS_NAV from '@/pages/assess/assessNav';
 import {
   ACCESS_SYSTEMS,
@@ -14,7 +19,6 @@ import {
   menuLeafKeys,
   systemLeafKeys,
   rollupLevel,
-  countPermissionLevels,
 } from '@/data/accessMenuCatalog';
 import {
   PERM_NONE,
@@ -31,7 +35,7 @@ import {
   fullName,
   fullNameEn,
   primaryAssignment,
-  uniqueCenterCount,
+  upsertAssessUser,
 } from '@/data/assessUserStore';
 
 /* PHCIS | Assess-control — Personnel detail (Figma 4D3nTx53 · 12:38968). */
@@ -162,17 +166,16 @@ function ReadonlyPermTree({ permissions }) {
    accessControlStore แล้ว (ABAC + รวมหลายแม่แบบ + เช็คสถานะอนุมัติ/ช่วงเวลา)
    ของเดิมที่นี่จับคู่แค่ assignment หลักใบเดียวและไม่สนสถานะอนุมัติ */
 
-/* นับ "เมนู" ที่เข้าถึงได้ (ไม่ใช่ระบบ) — สิทธิ์ละเอียดถึงระดับเมนูย่อยแล้ว */
-function countSystemsWithAccess(permissions) {
-  if (!permissions) return 0;
-  const { view, write, edit } = countPermissionLevels(permissions);
-  return view + write + edit;
-}
-
 export default function AssessUserDetailPage() {
   const navigate = useHistory();
   const { id } = useParams();
-  const user = useMemo(() => findAssessUser(id), [id]);
+  const [activeTab, setActiveTab] = useState('personal');
+  const [editPopupOpen, setEditPopupOpen] = useState(false);
+  const [accountAction, setAccountAction] = useState(null);
+  const [accountReason, setAccountReason] = useState('');
+  const [reactivateConfirmOpen, setReactivateConfirmOpen] = useState(false);
+  const [userRevision, setUserRevision] = useState(0);
+  const user = useMemo(() => findAssessUser(id), [id, userRevision]);
   const accessList = useMemo(() => readAccessControls(), [id]);
 
   const primary = useMemo(() => (user ? primaryAssignment(user) : null), [user]);
@@ -184,6 +187,43 @@ export default function AssessUserDetailPage() {
     [access],
   );
   const matchedAccess = access.templates.length > 0;
+
+  const closeAccountAction = () => {
+    setAccountAction(null);
+    setAccountReason('');
+  };
+
+  const applyAccountAction = () => {
+    const reason = accountReason.trim();
+    if (!reason) return;
+    const now = new Date().toISOString();
+    const isDelete = accountAction === 'delete';
+    upsertAssessUser({
+      ...user,
+      active: false,
+      accountStatus: isDelete ? 'deleted' : 'suspended',
+      ...(isDelete
+        ? { deletionReason: reason, deletedAt: now }
+        : { suspensionReason: reason, suspendedAt: now }),
+    });
+    closeAccountAction();
+    if (isDelete) {
+      navigate.push('/assess/users');
+      return;
+    }
+    setUserRevision((revision) => revision + 1);
+  };
+
+  const reactivateAccount = () => {
+    upsertAssessUser({
+      ...user,
+      active: true,
+      accountStatus: 'active',
+      reactivatedAt: new Date().toISOString(),
+    });
+    setReactivateConfirmOpen(false);
+    setUserRevision((revision) => revision + 1);
+  };
 
   if (!user) {
     return (
@@ -201,43 +241,23 @@ export default function AssessUserDetailPage() {
     );
   }
 
-  const summaryCards = [
-    {
-      key: 'activity',
-      icon: 'face',
-      color: 'info',
-      value: primary?.activity || '—',
-      label: 'กิจกรรม',
-    },
-    {
-      key: 'centers',
-      icon: 'map',
-      color: 'positive',
-      value: String(uniqueCenterCount(user)),
-      label: 'ศูนย์บริการทั้งหมด',
-    },
-    {
-      key: 'primary-center',
-      icon: 'location_on',
-      color: 'positive',
-      value: primary?.center || '—',
-      label: 'ศูนย์บริการหลัก',
-    },
-    {
-      key: 'systems',
-      icon: 'settings',
-      color: 'positive',
-      value: String(countSystemsWithAccess(permissions)),
-      label: 'ระบบที่มีสิทธิเข้าถึง',
-    },
-    {
-      key: 'status',
-      icon: 'clipboard_list',
-      color: 'positive',
-      value: user.active ? 'ใช้งานอยู่' : 'ปิดใช้งาน',
-      label: 'สถานะบัญชี',
-    },
-  ];
+  /* The schedule-style profile stays in the PHCIS white header band under
+     the SubHeader. The summary-card row was intentionally removed. */
+  const profileHeader = (
+    <AppointmentStaffHero
+      staff={{
+        name: fullName(user),
+        nameTh: fullName(user),
+        nameEn: fullNameEn(user),
+        avatarSrc: user.photo,
+        groupPolicy: primary?.activity || '—',
+        groupPolicyLabel: primary?.activity || '—',
+        subDivision: primary?.subActivity || '—',
+        dept: primary?.department || '—',
+      }}
+      showAvgExamTime={false}
+    />
+  );
 
   const assignmentColumns = [
     { key: 'order', header: 'ลำดับ', render: (_row, idx) => <span style={TEXT_CELL}>{idx + 1}</span> },
@@ -258,7 +278,8 @@ export default function AssessUserDetailPage() {
   ];
 
   return (
-    <QueuePageShell
+    <>
+      <QueuePageShell
       activeKey='system-staff'
       sidebarItems={ASSESS_NAV}
       sidebarFallbackKey='system-staff'
@@ -267,88 +288,36 @@ export default function AssessUserDetailPage() {
       title='บุคลากรและการเข้าถึง'
       onBack={() => navigate.push('/assess/users')}
       actions={(
-        <NeutralSubdueButton leadingIcon='edit' size='sm' onClick={() => navigate.push(`/assess/users/${id}/edit`)}>
-          แก้ไข
-        </NeutralSubdueButton>
+        <div className='flex items-center flex-wrap justify-end' style={{ gap: 'var(--dim-space-200)' }}>
+          <NeutralSubdueButton leadingIcon='edit' size='sm' onClick={() => setEditPopupOpen(true)}>
+            แก้ไข
+          </NeutralSubdueButton>
+          {user.active ? (
+            <NeutralSubdueButton leadingIcon='pause_circle' size='sm' onClick={() => setAccountAction('suspend')}>
+              พักบัญชี
+            </NeutralSubdueButton>
+          ) : (
+            <BrandSubdueButton leadingIcon='check_circle' size='sm' variant='outline' onClick={() => setReactivateConfirmOpen(true)}>
+              เปิดใช้งานบัญชี
+            </BrandSubdueButton>
+          )}
+          <DangerSubdueButton leadingIcon='delete' size='sm' variant='outline' onClick={() => setAccountAction('delete')}>
+            ลบบัญชี
+          </DangerSubdueButton>
+        </div>
       )}
+      headerInfo={profileHeader}
+      tabs={[
+        { key: 'personal', label: 'ข้อมูลส่วนตัว' },
+        { key: 'access', label: 'สิทธิ์การเข้าถึงระบบ' },
+      ]}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
     >
       <div className='flex flex-col flex-1 min-w-0' style={{ padding: 'var(--dim-space-600)', gap: 'var(--dim-space-400)' }}>
-        <section
-          className='w-full'
-          style={{
-            borderRadius: 'var(--dim-radius-500)',
-            padding: 'var(--dim-space-600)',
-            background: 'linear-gradient(135deg, var(--surface-brandPrimary-default, #007549) 0%, var(--surface-brandPrimary-hover, #00A86B) 100%)',
-            color: 'var(--text-content-on-content, #FFFFFF)',
-          }}
-        >
-          <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-600)' }}>
-            <span
-              className='inline-flex items-center justify-center shrink-0'
-              style={{
-                width: 'var(--dim-size-2000, 80px)',
-                height: 'var(--dim-size-2000, 80px)',
-                borderRadius: 'var(--dim-radius-full)',
-                background: 'var(--surface-card-100)',
-                color: 'var(--text-brandPrimary-default)',
-              }}
-            >
-              <Icon name='person' size={40} />
-            </span>
-            <div className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
-              <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
-                <span style={{
-                  fontFamily: 'var(--type-family-heading-graphic2)',
-                  fontSize: 'var(--type-size-lg)',
-                  fontWeight: 'var(--type-weight-medium)',
-                  lineHeight: 1.25,
-                }}
-                >
-                  {fullName(user)}
-                </span>
-                <span style={{
-                  fontFamily: 'var(--type-family-body)',
-                  fontSize: 'var(--type-size-sm)',
-                  lineHeight: 1.5,
-                  opacity: 0.9,
-                }}
-                >
-                  {fullNameEn(user) || '—'}
-                </span>
-              </div>
-              <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-600)' }}>
-                <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
-                  <span style={{ fontSize: 'var(--type-size-xs)', opacity: 0.85 }}>กิจกรรม</span>
-                  <span style={{ fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)' }}>{primary?.activity || '—'}</span>
-                </div>
-                <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
-                  <span style={{ fontSize: 'var(--type-size-xs)', opacity: 0.85 }}>กิจกรรมย่อย</span>
-                  <span style={{ fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)' }}>{primary?.subActivity || '—'}</span>
-                </div>
-                <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
-                  <span style={{ fontSize: 'var(--type-size-xs)', opacity: 0.85 }}>แผนก</span>
-                  <span style={{ fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)' }}>{primary?.department || '—'}</span>
-                </div>
-                <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
-                  <span style={{ fontSize: 'var(--type-size-xs)', opacity: 0.85 }}>รหัสวิชาชีพ</span>
-                  <span style={{ fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)' }}>{user.licenseNo || '—'}</span>
-                </div>
-                <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
-                  <span style={{ fontSize: 'var(--type-size-xs)', opacity: 0.85 }}>อีเมล</span>
-                  <span style={{ fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-sm)' }}>{user.email || '—'}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div className='flex items-stretch flex-wrap w-full' style={{ gap: 'var(--dim-space-400)' }}>
-          {summaryCards.map((c) => (
-            <SummaryCard key={c.key} card={c} variant='panel' />
-          ))}
-        </div>
-
-        <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-500)' }}>
+        {activeTab === 'personal' ? (
+          <>
+            <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-500)' }}>
           <span style={{
             color: 'var(--text-topic-secondary-title)',
             fontFamily: 'var(--type-family-heading-graphic2)',
@@ -358,7 +327,13 @@ export default function AssessUserDetailPage() {
           >
             ข้อมูลส่วนตัว
           </span>
-          <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-600)' }}>
+          <div
+            className='grid w-full'
+            style={{
+              gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+              gap: 'var(--dim-space-600)',
+            }}
+          >
             <InfoField label='คำนำหน้า' value={user.title} />
             <InfoField label='ชื่อ' value={user.firstName} />
             <InfoField label='นามสกุล' value={user.lastName} />
@@ -373,9 +348,9 @@ export default function AssessUserDetailPage() {
             <InfoField label='เบอร์โทรศัพท์' value={user.phone} />
             <InfoField label='อีเมล' value={user.email} />
           </div>
-        </section>
+            </section>
 
-        <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
+            <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-400)' }}>
           <span style={{
             color: 'var(--text-topic-secondary-title)',
             fontFamily: 'var(--type-family-heading-graphic2)',
@@ -390,7 +365,9 @@ export default function AssessUserDetailPage() {
             rows={user.assignments || []}
             rowKey={(row) => row.id}
           />
-        </section>
+            </section>
+          </>
+        ) : (
 
         <section className='flex flex-col w-full' style={{ ...CARD, gap: 'var(--dim-space-600)' }}>
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-050)' }}>
@@ -455,7 +432,58 @@ export default function AssessUserDetailPage() {
             </>
           ) : null}
         </section>
+        )}
       </div>
-    </QueuePageShell>
+      </QueuePageShell>
+      {editPopupOpen ? (
+        <AssessUserCreatePage
+          asPopup
+          existingId={id}
+          onClose={() => setEditPopupOpen(false)}
+          onSaved={() => setUserRevision((revision) => revision + 1)}
+        />
+      ) : null}
+      <Popup
+        open={!!accountAction}
+        onClose={closeAccountAction}
+        size='large'
+        title={accountAction === 'delete' ? 'ลบบัญชีผู้ใช้งาน' : 'พักบัญชีชั่วคราว'}
+        subtitle={accountAction === 'delete'
+          ? 'การลบบัญชีจะซ่อนบัญชีออกจากทะเบียนบุคลากร แต่เก็บเหตุผลไว้สำหรับตรวจสอบ'
+          : 'ผู้ใช้งานจะไม่สามารถเข้าสู่ระบบได้จนกว่าจะกำหนดเปิดใช้งานใหม่'}
+        secondaryAction={{ label: 'ยกเลิก', onClick: closeAccountAction }}
+        primaryAction={{
+          label: accountAction === 'delete' ? 'ยืนยันการลบบัญชี' : 'ยืนยันการพักบัญชี',
+          tone: accountAction === 'delete' ? 'danger' : undefined,
+          disabled: !accountReason.trim(),
+          onClick: applyAccountAction,
+        }}
+      >
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
+          <span style={{ ...VALUE, color: 'var(--text-content-tertiary)' }}>
+            {fullName(user)} · {user.employeeCode || '—'}
+          </span>
+          <Textarea
+            label={accountAction === 'delete' ? 'เหตุผลการลบบัญชี' : 'เหตุผลการพักบัญชี'}
+            required
+            value={accountReason}
+            onChange={setAccountReason}
+            placeholder='ระบุเหตุผลเพื่อบันทึกไว้ในการตรวจสอบ'
+            rows={3}
+          />
+        </div>
+      </Popup>
+      <AlertDialog
+        open={reactivateConfirmOpen}
+        onClose={() => setReactivateConfirmOpen(false)}
+        type='warning'
+        alignment='center'
+        title='เปิดใช้งานบัญชีอีกครั้ง?'
+        description={`บัญชีของ ${fullName(user)} จะกลับเข้าสู่ระบบได้ทันที`}
+        confirmLabel='เปิดใช้งานบัญชี'
+        cancelLabel='ยกเลิก'
+        onConfirm={reactivateAccount}
+      />
+    </>
   );
 }

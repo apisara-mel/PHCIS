@@ -119,6 +119,29 @@ const blankKiosk = () => ({
   ticketSize: '80mm', displayFields: { ...TICKET_DISPLAY_DEFAULTS, kioskNumber: true, kioskName: true, kioskId: false, location: true, floor: true }, active: true,
 });
 
+const TicketPreview = ({ kioskType, settings }) => {
+  const fields = settings.displayFields;
+  const isQueueKiosk = kioskType === 'queue';
+  const sample = isQueueKiosk
+    ? { code: 'A-042', service: 'คลินิกตรวจรักษาทั่วไป', next: 'จุดคัดกรอง', kiosk: 'K-01', location: 'อาคาร A ชั้น 1' }
+    : { code: 'P-016', service: 'จุดรับชำระเงิน', next: 'เคาน์เตอร์การเงิน', kiosk: 'P-01', location: 'อาคาร A ชั้น 1' };
+
+  return (
+    <div className='mx-auto w-full' style={{ ...CARD_STYLE, maxWidth: 360, padding: 'var(--dim-space-500)', textAlign: 'center', borderStyle: 'dashed' }}>
+      <Icon name='confirmation_number' size={28} style={{ color: 'var(--text-brandPrimary-default)' }} />
+      {fields.queueNumber ? <div style={{ marginTop: 'var(--dim-space-200)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-lg)', color: 'var(--text-content-primary)' }}>{sample.code}</div> : null}
+      {fields.patientName ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>นายสมชาย มีสุข</div> : null}
+      {fields.hn || fields.hnBarcode ? <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{fields.hn ? 'HN: 67-00001' : ''}{fields.hn && fields.hnBarcode ? ' · ' : ''}{fields.hnBarcode ? '|||||| ||| ||||' : ''}</div> : null}
+      {(fields.issuedDate || fields.issuedTime) ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{fields.issuedDate ? 'วันที่: 29 สิงหาคม 2569' : ''}{fields.issuedDate && fields.issuedTime ? ' · ' : ''}{fields.issuedTime ? 'เวลา: 09:30 น.' : ''}</div> : null}
+      {(fields.waitingAhead || fields.contact) ? <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{fields.waitingAhead ? 'ผู้รอคิวก่อนหน้า: 3 ราย' : ''}{fields.waitingAhead && fields.contact ? ' · ' : ''}{fields.contact ? 'ติดต่อ: 0 2245 1000' : ''}</div> : null}
+      {fields.servicePoint ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>จุดให้บริการ: {sample.service}</div> : null}
+      {fields.serviceStep ? <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>ขั้นตอนถัดไป: {sample.next}{fields.statusQr ? ' · QR ดูสถานะคิว' : ''}</div> : null}
+      {(fields.kioskNumber || fields.kioskName || fields.location || fields.floor) ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{fields.kioskNumber ? sample.kiosk : ''}{fields.kioskNumber && (fields.location || fields.floor) ? ' · ' : ''}{fields.location || fields.floor ? sample.location : ''}</div> : null}
+      {fields.callOrderNote ? <div style={{ marginTop: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-300)', borderTop: '1px dashed var(--border-neutral-tertiary)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>ลำดับการเรียกคิวไม่เรียงตามหมายเลข</div> : null}
+    </div>
+  );
+};
+
 const QueueKioskSettingsPage = () => {
   const location = useLocation();
   const isTicketSettings = location.pathname === '/queue-center/ticket-settings';
@@ -128,16 +151,17 @@ const QueueKioskSettingsPage = () => {
   const [saved, setSaved] = useState(false);
   const [monitors, setMonitors] = useState(INITIAL_MONITORS);
   const [monitorSaved, setMonitorSaved] = useState(false);
+  const [selectedMonitorId, setSelectedMonitorId] = useState('monitor-1');
+  const [previewMonitorId, setPreviewMonitorId] = useState('monitor-1');
+  const [announcementVoiceTone, setAnnouncementVoiceTone] = useState('female');
   const [activeChange, setActiveChange] = useState(null);
-  const [ticketKioskType, setTicketKioskType] = useState('queue');
   const [ticketSettingsByKioskType, setTicketSettingsByKioskType] = useState({
     queue: createTicketSettings(),
     payment: createTicketSettings(),
   });
-  const ticketSettings = ticketSettingsByKioskType[ticketKioskType];
-  const ticketPreviewSettings = draft?.purpose ? ticketSettingsByKioskType[draft.purpose] : null;
-  const ticketPreviewFields = ticketPreviewSettings?.displayFields || {};
   const [ticketSaved, setTicketSaved] = useState(false);
+  const selectedMonitor = monitors.find((monitor) => monitor.id === selectedMonitorId) || monitors[0];
+  const previewMonitor = monitors.find((monitor) => monitor.id === previewMonitorId) || monitors[0];
   const purposeLabel = useMemo(() => Object.fromEntries(PURPOSES.map((item) => [item.value, item.label])), []);
   const isNewDraft = !!draft && !kiosks.some((item) => item.id === draft.id);
 
@@ -177,11 +201,11 @@ const QueueKioskSettingsPage = () => {
     ...current,
     displayFields: { ...current.displayFields, [key]: value },
   }));
-  const updateTicketDisplayField = (key, value) => setTicketSettingsByKioskType((current) => ({
+  const updateTicketDisplayField = (kioskType, key, value) => setTicketSettingsByKioskType((current) => ({
     ...current,
-    [ticketKioskType]: {
-      ...current[ticketKioskType],
-      displayFields: { ...current[ticketKioskType].displayFields, [key]: value },
+    [kioskType]: {
+      ...current[kioskType],
+      displayFields: { ...current[kioskType].displayFields, [key]: value },
     },
   }));
 
@@ -214,6 +238,24 @@ const QueueKioskSettingsPage = () => {
     setActiveChange(null);
   };
 
+  const playVoicePreview = () => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    const voices = window.speechSynthesis.getVoices();
+    const isFemale = announcementVoiceTone === 'female';
+    const namePattern = isFemale
+      ? /female|woman|girl|หญิง|premwadee|kanya|siri/i
+      : /male|man|ชาย|pattara|narong|somchai/i;
+    const voice = voices.find((item) => item.lang.startsWith('th') && namePattern.test(item.name))
+      || voices.find((item) => item.lang.startsWith('th'));
+    const utterance = new SpeechSynthesisUtterance('ขอเชิญหมายเลข เอ ศูนย์สี่สอง เข้ารับบริการที่คลินิกตรวจรักษาทั่วไป');
+    utterance.lang = 'th-TH';
+    utterance.rate = 0.9;
+    utterance.pitch = isFemale ? 1.2 : 0.78;
+    if (voice) utterance.voice = voice;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  };
+
   const columns = [
     { key: 'kioskNumber', label: 'หมายเลขตู้', render: (row) => <ColorfulBadge style='teal' size='small' hierarchy='secondary'>{row.kioskNumber}</ColorfulBadge> },
     { key: 'kioskName', label: 'ชื่อตู้', flex: true, minWidth: 220 },
@@ -232,8 +274,8 @@ const QueueKioskSettingsPage = () => {
       sidebarItems={SYSTEM_NAV}
       sidebarFallbackKey='system-overview'
       sidebarHideActiveChevron
-      breadcrumb={['ระบบบริหารจัดการคิว', isDisplaySettings ? 'ตั้งค่าจอแสดงผลการเรียกคิว' : isTicketSettings ? 'ตั้งค่าใบคิว' : 'ตั้งค่าตู้บริการ(Kiosk)']}
-      title={isDisplaySettings ? 'ตั้งค่าจอแสดงผลการเรียกคิว' : isTicketSettings ? 'ตั้งค่าใบคิว' : 'ตั้งค่าตู้บริการ(Kiosk)'}
+      breadcrumb={['ระบบบริหารจัดการคิว', isDisplaySettings ? 'ตั้งค่าจอแสดงผลการเรียกคิว' : isTicketSettings ? 'ตั้งค่าตู้' : 'รายการตู้บริการ']}
+      title={isDisplaySettings ? 'ตั้งค่าจอแสดงผลการเรียกคิว' : isTicketSettings ? 'ตั้งค่าตู้' : 'รายการตู้บริการ'}
       summaryCards={[
         { key: 'all', label: 'ตู้บริการทั้งหมด', value: kiosks.length, indicator: 'รายการ', color: 'info', icon: 'print' },
         { key: 'active', label: 'เปิดใช้งาน', value: kiosks.filter((item) => item.active).length, indicator: 'พร้อมใช้งาน', color: 'positive', icon: 'check_circle' },
@@ -248,7 +290,7 @@ const QueueKioskSettingsPage = () => {
 
             <SectionCard
               icon='kiosk'
-              title='รายการตู้บริการ'
+            title='รายการตู้บริการ'
               subtitle='กำหนดข้อมูลประจำตู้ จุดประสงค์ และตำแหน่งตามโครงสร้างองค์กร'
               action={<BrandPrimaryButton leadingIcon='add' onClick={() => setDraft(blankKiosk())}>เพิ่มตู้บริการ</BrandPrimaryButton>}
             >
@@ -265,58 +307,39 @@ const QueueKioskSettingsPage = () => {
             tertiaryAction={{ label: 'ยกเลิก', onClick: () => setDraft(null) }}
             primaryAction={{ label: 'บันทึกการตั้งค่า', onClick: save, disabled: !draft.kioskNumber.trim() || !draft.kioskName.trim() || !draft.kioskId.trim() || !draft.organizationUnit || !draft.stationId || !draft.floor || !draft.purpose }}
           >
-            <div className='grid grid-cols-1 xl:grid-cols-2' style={{ gap: 'var(--dim-space-800)' }}>
+            <div className='w-full'>
               <section className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
                 <div>
                   <FieldLabel>ข้อมูลตู้บริการ</FieldLabel>
                   <HelperText>ระบุตัวตนและตำแหน่งของตู้ตามโครงสร้างองค์กร</HelperText>
                 </div>
-                <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                  <FieldLabel required>คลินิก / แผนก</FieldLabel>
-                  <Dropdown value={draft.organizationUnit} onChange={selectOrganizationUnit} options={ORGANIZATION_UNITS} placeholder='เลือกคลินิก / แผนก' />
-                </div>
-                <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                  <FieldLabel required>จุดรับบริการ / ห้องตรวจ</FieldLabel>
-                  <Dropdown value={draft.stationId} onChange={selectStation} options={stationsForUnit(draft.organizationUnit).map((station) => ({ value: station.id, label: station.label }))} placeholder='เลือกจุดบริการ / ห้องตรวจ' state={draft.organizationUnit ? 'default' : 'disabled'} />
-                </div>
-                <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                  <FieldLabel required>จุดประสงค์</FieldLabel>
-                  <Dropdown value={draft.purpose} onChange={selectPurpose} options={PURPOSES} placeholder='เลือกจุดประสงค์' />
-                </div>
-                <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                  <FieldLabel required>ชั้น</FieldLabel>
-                  <Dropdown
-                    value={draft.floor}
-                    onChange={(floor) => update('floor', floor)}
-                    options={draft.stationId ? [{ value: QUEUE_STATIONS.find((station) => station.id === draft.stationId)?.floor || '', label: QUEUE_STATIONS.find((station) => station.id === draft.stationId)?.floor || '—' }] : []}
-                    placeholder='เลือกชั้น'
-                    state={draft.stationId ? 'default' : 'disabled'}
-                  />
-                </div>
-                <InputField label='ชื่อตู้' required value={draft.kioskName} onChange={(value) => update('kioskName', value)} placeholder='ระบบจะสร้างให้อัตโนมัติ' disabled={isNewDraft} />
-                <InputField label='หมายเลขตู้ (แสดงบนใบคิว)' required value={draft.kioskNumber} onChange={(value) => update('kioskNumber', value)} placeholder='ระบบจะสร้างให้อัตโนมัติ' disabled={isNewDraft} />
-                <InputField label='รหัสตู้ (Kiosk ID)' required value={draft.kioskId} onChange={(value) => update('kioskId', value)} placeholder='ระบบจะสร้างให้อัตโนมัติ' disabled={isNewDraft} />
-              </section>
-
-              <section className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
-                <div>
-                  <FieldLabel>ตัวอย่างใบคิว</FieldLabel>
-                  <HelperText>{draft.purpose ? `อ้างอิงการตั้งค่าของ${TICKET_KIOSK_TYPES.find((item) => item.value === draft.purpose)?.label}` : 'เลือกจุดประสงค์เพื่อดูตัวอย่างใบคิว'}</HelperText>
-                </div>
-                {ticketPreviewSettings ? (
-                  <div className='mx-auto w-full' style={{ ...CARD_STYLE, maxWidth: 360, padding: 'var(--dim-space-500)', textAlign: 'center', borderStyle: 'dashed' }}>
-                    <Icon name='confirmation_number' size={28} style={{ color: 'var(--text-brandPrimary-default)' }} />
-                    {ticketPreviewFields.queueNumber ? <div style={{ marginTop: 'var(--dim-space-200)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-lg)', color: 'var(--text-content-primary)' }}>A-042</div> : null}
-                    {ticketPreviewFields.patientName ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>นายสมชาย มีสุข</div> : null}
-                    {(ticketPreviewFields.hn || ticketPreviewFields.hnBarcode) ? <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{ticketPreviewFields.hn ? 'HN: 67-00001' : ''}{ticketPreviewFields.hn && ticketPreviewFields.hnBarcode ? ' · ' : ''}{ticketPreviewFields.hnBarcode ? '|||||| ||| ||||' : ''}</div> : null}
-                    {(ticketPreviewFields.issuedDate || ticketPreviewFields.issuedTime) ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{ticketPreviewFields.issuedDate ? 'วันที่: 29 สิงหาคม 2569' : ''}{ticketPreviewFields.issuedDate && ticketPreviewFields.issuedTime ? ' · ' : ''}{ticketPreviewFields.issuedTime ? 'เวลา: 09:30 น.' : ''}</div> : null}
-                    {(ticketPreviewFields.waitingAhead || ticketPreviewFields.contact) ? <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{ticketPreviewFields.waitingAhead ? 'ผู้รอคิวก่อนหน้า: 3 ราย' : ''}{ticketPreviewFields.waitingAhead && ticketPreviewFields.contact ? ' · ' : ''}{ticketPreviewFields.contact ? 'ติดต่อ: 0 2245 1000' : ''}</div> : null}
-                    {ticketPreviewFields.servicePoint ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>จุดให้บริการ: {draft.stationId ? kioskStationLabel(draft.stationId) : '—'}</div> : null}
-                    {ticketPreviewFields.serviceStep ? <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>ขั้นตอนถัดไป: จุดคัดกรอง</div> : null}
-                    {(ticketPreviewFields.kioskName || ticketPreviewFields.kioskNumber || ticketPreviewFields.location || ticketPreviewFields.floor) ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{ticketPreviewFields.kioskName ? draft.kioskName || 'ชื่อตู้บริการ' : ''}{ticketPreviewFields.kioskName && ticketPreviewFields.kioskNumber ? ' · ' : ''}{ticketPreviewFields.kioskNumber ? draft.kioskNumber || 'หมายเลขตู้' : ''}{ticketPreviewFields.location ? ` · ${organizationLabel(draft.organizationUnit)}` : ''}{ticketPreviewFields.floor ? ` · ${draft.floor || 'ชั้น'}` : ''}</div> : null}
-                    {(ticketPreviewFields.statusQr || ticketPreviewFields.callOrderNote) ? <div style={{ marginTop: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-300)', borderTop: '1px dashed var(--border-neutral-tertiary)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{ticketPreviewFields.statusQr ? 'QR ดูสถานะคิว' : ''}{ticketPreviewFields.statusQr && ticketPreviewFields.callOrderNote ? ' · ' : ''}{ticketPreviewFields.callOrderNote ? 'ลำดับการเรียกคิวไม่เรียงตามหมายเลข' : ''}</div> : null}
+                <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-400)' }}>
+                  <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                    <FieldLabel required>คลินิก / แผนก</FieldLabel>
+                    <Dropdown value={draft.organizationUnit} onChange={selectOrganizationUnit} options={ORGANIZATION_UNITS} placeholder='เลือกคลินิก / แผนก' />
                   </div>
-                ) : <div style={{ ...CARD_STYLE, padding: 'var(--dim-space-500)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', textAlign: 'center' }}>ยังไม่ได้เลือกประเภทตู้</div>}
+                  <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                    <FieldLabel required>จุดรับบริการ / ห้องตรวจ</FieldLabel>
+                    <Dropdown value={draft.stationId} onChange={selectStation} options={stationsForUnit(draft.organizationUnit).map((station) => ({ value: station.id, label: station.label }))} placeholder='เลือกจุดบริการ / ห้องตรวจ' state={draft.organizationUnit ? 'default' : 'disabled'} />
+                  </div>
+                  <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                    <FieldLabel required>จุดประสงค์</FieldLabel>
+                    <Dropdown value={draft.purpose} onChange={selectPurpose} options={PURPOSES} placeholder='เลือกจุดประสงค์' />
+                  </div>
+                  <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                    <FieldLabel required>ชั้น</FieldLabel>
+                    <Dropdown
+                      value={draft.floor}
+                      onChange={(floor) => update('floor', floor)}
+                      options={draft.stationId ? [{ value: QUEUE_STATIONS.find((station) => station.id === draft.stationId)?.floor || '', label: QUEUE_STATIONS.find((station) => station.id === draft.stationId)?.floor || '—' }] : []}
+                      placeholder='เลือกชั้น'
+                      state={draft.stationId ? 'default' : 'disabled'}
+                    />
+                  </div>
+                  <InputField label='ชื่อตู้' required value={draft.kioskName} onChange={(value) => update('kioskName', value)} placeholder='ระบบจะสร้างให้อัตโนมัติ' disabled={isNewDraft} />
+                  <InputField label='หมายเลขตู้ (แสดงบนใบคิว)' required value={draft.kioskNumber} onChange={(value) => update('kioskNumber', value)} placeholder='ระบบจะสร้างให้อัตโนมัติ' disabled={isNewDraft} />
+                  <InputField className='md:col-span-2' label='รหัสตู้ (Kiosk ID)' required value={draft.kioskId} onChange={(value) => update('kioskId', value)} placeholder='ระบบจะสร้างให้อัตโนมัติ' disabled={isNewDraft} />
+                </div>
               </section>
             </div>
 
@@ -326,103 +349,193 @@ const QueueKioskSettingsPage = () => {
         ) : null}
 
         {isTicketSettings ? (
-          <SectionCard
-            icon='receipt_long'
-            title='ข้อมูลบนใบคิว'
-            subtitle='กำหนดค่าเริ่มต้น ขนาดกระดาษ และข้อมูลที่ต้องการแสดงบนใบคิว'
-            action={<BrandPrimaryButton leadingIcon='save' onClick={() => { setTicketSaved(true); window.setTimeout(() => setTicketSaved(false), 2400); }}>บันทึกการตั้งค่าใบคิว</BrandPrimaryButton>}
-          >
-            {ticketSaved ? <div role='status' style={{ marginBottom: 'var(--dim-space-400)', color: 'var(--text-positive-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>บันทึกการตั้งค่าใบคิวเรียบร้อยแล้ว</div> : null}
-            <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-400)' }}>
-              <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                <FieldLabel required>ประเภทตู้</FieldLabel>
-                <Dropdown value={ticketKioskType} onChange={setTicketKioskType} options={TICKET_KIOSK_TYPES} placeholder='เลือกประเภทตู้' />
-              </div>
-              <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                <FieldLabel>ความกว้างกระดาษที่พิมพ์ออกจากตู้</FieldLabel>
-                <Dropdown value={ticketSettings.ticketSize} onChange={(ticketSize) => setTicketSettingsByKioskType((current) => ({
-                  ...current,
-                  [ticketKioskType]: { ...current[ticketKioskType], ticketSize },
-                }))} options={TICKET_SIZES} />
-              </div>
-            </div>
-            <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)', marginTop: 'var(--dim-space-500)' }}>
-              <div>
-                <FieldLabel>ข้อมูลที่ต้องการแสดงบนใบคิว</FieldLabel>
-                <HelperText>ข้อมูลสถานที่จะแสดงตาม คลินิก/แผนก จุดรับบริการ/ห้องตรวจ และชั้นของตู้บริการ</HelperText>
-              </div>
-              <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-200)' }}>
-                {DISPLAY_FIELDS.map((field) => (
-                  <Checkbox
-                    key={field.key}
-                    checked={!!ticketSettings.displayFields[field.key]}
-                    onChange={(value) => updateTicketDisplayField(field.key, value)}
-                    label={field.label}
-                  />
-                ))}
-              </div>
-            </div>
-          </SectionCard>
-        ) : null}
-
-        {isTicketSettings ? (
-          <SectionCard icon='receipt_long' title='ตัวอย่างข้อมูลบนใบคิว' subtitle='รายละเอียดบังคับตาม TOR: หมายเลขคิว ชื่อ–นามสกุล HN/Barcode จุดบริการ ขั้นตอน QR สถานะ และข้อความกำกับลำดับคิว'>
-          <div style={{ ...CARD_STYLE, maxWidth: 360, padding: 'var(--dim-space-500)', textAlign: 'center', borderStyle: 'dashed' }}>
-            <Icon name='confirmation_number' size={28} style={{ color: 'var(--text-brandPrimary-default)' }} />
-            <div style={{ marginTop: 'var(--dim-space-200)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-lg)', color: 'var(--text-content-primary)' }}>A-042</div>
-            <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>นายสมชาย มีสุข</div>
-            <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>HN: 67-00001 · |||||| ||| ||||</div>
-            <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>วันที่: 29 สิงหาคม 2569 · เวลา: 09:30 น.</div>
-            <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>ผู้รอคิวก่อนหน้า: 3 ราย · ติดต่อ: 0 2245 1000</div>
-            <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>จุดให้บริการ: คลินิกตรวจรักษาทั่วไป</div>
-            <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>ขั้นตอนถัดไป: จุดคัดกรอง · QR ดูสถานะคิว</div>
-            <div style={{ marginTop: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-300)', borderTop: '1px dashed var(--border-neutral-tertiary)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>ลำดับการเรียกคิวไม่เรียงตามหมายเลข</div>
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-600)' }}>
+            {ticketSaved ? <div role='status' style={{ ...CARD_STYLE, padding: 'var(--dim-space-300)', color: 'var(--text-positive-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>บันทึกการตั้งค่าใบคิวเรียบร้อยแล้ว</div> : null}
+            {TICKET_KIOSK_TYPES.map((type) => {
+                const settings = ticketSettingsByKioskType[type.value];
+                const isQueueKiosk = type.value === 'queue';
+                return (
+                  <div key={type.value} className='grid grid-cols-1 xl:grid-cols-2' style={{ gap: 'var(--dim-space-600)' }}>
+                    <SectionCard
+                      icon={isQueueKiosk ? 'kiosk' : 'payments'}
+                      title={`กลุ่ม${type.label}`}
+                      subtitle={isQueueKiosk ? 'กำหนดรูปแบบใบคิวสำหรับตู้กดคิวทุกตู้' : 'กำหนดรูปแบบใบคิวสำหรับตู้ชำระเงินทุกตู้'}
+                      action={<BrandPrimaryButton leadingIcon='save' onClick={() => { setTicketSaved(true); window.setTimeout(() => setTicketSaved(false), 2400); }}>บันทึกกลุ่มนี้</BrandPrimaryButton>}
+                    >
+                      <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                        <FieldLabel>ความกว้างกระดาษที่พิมพ์ออกจากตู้</FieldLabel>
+                        <Dropdown value={settings.ticketSize} onChange={(ticketSize) => setTicketSettingsByKioskType((current) => ({
+                          ...current,
+                          [type.value]: { ...current[type.value], ticketSize },
+                        }))} options={TICKET_SIZES} />
+                      </div>
+                      <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+                        <div>
+                          <FieldLabel>ข้อมูลที่ต้องการแสดงบนใบคิว</FieldLabel>
+                          <HelperText>ข้อมูลสถานที่จะแสดงตามคลินิก/แผนก จุดรับบริการ/ห้องตรวจ และชั้นของตู้บริการ</HelperText>
+                        </div>
+                        <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-200)' }}>
+                          {DISPLAY_FIELDS.map((field) => (
+                            <Checkbox
+                              key={field.key}
+                              checked={!!settings.displayFields[field.key]}
+                              onChange={(value) => updateTicketDisplayField(type.value, field.key, value)}
+                              label={field.label}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </SectionCard>
+                    <SectionCard
+                      icon='receipt_long'
+                      title={`ตัวอย่างใบคิว — ${type.label}`}
+                      subtitle='ตัวอย่างจะอัปเดตตามข้อมูลที่เลือกในกลุ่มนี้'
+                    >
+                      <TicketPreview kioskType={type.value} settings={settings} />
+                    </SectionCard>
+                  </div>
+                );
+            })}
           </div>
-          </SectionCard>
         ) : null}
 
         {isDisplaySettings ? (
-          <SectionCard
-            icon='tv'
-            title='ตั้งค่าจอ Monitor'
-            subtitle='กำหนดว่าจอที่ 1, 2 และ 3 จะแสดงคิวของจุดบริการ/แผนกใดบ้าง เลือกได้มากกว่า 1 จุดบริการต่อจอ'
-            action={(
-              <BrandPrimaryButton leadingIcon='save' onClick={() => { setMonitorSaved(true); window.setTimeout(() => setMonitorSaved(false), 2400); }}>
-                บันทึกการตั้งค่าจอ
-              </BrandPrimaryButton>
-            )}
-          >
-            {monitorSaved ? <div role='status' style={{ marginBottom: 'var(--dim-space-400)', color: 'var(--text-positive-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>บันทึกการตั้งค่าจอเรียบร้อยแล้ว</div> : null}
-            <div className='grid grid-cols-1 lg:grid-cols-3' style={{ gap: 'var(--dim-space-400)' }}>
-            {monitors.map((monitor) => (
-              <div key={monitor.id} style={{ ...CARD_STYLE, padding: 'var(--dim-space-400)', boxShadow: 'none' }}>
-                <div className='flex items-start' style={{ gap: 'var(--dim-space-200)', marginBottom: 'var(--dim-space-300)' }}>
-                  <span className='inline-flex items-center justify-center shrink-0' style={{ width: 36, height: 36, borderRadius: 'var(--dim-radius-300)', background: 'var(--surface-brandPrimary-quaternary)', color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)' }}>{monitor.number}</span>
-                  <div className='flex flex-col min-w-0'>
-                    <strong style={{ color: 'var(--text-content-primary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>{monitor.name}</strong>
-                    <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{monitor.location}</span>
+          <div className='grid grid-cols-1 xl:grid-cols-2' style={{ gap: 'var(--dim-space-600)' }}>
+            <SectionCard
+              icon='tv'
+              title='ตั้งค่าจอแสดงผล'
+              subtitle='กำหนดจุดบริการที่จะแสดงบนแต่ละจอ'
+              action={(
+                <BrandPrimaryButton leadingIcon='save' onClick={() => { setMonitorSaved(true); window.setTimeout(() => setMonitorSaved(false), 2400); }}>
+                  บันทึกการตั้งค่าจอ
+                </BrandPrimaryButton>
+              )}
+            >
+              {monitorSaved ? <div role='status' style={{ marginBottom: 'var(--dim-space-400)', color: 'var(--text-positive-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>บันทึกการตั้งค่าจอเรียบร้อยแล้ว</div> : null}
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
+                <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                  <FieldLabel>เลือกจอที่ต้องการตั้งค่า</FieldLabel>
+                  <Dropdown
+                    value={selectedMonitor?.id || ''}
+                    onChange={setSelectedMonitorId}
+                    options={monitors.map((monitor) => ({ value: monitor.id, label: `${monitor.name} · ${monitor.location}` }))}
+                  />
+                </div>
+                <div style={{ ...CARD_STYLE, padding: 'var(--dim-space-400)', boxShadow: 'none' }}>
+                  <div className='flex items-start' style={{ gap: 'var(--dim-space-200)', marginBottom: 'var(--dim-space-300)' }}>
+                    <span className='inline-flex items-center justify-center shrink-0' style={{ width: 36, height: 36, borderRadius: 'var(--dim-radius-300)', background: 'var(--surface-brandPrimary-quaternary)', color: 'var(--text-brandPrimary-default)', fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'var(--type-size-base)' }}>{selectedMonitor?.number}</span>
+                    <div className='flex flex-col min-w-0'>
+                      <strong style={{ color: 'var(--text-content-primary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>{selectedMonitor?.name}</strong>
+                      <span style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{selectedMonitor?.location}</span>
+                    </div>
+                  </div>
+                  <div className='grid grid-cols-1 sm:grid-cols-2' style={{ gap: 'var(--dim-space-200)' }}>
+                    {QUEUE_STATIONS.filter((station) => station.active).map((station) => (
+                      <label key={station.id} className='flex items-center' style={{ gap: 'var(--dim-space-200)', color: 'var(--text-content-primary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
+                        <Switch
+                          checked={selectedMonitor?.stationIds.includes(station.id)}
+                          onChange={() => toggleMonitorStation(selectedMonitor.id, station.id)}
+                          aria-label={`แสดงคิว ${station.label} บน${selectedMonitor?.name}`}
+                        />
+                        <span className='flex-1'>{station.label}</span>
+                        <span style={{ color: 'var(--text-content-tertiary)' }}>{station.prefix}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-300)', borderTop: '1px solid var(--border-table-line)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
+                    แสดง {selectedMonitor?.stationIds.filter((id) => QUEUE_STATIONS.some((station) => station.id === id)).length} จุดบริการ
                   </div>
                 </div>
-                <div className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
-                  {QUEUE_STATIONS.filter((station) => station.active).map((station) => (
-                    <label key={station.id} className='flex items-center' style={{ gap: 'var(--dim-space-200)', color: 'var(--text-content-primary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
-                      <Switch
-                        checked={monitor.stationIds.includes(station.id)}
-                        onChange={() => toggleMonitorStation(monitor.id, station.id)}
-                        aria-label={`แสดงคิว ${station.label} บน${monitor.name}`}
-                      />
-                      <span className='flex-1'>{station.label}</span>
-                      <span style={{ color: 'var(--text-content-tertiary)' }}>{station.prefix}</span>
-                    </label>
-                  ))}
+              </div>
+            </SectionCard>
+
+            <SectionCard
+              icon='tv'
+              title='Preview จอแสดงผล'
+              subtitle='ตรวจสอบหน้าจอและเสียงประกาศก่อนนำไปใช้งานจริง'
+            >
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
+                <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                  <FieldLabel>เลือกจอสำหรับดูตัวอย่าง</FieldLabel>
+                  <Dropdown
+                    value={previewMonitor?.id || ''}
+                    onChange={setPreviewMonitorId}
+                    options={monitors.map((monitor) => ({ value: monitor.id, label: `${monitor.name} · ${monitor.location}` }))}
+                  />
                 </div>
-                <div style={{ marginTop: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-300)', borderTop: '1px solid var(--border-table-line)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>
-                  แสดง {monitor.stationIds.filter((id) => QUEUE_STATIONS.some((station) => station.id === id)).length} จุดบริการ
+
+                <div
+                  aria-label={`ตัวอย่างหน้าจอ ${previewMonitor?.name || ''}`}
+                  className='flex flex-col justify-between'
+                  style={{ minHeight: 300, padding: 'var(--dim-space-500)', borderRadius: 'var(--dim-radius-500)', background: 'var(--surface-brandPrimary-default)', color: 'var(--text-content-onContent)', boxShadow: 'var(--elevation-200)' }}
+                >
+                  <div className='flex items-center justify-between' style={{ gap: 'var(--dim-space-200)' }}>
+                    <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+                      <Icon name='tv' size={20} />
+                      <strong style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>{previewMonitor?.name}</strong>
+                    </div>
+                    <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{previewMonitor?.location}</span>
+                  </div>
+                  <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-150)', textAlign: 'center' }}>
+                    <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', opacity: 0.85 }}>กำลังเรียกคิว</span>
+                    <strong style={{ fontFamily: 'var(--type-family-heading-graphic2)', fontSize: 'clamp(48px, 7vw, 76px)', lineHeight: 1 }}>A-042</strong>
+                    <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-base)' }}>คลินิกตรวจรักษาทั่วไป</span>
+                  </div>
+                  <div className='flex flex-wrap justify-center' style={{ gap: 'var(--dim-space-150)' }}>
+                    {QUEUE_STATIONS.filter((station) => previewMonitor?.stationIds.includes(station.id)).slice(0, 4).map((station) => (
+                      <span key={station.id} style={{ padding: 'var(--dim-space-100) var(--dim-space-200)', borderRadius: 'var(--dim-radius-full)', background: 'rgba(255,255,255,0.16)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{station.prefix} · {station.label}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ ...CARD_STYLE, padding: 'var(--dim-space-400)', boxShadow: 'none' }}>
+                  <div className='flex items-start justify-between' style={{ gap: 'var(--dim-space-300)', marginBottom: 'var(--dim-space-300)' }}>
+                    <div>
+                      <strong style={{ color: 'var(--text-content-primary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>เสียงประกาศ</strong>
+                      <div style={{ marginTop: 'var(--dim-space-050)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>เลือกโทนเสียงและฟังข้อความตัวอย่าง</div>
+                    </div>
+                    <Icon name='volume_up' size={22} style={{ color: 'var(--text-brandPrimary-default)' }} />
+                  </div>
+                  <div className='grid grid-cols-1 sm:grid-cols-3' style={{ gap: 'var(--dim-space-200)', alignItems: 'end' }}>
+                    {[
+                      { value: 'female', label: 'เสียงผู้หญิง' },
+                      { value: 'male', label: 'เสียงผู้ชาย' },
+                    ].map((voice) => {
+                      const selected = announcementVoiceTone === voice.value;
+                      return (
+                        <button
+                          key={voice.value}
+                          type='button'
+                          onClick={() => setAnnouncementVoiceTone(voice.value)}
+                          aria-pressed={selected}
+                          className='flex items-center justify-center'
+                          style={{
+                            minHeight: 40,
+                            padding: '0 var(--dim-space-250)',
+                            gap: 'var(--dim-space-100)',
+                            borderRadius: 'var(--dim-radius-200)',
+                            border: `1px solid ${selected ? 'var(--border-brandPrimary-default)' : 'var(--border-neutral-tertiary)'}`,
+                            background: selected ? 'var(--surface-brandPrimary-quaternary)' : 'var(--surface-card-100)',
+                            color: selected ? 'var(--text-brandPrimary-default)' : 'var(--text-content-secondary)',
+                            fontFamily: 'var(--type-family-body)',
+                            fontSize: 'var(--type-size-sm)',
+                            fontWeight: selected ? 'var(--type-weight-semibold)' : 'var(--type-weight-regular)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Icon name='volume_up' size={16} />
+                          {voice.label}
+                        </button>
+                      );
+                    })}
+                    <NeutralSubdueButton leadingIcon='volume_up' onClick={playVoicePreview}>
+                      ฟังตัวอย่างเสียง
+                    </NeutralSubdueButton>
+                  </div>
                 </div>
               </div>
-            ))}
-            </div>
-          </SectionCard>
+            </SectionCard>
+          </div>
         ) : null}
 
         <Popup
