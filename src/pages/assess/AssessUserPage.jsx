@@ -63,6 +63,17 @@ const TEXT_CELL = {
   lineHeight: 1.5,
 };
 
+/* deletedAt เก็บเป็น ISO — แสดงเป็น พ.ศ. แบบเดียวกับที่อื่นในระบบ
+   พร้อมเวลา เพราะบันทึกนี้ใช้ตรวจสอบย้อนหลัง วันอย่างเดียวหยาบเกินไป */
+const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+const formatDeletedAt = (iso) => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${d.getFullYear() + 543} · ${time} น.`;
+};
+
 const AMBULANCE_LOTTIE = '/illustration/ambulance.json';
 
 function EmptyIllustration() {
@@ -95,6 +106,7 @@ export default function AssessUserPage() {
   const [records, setRecords] = useState(() => readAssessUsers());
   const [search, setSearch] = useState('');
   const [toggleConfirm, setToggleConfirm] = useState(null);
+  const [restoreConfirm, setRestoreConfirm] = useState(null);
   /* แท็บ ทั้งหมด / แบบร่าง — ชุดเดียวกับหน้าศูนย์บริการและรูปแบบโครงสร้างศูนย์ */
   const [tab, setTab] = useState('all');
   const [createOpen, setCreateOpen] = useState(false);
@@ -124,6 +136,13 @@ export default function AssessUserPage() {
     () => records.filter((record) => record.accountStatus !== 'deleted'),
     [records],
   );
+  /* ...แต่ต้องมีที่ให้เปิดดูจริง ไม่งั้นเหตุผลที่บังคับกรอกตอนลบก็เขียนทิ้งเปล่า
+     แท็บนี้จึงเป็นปลายทางเดียวของ deletionReason / deletedAt */
+  const deletedRecords = useMemo(
+    () => records.filter((record) => record.accountStatus === 'deleted'),
+    [records],
+  );
+  const isDeletedTab = tab === 'deleted';
   const stats = useMemo(() => computeAssessUserStats(directoryRecords), [directoryRecords]);
 
   const summaryCards = useMemo(() => [
@@ -145,9 +164,9 @@ export default function AssessUserPage() {
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return directoryRecords.filter((r) => {
+    return (isDeletedTab ? deletedRecords : directoryRecords).filter((r) => {
       const primary = primaryAssignment(r);
-      if ((tab === 'draft') !== !!r.draft) return false;
+      if (!isDeletedTab && (tab === 'draft') !== !!r.draft) return false;
       if (filterCenter && primary?.centerId !== filterCenter) return false;
       if (filterRole && primary?.subActivityId !== filterRole) return false;
       if (filterDept && primary?.departmentId !== filterDept) return false;
@@ -156,9 +175,11 @@ export default function AssessUserPage() {
       const hay = [fullName(r), r.email, r.licenseNo, r.nameEn, r.surnameEn].join(' ').toLowerCase();
       return hay.includes(q);
     });
-  }, [directoryRecords, search, tab, filterCenter, filterRole, filterDept, filterPosition]);
+  }, [directoryRecords, deletedRecords, isDeletedTab, search, tab, filterCenter, filterRole, filterDept, filterPosition]);
 
-  const hasRecords = directoryRecords.length > 0;
+  /* ทะเบียนที่เหลือแต่บัญชีที่ถูกลบยังต้องมีแท็บให้กดเข้าไปดูประวัติได้
+     ไม่งั้นภาพ empty state จะกลืนหลักฐานการลบไปทั้งชุด */
+  const hasRecords = directoryRecords.length > 0 || deletedRecords.length > 0;
   const filtersActive = !!(filterCenter || filterRole || filterDept || filterPosition || search.trim());
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     filtersActive,
@@ -185,6 +206,22 @@ export default function AssessUserPage() {
     showToast(next ? 'เปิดใช้งานบุคลากรแล้ว' : 'ปิดใช้งานบุคลากรแล้ว');
   };
 
+  /* กู้คืนแล้วกลับเข้าทะเบียนในสถานะ "ปิดใช้งาน" ไม่ใช่เปิดทันที — คนที่ถูกลบ
+     ไปแล้วต้องมีคนตัดสินใจเปิดสิทธิ์ให้อีกครั้งอย่างตั้งใจ ส่วน deletionReason /
+     deletedAt เก็บไว้ตามเดิม เพราะเป็นประวัติที่เกิดขึ้นจริง ลบทิ้งไม่ได้ */
+  const applyRestore = (id) => {
+    persist(records.map((r) => (r.id === id ? {
+      ...r,
+      active: false,
+      accountStatus: 'suspended',
+      restoredAt: new Date().toISOString(),
+    } : r)));
+    /* กู้คืนรายสุดท้ายแล้วแท็บนี้จะหายไป ต้องพากลับ "ทั้งหมด" เอง
+       ไม่งั้นค้างอยู่บนแท็บที่ไม่มีอยู่แล้วและตารางว่างเปล่า */
+    if (deletedRecords.length <= 1) setTab('all');
+    showToast('กู้คืนบัญชีแล้ว — อยู่ในสถานะปิดใช้งาน');
+  };
+
   /* สลับสถานะบุคลากรกระทบสิทธิ์เข้าระบบทันที — ถามยืนยันทั้งเปิดและปิด
      (ต่างจากหน้าตำแหน่ง/แผนกที่ถามเฉพาะตอนปิด) */
   const handleToggleActive = (row, next) => {
@@ -194,7 +231,11 @@ export default function AssessUserPage() {
   const tabDefs = useMemo(() => ([
     { key: 'all', label: 'ทั้งหมด', icon: 'group', count: directoryRecords.filter((r) => !r.draft).length },
     { key: 'draft', label: 'บันทึกร่าง', icon: 'save', count: directoryRecords.filter((r) => r.draft).length },
-  ]), [directoryRecords]);
+    /* ขึ้นเฉพาะเมื่อมีของให้ดู — ทะเบียนที่ไม่เคยลบใครไม่ต้องมีแท็บว่างค้างไว้ */
+    ...(deletedRecords.length
+      ? [{ key: 'deleted', label: 'บัญชีที่ถูกลบ', icon: 'delete', count: deletedRecords.length }]
+      : []),
+  ]), [directoryRecords, deletedRecords]);
 
   const columns = useMemo(() => [
     {
@@ -262,44 +303,74 @@ export default function AssessUserPage() {
       header: 'ศูนย์บริการ',
       render: (row) => <span style={TEXT_CELL}>{assignmentCenterLabel(primaryAssignment(row)) || '—'}</span>,
     },
-    {
-      key: 'active',
-      header: 'สถานะการใช้งาน',
-      render: (row) => (
-        <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} role='presentation'>
-          <Switch
-            checked={row.active}
-            onChange={(next) => handleToggleActive(row, next)}
-            aria-label={`สถานะ ${fullName(row)}`}
-          />
-        </span>
-      ),
-    },
-    {
-      key: 'action',
-      header: 'การดำเนินการ',
-      render: (row) => (
-        <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+    /* แท็บบัญชีที่ถูกลบไม่มีสวิตช์เปิด–ปิด — บัญชีที่ถูกลบไม่มีสถานะใช้งาน
+       ให้สลับ สิ่งที่ต้องอ่านคือ "ใครลบ เมื่อไร ด้วยเหตุผลอะไร" */
+    ...(isDeletedTab ? [
+      {
+        key: 'deletionReason',
+        header: 'เหตุผลที่ลบ',
+        flex: 1,
+        minWidth: 220,
+        render: (row) => <span style={TEXT_CELL} className='truncate'>{row.deletionReason || '—'}</span>,
+      },
+      {
+        key: 'deletedAt',
+        header: 'วันที่ลบ',
+        render: (row) => <span style={TEXT_CELL}>{formatDeletedAt(row.deletedAt)}</span>,
+      },
+      {
+        key: 'action',
+        header: 'การดำเนินการ',
+        render: (row) => (
           <NeutralSubdueButton
-            leadingIcon='visibility'
+            leadingIcon='restore'
             size='sm'
-            onClick={(e) => { e.stopPropagation(); openAccess(row); }}
+            onClick={(e) => { e.stopPropagation(); setRestoreConfirm({ id: row.id, name: fullName(row) }); }}
           >
-            ดูสิทธิการเข้าถึงระบบ
+            กู้คืนบัญชี
           </NeutralSubdueButton>
-          {/* แก้ไขบุคลากรจากทะเบียนได้เลย ไม่ต้องเข้าหน้ารายละเอียดก่อน
-              (26 ส.ค. 2569 มติผู้ใช้) */}
-          <NeutralSubdueButton
-            leadingIcon='edit'
-            size='sm'
-            onClick={(e) => { e.stopPropagation(); setEditUser(row); }}
-          >
-            แก้ไข
-          </NeutralSubdueButton>
-        </span>
-      ),
-    },
-  ], [records]);
+        ),
+      },
+    ] : [
+      {
+        key: 'active',
+        header: 'สถานะการใช้งาน',
+        render: (row) => (
+          <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} role='presentation'>
+            <Switch
+              checked={row.active}
+              onChange={(next) => handleToggleActive(row, next)}
+              aria-label={`สถานะ ${fullName(row)}`}
+            />
+          </span>
+        ),
+      },
+      {
+        key: 'action',
+        header: 'การดำเนินการ',
+        render: (row) => (
+          <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+            <NeutralSubdueButton
+              leadingIcon='visibility'
+              size='sm'
+              onClick={(e) => { e.stopPropagation(); openAccess(row); }}
+            >
+              ดูสิทธิการเข้าถึงระบบ
+            </NeutralSubdueButton>
+            {/* แก้ไขบุคลากรจากทะเบียนได้เลย ไม่ต้องเข้าหน้ารายละเอียดก่อน
+                (26 ส.ค. 2569 มติผู้ใช้) */}
+            <NeutralSubdueButton
+              leadingIcon='edit'
+              size='sm'
+              onClick={(e) => { e.stopPropagation(); setEditUser(row); }}
+            >
+              แก้ไข
+            </NeutralSubdueButton>
+          </span>
+        ),
+      },
+    ]),
+  ], [records, isDeletedTab]);
 
   /* แม่แบบสิทธิ์ที่ "ตรง" กับ assignment ของคนคนนี้ — เกณฑ์เดียวกับหน้าสิทธิ์
      การเข้าถึงระบบ (matchingAssignments) จึงไม่มีทางเห็นไม่ตรงกันสองที่ */
@@ -548,6 +619,28 @@ export default function AssessUserPage() {
         cancelLabel='ยกเลิก'
         onConfirm={() => {
           if (toggleConfirm) applyToggleActive(toggleConfirm.id, toggleConfirm.next);
+        }}
+      />
+
+      <AlertDialog
+        open={!!restoreConfirm}
+        onClose={() => setRestoreConfirm(null)}
+        type='warning'
+        alignment='center'
+        title='กู้คืนบัญชีที่ถูกลบ?'
+        description={restoreConfirm ? (
+          <>
+            {'ต้องการนำ'}
+            <br />
+            {`"${restoreConfirm.name}"`}
+            <br />
+            {'กลับเข้าทะเบียนบุคลากรหรือไม่ บัญชีจะกลับมาในสถานะปิดใช้งาน'}
+          </>
+        ) : ''}
+        confirmLabel='กู้คืนบัญชี'
+        cancelLabel='ยกเลิก'
+        onConfirm={() => {
+          if (restoreConfirm) applyRestore(restoreConfirm.id);
         }}
       />
 

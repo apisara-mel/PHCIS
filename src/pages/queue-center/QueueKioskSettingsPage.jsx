@@ -119,12 +119,24 @@ const blankKiosk = () => ({
   ticketSize: '80mm', displayFields: { ...TICKET_DISPLAY_DEFAULTS, kioskNumber: true, kioskName: true, kioskId: false, location: true, floor: true }, active: true,
 });
 
+/* ทุกช่องใน DISPLAY_FIELDS ต้องเห็นผลในตัวอย่างได้ด้วยตัวเอง — ติ๊กช่องเดียว
+   แล้วไม่มีอะไรเปลี่ยน แปลว่าผู้ใช้ตั้งค่าโดยไม่รู้ว่าจะได้ใบคิวหน้าตาแบบไหน
+   จึงแยก "ชื่อตู้ / หมายเลขตู้ / ตำแหน่งที่ตั้ง / ชั้น" เป็นตัวอย่างคนละค่า
+   และให้ QR เป็นบรรทัดของตัวเอง ไม่ห้อยท้ายขั้นตอนรับบริการ */
+const joinParts = (parts) => parts.filter(Boolean).join(' · ');
+
 const TicketPreview = ({ kioskType, settings }) => {
   const fields = settings.displayFields;
   const isQueueKiosk = kioskType === 'queue';
   const sample = isQueueKiosk
-    ? { code: 'A-042', service: 'คลินิกตรวจรักษาทั่วไป', next: 'จุดคัดกรอง', kiosk: 'K-01', location: 'อาคาร A ชั้น 1' }
-    : { code: 'P-016', service: 'จุดรับชำระเงิน', next: 'เคาน์เตอร์การเงิน', kiosk: 'P-01', location: 'อาคาร A ชั้น 1' };
+    ? { code: 'A-042', service: 'คลินิกตรวจรักษาทั่วไป', next: 'จุดคัดกรอง', kiosk: 'K-01', kioskName: 'ตู้กดคิว ๑', location: 'อาคาร A', floor: 'ชั้น 1' }
+    : { code: 'P-016', service: 'จุดรับชำระเงิน', next: 'เคาน์เตอร์การเงิน', kiosk: 'P-01', kioskName: 'ตู้ชำระเงิน ๑', location: 'อาคาร A', floor: 'ชั้น 1' };
+  const kioskLine = joinParts([
+    fields.kioskNumber ? sample.kiosk : '',
+    fields.kioskName ? sample.kioskName : '',
+    fields.location ? sample.location : '',
+    fields.floor ? sample.floor : '',
+  ]);
 
   return (
     <div className='mx-auto w-full' style={{ ...CARD_STYLE, maxWidth: 360, padding: 'var(--dim-space-500)', textAlign: 'center', borderStyle: 'dashed' }}>
@@ -135,8 +147,9 @@ const TicketPreview = ({ kioskType, settings }) => {
       {(fields.issuedDate || fields.issuedTime) ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{fields.issuedDate ? 'วันที่: 29 สิงหาคม 2569' : ''}{fields.issuedDate && fields.issuedTime ? ' · ' : ''}{fields.issuedTime ? 'เวลา: 09:30 น.' : ''}</div> : null}
       {(fields.waitingAhead || fields.contact) ? <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{fields.waitingAhead ? 'ผู้รอคิวก่อนหน้า: 3 ราย' : ''}{fields.waitingAhead && fields.contact ? ' · ' : ''}{fields.contact ? 'ติดต่อ: 0 2245 1000' : ''}</div> : null}
       {fields.servicePoint ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-secondary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>จุดให้บริการ: {sample.service}</div> : null}
-      {fields.serviceStep ? <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>ขั้นตอนถัดไป: {sample.next}{fields.statusQr ? ' · QR ดูสถานะคิว' : ''}</div> : null}
-      {(fields.kioskNumber || fields.kioskName || fields.location || fields.floor) ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{fields.kioskNumber ? sample.kiosk : ''}{fields.kioskNumber && (fields.location || fields.floor) ? ' · ' : ''}{fields.location || fields.floor ? sample.location : ''}</div> : null}
+      {fields.serviceStep ? <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>ขั้นตอนถัดไป: {sample.next}</div> : null}
+      {fields.statusQr ? <div style={{ color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>QR ดูสถานะคิว</div> : null}
+      {kioskLine ? <div style={{ marginTop: 'var(--dim-space-200)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>{kioskLine}</div> : null}
       {fields.callOrderNote ? <div style={{ marginTop: 'var(--dim-space-300)', paddingTop: 'var(--dim-space-300)', borderTop: '1px dashed var(--border-neutral-tertiary)', color: 'var(--text-content-tertiary)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs)' }}>ลำดับการเรียกคิวไม่เรียงตามหมายเลข</div> : null}
     </div>
   );
@@ -290,7 +303,7 @@ const QueueKioskSettingsPage = () => {
 
             <SectionCard
               icon='kiosk'
-            title='รายการตู้บริการ'
+              title='รายการตู้บริการ'
               subtitle='กำหนดข้อมูลประจำตู้ จุดประสงค์ และตำแหน่งตามโครงสร้างองค์กร'
               action={<BrandPrimaryButton leadingIcon='add' onClick={() => setDraft(blankKiosk())}>เพิ่มตู้บริการ</BrandPrimaryButton>}
             >
@@ -299,50 +312,49 @@ const QueueKioskSettingsPage = () => {
 
             {draft ? (
               <Popup
-            open={!!draft}
-            onClose={() => setDraft(null)}
-            title={kiosks.some((item) => item.id === draft.id) ? 'แก้ไขตู้บริการ' : 'เพิ่มตู้บริการ'}
-            subtitle='ข้อมูลที่มีเครื่องหมาย * จำเป็นต้องระบุ'
-            size='extraLarge'
-            tertiaryAction={{ label: 'ยกเลิก', onClick: () => setDraft(null) }}
-            primaryAction={{ label: 'บันทึกการตั้งค่า', onClick: save, disabled: !draft.kioskNumber.trim() || !draft.kioskName.trim() || !draft.kioskId.trim() || !draft.organizationUnit || !draft.stationId || !draft.floor || !draft.purpose }}
-          >
-            <div className='w-full'>
-              <section className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
-                <div>
-                  <FieldLabel>ข้อมูลตู้บริการ</FieldLabel>
-                  <HelperText>ระบุตัวตนและตำแหน่งของตู้ตามโครงสร้างองค์กร</HelperText>
+                open={!!draft}
+                onClose={() => setDraft(null)}
+                title={kiosks.some((item) => item.id === draft.id) ? 'แก้ไขตู้บริการ' : 'เพิ่มตู้บริการ'}
+                subtitle='ข้อมูลที่มีเครื่องหมาย * จำเป็นต้องระบุ'
+                size='extraLarge'
+                tertiaryAction={{ label: 'ยกเลิก', onClick: () => setDraft(null) }}
+                primaryAction={{ label: 'บันทึกการตั้งค่า', onClick: save, disabled: !draft.kioskNumber.trim() || !draft.kioskName.trim() || !draft.kioskId.trim() || !draft.organizationUnit || !draft.stationId || !draft.floor || !draft.purpose }}
+              >
+                <div className='w-full'>
+                  <section className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
+                    <div>
+                      <FieldLabel>ข้อมูลตู้บริการ</FieldLabel>
+                      <HelperText>ระบุตัวตนและตำแหน่งของตู้ตามโครงสร้างองค์กร</HelperText>
+                    </div>
+                    <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-400)' }}>
+                      <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                        <FieldLabel required>คลินิก / แผนก</FieldLabel>
+                        <Dropdown value={draft.organizationUnit} onChange={selectOrganizationUnit} options={ORGANIZATION_UNITS} placeholder='เลือกคลินิก / แผนก' />
+                      </div>
+                      <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                        <FieldLabel required>จุดรับบริการ / ห้องตรวจ</FieldLabel>
+                        <Dropdown value={draft.stationId} onChange={selectStation} options={stationsForUnit(draft.organizationUnit).map((station) => ({ value: station.id, label: station.label }))} placeholder='เลือกจุดบริการ / ห้องตรวจ' state={draft.organizationUnit ? 'default' : 'disabled'} />
+                      </div>
+                      <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                        <FieldLabel required>จุดประสงค์</FieldLabel>
+                        <Dropdown value={draft.purpose} onChange={selectPurpose} options={PURPOSES} placeholder='เลือกจุดประสงค์' />
+                      </div>
+                      <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
+                        <FieldLabel required>ชั้น</FieldLabel>
+                        <Dropdown
+                          value={draft.floor}
+                          onChange={(floor) => update('floor', floor)}
+                          options={draft.stationId ? [{ value: QUEUE_STATIONS.find((station) => station.id === draft.stationId)?.floor || '', label: QUEUE_STATIONS.find((station) => station.id === draft.stationId)?.floor || '—' }] : []}
+                          placeholder='เลือกชั้น'
+                          state={draft.stationId ? 'default' : 'disabled'}
+                        />
+                      </div>
+                      <InputField label='ชื่อตู้' required value={draft.kioskName} onChange={(value) => update('kioskName', value)} placeholder='ระบบจะสร้างให้อัตโนมัติ' disabled={isNewDraft} />
+                      <InputField label='หมายเลขตู้ (แสดงบนใบคิว)' required value={draft.kioskNumber} onChange={(value) => update('kioskNumber', value)} placeholder='ระบบจะสร้างให้อัตโนมัติ' disabled={isNewDraft} />
+                      <InputField className='md:col-span-2' label='รหัสตู้ (Kiosk ID)' required value={draft.kioskId} onChange={(value) => update('kioskId', value)} placeholder='ระบบจะสร้างให้อัตโนมัติ' disabled={isNewDraft} />
+                    </div>
+                  </section>
                 </div>
-                <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-400)' }}>
-                  <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                    <FieldLabel required>คลินิก / แผนก</FieldLabel>
-                    <Dropdown value={draft.organizationUnit} onChange={selectOrganizationUnit} options={ORGANIZATION_UNITS} placeholder='เลือกคลินิก / แผนก' />
-                  </div>
-                  <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                    <FieldLabel required>จุดรับบริการ / ห้องตรวจ</FieldLabel>
-                    <Dropdown value={draft.stationId} onChange={selectStation} options={stationsForUnit(draft.organizationUnit).map((station) => ({ value: station.id, label: station.label }))} placeholder='เลือกจุดบริการ / ห้องตรวจ' state={draft.organizationUnit ? 'default' : 'disabled'} />
-                  </div>
-                  <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                    <FieldLabel required>จุดประสงค์</FieldLabel>
-                    <Dropdown value={draft.purpose} onChange={selectPurpose} options={PURPOSES} placeholder='เลือกจุดประสงค์' />
-                  </div>
-                  <div className='flex flex-col' style={{ gap: 'var(--dim-space-150)' }}>
-                    <FieldLabel required>ชั้น</FieldLabel>
-                    <Dropdown
-                      value={draft.floor}
-                      onChange={(floor) => update('floor', floor)}
-                      options={draft.stationId ? [{ value: QUEUE_STATIONS.find((station) => station.id === draft.stationId)?.floor || '', label: QUEUE_STATIONS.find((station) => station.id === draft.stationId)?.floor || '—' }] : []}
-                      placeholder='เลือกชั้น'
-                      state={draft.stationId ? 'default' : 'disabled'}
-                    />
-                  </div>
-                  <InputField label='ชื่อตู้' required value={draft.kioskName} onChange={(value) => update('kioskName', value)} placeholder='ระบบจะสร้างให้อัตโนมัติ' disabled={isNewDraft} />
-                  <InputField label='หมายเลขตู้ (แสดงบนใบคิว)' required value={draft.kioskNumber} onChange={(value) => update('kioskNumber', value)} placeholder='ระบบจะสร้างให้อัตโนมัติ' disabled={isNewDraft} />
-                  <InputField className='md:col-span-2' label='รหัสตู้ (Kiosk ID)' required value={draft.kioskId} onChange={(value) => update('kioskId', value)} placeholder='ระบบจะสร้างให้อัตโนมัติ' disabled={isNewDraft} />
-                </div>
-              </section>
-            </div>
-
               </Popup>
             ) : null}
           </>
