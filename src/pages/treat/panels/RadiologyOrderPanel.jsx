@@ -406,7 +406,9 @@ const RadiologyOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
       {/* ── สถานะและผลตรวจ (§1.5.3.7 / §1.5.3.8) ─────────────── */}
       <PanelCard
         title='สถานะและผลตรวจทางรังสีวิทยาของผู้รับบริการรายนี้'
-        subtitle={`ลำดับสถานะ: ${XRAY_STATUSES.map((s) => s.label).join(' → ')}`}
+        /* บรรทัด "ลำดับสถานะ: …" ถูกเอาออก 31 ส.ค. 69 (มติผู้ใช้) — เป็นคำอธิบาย
+           ผังสถานะทั้งระบบ ไม่ใช่ข้อมูลของผู้รับบริการรายนี้ (ทำแบบเดียวกับ
+           LabOrderPanel) */
         action={
           <span className='inline-flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
             <Checkbox

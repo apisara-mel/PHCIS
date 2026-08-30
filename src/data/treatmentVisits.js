@@ -302,13 +302,13 @@ export const EXAM_SYSTEM_TABS = [
   { key: 'extremities', label: 'Extremities' },
 ];
 
+/* เหลือสามมุมมอง (มติผู้ใช้ 31 ส.ค. 69) — 'ทั้งสองข้าง' ซ้ำกับ 'ทั้งสองด้าน' ทุก
+   ประการ ส่วน 'ด้านซ้าย'/'ด้านขวา' ไม่มีรูปร่างกายด้านข้างรองรับ กดแล้วผืนผ้าใบ
+   ว่างเปล่า จึงถอดออกทั้งสามตัว */
 export const EXAM_VIEW_TABS = [
   { key: 'both', label: 'ทั้งสองด้าน' },
   { key: 'front', label: 'ด้านหน้า' },
   { key: 'back', label: 'ด้านหลัง' },
-  { key: 'sides', label: 'ทั้งสองข้าง' },
-  { key: 'left', label: 'ด้านซ้าย' },
-  { key: 'right', label: 'ด้านขวา' },
 ];
 
 /* รางข้างแผนภาพร่างกายเหลือแค่ผลตรวจของ visit นี้ — ห้ารายการประวัติ (วัคซีน ·
@@ -1520,6 +1520,55 @@ export const DEFAULT_BODY_MARKERS = {};
     the tab where they were drawn. Same shape + ownership rules as
     DEFAULT_BODY_MARKERS. */
 export const DEFAULT_BODY_DRAWINGS = {};
+
+/* ── ค่าตั้งต้นแบบ mock ของ /treat/record ───────────────────────────────
+   `DEFAULT_DOCTOR_EXAM_NOTES` / `DEFAULT_BODY_MARKERS` ยังว่างไว้เหมือนเดิม
+   เพราะ Components Library ใช้สาธิต empty state — ชุด `MOCK_*` ข้างล่างนี้
+   ใช้เฉพาะ `buildInitialForm` ของหน้าตรวจรักษา เพื่อให้ขั้นวินิจฉัยมีบันทึก
+   การตรวจร่างกายให้อ่านทางซ้ายตั้งแต่เปิดหน้า (มติผู้ใช้ 31 ส.ค. 69)
+   เรื่องราวของ visit ล้อรหัสวินิจฉัยที่ seed ไว้แล้ว — M17.0 ข้อเข่าเสื่อม
+   สองข้าง · I10 ความดันโลหิตสูง · E78.5 ไขมันในเลือดสูง */
+export const MOCK_DOCTOR_EXAM_NOTES = {
+  cc: 'ปวดเข่าทั้งสองข้าง เดินขึ้นลงบันไดลำบากมา 1 เดือน',
+  pi: 'ปวดเข่าสองข้างแบบค่อยเป็นค่อยไปมา 1 เดือน ปวดมากช่วงเช้าหลังตื่นนอนและเวลาขึ้นลงบันได '
+    + 'มีอาการฝืดข้อตอนเช้าประมาณ 15 นาที ได้ยินเสียงกรอบแกรบในข้อเวลางอเหยียด '
+    + 'ไม่มีข้อบวมแดงร้อน ไม่มีไข้ ไม่มีประวัติอุบัติเหตุ เคยซื้อยาแก้ปวดกินเองแล้วดีขึ้นชั่วคราว',
+  pe: 'V/S: BP 138/86 mmHg · PR 78/min · T 36.5 °C · RR 18/min · SpO₂ 98% · BMI 26.0\n'
+    + 'General: รู้สึกตัวดี ไม่ซีด ไม่เหลือง ไม่มีบวม เดินได้เองโดยไม่ใช้เครื่องช่วย\n'
+    + 'HEENT: ไม่พบความผิดปกติ · Heart: regular rhythm, no murmur · Lungs: clear both lungs\n'
+    + 'Abdomen: soft, not tender, no organomegaly\n'
+    + 'Extremities: เข่าสองข้างกดเจ็บบริเวณ medial joint line · crepitus ทั้งสองข้าง · '
+    + 'ไม่มี effusion / ไม่มี redness หรือ warmth · ROM เข่าขวา 5–120° เข่าซ้าย 0–125° · '
+    + 'muscle power grade V ทั้งสองข้าง · คลำชีพจร dorsalis pedis ได้ชัดทั้งสองข้าง',
+  duration: '1 เดือน',
+};
+
+/* จุดบนแผนภาพร่างกายที่คู่กับ `MOCK_DOCTOR_EXAM_NOTES` — เก็บตามระบบที่ตรวจ
+   (`extremities`) เพื่อให้การ์ดสรุปในขั้นวินิจฉัยมีแผนภาพขึ้นมาให้เห็น */
+export const MOCK_BODY_MARKERS = {
+  extremities: [
+    {
+      id: 'marker-mock-knee-r',
+      side: 'front',
+      viewKey: 'front',
+      leftPercent: 44,
+      topPercent: 72,
+      note: 'เข่าขวา — กดเจ็บ medial joint line · crepitus · ROM 5–120°',
+      saved: true,
+      stackOrder: 1,
+    },
+    {
+      id: 'marker-mock-knee-l',
+      side: 'front',
+      viewKey: 'front',
+      leftPercent: 56,
+      topPercent: 72,
+      note: 'เข่าซ้าย — กดเจ็บ medial joint line · crepitus · ROM 0–125°',
+      saved: true,
+      stackOrder: 2,
+    },
+  ],
+};
 
 /** Sample marker for component-library / docs previews only. */
 export const DEMO_BODY_MARKERS = [

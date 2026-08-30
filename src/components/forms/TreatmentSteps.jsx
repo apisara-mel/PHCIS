@@ -62,7 +62,6 @@ import { consultsForPatient, clinicMeta, consultStatusMeta } from '@/data/treatm
 import {
   imagingHistoryForPatient, FILM_ASSETS, RESULT_CLASS_META,
 } from '@/data/treatmentImagingHistory';
-import DiagnosisCodingPanel from '@/pages/treat/panels/DiagnosisCodingPanel';
 import MedRecPanel from '@/pages/treat/panels/MedRecPanel';
 /* CPOE §1.5 — panel ของหมวดสั่งการรักษาแยกเป็นไฟล์ละหมวดใน
    src/pages/treat/panels/ (pattern เดียวกับ MedRecPanel) เพื่อไม่ให้
@@ -93,6 +92,7 @@ import { INITIAL_APPOINTMENTS } from '@/pages/appointment/appointmentShared';
 import {
   FALLBACK_MED_IMG,
   medImg,
+  medicationRegistryDefaults,
   resolveMedicationImage,
 } from '@/data/medicationCatalog';
 import {
@@ -721,6 +721,45 @@ const HistoryInfoText = ({ label, value }) => (
   />
 );
 
+/* แถวสรุปแบบ "ป้ายซ้าย · ค่าขวา" ให้การ์ด "บันทึกจากการตรวจร่างกาย" อ่านเป็น
+   จังหวะเดียวกับคอลัมน์บันทึกจากพยาบาล (มติผู้ใช้ 31 ส.ค. 69) — `HistoryInfoText`
+   วางป้ายไว้เหนือค่า ทำให้สองการ์ดที่แสดงช่องชุดเดียวกันอ่านคนละแบบ
+   ป้ายกว้างคงที่ค่าทุกแถวจึงเริ่มตรงคอลัมน์เดียวกัน (เท่ากับ NurseRow) */
+const EXAM_SUMMARY_LABEL_WIDTH = 148;
+
+const ExamSummaryRow = ({ label, value }) => (
+  <div
+    className='grid w-full items-start'
+    style={{
+      gridTemplateColumns: `${EXAM_SUMMARY_LABEL_WIDTH}px minmax(0, 1fr)`,
+      columnGap: 'var(--dim-space-300)',
+    }}
+  >
+    <span style={{
+      color: 'var(--text-content-tertiary)',
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-xs)',
+      lineHeight: 1.5,
+    }}
+    >
+      {label}
+    </span>
+    <span
+      className='min-w-0'
+      style={{
+        color: value ? 'var(--text-content-default)' : 'var(--text-content-tertiary)',
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-sm)',
+        lineHeight: 1.5,
+        whiteSpace: 'pre-wrap',
+        overflowWrap: 'anywhere',
+      }}
+    >
+      {String(value || '').trim() || '—'}
+    </span>
+  </div>
+);
+
 const hasBodyDiagramInput = (form, systemKey) => (
   ((form.bodyMarkers?.[systemKey] || []).length > 0)
   || ((form.bodyDrawings?.[systemKey] || []).length > 0)
@@ -1035,7 +1074,7 @@ const ChipScroller = ({ children }) => {
       className='shrink-0 inline-flex items-center justify-center'
       style={{
         width: 28, height: 28,
-        borderRadius: 'var(--dim-radius-full, 999px)',
+        borderRadius: 'var(--dim-radius-full, 9999px)',
         border: 'var(--dim-stroke-100) solid var(--border-neutralbutton-tertiary)',
         background: 'var(--surface-neutralbutton-default, #FFFFFF)',
         color: 'var(--text-neutralbutton-default)',
@@ -1846,11 +1885,18 @@ export const ScreeningSummaryRail = ({ patient, collapsed = false, onToggle }) =
 };
 
 /* Treatment step grey panels — Figma 151:36633 · 317:29773 (บันทึกการตรวจ · บันทึกจากการตรวจร่างกาย · วินิจฉัย) */
+/* พื้นขาว ไม่ใช่เทาแล้ว (มติผู้ใช้ 31 ส.ค. 69) — ตั้งแต่ขั้นวินิจฉัยแยกเป็นสอง
+   คอลัมน์ พื้นเทาสองผืนวางเคียงกันอ่านเป็นสองบล็อกทึบ ๆ แข่งกับการ์ดขาวข้างใน
+   (ชื่อค่าคงที่คงไว้เพื่อไม่ให้กระทบผู้เรียกอื่นที่อ้างถึงในคอมเมนต์) */
 const TREATMENT_GREY_PANEL_SHELL = {
-  gap: 'var(--dim-space-300)',
-  padding: 'var(--dim-space-600)',
+  /* ระยะห่างเท่ากับ STEP4_SECTION_SHELL ของคอลัมน์ซ้าย (มติผู้ใช้ 31 ส.ค. 69) */
+  gap: 'var(--dim-space-400)',
+  /* ไม่มี padding ของตัวเอง (มติผู้ใช้ 31 ส.ค. 69) — TreatmentFormShell ให้
+     ระยะขอบการ์ด 24px มาแล้ว พอพาเนลเป็นพื้นขาวเหมือนการ์ด padding ซ้อนกัน
+     สองชั้นจึงกลายเป็นระยะ 48px ที่ไม่มีขอบอะไรมาอธิบาย */
+  padding: 0,
   borderRadius: 'var(--dim-radius-400)',
-  background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+  background: 'var(--surface-card-100, #FFFFFF)',
 };
 
 const TREATMENT_PANEL_TITLE_STYLE = {
@@ -1905,6 +1951,10 @@ export const Step3Examination = ({ form, setForm, patient }) => {
      แล้วเปิดเป็นป๊อปอัป — รางเดิมอยู่ลึกในแท็บ "ตรวจร่างกาย" หมอที่กำลังพิมพ์
      บันทึกอยู่จึงมองไม่เห็น (มติผู้ใช้ 28 ส.ค. 69) */
   const [supportPopup, setSupportPopup] = useState('');
+  /* ปุ่ม "ข้อมูลทางการแพทย์ (EMR)" ย้ายมาจากหัวการ์ดผู้ป่วย (มติผู้ใช้ 31 ส.ค. 69)
+     — อยู่แถวเดียวกับผลตรวจชันสูตร/รังสี เพราะทั้งสามเปิดข้อมูลประกอบการตรวจ
+     เหมือนกัน ป๊อปอัปเป็นตัวเดียวกับที่ PatientCard เคยเปิด */
+  const [emrOpen, setEmrOpen] = useState(false);
 
   const handleCopyFromNurse = (key) => {
     const fromNurse = form.nurseExam?.[key];
@@ -1938,9 +1988,17 @@ export const Step3Examination = ({ form, setForm, patient }) => {
       {/* แท็บกับเนื้อหาอยู่ในการ์ดขาวใบเดียวกัน — แท็บลอยอยู่นอกการ์ดทำให้ดูเหมือน
           คุมทั้งหน้า ทั้งที่คุมเฉพาะเนื้อหาในการ์ดนี้ (มติผู้ใช้ 28 ส.ค. 69) */}
       <ExamStepCard>
-        {/* จัดกึ่งกลาง — แท็บคุมทั้งการ์ด ไม่ใช่ของคอลัมน์ซ้าย (มติผู้ใช้ 28 ส.ค. 69) */}
-        <div className='flex w-full items-center' style={{ gap: 'var(--dim-space-300)' }}>
-          <div className='flex-1 flex justify-center'>
+        {/* จัดกึ่งกลาง — แท็บคุมทั้งการ์ด ไม่ใช่ของคอลัมน์ซ้าย (มติผู้ใช้ 28 ส.ค. 69)
+            กริด `1fr auto 1fr` แทน flex-1 (มติผู้ใช้ 31 ส.ค. 69) — ของเดิมจัดแท็บ
+            กึ่งกลาง "ที่ว่างที่เหลือ" หลังหักปุ่มสองใบทางขวา แท็บจึงเยื้องซ้ายจาก
+            กึ่งกลางการ์ดจริงเท่ากับครึ่งหนึ่งของความกว้างปุ่ม ช่องซ้ายเปล่าที่กว้าง
+            เท่าช่องขวาดันแท็บกลับมาอยู่กึ่งกลางการ์ดพอดี */}
+        <div
+          className='grid w-full items-center'
+          style={{ gridTemplateColumns: '1fr auto 1fr', gap: 'var(--dim-space-300)' }}
+        >
+          <div aria-hidden />
+          <div className='flex justify-center'>
             <TabBar aria-label='ส่วนของขั้นตรวจร่างกาย'>
               {EXAM_SUBTABS.map((label, i) => (
                 <TabPill
@@ -1954,7 +2012,15 @@ export const Step3Examination = ({ form, setForm, patient }) => {
               ))}
             </TabBar>
           </div>
-          <div className='flex shrink-0 items-center' style={{ gap: 'var(--dim-space-200)' }}>
+          <div className='flex shrink-0 items-center justify-end' style={{ gap: 'var(--dim-space-200)' }}>
+            <BrandSubdueButton
+              variant='outline'
+              size='sm'
+              leadingIcon='history'
+              onClick={() => setEmrOpen(true)}
+            >
+              ข้อมูลทางการแพทย์ (EMR)
+            </BrandSubdueButton>
             <BrandSubdueButton
               variant='outline'
               size='sm'
@@ -1973,6 +2039,12 @@ export const Step3Examination = ({ form, setForm, patient }) => {
             </BrandSubdueButton>
           </div>
         </div>
+
+        <MedicalHistoryPopup
+          open={emrOpen}
+          onClose={() => setEmrOpen(false)}
+          patient={patient}
+        />
 
         <Popup
           open={supportPopup === 'lab'}
@@ -2138,7 +2210,10 @@ const STEP4_INNER_CARD_STYLE = {
    notes column inside Step 4) when the section is populated. */
 const STEP4_SECTION_SHELL = {
   gap: 'var(--dim-space-400)',
-  padding: 'var(--dim-space-600)',
+  /* ไม่มี padding ของตัวเอง (มติผู้ใช้ 31 ส.ค. 69) — TreatmentFormShell ให้
+     ระยะขอบการ์ด 24px มาแล้ว พอพาเนลเป็นพื้นขาวเหมือนการ์ด padding ซ้อนกัน
+     สองชั้นจึงกลายเป็นระยะ 48px ที่ไม่มีขอบอะไรมาอธิบาย */
+  padding: 0,
   borderRadius: 'var(--dim-radius-500)',
   background: 'var(--surface-card-100, #FFFFFF)',
 };
@@ -2150,11 +2225,17 @@ const STEP4_SECTION_SHELL = {
    the disabled title row + bordered white empty card, giving the three-tone
    visual hierarchy that distinguishes the empty state from the populated
    white summary card above. */
+/* พื้นเทาถูกเปลี่ยนเป็นขาว 31 ส.ค. 69 (มติผู้ใช้) — สามโทน (เทา/ขาว/กรอบ) ที่ Figma
+   ออกแบบไว้ใช้ได้ตอนการ์ดนี้กินความกว้างเต็มหน้า พอย้ายมาอยู่คอลัมน์ซ้ายครึ่งเดียว
+   พื้นเทากลายเป็นบล็อกทึบแข่งกับคอลัมน์วินิจฉัยฝั่งขวา */
 const STEP4_SECTION_EMPTY_SHELL = {
   gap: 'var(--dim-space-300)',
-  padding: 'var(--dim-space-600)',
+  /* ไม่มี padding ของตัวเอง (มติผู้ใช้ 31 ส.ค. 69) — TreatmentFormShell ให้
+     ระยะขอบการ์ด 24px มาแล้ว พอพาเนลเป็นพื้นขาวเหมือนการ์ด padding ซ้อนกัน
+     สองชั้นจึงกลายเป็นระยะ 48px ที่ไม่มีขอบอะไรมาอธิบาย */
+  padding: 0,
   borderRadius: 'var(--dim-radius-400)',
-  background: 'var(--surface-neutral-quaternary)',
+  background: 'var(--surface-card-100, #FFFFFF)',
 };
 
 /* Section title used by STEP4_SECTION_SHELL (Figma 153:19743 — bold
@@ -2215,9 +2296,11 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIn
      ที่หน้าเรียกส่งมา ไม่ใช่ค่าคงที่ ลำดับขั้นเปลี่ยนมาแล้วสองรอบ (ตัดประวัติ
      การรักษาออก · ย้าย SOAP ไปลำดับ 5) ค่าคงที่เดิมจึงพาไปผิดขั้น
      (มติผู้ใช้ 28 ส.ค. 69) · `?.` กันหน้าเดโมที่ไม่ส่ง prop มา */
+  /* คงไว้เผื่อผู้เรียกอื่น — ปุ่มในการ์ดเปลี่ยนไปเปิดป๊อปอัปแทนแล้ว */
   const goToExamStep = () => onStepChange?.(
     stepIndexes?.examination ?? STEP_EXAMINATION_INDEX,
   );
+  void goToExamStep;
 
   const set = (k) => (v) => setForm((s) => ({ ...s, [k]: v }));
   /* SuggestibleTextarea (and Voice variant) forwards onChange as a
@@ -2234,6 +2317,11 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIn
      The base table's delete icon no longer calls `removeDx` directly —
      it opens this popup so the destructive action requires an explicit
      "ลบการวินิจฉัย" red-fill button press. */
+  /* ปุ่ม "แก้ไข" ของการ์ดบันทึกการตรวจร่างกายเปิดเป็นป๊อปอัป ไม่ใช่กระโดดข้ามขั้น
+     (มติผู้ใช้ 31 ส.ค. 69) — การถูกดีดไปขั้นก่อนหน้าทำให้เสียตำแหน่งที่กำลังทำอยู่
+     ในขั้นวินิจฉัย แล้วต้องเดินกลับมาเอง ป๊อปอัปแก้เสร็จปิดแล้วอยู่ที่เดิม
+     เนื้อในเป็น `Step3Examination` ตัวเดียวกับขั้นตรวจร่างกาย จึงไม่มีฟอร์มชุดที่สอง */
+  const [examEditOpen, setExamEditOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null);
   const confirmDelete = () => {
     if (pendingDelete != null) removeDx(pendingDelete);
@@ -2355,10 +2443,6 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIn
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ], []);
 
-  /* When the doctor row hasn't been edited yet, prefill the ordering
-     doctor select with the patient's owning physician — same Figma
-     copy "พญ.สมหญิง รักษ์ดี". */
-  const orderingDoctorOptions = TREATMENT_DOCTOR_OPTIONS;
   const bodySummarySystemKeys = useMemo(
     () => resolveBodyDiagramSummaryKeys(form),
     [form.bodyDrawings, form.bodyMarkers],
@@ -2395,6 +2479,15 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIn
       {/* แถบสัญญาณชีพในขั้นวินิจฉัยถูกเอาออก 28 ส.ค. 69 — ค่าชุดเดียวกันอยู่ใน
           คอลัมน์ "บันทึกจากพยาบาล" ของขั้นตรวจร่างกายแล้ว */}
 
+      {/* ขั้นวินิจฉัยอ่านเป็นสองคอลัมน์ (มติผู้ใช้ 31 ส.ค. 69) — ซ้ายคือสิ่งที่ตรวจเจอ
+          (บันทึกจากการตรวจร่างกาย) ขวาคือข้อสรุปจากสิ่งนั้น (วินิจฉัย + ICD10)
+          แพทย์จึงอ่านหลักฐานกับข้อสรุปพร้อมกันได้ ของเดิมวางซ้อนกันลงมา ต้อง
+          เลื่อนหน้าขึ้นลงเพื่อเทียบ · ต่ำกว่า xl กลับไปเรียงบนล่างเหมือนเดิม */}
+      <div
+        className='flex w-full flex-col xl:flex-row items-start min-w-0'
+        style={{ gap: 'var(--dim-space-400)' }}
+      >
+      <div className='flex flex-col min-w-0 w-full xl:w-auto' style={{ flex: '1 1 0' }}>
       {/* บันทึกจากการตรวจร่างกาย — read-only summary of Step 3 with the
           body diagram + doctor textareas + attachments. The "แก้ไข"
           button sends the doctor back to Step 3 to update the live
@@ -2411,8 +2504,17 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIn
         className='flex flex-col w-full'
         style={hasExamRecord ? STEP4_SECTION_SHELL : STEP4_SECTION_EMPTY_SHELL}
       >
-        <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
-          <span className='flex-1 min-w-0' style={STEP4_SECTION_TITLE_STYLE}>
+        {/* แถวหัวข้อสองฝั่งสูงเท่ากัน (มติผู้ใช้ 31 ส.ค. 69) — ฝั่งซ้ายมีปุ่ม "แก้ไข"
+            ดันแถวให้สูงกว่าฝั่งขวาที่มีแต่ข้อความ กล่องเนื้อหาใต้หัวข้อจึงเริ่ม
+            คนละระดับ · ตรึงความสูงเท่าปุ่ม sm ทั้งสองฝั่ง */}
+        <div
+          className='flex items-center w-full'
+          style={{ gap: 'var(--dim-space-300)', minHeight: 'var(--dim-size-700, 36px)' }}
+        >
+          {/* หัวข้อสองคอลัมน์ใช้สไตล์เดียวกัน (มติผู้ใช้ 31 ส.ค. 69) — ของเดิมฝั่งซ้าย
+              เป็น topic/tertiary สีเทา ส่วนฝั่งขวาเป็น topic/secondary สีแบรนด์
+              อ่านเหมือนคนละระดับชั้นทั้งที่เป็นหัวข้อคู่กัน */}
+          <span className='flex-1 min-w-0' style={TREATMENT_PANEL_TITLE_STYLE}>
             บันทึกจากการตรวจร่างกาย
           </span>
           <BrandSubdueButton
@@ -2420,14 +2522,57 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIn
             size='sm'
             leadingIcon='edit'
             disabled={!hasExamRecord}
-            onClick={goToExamStep}
+            onClick={() => setExamEditOpen(true)}
           >
             แก้ไข
           </BrandSubdueButton>
         </div>
 
         {hasExamRecord ? (
-          <div className='flex w-full flex-col xl:flex-row items-stretch min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
+          /* คอลัมน์ซ้ายกว้างครึ่งเดียวแล้ว แผนภาพร่างกายกับบันทึกของแพทย์จึงเรียง
+             บนล่างเสมอ ไม่แตกเป็นสองคอลัมน์ซ้อนในคอลัมน์อีกชั้น */
+          <div className='flex w-full flex-col items-stretch min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
+            {/* บันทึกของแพทย์อยู่บน แผนภาพร่างกายอยู่ล่าง (มติผู้ใช้ 31 ส.ค. 69) —
+                ข้อความคือสิ่งที่อ่านก่อนเสมอ ส่วนแผนภาพเป็นภาพประกอบของสิ่งที่เขียนไว้
+                ของเดิมแผนภาพสูงเกือบเต็มจอ ดันบันทึกลงไปใต้แนวที่มองเห็น */}
+            {/* Read-only doctor notes column — Figma 153:19744. */}
+            <div
+              className='flex flex-col min-w-0'
+              style={{
+                flex: '1 1 0',
+                gap: 'var(--dim-space-400)',
+                padding: 'var(--dim-space-600)',
+                borderRadius: 'var(--dim-radius-400)',
+                border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
+                background: 'var(--surface-card-100, #FFFFFF)',
+              }}
+            >
+              {/* หัวข้อบอกว่ากล่องนี้คือบันทึกของแพทย์ (มติผู้ใช้ 31 ส.ค. 69) —
+                  เดิมเป็นกล่องข้อความลอย ๆ ไม่มีชื่อ ต่างจากแผนภาพร่างกายที่อ่านออก
+                  จากตัวมันเอง · ลำดับและป้ายตรงกับคอลัมน์ "บันทึกของแพทย์" ของขั้น
+                  ตรวจร่างกายเป๊ะ ๆ เพราะเป็นภาพสรุปของช่องชุดเดียวกัน */}
+              <span style={{
+                color: 'var(--text-content-default)',
+                fontFamily: 'var(--type-family-heading-content)',
+                fontSize: 'var(--type-size-sm)',
+                fontWeight: 'var(--type-weight-bold)',
+                lineHeight: 1.5,
+              }}
+              >
+                บันทึกของแพทย์
+              </span>
+              <ExamSummaryRow label='อาการ (Chief Complaint)' value={form.doctorExam?.cc} />
+              <ExamSummaryRow label='ประวัติการเจ็บป่วยปัจจุบัน (Present Illness)' value={form.doctorExam?.pi} />
+              <ExamSummaryRow label='ระยะเวลาที่มีอาการ' value={form.doctorExam?.duration} />
+              <ExamSummaryRow label='ตรวจร่างกาย (Physical Examination)' value={form.doctorExam?.pe} />
+              {form.examAttachments?.length > 0 && (
+                <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                  {form.examAttachments.map((file) => (
+                    <AttachmentSummaryChip key={file.id} file={file} />
+                  ))}
+                </div>
+              )}
+            </div>
             {/* Summary variant matches Figma 153:19741: tabs and body image sit
                 together inside one bordered white card. */}
             {hasBodyDiagramSummary && (
@@ -2454,30 +2599,6 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIn
               </div>
             )}
 
-            {/* Read-only doctor notes column — Figma 153:19744. */}
-            <div
-              className='flex flex-col min-w-0'
-              style={{
-                flex: '1 1 0',
-                gap: 'var(--dim-space-400)',
-                padding: 'var(--dim-space-600)',
-                borderRadius: 'var(--dim-radius-400)',
-                border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
-                background: 'var(--surface-card-100, #FFFFFF)',
-              }}
-            >
-              <HistoryInfoText label='อาการ (Chief Complaint)' value={form.doctorExam?.cc} />
-              <HistoryInfoText label='ประวัติปัจจุบัน (Present Illness)' value={form.doctorExam?.pi} />
-              <HistoryInfoText label='ตรวจร่างกาย (Physical Examination)' value={form.doctorExam?.pe} />
-              <HistoryInfoText label='ระยะเวลาที่มีอาการ' value={form.doctorExam?.duration} />
-              {form.examAttachments?.length > 0 && (
-                <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
-                  {form.examAttachments.map((file) => (
-                    <AttachmentSummaryChip key={file.id} file={file} />
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         ) : (
           /* Empty state — Figma 330:42665 (data-name="Empty"). White inner
@@ -2527,16 +2648,34 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIn
             </div>
             {/* Empty-state CTA — sends the doctor to Step 3 to enter the
                 physical examination record this card is waiting on. */}
-            <BrandButton variant='outline' leadingIcon='edit' onClick={goToExamStep}>
+            <BrandButton variant='outline' leadingIcon='edit' onClick={() => setExamEditOpen(true)}>
               ตรวจร่างกาย
             </BrandButton>
           </div>
         )}
       </div>
 
+      </div>
+
+      {/* เส้นคั่นกลางระหว่างสองคอลัมน์ (มติผู้ใช้ 31 ส.ค. 69) — พอทั้งสองฝั่งเป็น
+          พื้นขาวเหมือนกันแล้ว ไม่มีอะไรบอกว่าคอลัมน์ไหนจบตรงไหน · ต่ำกว่า xl
+          ที่กลับไปเรียงบนล่าง เส้นซ้ายจะกลายเป็นเส้นลอย จึงเปิดเฉพาะ xl ขึ้นไป */}
+      <div
+        className='flex flex-col min-w-0 w-full xl:w-auto xl:border-l'
+        style={{
+          flex: '1 1 0',
+          borderColor: 'var(--border-neutral-quaternary)',
+          paddingLeft: 'var(--dim-space-600)',
+        }}
+      >
       {/* วินิจฉัย + ICD10 — Figma 155:20725 · 156:27355 */}
       <div className='flex flex-col w-full' style={TREATMENT_GREY_PANEL_SHELL}>
-        <span style={TREATMENT_PANEL_TITLE_STYLE}>วินิจฉัย (Diagnosis)</span>
+        <div
+          className='flex items-center w-full'
+          style={{ minHeight: 'var(--dim-size-700, 36px)' }}
+        >
+          <span style={TREATMENT_PANEL_TITLE_STYLE}>วินิจฉัย (Diagnosis)</span>
+        </div>
 
         <div className='flex w-full items-stretch min-w-0' style={{ gap: 'var(--dim-space-300)' }}>
           <div className='flex flex-1 min-w-0 flex-col' style={STEP4_INNER_CARD_STYLE}>
@@ -2566,15 +2705,10 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIn
                 placeholder={DOCTOR_ORDER_NOTE_PLACEHOLDER}
               />
             </Field>
-            <Field label='แพทย์ผู้สั่ง' required>
-              <Select
-                value={form.orderingDoctor}
-                onChange={set('orderingDoctor')}
-                options={orderingDoctorOptions}
-                disabled
-                placeholder='เลือกแพทย์ผู้สั่ง'
-              />
-            </Field>
+            {/* ช่อง "แพทย์ผู้สั่ง" ถูกเอาออก 31 ส.ค. 69 (มติผู้ใช้) — เป็นดรอปดาวน์ที่
+                `disabled` อยู่แล้ว แพทย์แก้ไม่ได้ ค่าคือผู้ที่กำลังบันทึกเอง ระบบ
+                เติมให้จากผู้ใช้ที่ล็อกอิน · `form.orderingDoctor` ยังถูกบันทึกและ
+                ยังขึ้นในขั้นตรวจสอบข้อมูลตามเดิม */}
           </div>
           {/* รางข้อมูลประกอบการตรวจร่างกาย (ผลตรวจชันสูตร / ผลตรวจรังสี) ถูกเอาออก
               28 ส.ค. 69 — ทั้งสองอย่างเป็นปุ่มเปิดป๊อปอัปอยู่บนแถวแท็บของขั้น
@@ -2655,6 +2789,10 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIn
           <Table
             columns={columns}
             rows={form.diagnoses}
+            /* ตรึงคอลัมน์ "รหัส" ไว้ (มติผู้ใช้ 31 ส.ค. 69) — ชื่อโรคภาษาอังกฤษ+ไทย
+               ดันตารางให้เลื่อนแนวนอน พอเลื่อนแล้วรหัส ICD หลุดจอ อ่านไม่ออกว่า
+               แถวที่กำลังดูอยู่คือรหัสอะไร */
+            stickyColCount={1}
           />
         )}
 
@@ -2670,27 +2808,26 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIn
           >
             Re-Diagnosis
           </BrandSubdueButton>
+          {/* ป้ายปุ่มบอกให้ชัดว่าเป็นทางเลือกสำรองของ Doctor AI ด้านบน — คีย์รหัส
+              เองเมื่อค้นไม่เจอ ไม่ใช่ปุ่มเพิ่มรหัสตัวหลัก (มติผู้ใช้ 31 ส.ค. 69) */}
           <BrandButton
             variant='outline'
             leadingIcon='add'
             onClick={() => setAddDiagnosisOpen(true)}
           >
-            เพิ่มรหัสการวินิจฉัย
+            เพิ่มรหัสการวินิจฉัยด้วยตนเอง
           </BrandButton>
         </div>
         </div>
 
-        {/* EMR §1.4 — บล็อกที่เพิ่มใต้ตาราง ICD เดิม (ไฟล์แยกทั้งหมด):
-              • DiagnosisCodingPanel — SNOMED-CT + cross-map + 4 ประเภทวินิจฉัย
-            ช่อง Doctor Note เดิมด้านบนยังอยู่ครบและเป็นค่าเริ่มต้นของ
-            note ประเภท "แพทย์" */}
-        <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
-          <DiagnosisCodingPanel form={form} setForm={setForm} patient={patient} />
-          {/* ProblemListPanel (รายการโรคที่รักษาอยู่ปัจจุบัน §1.4.3.8/9) ถูกเอาออก
-              28 ส.ค. 69 — ไฟล์พาเนลยังอยู่ */}
-          {/* ClinicalNotesPanel (บันทึกทางคลินิก 5 ประเภท §1.4.4.1/2 +
-              ประวัติบันทึก) ถูกเอาออกจากขั้นวินิจฉัย 28 ส.ค. 69 — ไฟล์พาเนลยังอยู่ */}
-        </div>
+        {/* EMR §1.4 — พาเนลที่เคยต่อท้ายตาราง ICD ถูกเอาออกครบแล้ว ไฟล์ยังอยู่ทุกตัว:
+              • DiagnosisCodingPanel (ประเภทการวินิจฉัยของการตรวจครั้งนี้) — เอาออก
+                31 ส.ค. 69 เพราะเป็นตารางชุดเดียวกับตาราง ICD ด้านบนทุกแถว
+                ต่างกันแค่คอลัมน์ประเภท ซึ่งแก้ได้จากปุ่มแก้ไขของแถวอยู่แล้ว
+              • ProblemListPanel (§1.4.3.8/9) · ClinicalNotesPanel (§1.4.4.1/2)
+                — เอาออก 28 ส.ค. 69 */}
+      </div>
+      </div>
       </div>
 
       {/* Re-Diagnosis popup (Figma 161:42074). Mounted at the section
@@ -2698,6 +2835,17 @@ export const Step4DoctorRecord = ({ form, setForm, onStepChange, patient, stepIn
           shares Step-4's form state via closure. Items come from the
           mocked PAST_VISIT_DIAGNOSES — in a real surface this would
           query the patient's visit-history API. */}
+      <Popup
+        open={examEditOpen}
+        onClose={() => setExamEditOpen(false)}
+        size='extraLarge'
+        title='บันทึกการตรวจร่างกาย'
+        subtitle='แก้ไขบันทึกและแผนภาพร่างกายของการตรวจครั้งนี้'
+        primaryAction={{ label: 'เสร็จสิ้น', onClick: () => setExamEditOpen(false) }}
+      >
+        <Step3Examination form={form} setForm={setForm} patient={patient} />
+      </Popup>
+
       <ReDiagnosisPopup
         open={reDiagnosisOpen}
         onClose={() => setReDiagnosisOpen(false)}
@@ -2826,7 +2974,7 @@ const MedImageTile = ({ src, alt }) => {
 /* Medication-table columns (Figma PHCIS|CPOE 276:34332). Data fields
    render as read-only body text (EllipsisText); workflow flags stay
    as inline <Checkbox> toggles; row edits go through AddMedicationPopup. */
-const buildMedTableColumns = ({ updateRow, editRow }) => [
+const buildMedTableColumns = ({ updateRow, editRow, removeRow }) => [
   { key: 'image', header: 'รูป',
     render: (row) => (
       <MedImageTile
@@ -2840,6 +2988,10 @@ const buildMedTableColumns = ({ updateRow, editRow }) => [
     render: (row) => {
       const statusMeta = {
         continue: { style: 'green', label: 'Continue' },
+        /* ต้องมีคู่กับตัวเลือกใน AddMedicationPopup เสมอ ไม่งั้นแถวที่เลือก
+           ลักษณะใหม่จะตกไปที่ป้าย "Continue" เงียบ ๆ (มติผู้ใช้ 31 ส.ค. 69) */
+        'one-time': { style: 'blue', label: 'รายครั้ง (One-time)' },
+        stat: { style: 'red', label: 'STAT' },
         discontinue: { style: 'red', label: 'Discontinue' },
         completed: { style: 'teal', label: 'Completed' },
         'on-hold': { style: 'orange', label: 'On hold' },
@@ -2909,6 +3061,16 @@ const buildMedTableColumns = ({ updateRow, editRow }) => [
           icon='edit'
           aria-label={`แก้ไข ${row.name}`}
           onClick={() => editRow?.(idx)}
+        />
+        {/* ปุ่มลบหายไปจากคอลัมน์นี้ (คอมเมนต์ Figma บอกว่าเป็นคู่ Edit + Delete
+            มาตลอด) — ใส่กลับ 31 ส.ค. 69 ตามมติผู้ใช้ · ป๊อปอัปยืนยันลบ
+            (`pendingMedDelete`) มีอยู่แล้ว แค่ไม่มีอะไรเรียก */}
+        <NeutralSubdueIconButton
+          variant='outline'
+          size='sm'
+          icon='delete'
+          aria-label={`ลบ ${row.name}`}
+          onClick={() => removeRow?.(idx)}
         />
       </div>
     ),
@@ -3169,42 +3331,14 @@ const FrequentOrdersCard = ({ onInsertChip, selectedLabels }) => {
   const selectedSet = selectedLabels instanceof Set
     ? selectedLabels
     : new Set(Array.isArray(selectedLabels) ? selectedLabels : []);
+  /* กรอบ พื้นเทา และหัวข้อ "รายการที่สั่งบ่อยสำหรับโรคนี้" ถูกถอดออก
+     31 ส.ค. 69 (มติผู้ใช้) — ชุดชิปนี้ย้ายไปวางใต้ตารางในการ์ดขาวของขั้นสั่ง
+     การรักษาแล้ว จึงไม่ต้องมีเปลือกการ์ดของตัวเองซ้อนอีกชั้น */
   return (
-    <div
-      className='flex flex-col w-full'
-      style={{
-        gap: 'var(--dim-space-300)',
-        padding: 'var(--dim-space-600)',
-        borderRadius: 'var(--dim-radius-400)',
-        /* Outer card — Figma 273:27638 swaps the surface/border from
-           the earlier 269:32435 revision: now neutral-quaternary tint
-           with a neutral-quaternary hairline border so the inner white
-           picker card pops against a soft grey backdrop. */
-        border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #F4F5F5)',
-        background: 'var(--surface-neutral-quaternary, #F9FBFB)',
-      }}
-    >
-      <Topic
-        hierarchy='primary'
-        title='รายการที่สั่งบ่อยสำหรับโรคนี้'
-        leadingIcon='pill'
-        showSubText={false}
-        showBadge={false}
-        showChevron={false}
-        showSuccess={false}
-      />
-      {/* Inner white card — Figma 273:27640. 16 px padding · 16 px
-          radius · 12 px gap. Wraps the TabBar + chip row so the three
-          persona tabs and the chips read as a single picker control,
-          contrasting against the parent's neutral tint. */}
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
       <div
         className='flex flex-col w-full'
-        style={{
-          gap: 'var(--dim-space-300)',
-          padding: 'var(--dim-space-400)',
-          borderRadius: 'var(--dim-radius-500, 16px)',
-          background: 'var(--surface-card-100, #FFFFFF)',
-        }}
+        style={{ gap: 'var(--dim-space-300)' }}
       >
         {/* Figma PHCIS|CPOE 207:21567 — Default Tab Pill (32 px h · 14 px
             sm label · 12/6 px pad). TabPillSmall = Figma "Default" on
@@ -3329,6 +3463,52 @@ const pickerTreatmentOrderKey = (item = {}) => {
 /* `onStepChange` / `stepIndexes` ถูกส่งมาจาก TreatmentFormPage อยู่แล้ว —
    รับไว้เพื่อให้สัญญาณ §1.5.4.15 มีปุ่ม "ไปแนบเอกสาร" ที่กระโดดไปขั้นเอกสาร
    ได้จริง. ผู้เรียกที่ไม่มีขั้นเอกสาร (ไม่ส่ง stepIndexes) จะไม่เห็นปุ่มนี้ */
+/* หัวข้อของสองส่วนในขั้น "สั่งการรักษา" (มติผู้ใช้ 31 ส.ค. 69) — ขั้นนี้มีสองงาน
+   ที่ต้องทำตามลำดับ: ประเมินความปลอดภัยก่อน แล้วจึงสั่งการรักษา ของเดิมทั้งสอง
+   ไหลต่อกันโดยไม่มีอะไรบอกว่าเป็นคนละงาน */
+const OrderStepHeading = ({ number, title, subtitle }) => (
+  <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
+    <span
+      className='shrink-0 inline-flex items-center justify-center'
+      style={{
+        width: 'var(--dim-size-600, 32px)',
+        height: 'var(--dim-size-600, 32px)',
+        borderRadius: 'var(--dim-radius-full, 9999px)',
+        background: 'var(--surface-brandPrimary-quaternary, #E2F3EB)',
+        color: 'var(--text-brandPrimary-default, #007549)',
+        fontFamily: 'var(--type-family-heading-content)',
+        fontSize: 'var(--type-size-sm)',
+        fontWeight: 'var(--type-weight-bold)',
+      }}
+    >
+      {number}
+    </span>
+    <span className='flex flex-col min-w-0'>
+      <span style={{
+        color: 'var(--text-brandPrimary-default, #007549)',
+        fontFamily: 'var(--type-family-heading-content)',
+        fontSize: 'var(--type-size-base)',
+        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
+        lineHeight: 1.5,
+      }}
+      >
+        {title}
+      </span>
+      {subtitle && (
+        <span style={{
+          color: 'var(--text-content-tertiary)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-xs)',
+          lineHeight: 1.5,
+        }}
+        >
+          {subtitle}
+        </span>
+      )}
+    </span>
+  </div>
+);
+
 export const Step5Orders = ({
   form, setForm, patient, cardPatient, onStepChange = null, stepIndexes = null,
 }) => {
@@ -3627,10 +3807,46 @@ export const Step5Orders = ({
   /* Chip-driven open — same popup as "เพิ่มยา" but with ชื่อยา
      pre-filled from the chip's label. Mode stays "add" (no
      `addMedEditIndex`), so committing appends a fresh row. */
+  /* กดชิปแล้วเพิ่มลงตารางทันที ไม่เปิดป๊อปอัปให้กรอกก่อน (มติผู้ใช้ 31 ส.ค. 69)
+     — ชิปคือ "ยาที่สั่งบ่อย" ทั้งชุด ค่าเริ่มต้นของวิธีใช้/ขนาด/ความถี่จึงใช้ชุด
+     เดียวกับที่ `commitMedFromPopup` เติมให้เมื่อผู้ใช้ไม่ได้แก้ ถ้าต้องปรับ
+     รายละเอียดยังกดปุ่มแก้ไขที่แถวได้เหมือนเดิม
+     กดซ้ำที่ชิปที่เพิ่มไปแล้วจะไม่เพิ่มซ้ำ — ชิปนั้นขึ้นติ๊กถูกอยู่แล้ว
+     (`selectedLabels` มาจากชื่อยาในตาราง) การกดซ้ำจึงถือว่าไม่ได้ตั้งใจสั่งซ้ำ */
   const openAddMedFromChip = (chip) => {
-    setAddMedEditIndex(null);
-    setAddMedSeed({ name: chip.label, image: chip.image || '' });
-    setAddMedOpen(true);
+    const registryMeta = medicationRegistryDefaults(chip.label);
+    setForm((s) => {
+      const rows = s.medications || [];
+      if (rows.some((m) => m.name === chip.label)) return s;
+      return {
+        ...s,
+        medications: [
+          ...rows,
+          {
+            id: `med-${Date.now()}`,
+            image: resolveMedicationImage(chip.label, chip.image),
+            name: chip.label,
+            orderStatus: 'continue',
+            statusEffectiveMode: 'immediate',
+            statusEffectiveAt: '',
+            lastDoseAt: '',
+            statusReason: '',
+            usage: 'รับประทาน (Oral)',
+            dosePerTake: '1',
+            unit: 'เม็ด',
+            frequency: 'วันละ 1 ครั้ง',
+            when: 'หลังอาหาร',
+            warning: registryMeta.warning,
+            quantity: 1,
+            reimbursable: false,
+            purpose: registryMeta.purpose,
+            totalPrice: 0,
+            approve: false, consult: false, stat: false, print: false,
+            editor: 'พญ.สมหญิง',
+          },
+        ],
+      };
+    });
   };
   const closeAddMed = () => {
     setAddMedOpen(false);
@@ -3658,6 +3874,10 @@ export const Step5Orders = ({
      tweaks dose/frequency. In add mode the new row enters with all
      workflow flags false (untouched). */
   const commitMedFromPopup = (entry) => {
+    /* ช่อง "คำเตือน" กับ "การใช้" ที่ปล่อยว่างให้ตกไปที่ค่าของทะเบียนยา
+       (มติผู้ใช้ 31 ส.ค. 69) — เป็นข้อมูลของตัวยา ไม่ใช่สิ่งที่แพทย์ต้องพิมพ์ซ้ำ
+       ทุกครั้ง ถ้าพิมพ์เองมาแล้วของที่พิมพ์ชนะเสมอ */
+    const registryMeta = medicationRegistryDefaults(entry.name);
     const normalized = {
       name: entry.name,
       orderStatus: entry.orderStatus || 'continue',
@@ -3670,10 +3890,10 @@ export const Step5Orders = ({
       unit: entry.unit || 'เม็ด',
       frequency: entry.frequency || 'วันละ 1 ครั้ง',
       when: entry.when || 'หลังอาหาร',
-      warning: entry.warning || '',
+      warning: entry.warning || registryMeta.warning,
       quantity: entry.quantity ?? 1,
       reimbursable: !!entry.reimbursable,
-      purpose: entry.purpose || '',
+      purpose: entry.purpose || registryMeta.purpose,
     };
     setForm((s) => {
       if (addMedEditIndex == null) {
@@ -3756,6 +3976,7 @@ export const Step5Orders = ({
     () => buildMedTableColumns({
       updateRow: updateMed,
       editRow: openEditMed,
+      removeRow: setPendingMedDelete,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -3877,9 +4098,32 @@ export const Step5Orders = ({
   if (!hasAnyTreatmentOrder) {
     return (
       <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-        {/* หัวข้อ "สั่งการรักษา (Treatment Order)" ถูกเอาออก — แถบขั้นตอน
-            ด้านบนบอกอยู่แล้ว (28 ส.ค. 69) */}
-        <CpoeWorkflowPanel embedded patient={patient} form={form} setForm={setForm} />
+        {/* สองส่วนอยู่บนการ์ดขาวคนละใบ (มติผู้ใช้ 31 ส.ค. 69) — ขั้นนี้ถูกย้ายไป
+            เป็น plain body step ที่ TreatmentFormPage แล้ว เปลือกการ์ดจึงมาจาก
+            สองกล่องนี้ ไม่ใช่การ์ดใบเดียวของ shell */}
+        <div className='flex flex-col w-full' style={{
+          gap: 'var(--dim-space-400)',
+          padding: 'var(--dim-space-600)',
+          borderRadius: 'var(--dim-radius-500)',
+          background: 'var(--surface-card-100)',
+          /* เงาแบรนด์ใต้แผ่นขาว (มติผู้ใช้ 31 ส.ค. 69) — แยกการ์ดออกจากพื้นหลัง
+             ของหน้าโดยไม่ต้องใช้เส้นขอบ */
+          boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+        }}>
+          <OrderStepHeading number={1} title='แบบประเมินความปลอดภัยก่อนส่งคำสั่ง' />
+          <CpoeWorkflowPanel embedded patient={patient} form={form} setForm={setForm} />
+        </div>
+
+        <div className='flex flex-col w-full' style={{
+          gap: 'var(--dim-space-400)',
+          padding: 'var(--dim-space-600)',
+          borderRadius: 'var(--dim-radius-500)',
+          background: 'var(--surface-card-100)',
+          /* เงาแบรนด์ใต้แผ่นขาว (มติผู้ใช้ 31 ส.ค. 69) — แยกการ์ดออกจากพื้นหลัง
+             ของหน้าโดยไม่ต้องใช้เส้นขอบ */
+          boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+        }}>
+        <OrderStepHeading number={2} title='สั่งการรักษา' subtitle='Treatment Order' />
         {/* TOR §1.18.6 — แถบเดียวกับ branch ที่มีคำสั่งแล้ว: เคสเยี่ยมบ้าน
             ส่วนใหญ่มาถึงตอน Visit ยังไม่มีคำสั่งเลย จึงต้องแสดงที่ empty
             state ด้วย ไม่งั้นคำสั่งที่ส่งมาจะไม่มีทางถูกเห็น */}
@@ -3907,6 +4151,7 @@ export const Step5Orders = ({
           </div>
           <BrandPrimaryButton size='lg' leadingIcon='add' onClick={() => setOrderPickerOpen(true)}>เพิ่มรายการ</BrandPrimaryButton>
         </div>
+        </div>
         <TreatmentOrderPickerPopup open={orderPickerOpen} onClose={() => setOrderPickerOpen(false)} items={orderPickerItems} onConfirm={commitPickedOrders} patient={patient} cardPatient={cardPatient} />
       </section>
     );
@@ -3914,31 +4159,36 @@ export const Step5Orders = ({
 
   return (
     <section className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
-      <Topic
-        hierarchy='primary'
-        title='สั่งการรักษา (Treatment Order)'
-        leadingIcon='description'
-        showSubText={false}
-        showBadge={false}
-        showChevron={false}
-        showSuccess={false}
-      />
-
-      <CpoeWorkflowPanel embedded patient={patient} form={form} setForm={setForm} />
+      {/* สองส่วนอยู่บนการ์ดขาวคนละใบ (มติผู้ใช้ 31 ส.ค. 69) */}
+      <div className='flex flex-col w-full' style={{
+          gap: 'var(--dim-space-400)',
+          padding: 'var(--dim-space-600)',
+          borderRadius: 'var(--dim-radius-500)',
+          background: 'var(--surface-card-100)',
+          /* เงาแบรนด์ใต้แผ่นขาว (มติผู้ใช้ 31 ส.ค. 69) — แยกการ์ดออกจากพื้นหลัง
+             ของหน้าโดยไม่ต้องใช้เส้นขอบ */
+          boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+        }}>
+        <OrderStepHeading number={1} title='แบบประเมินความปลอดภัยก่อนส่งคำสั่ง' />
+        <CpoeWorkflowPanel embedded patient={patient} form={form} setForm={setForm} />
+      </div>
 
       <div
         className='flex flex-col w-full'
         style={{
           gap: 'var(--dim-space-400)',
-          padding: 0,
+          padding: 'var(--dim-space-600)',
           borderRadius: 'var(--dim-radius-500)',
           background: 'var(--surface-card-100)',
+          boxShadow: 'var(--shadow-brand-drop-bottom-200)',
         }}
       >
-        <div className='flex items-center justify-between flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <div style={{ color: 'var(--text-content-secondary, #454B50)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm, 14px)' }}>เพิ่มจากรายการ หรือเลือก Order Set ได้ในครั้งเดียว</div>
-          <BrandPrimaryButton leadingIcon='add' onClick={() => setOrderPickerOpen(true)}>เพิ่มรายการ</BrandPrimaryButton>
-        </div>
+        {/* หัวข้อ Topic เดิม ("สั่งการรักษา (Treatment Order)") ถูกแทนด้วยหัวข้อ
+            ส่วนที่ 2 เพื่อไม่ให้มีสองหัวข้อที่พูดเรื่องเดียวกันซ้อนกัน */}
+        <OrderStepHeading number={2} title='สั่งการรักษา' subtitle='Treatment Order' />
+        {/* แถวหัว (คำอธิบาย + ปุ่ม "เพิ่มรายการ") ถูกเอาออกทั้งแถว 31 ส.ค. 69
+            (มติผู้ใช้) — คำอธิบายซ้ำกับป๊อปอัปที่ปุ่มเปิด ส่วนปุ่มเพิ่มรายการมีอยู่
+            แล้วในแต่ละหมวดด้านล่าง · `setOrderPickerOpen` ยังถูกเรียกจากที่อื่น */}
 
         {/* TOR §1.18.6 — คำสั่งที่พยาบาลบันทึกไว้ตอนเยี่ยมบ้านของ HN นี้
             รอให้แพทย์ "นำเข้า" ผ่าน commitPickedOrders ตัวเดียวกับการเพิ่ม
@@ -3972,28 +4222,42 @@ export const Step5Orders = ({
             would otherwise apply. */}
         <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
           {TREATMENT_ORDER_CATEGORIES.map((cat) => (
-            <TabCapsule
-              key={cat.key}
-              variant='filter'
-              label={cat.label}
-              selected={activeCategory === cat.key}
-              showLeadingIcon={false}
-              showTrailingIcon={false}
-              onClick={() => setCategory(cat.key)}
-            />
+            <React.Fragment key={cat.key}>
+              <TabCapsule
+                variant='filter'
+                label={cat.label}
+                selected={activeCategory === cat.key}
+                showLeadingIcon={false}
+                showTrailingIcon={false}
+                onClick={() => setCategory(cat.key)}
+              />
+              {/* EMR §1.4.3.5/§1.4.3.6 — แท็บที่ 6 วางถัดจากแท็บ "ยา" ทันที
+                  (มติผู้ใช้ 31 ส.ค. 69) เพราะเป็นงานของยาเหมือนกัน ของเดิมอยู่
+                  ท้ายสุดหลังแล็บ/รังสี/หัตถการ/ปรึกษา ซึ่งเป็นคนละเรื่อง ·
+                  ยังเก็บไว้นอก TREATMENT_ORDER_CATEGORIES โดยตั้งใจ เพราะ
+                  ORDER_EMPTY_STATE_TEXT / ORDER_TABLE_TEXT map ตาม 5 คีย์เดิม
+                  การเพิ่มคีย์เข้าไปจะทำให้ lookup เดิมพัง */}
+              {cat.key === 'medication' && (
+                <TabCapsule
+                  variant='filter'
+                  label={`ประสานรายการยาเดิม${form.medRecPending ? ` (${form.medRecPending})` : ''}`}
+                  selected={activeCategory === MEDREC_CATEGORY}
+                  showLeadingIcon={false}
+                  showTrailingIcon={false}
+                  onClick={() => setCategory(MEDREC_CATEGORY)}
+                />
+              )}
+            </React.Fragment>
           ))}
-          {/* EMR §1.4.3.5/§1.4.3.6 — แท็บที่ 6. เก็บไว้นอก
-              TREATMENT_ORDER_CATEGORIES โดยตั้งใจ เพราะ
-              ORDER_EMPTY_STATE_TEXT / ORDER_TABLE_TEXT map ตาม 5 คีย์เดิม
-              การเพิ่มคีย์เข้าไปจะทำให้ lookup เดิมพัง */}
-          <TabCapsule
-            variant='filter'
-            label={`ประสานรายการยาเดิม${form.medRecPending ? ` (${form.medRecPending})` : ''}`}
-            selected={activeCategory === MEDREC_CATEGORY}
-            showLeadingIcon={false}
-            showTrailingIcon={false}
-            onClick={() => setCategory(MEDREC_CATEGORY)}
-          />
+          {/* ปุ่มเพิ่มรายการย้ายมาอยู่ท้ายแถวฟิลเตอร์แท็ก (มติผู้ใช้ 31 ส.ค. 69) —
+              ที่เดิมอยู่บนหัวตารางรวมกับ "ยาทั้งหมด / Re-Diagnosis" ซึ่งถูกถอด
+              ออกทั้งชุดแล้ว · เปิด `TreatmentOrderPickerPopup` ที่ค้นได้ทุกหมวด
+              จึงใช้ได้กับทุกแท็บ ไม่ต้องมีปุ่มเพิ่มแยกรายหมวด */}
+          <span className='ml-auto shrink-0'>
+            <BrandPrimaryButton size='sm' leadingIcon='add' onClick={() => setOrderPickerOpen(true)}>
+              เพิ่มรายการ
+            </BrandPrimaryButton>
+          </span>
         </div>
 
         <div
@@ -4087,6 +4351,7 @@ export const Step5Orders = ({
                   three categories keep today's behaviour untouched until
                   their pickers exist on this branch. */}
               <BrandPrimaryButton
+                size='sm'
                 leadingIcon='add'
                 onClick={activeCategory === 'xray' ? openAddXray : openAddMed}
               >
@@ -4129,44 +4394,11 @@ export const Step5Orders = ({
                   visually away from the destructive-free "add new" CTA
                   on the right, matching the design's clear primary /
                   secondary split. */}
-              {/* The whole cluster is medication-vocabulary (ยาทั้งหมด /
-                  Re-Diagnosis / เพิ่มยา), so the xray table swaps it for
-                  its single "เพิ่ม X-ray" CTA opening the RIS picker —
-                  a branch, not a rewrite, so the medication path stays
-                  byte-identical (live demoed screen). */}
-              {activeCategory === 'xray' ? (
-                <BrandPrimaryButton leadingIcon='add' onClick={openAddXray}>
-                  {ORDER_EMPTY_STATE_TEXT.xray.addLabel}
-                </BrandPrimaryButton>
-              ) : (
-              <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
-                <BrandButton
-                  variant='outline'
-                  size='sm'
-                  leadingIcon='pill'
-                  onClick={openAllMeds}
-                >
-                  ยาทั้งหมด
-                </BrandButton>
-                <div
-                  aria-hidden
-                  style={{
-                    width: 'var(--dim-stroke-100, 1px)',
-                    height: 40,
-                    background: 'var(--border-neutral-tertiary, #E2E4E6)',
-                  }}
-                />
-                <BrandButton
-                  variant='outline'
-                  size='sm'
-                  leadingIcon='history'
-                  onClick={() => setReMedicineOpen(true)}
-                >
-                  Re-Diagnosis
-                </BrandButton>
-                <BrandPrimaryButton leadingIcon='add' onClick={openAddMed}>เพิ่มยา</BrandPrimaryButton>
-              </div>
-              )}
+              {/* ปุ่ม "ยาทั้งหมด · Re-Diagnosis · เพิ่มยา" (และสาขา "เพิ่ม X-ray")
+                  ถูกเอาออกจากหัวตารางทั้งชุด 31 ส.ค. 69 (มติผู้ใช้) — การเพิ่ม
+                  รายการทำจากปุ่ม "เพิ่มรายการ" ท้ายแถวฟิลเตอร์แท็กที่เดียว
+                  `openAllMeds` / `setReMedicineOpen` / `openAddMed` / `openAddXray`
+                  ยังอยู่ครบ พร้อมเสียบกลับถ้าต้องการทางลัดเหล่านี้อีก */}
             </div>
 
             {/* Drug-allergy cross-class warning (Figma 2508:98442) — dismissible.
@@ -4345,37 +4577,20 @@ export const Step5Orders = ({
         </>
         )}
 
+        {/* ชิป "ยาที่สั่งบ่อย" กลับมาอยู่ใต้ตาราง ในการ์ดขาวใบเดียวกัน
+            (มติผู้ใช้ 31 ส.ค. 69) — กดชิปแล้วแถวไปโผล่ในตารางที่อยู่เหนือมัน
+            ทันที การอยู่คนละการ์ดทำให้ความสัมพันธ์นี้อ่านไม่ออก
+            แสดงเฉพาะแท็บ "ยา" เพราะชิปเป็นชื่อยาทั้งชุด */}
+        {activeCategory === 'medication' ? (
+          <FrequentOrdersCard
+            onInsertChip={openAddMedFromChip}
+            /* ชื่อยาที่อยู่ในตารางแล้ว — ชิปเหล่านั้นขึ้นติ๊กถูกแทนเครื่องหมาย + */
+            selectedLabels={form.medications.map((m) => m.name)}
+          />
+        ) : null}
+
       </div>
 
-      {/* Disease-specific "Often order" card — Figma PHCIS|CPOE 266:26956.
-          Outside the main order card, in its own bordered shell so the
-          three persona tabs (ที่ฉันบันทึกไว้ / ที่แพทย์มักสั่งบ่อย /
-          ที่ผู้ป่วยรายนี้ใช้บ่อย) read as a peer of the diagnosis /
-          patient context, not as a sub-section of the order table. */}
-      {/* Often-order chips open AddMedicationPopup pre-seeded with the
-          chip's ชื่อยา (and the same blister-pack thumbnail) so the
-          doctor still confirms วิธีใช้ / หน่วย / ความถี่ / เวลา /
-          การใช้ / คำเตือน before the row commits — same surface as the
-          "เพิ่มยา" CTA, just with the name field already filled. */}
-      {/* Medication-only surface. Its chips are ชื่อยา and its CTA seeds
-          AddMedicationPopup, so it would be nonsense under the X-ray / แล็บ /
-          หัตถการ / ปรึกษา tabs — a doctor on the X-ray tab must not be
-          offered Amlodipine. Gated once the category tabs became
-          functional (TOR §1.12.5.1 put a real ordering surface behind the
-          X-ray tab). A frequent-exam roster for รังสีวิทยา would go here
-          when the catalog grows usage stats. */}
-      {activeCategory === 'medication' ? (
-      <FrequentOrdersCard
-        onInsertChip={openAddMedFromChip}
-        /* Feed the current medication-row names so chips already in
-           the order render with the selected/check affordance —
-           same UX pattern the Select dropdown uses for its picked
-           option (tick + active tone). Names match by exact label
-           because chip labels mirror what `openAddMedFromChip`
-           seeds into the popup's `ชื่อยา` field. */
-        selectedLabels={form.medications.map((m) => m.name)}
-      />
-      ) : null}
 
       {/* Re-Medicine popup (Figma 200:23111). Mounted at the section
           root so it portals outside the page's flex tree but still
@@ -5476,6 +5691,9 @@ const CertClinicalInfoCard = ({ label, value }) => (
     className='flex w-full min-w-0'
     style={{
       maxWidth: 640,
+      /* กล่องยืดเต็มความสูงของแถว กล่องซ้าย/ขวาจึงเท่ากันเสมอ แม้ข้อความยาว
+         ไม่เท่ากัน (มติผู้ใช้ 31 ส.ค. 69) */
+      height: '100%',
       padding: 'var(--dim-space-400)',
       borderRadius: 'var(--dim-radius-400)',
       background: 'var(--surface-neutral-quaternary, #F9FBFB)',
@@ -5546,30 +5764,29 @@ const CertDiagnosisFilledState = ({ form, primaryDx }) => {
           </div>
         </div>
       )}
+      {/* กริด 2×2 แทนสองคอลัมน์ที่แยกกัน (มติผู้ใช้ 31 ส.ค. 69) — สองคอลัมน์เดิม
+          ต่างคนต่างสูงตามข้อความของตัวเอง กล่องซ้ายจึงเตี้ยกว่ากล่องขวาที่มี
+          รายการยาวกว่า กริดบังคับให้กล่องในแถวเดียวกันสูงเท่ากัน (CC ↔ วินิจฉัย ·
+          ตรวจร่างกาย ↔ คำสั่งแพทย์) จึงต้องเรียงแบบไล่แถว ไม่ใช่ไล่คอลัมน์ */}
       <div
-        className='flex w-full items-center min-w-0'
-        style={{ gap: 'var(--dim-space-1200)' }}
+        className='grid w-full min-w-0'
+        style={{
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          columnGap: 'var(--dim-space-1200)',
+          rowGap: 'var(--dim-space-400)',
+          alignItems: 'stretch',
+        }}
       >
-        <div
-          className='flex flex-col flex-1 min-w-0'
-          style={{ gap: 'var(--dim-space-400)' }}
-        >
-          <CertClinicalInfoCard
-            label='อาการ (Chief Complaint)'
-            value={form.doctorExam?.cc}
-          />
-          <CertClinicalInfoCard
-            label='ตรวจร่างกาย (Physical Examination)'
-            value={form.doctorExam?.pe}
-          />
-        </div>
-        <div
-          className='flex flex-col flex-1 min-w-0'
-          style={{ gap: 'var(--dim-space-400)' }}
-        >
-          <CertClinicalInfoCard label='วินิจฉัย (Diagnosis)' value={diagnosisText} />
-          <CertClinicalInfoCard label='คำสั่งแพทย์ (Doctor Order)' value={doctorOrderText} />
-        </div>
+        <CertClinicalInfoCard
+          label='อาการ (Chief Complaint)'
+          value={form.doctorExam?.cc}
+        />
+        <CertClinicalInfoCard label='วินิจฉัย (Diagnosis)' value={diagnosisText} />
+        <CertClinicalInfoCard
+          label='ตรวจร่างกาย (Physical Examination)'
+          value={form.doctorExam?.pe}
+        />
+        <CertClinicalInfoCard label='คำสั่งแพทย์ (Doctor Order)' value={doctorOrderText} />
       </div>
     </div>
   );
@@ -5607,6 +5824,11 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
   const goToDiagnosisStep = () => onStepChange?.(stepIndexes?.diagnosis ?? STEP_DOCTOR_RECORD_INDEX);
 
   const issueYes = form.certIssue === 'yes';
+  /* ความประสงค์เรื่องใบรับรองแพทย์ที่พยาบาลถามไว้ตอนคัดกรอง (มติผู้ใช้ 31 ส.ค. 69)
+     — เดิมค่านี้ไปโผล่ในคอลัมน์ "บันทึกจากพยาบาล" ของขั้นตรวจร่างกาย ซึ่งอยู่คนละ
+     ขั้นกับตอนที่แพทย์ต้องตัดสินใจจริง จึงย้ายมาอยู่ใต้ปุ่มรับ/ไม่รับตรงนี้แทน
+     `null` = จุดคัดกรองไม่ได้ถาม — ไม่ขึ้นอะไรเลย ดีกว่าเดาว่าไม่ต้องการ */
+  const screeningCert = getCarriedScreening(patient || {}).cert;
   const primaryDx = (form.diagnoses || [])[0];
   /* Step 7 "การวินิจฉัยโรค" — Figma 294:31586 empty vs 228:27018 filled.
      True when Step 4 has a diagnosis note and/or at least one ICD row. */
@@ -5666,6 +5888,20 @@ export const Step7Certificate = ({ form, setForm, patient, onStepChange, stepInd
           />
         ))}
       </div>
+
+      {screeningCert != null && (
+        <span style={{
+          color: 'var(--text-content-tertiary, #858C92)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-xs)',
+          lineHeight: 1.5,
+        }}
+        >
+          {screeningCert
+            ? 'ผู้ป่วยระบุว่าต้องการรับใบรับรองแพทย์ (บันทึกไว้ที่จุดคัดกรอง)'
+            : 'ผู้ป่วยระบุว่าไม่ต้องการรับใบรับรองแพทย์ (บันทึกไว้ที่จุดคัดกรอง)'}
+        </span>
+      )}
 
       {/* Certificate card — Figma 228:27018 / 226:33424–33423. Mounts when
           "ใช่". Layer stack: full-bleed document strip (226:27191) →

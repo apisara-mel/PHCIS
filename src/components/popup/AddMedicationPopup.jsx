@@ -116,6 +116,10 @@ const WHEN_OPTIONS = [
 
 const ORDER_STATUS_OPTIONS = [
   { value: 'continue', label: 'Continue' },
+  /* สองลักษณะคำสั่งที่เพิ่ม 31 ส.ค. 69 (มติผู้ใช้) — คำสั่งที่ให้ครั้งเดียวจบ และ
+     คำสั่งฉุกเฉินที่ต้องให้ทันที ต่างจากสี่ตัวเดิมที่บอก "สถานะของคำสั่งต่อเนื่อง" */
+  { value: 'one-time', label: 'รายครั้ง (One-time)' },
+  { value: 'stat', label: 'ฉุกเฉิน — ให้ทันที (STAT)' },
   { value: 'discontinue', label: 'Discontinue' },
   { value: 'completed', label: 'Completed' },
   { value: 'on-hold', label: 'On hold' },
@@ -290,7 +294,9 @@ const AddMedicationPopup = ({
         rowGap='var(--dim-space-600, 24px)'
         columnGap='var(--dim-space-600, 24px)'
       >
-        <Field label='ชื่อยา' required span={2}>
+        {/* ชื่อยา + สถานะคำสั่งยา อยู่บรรทัดเดียวกัน (มติผู้ใช้ 31 ส.ค. 69) —
+            ทั้งคู่เคยกินเต็มสองคอลัมน์ ทำให้ป๊อปอัปยาวโดยไม่จำเป็น */}
+        <Field label='ชื่อยา' required>
           {/* Typeable combobox — the trigger doubles as an input,
               so the doctor can type to filter MEDICATION_NAME_OPTIONS
               in place (e.g. typing "P" narrows the list to entries
@@ -306,7 +312,7 @@ const AddMedicationPopup = ({
             placeholder='เลือกชื่อยา หรือพิมพ์เพื่อค้นหา'
           />
         </Field>
-        <Field label='สถานะคำสั่งยา' required span={2}>
+        <Field label='สถานะคำสั่งยา' required>
           <Select
             value={draft.orderStatus}
             onChange={setOrderStatus}
@@ -355,11 +361,15 @@ const AddMedicationPopup = ({
             </Field>
           </>
         )}
+        {/* วิธีใช้ + หน่วย แก้ไม่ได้ (มติผู้ใช้ 31 ส.ค. 69) — เป็นคุณสมบัติของตัวยา
+            ที่มาจากทะเบียนยา ไม่ใช่สิ่งที่แพทย์ตั้งเองรายใบสั่ง ค่ายังถูกส่งกลับ
+            ไปกับ `draft` ตามเดิม แค่ล็อกไม่ให้แก้ */}
         <Field label='วิธีใช้' required>
           <Select
             value={draft.usage}
             onChange={setField('usage')}
             options={USAGE_OPTIONS}
+            disabled
           />
         </Field>
         <Field label='หน่วย' required>
@@ -367,6 +377,7 @@ const AddMedicationPopup = ({
             value={draft.unit}
             onChange={setField('unit')}
             options={UNIT_OPTIONS}
+            disabled
           />
         </Field>
         <Field label='ทานครั้งละ' required>

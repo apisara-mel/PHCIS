@@ -20,6 +20,8 @@ const SEEDS = {
       temp: '36.5', pulse: '78', pressureSys: '138', pressureDia: '86',
       respiration: '18', oxygen: '98', weight: '65', height: '158',
       waist: '84', bmi: '26.0',
+      note: 'วัดความดันซ้ำรอบที่สองหลังนั่งพัก 5 นาที ค่าแรก 146/90 · '
+        + 'ผู้รับบริการเดินขึ้นบันไดมาก่อนวัด · ชั่งน้ำหนักโดยไม่ถอดรองเท้า',
     },
     symptom: {
       complaint: 'ปวดเข่าทั้งสองข้าง เดินขึ้นลงบันไดลำบาก',
@@ -27,8 +29,15 @@ const SEEDS = {
       presentIllness: 'ปวดเข่าทั้งสองข้างมา 1 เดือน ปวดมากตอนเช้าและเวลาขึ้นลงบันได '
         + 'มีเสียงกรอบแกรบในข้อ ไม่มีข้อบวมแดงร้อน ไม่มีไข้ เคยกินยาแก้ปวดซื้อเองแล้วดีขึ้นชั่วคราว',
       pain: 'severe', triage: 4, cert: false,
-      orders: ['ชั่งน้ำหนัก วัดส่วนสูง', 'ประเมินการเดินและการทรงตัว'],
-      othersNote: '', bedId: '',
+      orders: [
+        'ชั่งน้ำหนัก วัดส่วนสูง',
+        'ประเมินการเดินและการทรงตัว',
+        'วัดความดันโลหิตซ้ำหลังนั่งพัก 5 นาที',
+        'แนะนำการใช้ไม้เท้าช่วยเดินระหว่างรอตรวจ',
+      ],
+      othersNote: 'ผู้รับบริการมากับบุตรสาว · ขอเก้าอี้นั่งรอแทนการยืน · '
+        + 'แจ้งว่ามีนัดคลินิกกระดูกและข้ออยู่แล้วเดือนหน้า',
+      bedId: '',
     },
     'allergy.drug': {
       topic: 'ประวัติการแพ้ยา', declaresPresence: true,
@@ -69,6 +78,12 @@ const SEEDS = {
       exercise: 'สัปดาห์ละ 1-2 ครั้ง (เดินเร็ว 30 นาที)',
       detail: 'ทำงานนั่งโต๊ะเป็นหลัก · นอนวันละ 5-6 ชม. · ดื่มกาแฟวันละ 2 แก้ว',
     },
+    doctor: {
+      assignedClinicKey: 'opd-treat',
+      assignedDoctor: 'พญ. สมหญิง รักษ์ดี',
+      assignedSlot: '09:00-09:20',
+      assignedDept: 'อายุรกรรม',
+    },
     _meta: { updatedAt: '2026-02-18T08:24:00+07:00', seeded: true },
   },
 
@@ -78,6 +93,8 @@ const SEEDS = {
       temp: '36.7', pulse: '76', pressureSys: '132', pressureDia: '84',
       respiration: '18', oxygen: '98', weight: '68', height: '172',
       waist: '88', bmi: '23.0',
+      note: 'วัดในท่านั่ง แขนขวา · ผู้รับบริการบอกว่าปวดหลังมากเวลาลุกจากเก้าอี้ '
+        + 'จึงวัดส่วนสูงหลังสุด',
     },
     symptom: {
       complaint: 'ปวดหลังช่วงล่างมาก เวลาก้ม',
@@ -85,7 +102,12 @@ const SEEDS = {
       presentIllness: 'ปวดหลังช่วงเอวมา 2 สัปดาห์ ปวดมากเวลาก้มหยิบของ '
         + 'ไม่มีปวดร้าวลงขา ไม่มีชาหรืออ่อนแรง ควบคุมปัสสาวะอุจจาระได้ปกติ',
       pain: 'moderate', triage: 4, cert: true,
-      orders: ['ประเมินท่าทางการเคลื่อนไหว'], othersNote: '', bedId: '',
+      orders: [
+        'ประเมินท่าทางการเคลื่อนไหว',
+        'แนะนำท่านอนพักและการลุกจากเตียงที่ถูกวิธี',
+      ],
+      othersNote: 'ขอใบรับรองแพทย์เพื่อลาป่วย 3 วัน — แจ้งให้แพทย์ทราบตอนตรวจ',
+      bedId: '',
     },
     'allergy.drug': {
       topic: 'ประวัติการแพ้ยา', declaresPresence: true,
@@ -106,6 +128,12 @@ const SEEDS = {
       exercise: 'สัปดาห์ละ 3 ครั้งขึ้นไป',
       detail: 'ยกของหนักเป็นประจำจากงานที่ทำ',
     },
+    doctor: {
+      assignedClinicKey: 'opd-treat',
+      assignedDoctor: 'นพ. สมชาย ใจดี',
+      assignedSlot: '10:20-10:40',
+      assignedDept: 'เวชศาสตร์ครอบครัว',
+    },
     _meta: { updatedAt: '2026-04-02T09:10:00+07:00', seeded: true },
   },
 };
@@ -117,24 +145,43 @@ const FALLBACK_SEED = {
     temp: '36.8', pulse: '80', pressureSys: '126', pressureDia: '80',
     respiration: '18', oxygen: '98', weight: '62', height: '165',
     waist: '80', bmi: '22.8',
+    note: 'วัดในท่านั่ง แขนซ้าย หลังนั่งพัก 5 นาที',
   },
   symptom: {
     complaint: 'ตรวจติดตามอาการตามนัด',
     duration: 'ติดตามต่อเนื่อง',
     presentIllness: 'มาตามนัดติดตามอาการ ไม่มีอาการผิดปกติเพิ่มเติมระหว่างนัด รับประทานยาต่อเนื่อง',
     pain: 'none', triage: 5, cert: false,
-    orders: ['วัดสัญญาณชีพ'], othersNote: '', bedId: '',
+    orders: ['วัดสัญญาณชีพ', 'ทบทวนยาที่รับประทานอยู่กับผู้รับบริการ'],
+    othersNote: 'นำยาเดิมมาด้วยครบทุกรายการ',
+    bedId: '',
   },
-  'allergy.drug': { topic: 'ประวัติการแพ้ยา', declaresPresence: false, records: [] },
+  /* ชุดกลางมีของให้อ่านทุกหมวด ไม่ปล่อยว่างทั้งแถบ (มติผู้ใช้ 31 ส.ค. 69) —
+     หมวดที่ตั้งใจให้เป็น "ซักแล้ว ระบุว่าไม่มี" ยังคง `declaresPresence: false` */
+  'allergy.drug': {
+    topic: 'ประวัติการแพ้ยา', declaresPresence: true,
+    records: [REC('Sulfonamides (Co-trimoxazole)', 'ปานกลาง', 'น่าจะใช่',
+      'ผื่นแดงคันตามลำตัวหลังกินยา 3 วัน', 'เปลี่ยนเป็นยากลุ่มอื่นแล้วอาการหาย')],
+  },
   'allergy.food': { topic: 'แพ้อาหาร', declaresPresence: false, records: [] },
   'allergy.chemical': { topic: 'แพ้สารเคมี', declaresPresence: false, records: [] },
-  'allergy.disease': { topic: 'ประวัติโรคประจำตัว', declaresPresence: false, records: [] },
+  'allergy.disease': {
+    topic: 'ประวัติโรคประจำตัว', declaresPresence: true,
+    records: [REC('ความดันโลหิตสูง (Hypertension)', 'เล็กน้อย', 'ควบคุมได้',
+      'ไม่มีอาการ ตรวจพบจากการวัดความดันตามนัด', 'Amlodipine 5 mg วันละครั้ง')],
+  },
   'allergy.other': { topic: 'อื่น ๆ', declaresPresence: false, records: [] },
   behaviour: {
     smoking: 'ไม่สูบ', alcohol: 'ไม่ดื่ม', exercise: 'สัปดาห์ละ 1-2 ครั้ง',
     detail: '',
   },
-  _meta: { updatedAt: '', seeded: true },
+  doctor: {
+    assignedClinicKey: 'opd-treat',
+    assignedDoctor: 'พญ. สมหญิง รักษ์ดี',
+    assignedSlot: '13:00-13:20',
+    assignedDept: 'อายุรกรรม',
+  },
+  _meta: { updatedAt: '2026-08-30T09:05:00+07:00', seeded: true },
 };
 
 export const screeningSeedForHn = (hn) => {

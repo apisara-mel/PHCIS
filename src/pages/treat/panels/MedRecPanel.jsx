@@ -327,11 +327,9 @@ const MedRecPanel = ({ form, setForm, patient }) => {
                 เพิ่มยาที่ผู้ป่วยแจ้งว่าใช้เอง
               </NeutralSubdueButton>
             </GuardedAction>
-            <GuardedAction allowed={access.canEdit && analysed.length > 0}>
-              <BrandButton variant='fill' size='sm' leadingIcon='save' onClick={doSave}>
-                บันทึกการประสาน
-              </BrandButton>
-            </GuardedAction>
+            {/* ปุ่ม "บันทึกการประสาน" ถูกเอาออก 31 ส.ค. 69 (มติผู้ใช้) — การตัดสินใจ
+                ราย้แถวถูกบันทึกทันทีที่เลือกอยู่แล้ว (`recordDisposition`)
+                ปุ่มนี้จึงเป็นการยืนยันซ้ำ · `doSave` ยังอยู่ พร้อมเสียบกลับ */}
           </>
         }
       >
@@ -380,20 +378,17 @@ const MedRecPanel = ({ form, setForm, patient }) => {
         )}
       </PanelCard>
 
-      <PanelCard
-        title='ประวัติการประสานรายการยาครั้งก่อน'
-        subtitle='เก็บทุกครั้งที่บันทึก พร้อมผู้ประสานและเวลา — ใช้ตรวจย้อนหลังว่ายาใดถูกหยุดเพราะเหตุใด'
-        action={<CountLabel n={sessions.length} unit='ครั้ง' />}
-      >
-        <SessionHistory sessions={sessions} />
-      </PanelCard>
+      {/* การ์ด "ประวัติการประสานรายการยาครั้งก่อน" ถูกเอาออก 31 ส.ค. 69 (มติผู้ใช้)
+          — คอมโพเนนต์ `SessionHistory` และ `sessions` ยังอยู่ พร้อมเสียบกลับ */}
 
       {/* เหตุผลบังคับสำหรับ หยุดยา / ปรับขนาด */}
       <ReasonDialog
         open={!!reasonTarget}
         type='warning'
         title={`ระบุเหตุผล — ${dispositionMeta(reasonTarget?.disposition)?.label || ''}`}
-        description={`ยา "${reasonTarget?.row?.name || ''}" — TOR กำหนดให้การหยุดยาและการปรับขนาดต้องมีเหตุผลกำกับเสมอ`}
+        /* ท้ายประโยค "— TOR กำหนดให้…" ถูกตัดออก 31 ส.ค. 69 (มติผู้ใช้) — เป็นการ
+           อ้างข้อกำหนด ไม่ได้บอกผู้ใช้ว่าต้องทำอะไร */
+        description={`ยา "${reasonTarget?.row?.name || ''}"`}
         confirmLabel='บันทึกการตัดสินใจ'
         suggestions={MED_REC_REASON_SUGGESTIONS}
         onConfirm={(reason) => {

@@ -22,6 +22,7 @@ import { composeBoxShadow, resolveBox } from '@/components/forms/_inputBox';
 import Tooltip from '@/components/tooltip/Tooltip';
 import Popup from '@/components/popup/Popup';
 import { EXAM_VIEW_TABS } from '@/data/treatmentVisits';
+import TabCapsule from '@/components/tab/TabCapsule';
 import {
   BodyFigureAnnotationsSvg,
   BoardDrawingLayer,
@@ -2208,8 +2209,8 @@ export const BodyFigure = React.forwardRef(function BodyFigure({
 });
 
 const resolveViews = (viewKey) => ({
-  showFront: viewKey === 'both' || viewKey === 'front' || viewKey === 'sides',
-  showBack: viewKey === 'both' || viewKey === 'back' || viewKey === 'sides',
+  showFront: viewKey === 'both' || viewKey === 'front',
+  showBack: viewKey === 'both' || viewKey === 'back',
 });
 
 export const BodyViewSelector = ({
@@ -2218,7 +2219,6 @@ export const BodyViewSelector = ({
   visibleViewKeys,
   leadingSlot = null,
   trailingSlot = null,
-  tabBarStyle,
   className = '',
 }) => {
   const visibleViewKeySet = Array.isArray(visibleViewKeys)
@@ -2249,17 +2249,25 @@ export const BodyViewSelector = ({
           >
             มุมมอง
           </span>
-          <TabBar className='shrink-0' ariaLabel='มุมมองร่างกาย' style={tabBarStyle}>
+          {/* ฟิลเตอร์แท็ก ไม่ใช่แถบแท็บพื้นเขียว (มติผู้ใช้ 31 ส.ค. 69) — ชุดเดียว
+              กับแท็บหมวดซักประวัติในคอลัมน์ "บันทึกจากพยาบาล" · prop `tabBarStyle`
+              ที่เคยส่งพื้นเขียวของแถบแท็บมาถูกถอดออกพร้อมกัน ไม่มีแถบให้ระบายแล้ว */}
+          <div
+            className='flex items-center flex-wrap shrink-0'
+            style={{ gap: 'var(--dim-space-200)' }}
+          >
             {visibleTabs.map((tab) => (
-              <TabPill
+              <TabCapsule
                 key={tab.key}
+                variant='filter'
+                label={tab.label}
                 selected={viewKey === tab.key}
+                showLeadingIcon={false}
+                showTrailingIcon={false}
                 onClick={() => onViewChange?.(tab.key)}
-              >
-                {tab.label}
-              </TabPill>
+              />
             ))}
-          </TabBar>
+          </div>
         </div>
       </div>
       {trailingSlot}
@@ -4406,7 +4414,6 @@ const BodyDiagramExpandedPopup = ({
               viewKey={viewKey}
               onViewChange={onViewChange}
               visibleViewKeys={visibleViewKeys}
-              tabBarStyle={{ background: 'var(--surface-tabpill-background, #E2F3EB)' }}
             />
           </div>
           <BodyDiagramInteractiveViewport
@@ -4478,7 +4485,9 @@ export const BodyDiagramCard = ({
           ? {
               padding: 'var(--dim-space-600) var(--dim-space-600) var(--dim-space-600) 0',
               borderRadius: 'var(--dim-radius-400)',
-              border: 'var(--dim-stroke-100) solid var(--border-neutral-tertiary)',
+              /* ไม่มีเส้นขอบแล้ว (มติผู้ใช้ 31 ส.ค. 69) — การ์ดขาวของขั้นตรวจ
+                 ร่างกายห่ออยู่ชั้นนอกแล้ว กรอบนี้จึงเป็นเส้นซ้อนในเส้น */
+              border: 'none',
               background: 'var(--background-screen-default, #fff)',
             }
           : embedded
@@ -4500,7 +4509,6 @@ export const BodyDiagramCard = ({
         viewKey={viewKey}
         onViewChange={onViewChange}
         visibleViewKeys={visibleViewKeys}
-        tabBarStyle={{ background: 'var(--surface-tabpill-background, #E2F3EB)' }}
       />
       <div
         className='flex w-full shrink-0 items-end justify-center relative'

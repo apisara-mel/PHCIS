@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import TabCapsule from '@/components/tab/TabCapsule';
 import BrandCircleSubdueIconButton from '@/components/button/BrandCircleSubdueIconButton';
 import BodyRecordPopup from '@/components/examination/BodyRecordPopup';
 import { BodyDiagramCard } from '@/components/examination/BodyDrawingCanvas';
@@ -46,31 +45,6 @@ const BodyDiagramPanel = ({
     setDraftDrawings(drawings);
   }, [drawings]);
 
-  const visibleSystemKeySet = Array.isArray(visibleSystemKeys)
-    ? new Set(visibleSystemKeys)
-    : null;
-  const visibleTabs = visibleSystemKeySet
-    ? EXAM_SYSTEM_TABS.filter((tab) => visibleSystemKeySet.has(tab.key))
-    : EXAM_SYSTEM_TABS;
-
-  const systemTabs = (
-    <div
-      className='flex w-fit items-center overflow-hidden'
-      style={{ gap: 'var(--dim-space-200)' }}
-    >
-      {visibleTabs.map((tab) => (
-        <TabCapsule
-          key={tab.key}
-          label={tab.label}
-          selected={systemKey === tab.key}
-          showLeadingIcon={false}
-          showTrailingIcon={false}
-          onClick={() => onSystemChange?.(tab.key)}
-        />
-      ))}
-    </div>
-  );
-
   const bodyCard = (
     <BodyDiagramCard
       viewKey={viewKey}
@@ -102,17 +76,10 @@ const BodyDiagramPanel = ({
             background: 'var(--surface-card-100, #FFFFFF)',
           }}
         >
-          <div
-            className='flex w-full items-center justify-center overflow-x-auto'
-            style={{ gap: 'var(--dim-space-200)' }}
-          >
-            {systemTabs}
-          </div>
-          <div
-            aria-hidden
-            className='w-full shrink-0'
-            style={{ height: 1, background: 'var(--border-neutral-tertiary, #E2E4E6)' }}
-          />
+          {/* แถบชิประบบตรวจ (Heent · Heart · …) และเส้นคั่นใต้แถบ ถูกเอาออกจากโหมด
+              summary 31 ส.ค. 69 (มติผู้ใช้) — ในการ์ดสรุปของขั้นวินิจฉัยมักเหลือชิป
+              ใบเดียวตามระบบที่ตรวจจริง กลายเป็นแถวที่กดก็ไม่เปลี่ยนอะไร · โหมด
+              default ถอดแถบนี้ไปตั้งแต่ 28 ส.ค. 69 ตอนนี้จึงไม่มีโหมดไหนใช้แล้ว */}
           {bodyCard}
         </div>
       ) : (

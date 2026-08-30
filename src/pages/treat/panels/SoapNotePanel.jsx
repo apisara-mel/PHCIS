@@ -484,16 +484,50 @@ const SoapNotePanel = ({ form, setForm, patient, cardPatient, onStepChange, step
       >
         {/* empty state และปุ่ม "ไปลงรหัสวินิจฉัย" ถูกเอาออก 28 ส.ค. 69 —
             ขั้นวินิจฉัยมาก่อน SOAP ในลำดับใหม่แล้ว จึงไม่ต้องมีทางลัดย้อนกลับ */}
+        {/* ป้ายสีเหลือแค่ "รหัส" ส่วนชื่อโรคกับประเภทเป็นข้อความธรรมดา และเรียงเป็น
+            สองคอลัมน์ (มติผู้ใช้ 31 ส.ค. 69) — ของเดิมยัดทั้งบรรทัดลงในป้ายสีเดียว
+            ป้ายจึงยาวเกือบเต็มความกว้าง สีที่ควรบอก "ประเภทการวินิจฉัย" กลายเป็น
+            พื้นหลังของข้อความยาว ๆ อ่านไม่ออกว่าสีหมายถึงอะไร */}
         {diagnoses.length === 0 ? null : (
-          <div className='flex flex-wrap items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          <div
+            className='grid w-full min-w-0'
+            style={{
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              columnGap: 'var(--dim-space-400)',
+              rowGap: 'var(--dim-space-200, 8px)',
+            }}
+          >
             {diagnoses.map((d) => {
               const meta = resolveDiagnosisType(d.type)
                 || DIAGNOSIS_TYPE_OPTIONS.find((o) => o.value === d.type)
                 || { badgeStyle: 'grey', labelTh: d.type };
               return (
-                <ColorfulBadge key={d.id || d.code} style={meta.badgeStyle} size='default' width='hug'>
-                  {(d.code || 'ยังไม่ลงรหัส')} · {d.name} ({meta.labelTh})
-                </ColorfulBadge>
+                <div
+                  key={d.id || d.code}
+                  className='flex items-start min-w-0'
+                  style={{ gap: 'var(--dim-space-200, 8px)' }}
+                >
+                  <span className='shrink-0'>
+                    <ColorfulBadge style={meta.badgeStyle} size='small' width='hug'>
+                      {d.code || 'ยังไม่ลงรหัส'}
+                    </ColorfulBadge>
+                  </span>
+                  <span
+                    className='min-w-0'
+                    style={{
+                      color: 'var(--text-content-default)',
+                      fontFamily: 'var(--type-family-body)',
+                      fontSize: 'var(--type-size-sm)',
+                      lineHeight: 1.5,
+                      overflowWrap: 'anywhere',
+                    }}
+                  >
+                    {d.name}
+                    <span style={{ color: 'var(--text-content-tertiary)' }}>
+                      {` (${meta.labelTh})`}
+                    </span>
+                  </span>
+                </div>
               );
             })}
           </div>

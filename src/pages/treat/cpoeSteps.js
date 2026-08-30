@@ -31,6 +31,9 @@ export const CPOE_TREATMENT_STEPS = [
   { key: 'soap',        title: 'SOAP Note',            subtitle: 'Doctor Record' },
   { key: 'appointment', title: 'นัดหมาย',              subtitle: 'Appointment' },
   { key: 'documents',   title: 'เอกสาร/ใบรับรองแพทย์',  subtitle: 'Documents' },
+  /* ขั้นตรวจสอบข้อมูลปิดท้าย (มติผู้ใช้ 31 ส.ค. 69) — ล้อขั้นสุดท้ายของจุดคัดกรอง
+     และของเวชระเบียน แพทย์อ่านทวนทั้ง visit ในหน้าเดียวก่อนกดเสร็จสิ้น */
+  { key: 'review',      title: 'ตรวจสอบข้อมูล',        subtitle: 'Review' },
 ];
 
 export const CPOE_STEP_LABELS = CPOE_TREATMENT_STEPS.map((s) => s.title);
@@ -50,6 +53,7 @@ export const CPOE_STEP_DIAGNOSIS   = cpoeStepIndex('diagnosis');
 export const CPOE_STEP_ORDERS      = cpoeStepIndex('orders');
 export const CPOE_STEP_APPOINTMENT = cpoeStepIndex('appointment');
 export const CPOE_STEP_DOCUMENTS   = cpoeStepIndex('documents');
+export const CPOE_STEP_REVIEW      = cpoeStepIndex('review');
 
 /* SOAP ถือว่าครบเมื่อมีอย่างน้อย 1 ใน 4 ช่องยาวพอจะเป็นโน้ตจริง
    (ล้อ MIN_NOTE_CHARS ของ ClinicalNotesPanel ผ่าน soapHasContent) */
@@ -72,6 +76,9 @@ export const getCpoeCompletedSteps = (form, stepIndex = 0) => {
     isCpoeSoapComplete(form),         /* 4 SOAP Note          */
     legacy[5],                        /* 5 นัดหมาย            */
     legacy[6],                        /* 6 เอกสาร/ใบรับรองแพทย์ */
+    /* 7 ตรวจสอบข้อมูล — เป็นหน้าอ่านอย่างเดียว ไม่มีช่องของตัวเองให้กรอก จึงติ๊ก
+       ถูกก็ต่อเมื่อเดินผ่านไปแล้วเท่านั้น (ล้อขั้น "สั่งการรักษา" ที่ไม่บังคับ) */
+    stepIndex > CPOE_STEP_REVIEW,
   ];
 };
 

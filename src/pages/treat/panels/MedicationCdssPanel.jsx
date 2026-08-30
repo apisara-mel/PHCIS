@@ -697,28 +697,14 @@ const MedicationCdssPanel = ({ form, setForm, patient, onGoToDocuments, onGoToMe
         </PanelAlert>
       ) : null}
 
-      {/* ── Medication Reconciliation ยังไม่ปิด (§1.5.4.17) ───── */}
-      {medRecPending > 0 ? (
-        <PanelAlert tone='error' icon='fact_check' title={`ยังประสานรายการยาเดิมไม่ครบ ${medRecPending} รายการ`}>
-          ต้องระบุการตัดสินใจ (ใช้ต่อ / หยุด / เปลี่ยน) ให้ครบทุกรายการก่อนส่งใบสั่งยาไปห้องยา —
-          ปุ่ม "ส่งยาไปห้องยา" จะถูกกันไว้จนกว่าจะประสานครบ
-          {onGoToMedRec ? (
-            <span style={{ display: 'block', marginTop: 'var(--dim-space-200, 8px)' }}>
-              <NeutralSubdueButton variant='outline' size='sm' leadingIcon='arrow_forward' onClick={onGoToMedRec}>
-                ไปแท็บประสานรายการยาเดิม
-              </NeutralSubdueButton>
-            </span>
-          ) : null}
-        </PanelAlert>
-      ) : null}
+      {/* แถบเตือน "ยังประสานรายการยาเดิมไม่ครบ" ถูกเอาออก 31 ส.ค. 69 (มติผู้ใช้)
+          — ด่านจริงยังอยู่ครบ: ปุ่ม "ส่งยาไปห้องยา" ยังถูกกันไว้ และข้อความเตือน
+          ตอนกดยังมาจาก `TreatmentFormPage` เหมือนเดิม */}
 
       {/* ── CDSS rail ─────────────────────────────────────────── */}
-      {rows.length > 0 && visibleSignals.length === 0 ? (
-        <PanelAlert tone='success' icon='verified_user' title='ตรวจสอบความปลอดภัยของใบสั่งยาแล้ว ไม่พบประเด็นที่ต้องแก้'>
-          ตรวจครบ {CDSS_RULE_DEFS.filter((d) => isCdssRuleOn(d.key)).length} เกณฑ์ที่เปิดใช้งานอยู่ —
-          แพ้ยา · ปฏิกิริยาระหว่างยา · ยาซ้ำซ้อน · ขนาดยาตามน้ำหนัก · ยาความเสี่ยงสูง · สิทธิเบิก
-        </PanelAlert>
-      ) : null}
+      {/* แถบเขียว "ตรวจสอบความปลอดภัยของใบสั่งยาแล้ว…" ถูกเอาออก 31 ส.ค. 69
+          (มติผู้ใช้) — แจ้งเฉพาะตอนเจอประเด็นจริงพอ เหมือนที่ทำกับแถบเขียวของ
+          แบบประเมินความปลอดภัยไปแล้ว 28 ส.ค. 69 */}
 
       {visibleSignals.map((sig) => (
         <PanelAlert
@@ -770,78 +756,12 @@ const MedicationCdssPanel = ({ form, setForm, patient, onGoToDocuments, onGoToMe
         </PanelAlert>
       ) : null}
 
-      {/* ── ชุดยาของฉัน + ตารางรายละเอียด ─────────────────────── */}
-      <PanelCard
-        title='รายละเอียดคำสั่งยาและการตรวจสอบความปลอดภัย'
-        subtitle='ครบทุกมิติที่ TOR กำหนด — ปริมาณ · เวลา · จำนวน · จำนวนเงิน · แสดง · บันทึก · ใกล้หมด · Stock · ฉลาก · ปฏิกิริยา · คำปรึกษา'
-        action={<CountLabel n={rows.filter((r) => !r.cancelledAt).length} unit='รายการ' />}
-      >
-        <div className='flex flex-wrap items-end w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <div style={{ minWidth: 320, flex: 1 }}>
-            <Select
-              label='ชุดยาของฉัน / ชุดคำสั่งที่ใช้ร่วม'
-              value={pickedSet}
-              onChange={setPickedSet}
-              disabled={!canEdit || orderSets.length === 0}
-              options={orderSets.map((s) => ({
-                value: s.id,
-                label: s.name,
-                subtext: `${s.items.filter((i) => i.kind === 'medication').length} รายการยา · ${s.owner}`,
-              }))}
-              placeholder={orderSets.length === 0 ? 'ยังไม่มีชุดคำสั่ง — สร้างที่หน้าตั้งค่า' : 'เลือกชุดคำสั่งเพื่อดึงรายการยาเข้าใบสั่ง'}
-              helperText='ตั้งค่าชุดคำสั่งได้ที่ ตั้งค่าชุดคำสั่งและรายการสั่งการรักษา (/treat/order-sets)'
-            />
-          </div>
-          <GuardedAction allowed={canEdit && !!pickedSet}>
-            <BrandButton variant='outline' size='sm' leadingIcon='playlist_add' onClick={applyOrderSet}>
-              ดึงรายการยาจากชุดคำสั่ง
-            </BrandButton>
-          </GuardedAction>
-        </div>
-
-        {rows.length === 0 ? (
-          <PanelEmptyState
-            icon='pill'
-            title='ยังไม่มีรายการยาที่สั่ง'
-            subtitle='กด "เพิ่มยา" ด้านบน หรือเลือกชุดคำสั่งเพื่อดึงรายการยาเข้าใบสั่งทีเดียว'
-          />
-        ) : (
-          <>
-            <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
-              <Table columns={detailColumns} rows={rows} rowKey={(r) => r.id} />
-            </div>
-            {/* ยอดรวม แยก "เบิกได้ / ต้องชำระเอง" สองบรรทัดตาม §1.5.1.4 */}
-            <div
-              className='flex flex-wrap items-center justify-end w-full'
-              style={{
-                gap: 'var(--dim-space-600, 24px)',
-                background: 'var(--surface-table-footer, var(--brand-p100, #E2F3EB))',
-                borderRadius: 'var(--dim-radius-200, 8px)',
-                paddingTop: 'var(--dim-space-300, 12px)',
-                paddingRight: 'var(--dim-space-400, 16px)',
-                paddingBottom: 'var(--dim-space-300, 12px)',
-                paddingLeft: 'var(--dim-space-400, 16px)',
-                fontFamily: 'var(--type-family-body)',
-                fontSize: 'var(--type-size-sm, 14px)',
-                fontWeight: 'var(--type-weight-bold)',
-                color: 'var(--text-table-footer, var(--brand-p800, #004C31))',
-              }}
-            >
-              <span>รวมเงินทั้งหมด {baht(money.total)} บาท</span>
-              <span>รวมเบิกได้ {baht(money.claim)} บาท</span>
-              <span
-                style={{
-                  color: money.patientPay > 0
-                    ? 'var(--text-statusbadge-warning, #C2410C)'
-                    : 'var(--text-table-footer, var(--brand-p800, #004C31))',
-                }}
-              >
-                ต้องชำระเอง {baht(money.patientPay)} บาท
-              </span>
-            </div>
-          </>
-        )}
-      </PanelCard>
+      {/* การ์ด "รายละเอียดคำสั่งยาและการตรวจสอบความปลอดภัย" ถูกเอาออกทั้งใบ
+          31 ส.ค. 69 (มติผู้ใช้) — ตารางยาในนี้เป็นรายการชุดเดียวกับตารางหลักของ
+          ขั้นสั่งการรักษาที่อยู่เหนือขึ้นไป ต่างกันแค่รูปแบบการแสดง (ชุดคำสั่ง ·
+          ลักษณะการสั่ง · สรุปยอดเงิน) · โค้ดของบล็อกนี้ถูกลบทิ้ง แต่ตัวช่วยที่มัน
+          ใช้ (`orderSets` · `money` · `rows` · ReasonDialog หยุดยา/ยกเลิก) ยังอยู่
+          และแถบเตือน CDSS ด้านบนยังทำงานเหมือนเดิม */}
 
       {/* หยุดยา — บังคับเหตุผล ไม่ลบแถว */}
       <ReasonDialog

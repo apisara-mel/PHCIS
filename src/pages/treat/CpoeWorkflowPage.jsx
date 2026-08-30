@@ -17,6 +17,7 @@ import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import Icon from '@/components/icons/Icon';
 import Alert from '@/components/alert/Alert';
 import Popup from '@/components/popup/Popup';
+import OfficialFormCover from '@/components/consent/OfficialFormCover';
 import AlertDialog from '@/components/popup/AlertDialog';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
 import { PATIENT_PROFILES } from '@/data/patientProfiles';
@@ -203,6 +204,173 @@ const treatmentOrderIds = (form) => [
   ...(form?.procedureOrders || []).filter((item) => !item.cancelledAt).map((item) => `procedure-${item.code}`),
 ].filter((id) => resolveCpoeOrder(id));
 
+/* ค่าที่อ่านอย่างเดียวในป๊อปอัปแบบประเมิน — ป้ายบน ค่าล่าง แบบเดียวกับ
+   InputField แต่ไม่มีกรอบให้เข้าใจผิดว่าพิมพ์ได้ */
+const ReadOnlyValue = ({ label, value }) => (
+  <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100)' }}>
+    <span style={{
+      color: 'var(--text-content-secondary, #636B72)',
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-sm)',
+      fontWeight: 'var(--type-weight-medium)',
+      lineHeight: 1.5,
+    }}
+    >
+      {label}
+    </span>
+    <span style={{
+      color: String(value ?? '').trim()
+        ? 'var(--text-content-default)'
+        : 'var(--text-content-tertiary)',
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-sm)',
+      lineHeight: 1.5,
+    }}
+    >
+      {String(value ?? '').trim() || '—'}
+    </span>
+  </div>
+);
+
+/* หนึ่งหมวดในป๊อปอัปแบบประเมินความปลอดภัย — หัวข้อ + คำอธิบาย + เนื้อหา
+   คั่นด้วยกรอบบาง ๆ เพื่อให้เห็นขอบเขตของแต่ละหมวดโดยไม่ต้องใช้พื้นสี */
+const SafetySection = ({ title, subtitle, children }) => (
+  <section
+    className='flex flex-col w-full min-w-0'
+    style={{
+      gap: 'var(--dim-space-300)',
+      padding: 'var(--dim-space-400)',
+      borderRadius: 'var(--dim-radius-300)',
+      border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+    }}
+  >
+    <div className='flex flex-col' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+      <span style={{
+        color: 'var(--text-content-default)',
+        fontFamily: 'var(--type-family-heading-content)',
+        fontSize: 'var(--type-size-sm)',
+        fontWeight: 'var(--type-weight-bold)',
+        lineHeight: 1.5,
+      }}
+      >
+        {title}
+      </span>
+      {subtitle && (
+        <span style={{
+          color: 'var(--text-content-tertiary)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-xs)',
+          lineHeight: 1.5,
+        }}
+        >
+          {subtitle}
+        </span>
+      )}
+    </div>
+    {children}
+  </section>
+);
+
+/* การ์ดแบบประเมินความปลอดภัย — ล้อโครงของ `PendingConsentFormCard`
+   (ปก → ป้ายหมวด/สถานะ → ชื่อฟอร์ม → รหัส → แถวปุ่มล่าง) แต่หน้าปกเป็นไอคอน
+   ไม่ใช่ตราสำนักอนามัย เพราะนี่ไม่ใช่แบบฟอร์มราชการที่ต้องพิมพ์ออกมาลงนาม */
+const SAFETY_CARD_STATUS = ({ assessed, hardStop, issueCount }) => {
+  if (!assessed) return { label: 'ยังไม่ได้ประเมิน', tone: 'grey' };
+  if (hardStop) return { label: 'พบข้อห้าม', tone: 'red' };
+  if (issueCount > 0) return { label: `ต้องแก้ไข ${issueCount} รายการ`, tone: 'orange' };
+  return { label: 'ประเมินแล้ว', tone: 'green' };
+};
+
+const SafetyAssessmentCard = ({ assessed, hardStop, issueCount, onOpen }) => {
+  const status = SAFETY_CARD_STATUS({ assessed, hardStop, issueCount });
+  return (
+    <div
+      role='button'
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen?.(); } }}
+      className='flex w-full min-w-0 flex-col h-full text-left'
+      style={{
+        borderRadius: 'var(--dim-radius-400)',
+        background: 'var(--surface-card-100)',
+        border: 'var(--dim-stroke-100) solid var(--border-card-default)',
+        overflow: 'hidden',
+        cursor: 'pointer',
+      }}
+    >
+      {/* หน้าปกใช้ตราสำนักอนามัยใบเดียวกับการ์ดแบบฟอร์มของระบบความยินยอม
+          (มติผู้ใช้ 31 ส.ค. 69) — การ์ดสองใบนี้อยู่คนละหน้าแต่เป็นของชนิดเดียวกัน
+          "แบบฟอร์มที่ต้องกรอก" หน้าปกจึงต้องเป็นใบเดียวกัน ไม่ใช่ไอคอนคนละชุด */}
+      <div
+        className='relative w-full shrink-0 overflow-hidden'
+        style={{
+          aspectRatio: '227 / 113',
+          background: 'var(--surface-card-100)',
+          borderBottom: 'var(--dim-stroke-100) solid var(--border-card-default)',
+        }}
+      >
+        <OfficialFormCover compact />
+      </div>
+
+      <div
+        className='flex flex-col w-full flex-1'
+        style={{ gap: 'var(--dim-space-150, 6px)', padding: 'var(--dim-space-400)' }}
+      >
+        <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+          <ColorfulBadge style='teal' size='small' hierarchy='secondary' showDot={false} showIcon={false}>
+            ความปลอดภัย
+          </ColorfulBadge>
+          <ColorfulBadge style={status.tone} size='small' hierarchy='secondary' showDot={false} showIcon={false}>
+            {status.label}
+          </ColorfulBadge>
+        </div>
+        <p style={{
+          margin: 0,
+          color: 'var(--text-content-default)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+          fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
+          lineHeight: 1.5,
+        }}
+        >
+          แบบประเมินความปลอดภัยก่อนส่งคำสั่ง
+        </p>
+        <p style={{
+          margin: 0,
+          color: 'var(--text-content-tertiary)',
+          fontFamily: 'var(--type-family-body)',
+          fontSize: 'var(--type-size-sm)',
+          fontWeight: 'var(--type-weight-regular)',
+          lineHeight: 1.5,
+        }}
+        >
+          ระบบใช้ข้อมูลนี้ตรวจ warning และ hard stop ตามรายการที่เลือก
+        </p>
+      </div>
+
+      <div
+        className='flex items-center w-full'
+        style={{
+          gap: 'var(--dim-space-200)',
+          padding: 'var(--dim-space-400)',
+          borderTop: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+        }}
+      >
+        <div className='flex-1' />
+        <BrandButton
+          type='button'
+          size='sm'
+          variant='fill'
+          leadingIcon={assessed ? 'edit' : 'health_and_safety'}
+          onClick={(e) => { e.stopPropagation?.(); onOpen?.(); }}
+        >
+          {assessed ? 'แก้ไขแบบประเมิน' : 'ทำแบบประเมิน'}
+        </BrandButton>
+      </div>
+    </div>
+  );
+};
+
 const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setForm }) => {
   const history = useHistory();
   const patient = patientProp || DEMO_PATIENT;
@@ -216,6 +384,10 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
      จึงเพิ่งขึ้นหลังกด "บันทึกแบบประเมิน" ไม่ใช่ขึ้นเขียวไว้ก่อนตั้งแต่ยังไม่ประเมิน */
   const [safetyOpen, setSafetyOpen] = useState(false);
   const [safetyAssessed, setSafetyAssessed] = useState(!!workflowSeed.safetyAssessed);
+  /* ป๊อปอัปสรุปผลหลังกด "บันทึกแบบประเมิน" (มติผู้ใช้ 31 ส.ค. 69) — เดิมป๊อปอัป
+     ปิดไปเงียบ ๆ ผู้ใช้ต้องเดาเองว่าผลออกมาอย่างไร ตอนนี้บอกผลตรงนั้นเลยว่า
+     ผ่าน · มีข้อต้องแก้ · หรือเจอข้อห้าม (hard stop) */
+  const [safetyResultOpen, setSafetyResultOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState(
     workflowSeed.selectedIds || (embedded ? treatmentOrderIds(form) : CPOE_INITIAL_ORDER_IDS),
   );
@@ -657,54 +829,46 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
 
       {/* การ์ด "รายการที่เลือก" ถูกเอาออก 28 ส.ค. 69 */}
 
-      {/* แบบประเมินความปลอดภัย — ปุ่มเปิดป๊อปอัป แล้วสรุปผลกลับมาที่การ์ดนี้
-          (มติผู้ใช้ 30 ส.ค. 69) ก่อนกดประเมินจะยังไม่มีคำว่า "ไม่มีความเสี่ยง"
-          ให้อ่าน เพราะยังไม่มีใครประเมิน */}
-      <PanelCard
-        title='แบบประเมินความปลอดภัยก่อนส่งคำสั่ง'
-        subtitle='ระบบใช้ข้อมูลนี้ตรวจ warning และ hard stop ตามรายการที่เลือก'
-        action={(
-          <BrandSubdueButton
-            size='sm'
-            variant='outline'
-            leadingIcon='health_and_safety'
-            onClick={() => setSafetyOpen(true)}
-          >
-            {safetyAssessed ? 'แก้ไขแบบประเมิน' : 'ทำแบบประเมิน'}
-          </BrandSubdueButton>
-        )}
-      >
-        {!safetyAssessed ? (
-          <span style={PANEL_LABEL_STYLE}>
-            ยังไม่ได้ทำแบบประเมิน — กด “ทำแบบประเมิน” เพื่อบันทึกข้อมูลความปลอดภัยของผู้รับบริการก่อนส่งคำสั่ง
-          </span>
-        ) : safetyHardStop ? (
-          <Alert
-            type='destructive'
-            title='พบข้อห้าม (Hard stop) · eGFR ต่ำกว่า 45 และมีคำสั่งใช้สารทึบรังสี'
-            subtext={`eGFR ${safety.egfr} · ${contrastOrders.map((item) => item.name).join(', ')}`}
-            detail='ต้องระบุเหตุผลทางคลินิกและมาตรการลดความเสี่ยงต่อไตในแบบประเมินก่อนส่งคำสั่ง'
-            showBadge={false}
-            showIndicator={false}
-          />
-        ) : readinessIssues.length ? (
-          <Alert
-            type='warning'
-            title={`ประเมินแล้ว · ยังต้องแก้ไข ${readinessIssues.length} รายการก่อนส่งคำสั่ง`}
-            indicators={readinessIssues}
-            showBadge={false}
-          />
-        ) : (
-          <Alert
-            type='success'
-            title='ประเมินแล้ว · ไม่พบความเสี่ยง'
-            subtext='ข้อมูลความปลอดภัยครบถ้วน ไม่พบข้อห้ามหรือคำเตือนจากรายการที่เลือก'
-            showDetail={false}
-            showBadge={false}
-            showIndicator={false}
-          />
-        )}
-      </PanelCard>
+      {/* แบบประเมินความปลอดภัยเป็น "การ์ดแบบฟอร์ม" ทรงเดียวกับการ์ดใบยินยอมของระบบ
+          ความยินยอม (`PendingConsentFormCard`) แทนแถบเต็มความกว้าง (มติผู้ใช้
+          31 ส.ค. 69) — กดที่การ์ดหรือปุ่มก็เปิดป๊อปอัปแบบประเมินเหมือนกัน
+          ส่วนผลการประเมิน (hard stop / คำเตือน) ยังขึ้นเป็น Alert เต็มความกว้าง
+          ใต้การ์ด เพราะเป็นสิ่งที่ต้องสะดุดตา ไม่ควรย่อลงไปอยู่ในไทล์ */}
+      <div className='flex w-full min-w-0' style={{ maxWidth: 'var(--dim-size-2500, 320px)' }}>
+        <SafetyAssessmentCard
+          assessed={safetyAssessed}
+          hardStop={safetyHardStop}
+          issueCount={readinessIssues.length}
+          onOpen={() => setSafetyOpen(true)}
+        />
+      </div>
+
+      {safetyAssessed && (safetyHardStop ? (
+        <Alert
+          type='destructive'
+          title='พบข้อห้าม (Hard stop) · eGFR ต่ำกว่า 45 และมีคำสั่งใช้สารทึบรังสี'
+          subtext={`eGFR ${safety.egfr} · ${contrastOrders.map((item) => item.name).join(', ')}`}
+          detail='ต้องระบุเหตุผลทางคลินิกและมาตรการลดความเสี่ยงต่อไตในแบบประเมินก่อนส่งคำสั่ง'
+          showBadge={false}
+          showIndicator={false}
+        />
+      ) : readinessIssues.length ? (
+        <Alert
+          type='warning'
+          title={`ประเมินแล้ว · ยังต้องแก้ไข ${readinessIssues.length} รายการก่อนส่งคำสั่ง`}
+          indicators={readinessIssues}
+          showBadge={false}
+        />
+      ) : (
+        <Alert
+          type='success'
+          title='ประเมินแล้ว · ไม่พบความเสี่ยง'
+          subtext='ข้อมูลความปลอดภัยครบถ้วน ไม่พบข้อห้ามหรือคำเตือนจากรายการที่เลือก'
+          showDetail={false}
+          showBadge={false}
+          showIndicator={false}
+        />
+      ))}
 
       <Popup
         open={safetyOpen}
@@ -715,11 +879,19 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
         secondaryAction={{ label: 'ยกเลิก', onClick: () => setSafetyOpen(false) }}
         primaryAction={{
           label: 'บันทึกแบบประเมิน',
-          onClick: () => { setSafetyAssessed(true); setSafetyOpen(false); },
+          onClick: () => { setSafetyAssessed(true); setSafetyOpen(false); setSafetyResultOpen(true); },
         }}
       >
-          <div className='grid grid-cols-1 xl:grid-cols-2' style={{ gap: 'var(--dim-space-500)' }}>
-            <div className='flex flex-col' style={{ gap: 'var(--dim-space-400)' }}>
+          {/* เนื้อในป๊อปอัปจัดเป็นหมวดเรียงลงมา (มติผู้ใช้ 31 ส.ค. 69) — ของเดิมเป็น
+              กริดสองคอลัมน์ที่ช่องกรอก เช็กบ็อกซ์ และแถบเตือนปนกันอยู่ในผืนเดียว
+              อ่านไม่ออกว่าอะไรเป็นพวกเดียวกัน · แต่ละหมวดมีหัวข้อกำกับ และเรียง
+              ตามลำดับที่พยาบาล/แพทย์กรอกจริง: ข้อมูลพื้นฐาน → ภาวะที่ต้องเฝ้าระวัง
+              → เรื่องสารทึบรังสี → สรุปความพร้อม */}
+          <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-500)' }}>
+            <SafetySection
+              title='ข้อมูลพื้นฐานของผู้รับบริการ'
+              subtitle='ใช้คำนวณขนาดยา/สารทึบรังสี และตรวจข้อห้ามจากการทำงานของไต'
+            >
               <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-400)' }}>
                 <Select
                   label='สถานะการตั้งครรภ์'
@@ -734,13 +906,34 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
                     { value: 'not-applicable', label: 'ไม่เกี่ยวข้อง' },
                   ]}
                 />
-                <InputField label='วันแรกของประจำเดือนครั้งสุดท้าย (LMP)' value={safety.lmp} onChange={(value) => setSafetyField('lmp', value)} disabled={safety.pregnancyStatus === 'not-applicable'} />
-                <InputField label='eGFR ล่าสุด' required type='number' value={safety.egfr} onChange={(value) => setSafetyField('egfr', value)} helperText='mL/min/1.73m² · ผลวันที่ 24 ส.ค. 2569' />
+                <InputField
+                  label='วันแรกของประจำเดือนครั้งสุดท้าย (LMP)'
+                  value={safety.lmp}
+                  onChange={(value) => setSafetyField('lmp', value)}
+                  disabled={safety.pregnancyStatus === 'not-applicable'}
+                />
+                <InputField
+                  label='eGFR ล่าสุด'
+                  required
+                  type='number'
+                  value={safety.egfr}
+                  onChange={(value) => setSafetyField('egfr', value)}
+                  helperText='mL/min/1.73m² · ผลวันที่ 24 ส.ค. 2569'
+                />
+                {/* น้ำหนัก/ส่วนสูงเป็นข้อความอ่านอย่างเดียว ไม่ใช่ช่องกรอก
+                    (มติผู้ใช้ 31 ส.ค. 69) — สองค่านี้มาจากสัญญาณชีพที่วัดไว้ที่จุด
+                    คัดกรอง แก้ตรงนี้จะกลายเป็นความจริงคนละชุดกับที่พยาบาลวัด */}
                 <div className='grid grid-cols-2' style={{ gap: 'var(--dim-space-300)' }}>
-                  <InputField label='น้ำหนัก (kg)' required type='number' value={safety.weight} onChange={(value) => setSafetyField('weight', value)} />
-                  <InputField label='ส่วนสูง (cm)' required type='number' value={safety.height} onChange={(value) => setSafetyField('height', value)} />
+                  <ReadOnlyValue label='น้ำหนัก (kg)' value={safety.weight} />
+                  <ReadOnlyValue label='ส่วนสูง (cm)' value={safety.height} />
                 </div>
               </div>
+            </SafetySection>
+
+            <SafetySection
+              title='ประวัติและภาวะที่ต้องเฝ้าระวัง'
+              subtitle='ติ๊กเฉพาะข้อที่ทบทวนแล้วว่าเป็นจริงกับผู้รับบริการรายนี้'
+            >
               <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-300)' }}>
                 <Checkbox checked={safety.allergyReviewed} onChange={(value) => setSafetyField('allergyReviewed', value)} label='ทบทวนประวัติแพ้ยา/Contrast แล้ว' description='พบประวัติแพ้ Penicillin แต่ไม่เคยแพ้สารทึบรังสี' />
                 <Checkbox checked={safety.contrastAllergy} onChange={(value) => setSafetyField('contrastAllergy', value)} label='มีประวัติแพ้สารทึบรังสี' />
@@ -749,56 +942,42 @@ const CpoeWorkflowPage = ({ embedded = false, patient: patientProp, form, setFor
                 <Checkbox checked={safety.implant} onChange={(value) => setSafetyField('implant', value)} label='มีโลหะฝัง/Pacemaker' />
                 <Checkbox checked={safety.isolation} onChange={(value) => setSafetyField('isolation', value)} label='ต้องแยกโรค/ใช้ Isolation precaution' />
               </div>
-            </div>
-            <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
-              {contrastOrders.length > 0 && egfrLow ? (
-                <Alert
-                  type='destructive'
-                  title='Hard stop · eGFR ต่ำกว่า 45 และมีคำสั่งใช้สารทึบรังสี'
-                  subtext={`eGFR ${safety.egfr} · ${contrastOrders.map((item) => item.name).join(', ')}`}
-                  detail='ต้องระบุเหตุผลทางคลินิกและมาตรการลดความเสี่ยงต่อไตก่อนส่งคำสั่ง ระบบจะบันทึกทั้งสองรายการใน Audit log'
-                  showBadge={false}
-                  showIndicator={false}
-                />
-              ) : null}
-              {/* แถบเขียว "ไม่พบข้อห้ามจากการทำงานของไต" ถูกเอาออก 28 ส.ค. 69 —
-                  แจ้งเฉพาะตอนมีข้อห้ามจริง (hard stop) พอ */}
-              <InputField
-                label='เหตุผลที่จำเป็นต้องใช้ Contrast'
-                required={contrastOrders.length > 0 && egfrLow}
-                value={safety.renalReason}
-                onChange={(value) => setSafetyField('renalReason', value)}
-                placeholder='ระบุ clinical benefit ที่มากกว่าความเสี่ยง'
-                error={contrastOrders.length > 0 && egfrLow && !safety.renalReason.trim() ? 'จำเป็นต้องระบุเหตุผลก่อนส่งคำสั่ง' : undefined}
-              />
-              <Checkbox
-                checked={safety.renalProtection}
-                onChange={(value) => setSafetyField('renalProtection', value)}
-                label='ยืนยันมาตรการป้องกันไต'
-                description='ให้สารน้ำตามแนวทาง · ทบทวน Metformin · นัดตรวจ Creatinine ซ้ำ'
-              />
-              {safety.contrastAllergy ? (
-                <Checkbox checked={safety.radiologistConsulted} onChange={(value) => setSafetyField('radiologistConsulted', value)} label='ปรึกษารังสีแพทย์และยืนยันแผนแล้ว' description='ระบุ premedication หรือเปลี่ยนวิธีตรวจไว้ใน Physician note' />
-              ) : null}
-              <div
-                className='flex flex-col'
-                style={{
-                  gap: 'var(--dim-space-200)',
-                  paddingTop: 'var(--dim-space-300)',
-                  paddingRight: 'var(--dim-space-300)',
-                  paddingBottom: 'var(--dim-space-300)',
-                  paddingLeft: 'var(--dim-space-300)',
-                  borderRadius: 'var(--dim-radius-200)',
-                  background: readinessIssues.length ? 'var(--surface-alert-warning)' : 'var(--surface-alert-success)',
-                  border: `var(--dim-stroke-100) solid ${readinessIssues.length ? 'var(--border-alert-warning)' : 'var(--border-alert-success)'}`,
-                }}
-              >
-                <span style={PANEL_TITLE_STYLE}>{readinessIssues.length ? `ยังต้องแก้ไข ${readinessIssues.length} รายการ` : 'พร้อมไปเลือกรายการและตรวจสอบคำสั่ง'}</span>
-                {readinessIssues.map((issue) => <span key={issue} style={PANEL_LABEL_STYLE}>• {issue}</span>)}
-              </div>
-            </div>
+            </SafetySection>
+
+            {/* หมวด "สารทึบรังสีและการป้องกันไต" ถูกเอาออก 31 ส.ค. 69 (มติผู้ใช้)
+                — ช่อง `renalReason` / `renalProtection` / `radiologistConsulted`
+                ยังอยู่บน state และยังถูกใช้คิด `readinessIssues` เหมือนเดิม
+                เพียงแต่ไม่มีที่ให้กรอกในป๊อปอัปแล้ว */}
+
+            {/* กล่องสรุปความพร้อมท้ายป๊อปอัปถูกเอาออก 31 ส.ค. 69 (มติผู้ใช้) —
+                ผลการประเมินไปบอกที่ป๊อปอัปสรุปหลังกด "บันทึกแบบประเมิน" แทน */}
           </div>
       </Popup>
+
+      {/* สรุปผลการประเมิน — ชนิดของกล่องเปลี่ยนตามผลจริง ไม่ใช่ success เสมอ
+          เพราะบันทึกสำเร็จกับ "ปลอดภัย" เป็นคนละเรื่องกัน */}
+      <AlertDialog
+        open={safetyResultOpen}
+        onClose={() => setSafetyResultOpen(false)}
+        onConfirm={() => setSafetyResultOpen(false)}
+        showCancel={false}
+        confirmLabel='รับทราบ'
+        type={safetyHardStop ? 'destructive' : (readinessIssues.length ? 'warning' : 'success')}
+        title={
+          safetyHardStop
+            ? 'บันทึกแบบประเมินแล้ว · พบข้อห้าม (Hard stop)'
+            : readinessIssues.length
+              ? `บันทึกแบบประเมินแล้ว · ยังต้องแก้ไข ${readinessIssues.length} รายการ`
+              : 'บันทึกแบบประเมินแล้ว · ไม่พบความเสี่ยง'
+        }
+        description={
+          safetyHardStop
+            ? `eGFR ${safety.egfr} ร่วมกับคำสั่งใช้สารทึบรังสี (${contrastOrders.map((item) => item.name).join(', ')})\n\nต้องระบุเหตุผลทางคลินิกและมาตรการลดความเสี่ยงต่อไตให้ครบก่อนจึงจะส่งคำสั่งได้`
+            : readinessIssues.length
+              ? `รายการที่ยังค้าง:\n${readinessIssues.map((issue) => `• ${issue}`).join('\n')}`
+              : 'ข้อมูลความปลอดภัยครบถ้วน ไม่พบข้อห้ามหรือคำเตือนจากรายการที่เลือก — ไปเลือกรายการและตรวจสอบคำสั่งต่อได้เลย'
+        }
+      />
     </div>
   );
 

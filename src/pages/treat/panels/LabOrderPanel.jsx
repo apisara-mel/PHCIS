@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Table from '@/components/table/Table';
+import TabCapsule from '@/components/tab/TabCapsule';
 import TabPill from '@/components/tab/TabPill';
 import Select from '@/components/forms/Select';
 import InputField from '@/components/forms/InputField';
@@ -30,7 +31,7 @@ import {
   subscribeRequestTemplates, getRequestTemplates, removeRequestTemplate,
 } from '@/data/treatmentOrderSets';
 import {
-  LAB_STATUSES, LAB_STATUS_BY_KEY, LAB_URGENCIES, labHistoryFor, priorOrdersFor,
+  LAB_STATUS_BY_KEY, LAB_URGENCIES, labHistoryFor, priorOrdersFor,
   rollUpOrderStatus, groupByOrder, LAB_ORDERS, advanceOrdersFor, dueAdvanceOrders,
   cancelAdvanceOrder, subscribeOrders,
 } from '@/data/labOrders';
@@ -665,13 +666,21 @@ const LabOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
       {/* ── สถานะและผลตรวจ ────────────────────────────────── */}
       <PanelCard
         title='สถานะและผลตรวจของผู้รับบริการรายนี้'
-        subtitle={`ลำดับสถานะ: ${LAB_STATUSES.map((s) => s.label).join(' → ')}`}
+        /* บรรทัด "ลำดับสถานะ: …" ถูกเอาออก 31 ส.ค. 69 (มติผู้ใช้) — เป็นคำอธิบาย
+           ผังสถานะทั้งระบบ ไม่ใช่ข้อมูลของผู้รับบริการรายนี้ และป้ายสถานะในตาราง
+           ด้านล่างบอกอยู่แล้วว่าแต่ละใบอยู่ขั้นไหน */
         action={
           <span className='inline-flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-            <Checkbox
+            {/* ฟิลเตอร์แท็ก ไม่ใช่เช็กบ็อกซ์ (มติผู้ใช้ 31 ส.ค. 69) — เป็นตัวกรอง
+                มุมมองของตาราง ไม่ใช่ค่าที่ผู้ใช้กรอกลงฟอร์ม จึงควรอ่านเป็นแท็ก
+                ชุดเดียวกับตัวกรองอื่นในระบบ */}
+            <TabCapsule
+              variant='filter'
               label='เฉพาะค่าผิดปกติ'
-              checked={onlyAbnormal}
-              onChange={() => { setOnlyAbnormal(!onlyAbnormal); setResultPage(1); }}
+              selected={onlyAbnormal}
+              showLeadingIcon={false}
+              showTrailingIcon={false}
+              onClick={() => { setOnlyAbnormal(!onlyAbnormal); setResultPage(1); }}
             />
             <CountLabel n={resultRows.length} />
           </span>
@@ -756,48 +765,8 @@ const LabOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
         )}
       </PanelCard>
 
-      {/* ── ประวัติการสั่งตรวจ (สั่งซ้ำตามประวัติ) ─────────── */}
-      <PanelCard
-        title='ประวัติการสั่งตรวจของผู้รับบริการรายนี้'
-        subtitle='กด "สั่งตามประวัตินี้" เพื่อนำรายการเดิมเข้าใบขอตรวจวันนี้'
-      >
-        {priorOrdersFor(hn).length === 0 ? (
-          <PanelEmptyState icon='history' title='ยังไม่มีประวัติการสั่งตรวจ' subtitle='ผู้รับบริการรายนี้ยังไม่เคยถูกสั่งตรวจทางห้องปฏิบัติการในระบบ' />
-        ) : (
-          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-            {priorOrdersFor(hn).slice(0, 5).map((o) => (
-              <div
-                key={o.orderId}
-                className='flex flex-wrap items-center justify-between w-full'
-                style={{
-                  gap: 'var(--dim-space-300, 12px)',
-                  borderRadius: 'var(--dim-radius-300, 10px)',
-                  border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
-                  paddingTop: 'var(--dim-space-300, 12px)',
-                  paddingRight: 'var(--dim-space-300, 12px)',
-                  paddingBottom: 'var(--dim-space-300, 12px)',
-                  paddingLeft: 'var(--dim-space-300, 12px)',
-                }}
-              >
-                <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                  <span style={PANEL_VALUE_STYLE}>
-                    {(o.testIds || []).map((t) => LAB_TEST_BY_ID[t]?.nameEn || t).join(' · ')}
-                  </span>
-                  <span style={PANEL_LABEL_STYLE}>{o.orderId} · {o.orderedDate || o.orderedAt || '—'}</span>
-                </div>
-                <GuardedAction allowed={canEdit}>
-                  <NeutralSubdueButton
-                    variant='outline' size='sm' leadingIcon='replay'
-                    onClick={() => commitSelection([...new Set([...selectedIds, ...(o.testIds || [])])])}
-                  >
-                    สั่งตามประวัตินี้
-                  </NeutralSubdueButton>
-                </GuardedAction>
-              </div>
-            ))}
-          </div>
-        )}
-      </PanelCard>
+      {/* การ์ด "ประวัติการสั่งตรวจของผู้รับบริการรายนี้" ถูกเอาออก 31 ส.ค. 69
+          (มติผู้ใช้) — `priorOrdersFor` ยังอยู่ พร้อมเสียบกลับ */}
 
       {/* เตือนสั่งซ้ำ — ไม่บล็อกแข็ง ให้ระบุเหตุผลแล้วสั่งต่อได้ */}
       <ReasonDialog

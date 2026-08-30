@@ -106,7 +106,10 @@ export default function DoctorAiIcdPanel({
     <div
       className='flex flex-col items-center'
       style={{
-        width: 'fit-content',
+        /* เต็มความกว้างของที่ที่วางอยู่ (มติผู้ใช้ 31 ส.ค. 69) — `fit-content` เดิม
+           หดตามเนื้อหาส่วนหัว แต่ `AISearch` ถูกตั้ง `width={640}` แบบตายตัว
+           กล่องค้นหาจึงล้นออกนอกพื้นหลังไล่สีทั้งสองข้างเมื่อคอลัมน์แคบกว่า 640 */
+        width: '100%',
         maxWidth: '100%',
         gap: 'var(--dim-space-200)',
         padding: 'var(--dim-space-600)',
@@ -179,6 +182,9 @@ export default function DoctorAiIcdPanel({
         aria-label={`ค้นหารหัส ${activeTab.label}`}
         placeholder='ค้นหาด้วยคำที่ใช้พูดได้เลย เช่น ปวดหัว · ความดัน · flu · A90'
         width={width}
+        /* `width` ของ AISearch เป็นค่าตายตัว — `maxWidth: 100%` บังคับให้หดลงมา
+           อยู่ในพื้นหลังไล่สีเสมอ (max-width ชนะ width ตามลำดับของ CSS) */
+        style={{ maxWidth: '100%' }}
         dropdownInFlow={dropdownInFlow}
       />
     </div>

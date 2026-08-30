@@ -271,9 +271,12 @@ const HistoryRow = ({ item, onSelect, highlighted = false, onHover, query = '' }
       }}
     >
       {item.badge && (
+        /* คอลัมน์รหัสกว้างตามป้ายจริง มีพื้นกว้างขั้นต่ำไว้ให้รหัสสั้น ๆ ยังตรงคอลัมน์
+           กัน (มติผู้ใช้ 31 ส.ค. 69) — ของเดิมตรึงไว้ 64px พอเป็นรหัส SNOMED 9 หลัก
+           ป้ายจึงล้นออกไปทับชื่อโรคที่อยู่ถัดไป */
         <div
           className='shrink-0 flex items-center'
-          style={{ width: 64 }}
+          style={{ minWidth: 64 }}
         >
           <ColorfulBadge
             style={item.badgeStyle || 'blue'}

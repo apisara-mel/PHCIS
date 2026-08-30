@@ -7,6 +7,8 @@ import QueueSubMenu from '@/components/layout/QueueSubMenu';
 import TabPill, { TabBar } from '@/components/tab/TabPill';
 import { EmrRowAction } from '@/components/patient/EmrRowAction';
 import ScreeningConfirmPopup from '@/components/popup/ScreeningConfirmPopup';
+import Popover from '@/components/popup/Popover';
+import Icon from '@/components/icons/Icon';
 import Popup from '@/components/popup/Popup';
 import QueueCallActions from '@/components/queue/QueueCallActions';
 import DeleteQueueConfirmPopup from '@/components/popup/DeleteQueueConfirmPopup';
@@ -53,9 +55,9 @@ import {
   TREATMENT_DEFAULT_SYMPTOMS,
   TREATMENT_DEFAULT_ALLERGIES,
   DEFAULT_NURSE_EXAM_NOTES,
-  DEFAULT_DOCTOR_EXAM_NOTES,
+  MOCK_DOCTOR_EXAM_NOTES,
   DEFAULT_EXAM_ATTACHMENTS,
-  DEFAULT_BODY_MARKERS,
+  MOCK_BODY_MARKERS,
   DEFAULT_BODY_DRAWINGS,
   DEFAULT_APPOINTMENT,
   getTreatmentCompletedSteps,
@@ -73,6 +75,8 @@ import {
   claimCase, subscribeUnassignedPool,
 } from '@/data/unassignedWorklist';
 import { CaseCard } from '@/pages/treat/UnassignedWorklistPage';
+import CpoeReviewStep from '@/pages/treat/CpoeReviewStep';
+import LabOrderPanel from '@/pages/treat/panels/LabOrderPanel';
 
 const breadcrumb = ['บันทึกการรักษา', 'ตรวจรักษาทั่วไป (OPD)'];
 
@@ -86,6 +90,23 @@ const POOL_VIEW_MODES = [
   { key: 'clinic', label: 'ดูแยกตามคลินิก' },
 ];
 
+/* ร่างที่ค้างอยู่ใน localStorage จากเซสชันก่อนหน้าไม่มีบันทึกการตรวจร่างกาย
+   (ตอนนั้น `buildInitialForm` ยัง seed ค่าว่าง) เปิดหน้ามาขั้นวินิจฉัยจึงยังตกลง
+   empty state ทั้งที่ตอนนี้ต้นแบบ mock ไว้แล้ว — เติมให้เฉพาะช่องที่ยังว่างจริง
+   ไม่ทับของที่แพทย์พิมพ์เอง (มติผู้ใช้ 31 ส.ค. 69) */
+const withMockExamRecord = (form) => {
+  const exam = form?.doctorExam || {};
+  const hasText = ['cc', 'pi', 'pe', 'duration'].some((k) => String(exam[k] || '').trim());
+  const hasMarkers = Object.values(form?.bodyMarkers || {}).some((rows) => (rows || []).length > 0);
+  if (hasText && hasMarkers) return form;
+  return {
+    ...form,
+    doctorExam: hasText ? exam : MOCK_DOCTOR_EXAM_NOTES,
+    bodyMarkers: hasMarkers ? form.bodyMarkers : MOCK_BODY_MARKERS,
+    examSystem: hasMarkers ? form.examSystem : 'extremities',
+  };
+};
+
 const buildInitialForm = (p) => ({
   // Step 2 — screening summary (read-only)
   vitalsRecordedAt: '6 พ.ค. 2569 · 09:21',
@@ -96,12 +117,17 @@ const buildInitialForm = (p) => ({
     : 'ไม่พบประวัติแพ้ยา / สารเคมี',
 
   // Step 3 — physical examination (Figma 2431:213971)
-  examSystem: 'heent',
   examView: 'both',
-  bodyMarkers: DEFAULT_BODY_MARKERS,
+  /* ⚠️ ต้นแบบ seed บันทึกการตรวจร่างกายของแพทย์ไว้แล้ว (มติผู้ใช้ 31 ส.ค. 69) —
+     ขั้นวินิจฉัยจึงมีของให้อ่านทางคอลัมน์ซ้ายตั้งแต่เปิดหน้า ไม่ตกลงไปที่
+     empty state "ยังไม่มีบันทึกการตรวจร่างกาย" · แลกกับ empty state ของขั้น
+     ตรวจร่างกายที่ไม่ได้เห็นในหน้านี้แล้ว (ยังดูได้ใน Components Library ซึ่ง
+     ใช้ `DEFAULT_*` ชุดว่างเหมือนเดิม) */
+  examSystem: 'extremities',
+  bodyMarkers: MOCK_BODY_MARKERS,
   bodyDrawings: DEFAULT_BODY_DRAWINGS,
   nurseExam: DEFAULT_NURSE_EXAM_NOTES,
-  doctorExam: DEFAULT_DOCTOR_EXAM_NOTES,
+  doctorExam: MOCK_DOCTOR_EXAM_NOTES,
   examAttachments: DEFAULT_EXAM_ATTACHMENTS,
 
   // Step 4 — วินิจฉัย / Diagnosis (Figma 330:42665 — "On first visit, the
@@ -254,6 +280,7 @@ const STEP_RENDERERS = [
   Step4DoctorRecord, Step5Orders,
   SoapNotePanel,
   Step6Appointment, CpoeDocumentsStep,
+  CpoeReviewStep,
 ];
 
 /* index ของแต่ละ step ให้ panel ใช้กระโดดข้าม step โดยไม่ต้องรู้ตัวเลข */
@@ -265,6 +292,7 @@ const CPOE_STEP_INDEXES = {
   orders: cpoeStepIndex('orders'),
   appointment: cpoeStepIndex('appointment'),
   documents: cpoeStepIndex('documents'),
+  review: cpoeStepIndex('review'),
 };
 
 const TreatmentFormPage = () => {
@@ -304,7 +332,7 @@ const TreatmentFormPage = () => {
     const draft = encounterHn ? loadTreatmentDraft(encounterHn, visitKey) : null;
     initialSessionRef.current = {
       draft,
-      form: draft?.form || buildInitialForm(patient),
+      form: draft?.form ? withMockExamRecord(draft.form) : buildInitialForm(patient),
     };
   }
 
@@ -626,6 +654,28 @@ const TreatmentFormPage = () => {
     setStepIndex(nextIndex);
   }, [stepIndex]);
 
+  /* ปุ่ม "ส่งตรวจ" บนหัวการ์ด (มติผู้ใช้ 31 ส.ค. 69) — กลับมาอีกครั้งหลังถูกเอาออก
+     30 ส.ค. 69 คราวนี้เป็นปุ่มเดียวที่กางเป็นดรอปดาวน์สองทางเลือก ไม่ใช่สองปุ่มแยก
+     ทั้งสองทางพาไปขั้น "สั่งการรักษา" แล้วเปิดแท็บที่ตรงกัน — ไม่ได้เปิดฟอร์มสั่งตรวจ
+     ชุดที่สอง เพื่อไม่ให้มีสองที่ที่สั่งตรวจได้ */
+  const sendExamAnchorRef = useRef(null);
+  const [sendExamOpen, setSendExamOpen] = useState(false);
+  /* "ส่งตรวจแล็บ" เปิดใบขอตรวจเป็นป๊อปอัปแทนการกระโดดไปขั้นสั่งการรักษา
+     (มติผู้ใช้ 31 ส.ค. 69) — สั่งแล็บเป็นงานที่แทรกเข้ามาระหว่างตรวจ ไม่ควรทำให้
+     เสียตำแหน่งขั้นที่กำลังทำอยู่ · เนื้อในเป็น `LabOrderPanel` ตัวเดียวกับแท็บ
+     "แล็บ" ของขั้นสั่งการรักษา จึงเป็นฟอร์มชุดเดียว ไม่ใช่สองที่ที่สั่งได้
+     ส่วน "ส่งตรวจรังสี" ยังพาไปที่ขั้นสั่งการรักษาตามเดิม */
+  const [labOrderOpen, setLabOrderOpen] = useState(false);
+  const goToOrderTab = useCallback((category) => {
+    setSendExamOpen(false);
+    if (category === 'lab') {
+      setLabOrderOpen(true);
+      return;
+    }
+    setForm((s) => ({ ...s, orderCategory: category }));
+    requestStepChange(CPOE_STEP_ORDERS);
+  }, [requestStepChange]);
+
   const validateBeforeFinish = useCallback(() => {
     const requiredSteps = [
       CPOE_STEP_INDEXES.soap,
@@ -820,8 +870,11 @@ const TreatmentFormPage = () => {
           title='ตรวจรักษาทั่วไป (OPD)'
           drugAllergies={patient.drugAllergies}
           chronicDiseases={patient.chronicDiseases}
-          /* ปุ่ม EMR ย้ายขึ้นแถวปุ่มด้านบน (มติผู้ใช้ 28 ส.ค. 69) */
-          medicalHistoryPlacement='actions'
+          /* ปุ่ม EMR ย้ายลงไปอยู่แถวเดียวกับ "ผลตรวจชันสูตร / ผลตรวจรังสี" ของขั้น
+             ตรวจร่างกาย (มติผู้ใช้ 31 ส.ค. 69) — สามปุ่มนี้เปิดข้อมูลประกอบการตรวจ
+             เหมือนกันหมด ควรอยู่ที่เดียวกัน `showMedicalHistory={false}` จึงปิด
+             ปุ่มบนหัวการ์ดไว้ ไม่ให้มีสองทางเข้าซ้ำกัน */
+          showMedicalHistory={false}
           actions={
             <>
               {/* ปุ่ม "ไป Step 6: CPOE" และ "ส่งยาไปห้องยา" ถูกเอาออกจากหัวการ์ด
@@ -834,6 +887,64 @@ const TreatmentFormPage = () => {
               {/* CPOE §1.5.10.1 — เดิมปุ่มนี้ยังไม่ผูก sheet จริง ตอนนี้พาไป
                   ศูนย์พิมพ์เอกสาร (step 8) ที่ต่อ PharmacyPrescriptionPrint
                   ไว้แล้ว พร้อม preview ก่อนพิมพ์ */}
+              <span ref={sendExamAnchorRef} className='inline-flex'>
+                <BrandSubdueButton
+                  variant='outline'
+                  leadingIcon='send'
+                  trailingIcon='expand_more'
+                  aria-haspopup='menu'
+                  aria-expanded={sendExamOpen}
+                  onClick={() => setSendExamOpen((v) => !v)}
+                >
+                  ส่งตรวจ
+                </BrandSubdueButton>
+              </span>
+              <Popover
+                open={sendExamOpen}
+                onClose={() => setSendExamOpen(false)}
+                anchorRef={sendExamAnchorRef}
+                style={{ zIndex: 1600 }}
+              >
+                <div
+                  role='menu'
+                  className='flex flex-col'
+                  style={{
+                    minWidth: 'var(--dim-size-2050, 220px)',
+                    background: 'var(--surface-card-100)',
+                    borderRadius: 'var(--dim-radius-300, 10px)',
+                    border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
+                    boxShadow: 'var(--shadow-drop-bottom-400)',
+                    paddingTop: 'var(--dim-space-100)',
+                    paddingBottom: 'var(--dim-space-100)',
+                  }}
+                >
+                  {[
+                    { key: 'lab', icon: 'biotech', label: 'ส่งตรวจแล็บ' },
+                    { key: 'xray', icon: 'radiology', label: 'ส่งตรวจรังสี' },
+                  ].map((item) => (
+                    <button
+                      key={item.key}
+                      type='button'
+                      role='menuitem'
+                      onClick={() => goToOrderTab(item.key)}
+                      className='flex items-center w-full text-left'
+                      style={{
+                        gap: 'var(--dim-space-200)',
+                        padding: 'var(--dim-space-200) var(--dim-space-400)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--text-content-default)',
+                        fontFamily: 'var(--type-family-body)',
+                        fontSize: 'var(--type-size-sm)',
+                      }}
+                    >
+                      <Icon name={item.icon} size={16} />
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </Popover>
               <BrandSubdueButton
                 variant='outline'
                 leadingIcon='medication'
@@ -861,10 +972,30 @@ const TreatmentFormPage = () => {
             TREATMENT_STEPS ที่เป็น default ของ shell เพราะคลินิกอื่น
             (ANC / NCD / HIV-STI / Mental Health / Addiction / Dental)
             ใช้ค่าเดิมอยู่ */}
+        <Popup
+          open={labOrderOpen}
+          onClose={() => setLabOrderOpen(false)}
+          size='extraLarge'
+          title='ส่งตรวจทางห้องปฏิบัติการ'
+          subtitle='ใบขอตรวจและรายการตรวจของผู้รับบริการรายนี้'
+          primaryAction={{ label: 'เสร็จสิ้น', onClick: () => setLabOrderOpen(false) }}
+        >
+          <LabOrderPanel form={form} setForm={setForm} patient={patient} />
+        </Popup>
+
         <TreatmentFormShell
           steps={CPOE_TREATMENT_STEPS}
           /* สองขั้นนี้เนื้อหาเป็นการ์ดขาวของตัวเองอยู่แล้ว ไม่ต้องมีการ์ดรองซ้อน */
-          plainBodySteps={[CPOE_STEP_INDEXES.examination, CPOE_STEP_INDEXES.soap]}
+          /* ขั้นตรวจสอบข้อมูลวางการ์ดขาวของตัวเองทีละขั้น จึงไม่ต้องมีการ์ดรองซ้อน
+             เหมือนสองขั้นข้างต้น (มติผู้ใช้ 31 ส.ค. 69) */
+          plainBodySteps={[
+            CPOE_STEP_INDEXES.examination,
+            CPOE_STEP_INDEXES.soap,
+            /* ขั้นสั่งการรักษาวางการ์ดขาวสองใบเอง (แบบประเมิน · สั่งการรักษา)
+               จึงไม่ต้องมีการ์ดของ shell รองอีกชั้น (มติผู้ใช้ 31 ส.ค. 69) */
+            CPOE_STEP_INDEXES.orders,
+            CPOE_STEP_INDEXES.review,
+          ]}
           stepIndex={stepIndex}
           onStepChange={requestStepChange}
           completedSteps={completedSteps}

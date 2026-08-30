@@ -5,11 +5,11 @@ import DragAndDrop from '@/components/form-builder/DragAndDrop';
 import Select from '@/components/forms/Select';
 import { getCarriedScreening } from '@/data/screeningHandoff';
 import { activeFlagsFor } from '@/data/treatmentPatientFlags';
+import { growthBandsFor, mophZoneFor } from '@/data/treatmentVaccines';
 import Checkbox from '@/components/checkbox/Checkbox';
 import BrandSubdueIconButton from '@/components/button/BrandSubdueIconButton';
 import Tooltip from '@/components/tooltip/Tooltip';
 import Icon from '@/components/icons/Icon';
-import TabCapsule from '@/components/tab/TabCapsule';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import {
   CHIEF_COMPLAINT_SUGGESTIONS,
@@ -280,23 +280,13 @@ const DOCTOR_FIELDS = [
   },
   {
     key: 'pi',
-    label: 'ประวัติปัจจุบัน (Present Illness)',
+    label: 'ประวัติการเจ็บป่วยปัจจุบัน (Present Illness)',
     required: true,
     height: 104,
     minHeight: 88,
     suggestions: PRESENT_ILLNESS_SUGGESTIONS,
     minChars: 3,
-    popoverAriaLabel: 'คำแนะนำประวัติปัจจุบัน',
-  },
-  {
-    key: 'pe',
-    label: 'ตรวจร่างกาย (Physical Examination)',
-    required: true,
-    height: 120,
-    minHeight: 96,
-    suggestions: PHYSICAL_EXAM_SUGGESTIONS,
-    minChars: 3,
-    popoverAriaLabel: 'คำแนะนำผลตรวจร่างกาย',
+    popoverAriaLabel: 'คำแนะนำประวัติการเจ็บป่วยปัจจุบัน',
   },
   {
     key: 'duration',
@@ -307,6 +297,16 @@ const DOCTOR_FIELDS = [
        (มติผู้ใช้ 28 ส.ค. 69) */
     control: 'select',
     options: SYMPTOM_DURATION_OPTIONS,
+  },
+  {
+    key: 'pe',
+    label: 'ตรวจร่างกาย (Physical Examination)',
+    required: true,
+    height: 120,
+    minHeight: 96,
+    suggestions: PHYSICAL_EXAM_SUGGESTIONS,
+    minChars: 3,
+    popoverAriaLabel: 'คำแนะนำผลตรวจร่างกาย',
   },
 ];
 
@@ -334,6 +334,19 @@ const Field = ({ label, required, children }) => (
    ที่คัดลอกยังเป็น "หัวข้อ: ค่า" เหมือนกันทั้งสองแบบ */
 /* โทนป้ายระดับความรุนแรง — ไล่จากแดงลงมา ให้กวาดตาเจอตัวรุนแรงก่อน */
 const SEVERITY_TONE = { มาก: 'red', รุนแรง: 'red', ปานกลาง: 'orange', 'เล็กน้อย': 'yellow' };
+
+/* หัวข้อบล็อกต้องเด่นกว่าเนื้อหาในบล็อก (มติผู้ใช้ 31 ส.ค. 69) — ของเดิมเป็น
+   xs สีเทาอ่อน เล็กและจางกว่าค่าที่มันครอบอยู่ กวาดตาลงมาจึงหาไม่เจอว่าบล็อก
+   ใหม่เริ่มตรงไหน · ตอนนี้ sm + ตัวหนา + สีข้อความหลัก และมีเส้นคั่นใต้หัวข้อ */
+const BLOCK_TITLE_STYLE = {
+  color: 'var(--text-content-default)',
+  fontFamily: 'var(--type-family-heading-content)',
+  fontSize: 'var(--type-size-sm)',
+  fontWeight: 'var(--type-weight-bold)',
+  lineHeight: 1.5,
+  paddingBottom: 'var(--dim-space-200)',
+  borderBottom: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+};
 
 /* หนึ่งรายการที่พยาบาลซักไว้ — ชื่อเป็นบรรทัดของตัวเอง ระดับ/ความน่าจะเป็นเป็นป้าย
    ส่วนอาการกับหมายเหตุแยกบรรทัดชิดซ้าย อ่านไล่ลงมาได้ */
@@ -384,24 +397,41 @@ const NurseRecord = ({ record }) => (
   </div>
 );
 
+/* หนึ่งแถวเป็นกริดสามช่อง: ป้ายกว้างคงที่ · ค่าชิดซ้าย · ปุ่มคัดลอก
+   (มติผู้ใช้ 31 ส.ค. 69) ของเดิมดันค่าไปชิดขวาด้วย `ml-auto` ทุกแถวจึงเริ่ม
+   คนละตำแหน่ง กวาดตาอ่านลงมาไม่เป็นแนว และค่าที่ยาวจนขึ้นบรรทัดใหม่ (เช่น
+   "บันทึกเพิ่มเติม") ยิ่งอ่านยาก · ป้ายกว้างคงที่ทำให้ค่าทุกแถวเริ่มตรงคอลัมน์
+   เดียวกันทั้งการ์ด ไม่ใช่ตามความยาวป้ายของแต่ละแถว */
+const NURSE_ROW_LABEL_WIDTH = 148;
+
 const NurseRow = ({ row }) => {
   const [label, value, tone] = row;
   return (
-    <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-200)' }}>
+    <div
+      className='grid w-full items-start'
+      style={{
+        gridTemplateColumns: `${NURSE_ROW_LABEL_WIDTH}px minmax(0, 1fr) auto`,
+        columnGap: 'var(--dim-space-200)',
+      }}
+    >
       <span style={{
         color: 'var(--text-content-tertiary)',
         fontFamily: 'var(--type-family-body)',
         fontSize: 'var(--type-size-xs)',
+        lineHeight: 1.5,
       }}>{label}</span>
       {tone ? (
-        <span className='ml-auto'>
+        <span className='flex min-w-0'>
           <ColorfulBadge style={tone} size='small' hierarchy='secondary'>{value}</ColorfulBadge>
         </span>
       ) : (
-        <span className='ml-auto text-right' style={{
+        <span className='min-w-0' style={{
           color: 'var(--text-content-default)',
           fontFamily: 'var(--type-family-body)',
           fontSize: 'var(--type-size-sm)',
+          lineHeight: 1.5,
+          textAlign: 'left',
+          overflowWrap: 'anywhere',
         }}>{value}</span>
       )}
       {/* คัดลอกได้ทีละหัวข้อ ไม่ใช่เฉพาะทั้งบล็อก */}
@@ -426,9 +456,6 @@ const ExamNotesPanel = ({
   embedded = false,
   className = '',
 }) => {
-  /* แท็บหมวดซักประวัติในคอลัมน์ซ้าย (แพ้ยา · แพ้อาหาร · …) */
-  const [historyTab, setHistoryTab] = useState(0);
-
   /* SuggestibleTextarea emits DOM-event-shaped onChange — extract value. */
   const setDoctorFromEvent = (key) => (e) =>
     onDoctorChange?.({ ...doctorNotes, [key]: e?.target?.value ?? '' });
@@ -460,30 +487,55 @@ const ExamNotesPanel = ({
      ที่บันทึกไว้ในทะเบียน ไม่ใช่ที่ซักวันนี้) `patient` ที่หน้าส่งมาคือเรกคอร์ด
      เวชระเบียนที่ merge ธงแล้ว จึงอ่านได้ตรง ๆ */
   const registryFlags = activeFlagsFor(patient) || [];
-  const registryContact = (patient?.emergency || [])[0];
+  /* เหลือเฉพาะ "ธงผู้ป่วยจากเวชระเบียน" (มติผู้ใช้ 31 ส.ค. 69) — บล็อก
+     "ข้อมูลทะเบียนผู้ป่วย" (สิทธิ · หมู่เลือด · การเคลื่อนไหว · อาชีพ · โทรศัพท์)
+     และ "ผู้ติดต่อกรณีฉุกเฉิน" ถูกเอาออก ทั้งสองชุดเป็นข้อมูลทะเบียนที่การ์ด
+     ผู้ป่วยด้านบนกับป๊อปอัปเวชระเบียนถืออยู่แล้ว ไม่ใช่ผลคัดกรองของรอบนี้
+     ที่คอลัมน์นี้มีไว้ให้อ่าน */
   const registryBlocks = [
     {
       title: 'ธงผู้ป่วยจากเวชระเบียน',
       rows: registryFlags.map((f) => [f.label, patient?.flagSources?.[f.key] || 'บันทึกไว้ในทะเบียน']),
     },
-    {
-      title: 'ข้อมูลทะเบียนผู้ป่วย',
-      rows: [
-        ['สิทธิการรักษา', patient?.rights],
-        ['หมู่เลือด', patient?.bloodType],
-        ['การเคลื่อนไหว', patient?.mobility],
-        ['อาชีพ', patient?.occupation],
-        ['โทรศัพท์', patient?.phone],
-      ].filter(([, v]) => v),
-    },
-    {
-      title: 'ผู้ติดต่อกรณีฉุกเฉิน',
-      rows: registryContact
-        ? [[`${registryContact.name} ${registryContact.last}`.trim(),
-          [registryContact.relation, registryContact.phone].filter(Boolean).join(' · ')]]
-        : [],
-    },
   ].filter((b) => b.rows.length > 0);
+
+  /* ToR ผนวก ก ๑.๒.๒.๕ — ผู้ที่อายุต่ำกว่า 18 ปี อ่านภาวะโภชนาการจาก "กราฟการ
+     เจริญเติบโต" ส่วนตั้งแต่ 18 ปีขึ้นไปอ่านจาก BMI · สามหัวข้อนี้ขึ้นเสมอไม่ว่า
+     จะมีค่าหรือไม่ (มติผู้ใช้ 31 ส.ค. 69) — หัวข้อที่หายไปเงียบ ๆ อ่านไม่ออกว่า
+     "ไม่เข้าเกณฑ์" หรือ "ยังไม่ได้วัด" ค่าที่ยังไม่มีจึงขึ้นขีดแทน
+     เกณฑ์เทียบใช้ `mophZoneFor` ตัวเดียวกับคลินิกวัคซีนและการ์ดภาวะโภชนาการของ
+     จุดคัดกรอง — ไม่ตัดสินซ้ำที่นี่ */
+  const NO_VALUE = '—';
+  const ageYears = parseInt(patient?.age, 10);
+  const isChild = Number.isFinite(ageYears) && ageYears > 0 && ageYears < 18;
+  const rawVitals = screening.vitalRaw || {};
+  const growthSex = patient?.sex || patient?.gender;
+  const growthZone = (metric, value) => (
+    isChild && Number.isFinite(value) && value > 0
+      ? mophZoneFor(metric, growthBandsFor(growthSex, metric), ageYears, value)?.label || ''
+      : ''
+  );
+  const weightZone = growthZone('weight', rawVitals.weight);
+  const heightZone = growthZone('height', rawVitals.height);
+  const nutritionRows = [
+    /* BMI ไม่ใช่เกณฑ์ของเด็ก — ขึ้นหัวข้อไว้แต่บอกตรง ๆ ว่าใช้กราฟแทน */
+    ['BMI', isChild ? `${NO_VALUE} (อายุต่ำกว่า 18 ปี ใช้กราฟการเจริญเติบโต)` : (rawVitals.bmi || NO_VALUE)],
+    [
+      'ภาวะโภชนาการ',
+      weightZone || heightZone
+        ? [weightZone && `น้ำหนักตามเกณฑ์อายุ: ${weightZone}`,
+          heightZone && `ส่วนสูงตามเกณฑ์อายุ: ${heightZone}`].filter(Boolean).join(' · ')
+        : NO_VALUE,
+    ],
+    [
+      'กราฟการเจริญเติบโต',
+      isChild
+        ? (weightZone || heightZone
+          ? `เทียบเกณฑ์กรมอนามัยแล้วที่อายุ ${ageYears} ปี`
+          : `${NO_VALUE} (ยังไม่มีน้ำหนัก/ส่วนสูงของรอบนี้)`)
+        : `${NO_VALUE} (ใช้กับผู้รับบริการอายุต่ำกว่า 18 ปี)`,
+    ],
+  ];
 
   const nurseBlocks = [
     {
@@ -492,15 +544,25 @@ const ExamNotesPanel = ({
         ...(vitalRound?.date
           ? [['รอบที่วัด', `${vitalRound.date}${vitalRound.time ? ` · ${vitalRound.time}` : ''}`]]
           : []),
-        ...(screening.vitalItems || []).filter((v) => v.value).map((v) => [v.label, v.value]),
+        /* BMI ถูกกันออกจากรายการทั่วไป — ไปอยู่ในชุดสามหัวข้อภาวะโภชนาการข้างล่าง
+           ที่ขึ้นเสมอ ไม่ถูกกรองทิ้งตอนไม่มีค่า */
+        ...(screening.vitalItems || [])
+          .filter((v) => v.value && v.label !== 'BMI')
+          .map((v) => [v.label, v.value]),
+        ...nutritionRows,
+        /* บันทึกเพิ่มเติมของพยาบาลตอนวัด — ท่าที่วัด · เหตุที่ค่าผิดปกติ ·
+           สิ่งที่ผู้ป่วยบอกระหว่างวัด (มติผู้ใช้ 31 ส.ค. 69) */
+        ...(screening.vitalNote ? [['บันทึกเพิ่มเติม', screening.vitalNote]] : []),
       ],
     },
     {
       title: 'อาการป่วย',
+      /* ระยะเวลาย้ายลงใต้ประวัติการเจ็บป่วยปัจจุบัน (มติผู้ใช้ 31 ส.ค. 69) —
+         อ่านเรียงเป็นเรื่องเดียวกัน: อาการสำคัญ → เล่าอาการ → เป็นมานานเท่าไร */
       rows: [
         ['อาการสำคัญ (CC)', screening.cc],
-        ['ระยะเวลาที่มีอาการ', screening.duration],
         ['ประวัติการเจ็บป่วยปัจจุบัน', screening.presentIllness],
+        ['ระยะเวลาที่มีอาการ', screening.duration],
       ].filter(([, v]) => v),
     },
     /* ความเร่งด่วน + Pain score เป็น Badge สีตามระดับ (มติผู้ใช้ 30 ส.ค. 69) —
@@ -518,14 +580,37 @@ const ExamNotesPanel = ({
     },
     {
       title: 'คำสั่งการพยาบาลและการสังเกตอาการ',
-      rows: (screening.orders || []).map((o, i) => [`คำสั่งที่ ${i + 1}`, o]),
-    },
-    {
-      title: 'สิ่งที่จุดคัดกรองระบุไว้',
       rows: [
-        ['ใบรับรองแพทย์', screening.cert == null ? '' : (screening.cert ? 'ต้องการ' : 'ไม่ต้องการ')],
-        ['เตียงสังเกตอาการ', screening.bedId],
+        ...(screening.orders || []).map((o, i) => [`คำสั่งที่ ${i + 1}`, o]),
+        /* "รายละเอียดคำสั่งอื่น ๆ" เป็นช่องของตัวเองที่จุดคัดกรอง ไม่ใช่คำสั่งลำดับ
+           ถัดไป — เดิมถูกต่อท้ายอาร์เรย์จนขึ้นเป็น "คำสั่งที่ N" */
+        ...(screening.othersNote ? [['รายละเอียดคำสั่งอื่น ๆ', screening.othersNote]] : []),
+      ],
+    },
+    /* บล็อก "สิ่งที่จุดคัดกรองระบุไว้" (ใบรับรองแพทย์ · เตียงสังเกตอาการ) ถูกเอาออก
+       31 ส.ค. 69 — ใบรับรองแพทย์เป็นการตัดสินใจของแพทย์ที่ขั้นเอกสารอยู่แล้ว
+       ส่วนเตียงสังเกตอาการเป็นของหอสังเกตอาการ ไม่ใช่ผลคัดกรองที่หมอต้องอ่าน
+       ก่อนตรวจ · `screening.cert` / `screening.bedId` ยังส่งมาจาก handoff ครบ */
+    /* บล็อก "คลินิกและแพทย์ที่จุดคัดกรองส่งต่อ" ถูกเอาออก 31 ส.ค. 69 — แพทย์ที่
+       เปิดเคสอยู่คือปลายทางนั้นอยู่แล้ว การอ่านซ้ำว่าถูกส่งมาที่ไหนไม่ได้ช่วย
+       ตัดสินใจอะไรระหว่างตรวจ · `screening.assignment` ยังส่งมาจาก handoff ครบ */
+    /* พฤติกรรมสุขภาพขึ้นเป็นบล็อกของตัวเอง ไม่ใช่แท็บสุดท้ายของหมวดซักประวัติ
+       (มติผู้ใช้ 31 ส.ค. 69) — เป็นข้อมูลที่หมออ่านประกอบทุกเคส (บุหรี่/เหล้า/
+       การออกกำลังกาย) ไม่ใช่หมวดที่เปิดดูเฉพาะตอนสงสัยเรื่องแพ้เหมือนแท็บอื่น
+       ซ่อนอยู่หลังแท็บจึงมีโอกาสไม่ถูกเปิดอ่านเลย */
+    {
+      title: 'พฤติกรรมสุขภาพ',
+      rows: [
+        ['สูบบุหรี่', behaviour?.smoking],
+        ['ดื่มแอลกอฮอล์', behaviour?.alcohol],
+        ['ออกกำลังกาย', behaviour?.exercise],
+        ['ข้อมูลเพิ่มเติม', behaviour?.detail],
       ].filter(([, v]) => v),
+    },
+    /* เวลาที่บันทึกผลคัดกรอง — บอกว่าค่าที่อ่านอยู่นี้สดแค่ไหน */
+    {
+      title: 'การบันทึกผลคัดกรอง',
+      rows: [['บันทึกเมื่อ', screening.capturedAt]].filter(([, v]) => v),
     },
   ].filter((b) => b.rows.length > 0).concat(registryBlocks);
 
@@ -540,30 +625,10 @@ const ExamNotesPanel = ({
     historyBlock('แพ้สารเคมี', screening.allergyTopics?.chemical),
     historyBlock('โรคประจำตัว', screening.allergyTopics?.disease),
     historyBlock('อื่น ๆ', screening.allergyTopics?.other),
-    {
-      /* ประวัติที่ "บันทึกไว้ในทะเบียน" ต่างจากที่ "ซักวันนี้" — หมอต้องเห็นทั้งคู่
-         เพราะทะเบียนคือของสะสมข้ามครั้ง ส่วนจุดคัดกรองคือของรอบนี้ */
-      title: 'จากทะเบียน (แพ้ยา/โรคประจำตัว)',
-      records: [
-        ...(patient?.drugAllergies || []).map((a) => ({
-          name: a.name, severity: a.severity, symptom: a.symptom, probability: 'บันทึกในทะเบียน',
-        })),
-        ...(patient?.chronicDiseases || []).map((d) => ({
-          name: d.name, severity: d.severity, symptom: d.detail, probability: 'โรคประจำตัว',
-        })),
-      ],
-    },
-    {
-      title: 'พฤติกรรมสุขภาพ',
-      rows: [
-        ['สูบบุหรี่', behaviour?.smoking],
-        ['ดื่มแอลกอฮอล์', behaviour?.alcohol],
-        ['ออกกำลังกาย', behaviour?.exercise],
-        ['ข้อมูลเพิ่มเติม', behaviour?.detail],
-      ].filter(([, v]) => v),
-    },
+    /* บล็อก "จากทะเบียน (แพ้ยา/โรคประจำตัว)" ถูกเอาออก 31 ส.ค. 69 — ซ้ำกับแถบแพ้ยา/
+       โรคประจำตัวบนหัวการ์ดผู้ป่วยและป๊อปอัป EMR ที่เพิ่งย้ายปุ่มมาไว้แถวเดียวกัน
+       คอลัมน์นี้เหลือเฉพาะสิ่งที่ซักไว้ที่จุดคัดกรองรอบนี้ */
   ];
-  const activeHistory = historyTabs[historyTab] || historyTabs[0];
 
   /* embedded = หน้าที่เรียกใช้เป็นคนวางการ์ดขาวและ padding เอง พาเนลจึงโปร่งใส
      ไม่งั้นจะได้พื้นเทาซ้อนอยู่ในการ์ดขาวอีกชั้น (มติผู้ใช้ 28 ส.ค. 69) */
@@ -588,6 +653,8 @@ const ExamNotesPanel = ({
       {/* หัวข้อ "บันทึกการตรวจ" ถูกเอาออก 28 ส.ค. 69 — หัวข้อย่อยสองคอลัมน์
           (บันทึกจากพยาบาล / บันทึกของแพทย์) บอกอยู่แล้วว่าการ์ดนี้คืออะไร */}
 
+      {/* เลื่อนไปพร้อมกันทั้งหน้าเหมือนเดิม (มติผู้ใช้ 31 ส.ค. 69 — กลับมติที่ลอง
+          แยก scroll สองฝั่งในวันเดียวกัน) */}
       <div className='flex w-full items-stretch min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
         {/* Nurse column */}
         <div
@@ -640,58 +707,47 @@ const ExamNotesPanel = ({
               }}
             >
               {/* หัวข้อบล็อกไม่มีปุ่มคัดลอก — คัดลอกทีละบรรทัดพอ (มติผู้ใช้ 28 ส.ค. 69) */}
-              <span style={{
-                color: 'var(--text-content-tertiary)',
-                fontFamily: 'var(--type-family-body)',
-                fontSize: 'var(--type-size-xs)',
-                fontWeight: 'var(--type-weight-medium)',
-              }}>{block.title}</span>
+              <span style={BLOCK_TITLE_STYLE}>{block.title}</span>
               {block.rows.map((row) => <NurseRow key={row[0]} row={row} />)}
             </div>
           ))}
 
-          {/* หมวดซักประวัติ — แท็บชุดเดียวกับจุดคัดกรอง */}
-          <div
-            className='flex flex-col w-full'
-            style={{
-              gap: 'var(--dim-space-300)',
-              padding: 'var(--dim-space-400)',
-              borderRadius: 'var(--dim-radius-300)',
-              border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
-            }}
-          >
-            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-              {historyTabs.map((t, i) => (
-                <TabCapsule
-                  key={t.title}
-                  variant='filter'
-                  label={t.title}
-                  selected={i === historyTab}
-                  showLeadingIcon={false}
-                  showTrailingIcon={false}
-                  onClick={() => setHistoryTab(i)}
-                />
-              ))}
-            </div>
+          {/* หมวดซักประวัติเรียงลงมาทีละบล็อก ไม่ใช้แท็บแล้ว (มติผู้ใช้ 31 ส.ค. 69)
+              — แท็บบังคับให้กดทีละหมวดถึงจะรู้ว่ามีอะไร หมอที่กำลังไล่อ่านก่อนตรวจ
+              ต้องเห็นการแพ้ทุกหมวดพร้อมกัน ตอนนี้คอลัมน์เลื่อนแยกฝั่งแล้ว
+              ความยาวที่เพิ่มขึ้นจึงไม่ดันสัญญาณชีพหลุดจอเหมือนเหตุผลเดิม */}
+          {historyTabs.map((topic) => (
+            <div
+              key={topic.title}
+              className='flex flex-col w-full'
+              style={{
+                gap: 'var(--dim-space-200)',
+                padding: 'var(--dim-space-400)',
+                borderRadius: 'var(--dim-radius-300)',
+                border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+              }}
+            >
+              <span style={BLOCK_TITLE_STYLE}>{topic.title}</span>
 
-            {activeHistory?.records?.length ? (
-              <div className='flex flex-col w-full'>
-                {activeHistory.records.map((r, i) => <NurseRecord key={`${r.name}-${i}`} record={r} />)}
-              </div>
-            ) : activeHistory?.rows?.length ? (
-              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
-                {activeHistory.rows.map((row) => <NurseRow key={row[0]} row={row} />)}
-              </div>
-            ) : (
-              <span style={{
-                color: 'var(--text-content-tertiary)',
-                fontFamily: 'var(--type-family-body)',
-                fontSize: 'var(--type-size-xs)',
-              }}>
-                ยังไม่ได้ซักประวัติหมวดนี้ที่จุดคัดกรอง
-              </span>
-            )}
-          </div>
+              {topic.records?.length ? (
+                <div className='flex flex-col w-full'>
+                  {topic.records.map((r, i) => <NurseRecord key={`${r.name}-${i}`} record={r} />)}
+                </div>
+              ) : topic.rows?.length ? (
+                <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200)' }}>
+                  {topic.rows.map((row) => <NurseRow key={row[0]} row={row} />)}
+                </div>
+              ) : (
+                <span style={{
+                  color: 'var(--text-content-tertiary)',
+                  fontFamily: 'var(--type-family-body)',
+                  fontSize: 'var(--type-size-xs)',
+                }}>
+                  ยังไม่ได้ซักประวัติหมวดนี้ที่จุดคัดกรอง
+                </span>
+              )}
+            </div>
+          ))}
         </div>
 
         {/* Doctor column */}
@@ -700,7 +756,9 @@ const ExamNotesPanel = ({
           style={{
             /* คู่กับคอลัมน์ซ้าย — flexBasis 0 ทั้งคู่ทำให้แบ่งครึ่งพอดีทุกความกว้าง */
             flexBasis: 0,
-            gap: 'var(--dim-space-400)',
+            /* ระยะห่างระหว่างช่องกรอก 24px (มติผู้ใช้ 31 ส.ค. 69) — 16px เดิมทำให้
+               ป้ายหัวข้อของช่องถัดไปเบียดขอบล่างของ textarea ก่อนหน้า */
+            gap: 'var(--dim-space-600)',
             paddingLeft: 'var(--dim-space-600)',
           }}
         >

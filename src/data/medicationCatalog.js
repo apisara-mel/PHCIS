@@ -133,6 +133,61 @@ const slugFromName = (name) => {
 /** Resolve a displayable medication image URL for table tiles / popups.
    Prefer name→slug match over a stale explicitSrc that points at the
    generic fallback, so registry seeds stay correct after catalog updates. */
+/* ── ค่าตั้งต้นจากทะเบียนยา (มติผู้ใช้ 31 ส.ค. 69) ─────────────────────────
+   เมื่อสั่งยาโดยไม่ได้พิมพ์เอง (กดชิป "ยาที่สั่งบ่อย" หรือเลือกจากป๊อปอัปแล้ว
+   ไม่แก้ช่อง) คอลัมน์ "คำเตือน" กับ "การใช้" ต้องมีค่าจากทะเบียนยาให้เอง
+   ไม่ปล่อยว่าง — เป็นข้อมูลของตัวยา ไม่ใช่ของ visit จึงอยู่ในแคตตาล็อกนี้
+
+   คีย์ = ชื่อยาแบบเดียวกับ `MEDICATION_NAME_OPTIONS` · เทียบแบบไม่สนช่องว่าง
+   และตัวพิมพ์ ผ่าน `medicationRegistryDefaults` ด้านล่าง เพราะชิปบางตัวเขียน
+   "Amlodipine 5 mg" ส่วนแถว mock เดิมเขียน "Amlodipine 5mg" */
+export const MEDICATION_REGISTRY_DEFAULTS = {
+  'Paracetamol 500 mg':       { purpose: 'แก้ปวด ลดไข้',            warning: 'ไม่เกิน 8 เม็ด/วัน หลีกเลี่ยงในผู้ป่วยโรคตับ' },
+  'Ibuprofen 400 mg':         { purpose: 'แก้ปวด ต้านอักเสบ',       warning: 'หลีกเลี่ยงในผู้ป่วยโรคไต / กระเพาะอักเสบ · รับประทานหลังอาหารทันที' },
+  'Naproxen 250 mg':          { purpose: 'แก้ปวด ต้านอักเสบ',       warning: 'กลุ่ม NSAIDs — ระวังในผู้ป่วยโรคไต/กระเพาะ และผู้สูงอายุ' },
+  'Methocarbamol 750 mg':     { purpose: 'คลายกล้ามเนื้อ',          warning: 'อาจง่วงซึม — งดขับขี่ยานพาหนะ' },
+  'Orphenadrine 35 mg':       { purpose: 'คลายกล้ามเนื้อ',          warning: 'อาจง่วงซึม ปากแห้ง — ระวังในผู้ป่วยต้อหิน' },
+  'Omeprazole 20 mg':         { purpose: 'ลดกรด ป้องกันกระเพาะ',    warning: 'รับประทานก่อนอาหาร 30 นาที · ใช้ต่อเนื่องนานเสี่ยงขาด B12/แมกนีเซียม' },
+  'Esomeprazole 40 mg':       { purpose: 'ลดกรด ป้องกันกระเพาะ',    warning: 'รับประทานก่อนอาหาร 30 นาที' },
+  'Amoxicillin 500 mg':       { purpose: 'ยาปฏิชีวนะ',              warning: 'ห้ามใช้ในผู้แพ้ Penicillin · กินให้ครบคอร์ส' },
+  'Ciprofloxacin 500 mg':     { purpose: 'ยาปฏิชีวนะ',              warning: 'เลี่ยงนม/แคลเซียมพร้อมยา · ระวังเอ็นอักเสบในผู้สูงอายุ' },
+  'Cetirizine 10 mg':         { purpose: 'แก้แพ้ ลดน้ำมูก',         warning: 'อาจทำให้ง่วงซึม — งดขับขี่ยานพาหนะ' },
+  'Loratadine 10 mg':         { purpose: 'แก้แพ้ ลดน้ำมูก',         warning: 'ง่วงน้อยกว่ากลุ่มเดิม แต่ยังควรระวังการขับขี่' },
+  'Loperamide 2 mg':          { purpose: 'แก้ท้องเสีย',             warning: 'ห้ามใช้เมื่อมีไข้สูงหรือถ่ายเป็นมูกเลือด' },
+  'Metformin 500 mg':         { purpose: 'ควบคุมระดับน้ำตาล',       warning: 'รับประทานหลังอาหาร · พิจารณาหยุดก่อนตรวจที่ใช้สารทึบรังสี' },
+  'Amlodipine 5 mg':          { purpose: 'ลดความดันโลหิต',          warning: 'อาจบวมข้อเท้า เวียนศีรษะเมื่อลุกเร็ว' },
+  'Enalapril 5 mg':           { purpose: 'ลดความดันโลหิต',          warning: 'อาจไอแห้ง · ติดตามค่าไตและโพแทสเซียม' },
+  'Losartan 50 mg':           { purpose: 'ลดความดันโลหิต',          warning: 'ติดตามค่าไตและโพแทสเซียม · ห้ามใช้ในหญิงตั้งครรภ์' },
+  'Hydrochlorothiazide 25 mg': { purpose: 'ลดความดันโลหิต (ขับปัสสาวะ)', warning: 'ติดตามโพแทสเซียมและโซเดียม · ระวังภาวะขาดน้ำ' },
+  'Metoprolol 50 mg':         { purpose: 'ลดความดันโลหิต ชะลอหัวใจเต้นเร็ว', warning: 'ห้ามหยุดยากะทันหัน · ระวังในผู้ป่วยหอบหืด' },
+  'Bisoprolol 5 mg':          { purpose: 'ลดความดันโลหิต ชะลอหัวใจเต้นเร็ว', warning: 'ห้ามหยุดยากะทันหัน · ระวังในผู้ป่วยหอบหืด' },
+  'Atenolol 50 mg':           { purpose: 'ลดความดันโลหิต',          warning: 'ห้ามหยุดยากะทันหัน · ปรับขนาดตามค่าไต' },
+  'Furosemide 40 mg':         { purpose: 'ขับปัสสาวะ ลดบวม',        warning: 'รับประทานตอนเช้า · ติดตามโพแทสเซียมและค่าไต' },
+  'Spironolactone 25 mg':     { purpose: 'ขับปัสสาวะชนิดเก็บโพแทสเซียม', warning: 'ติดตามโพแทสเซียม — ระวังใช้ร่วมกับ ACEI/ARB' },
+  'Indapamide 1.5 mg':        { purpose: 'ลดความดันโลหิต (ขับปัสสาวะ)', warning: 'ติดตามโซเดียมและโพแทสเซียม' },
+  'Atorvastatin 20 mg':       { purpose: 'ลดไขมันในเลือด',          warning: 'แจ้งแพทย์หากปวดกล้ามเนื้อผิดปกติ · ติดตามเอนไซม์ตับ' },
+  'Atorvastatin 10 mg':       { purpose: 'ลดไขมันในเลือด',          warning: 'แจ้งแพทย์หากปวดกล้ามเนื้อผิดปกติ' },
+  'Simvastatin 20 mg':        { purpose: 'ลดไขมันในเลือด',          warning: 'รับประทานก่อนนอน · เลี่ยงน้ำเกรปฟรุต' },
+  'Aspirin 81 mg':            { purpose: 'ต้านเกล็ดเลือด',          warning: 'ระวังเลือดออก · รับประทานหลังอาหาร' },
+  'VILERM (Aciclovir 400 mg)': { purpose: 'ต้านไวรัสเริม/งูสวัด',   warning: 'ดื่มน้ำมาก ๆ · ปรับขนาดตามค่าไต' },
+  'Allopurinol 100 mg':       { purpose: 'ลดกรดยูริก',              warning: 'ต้องคัดกรอง HLA-B*58:01 ก่อนเริ่มยา · หยุดยาทันทีเมื่อมีผื่น' },
+  'Carbamazepine 200 mg':     { purpose: 'กันชัก',                  warning: 'ต้องคัดกรอง HLA-B*15:02 ก่อนเริ่มยา · หยุดยาทันทีเมื่อมีผื่น' },
+  'Codeine Phosphate 30 mg':  { purpose: 'แก้ปวด ระงับไอ',          warning: 'ยาควบคุม — ง่วงซึม กดการหายใจ · งดขับขี่ยานพาหนะ' },
+  'Diazepam 5 mg':            { purpose: 'คลายกังวล คลายกล้ามเนื้อ', warning: 'ยาควบคุม — ง่วงซึม เสพติดได้ · งดแอลกอฮอล์และการขับขี่' },
+  'Vitamin B Complex':        { purpose: 'เสริมวิตามิน',            warning: '' },
+  'Folic Acid 5 mg':          { purpose: 'เสริมโฟเลต',              warning: '' },
+};
+
+const registryKey = (name) => String(name || '').toLowerCase().replace(/\s+/g, '');
+
+const REGISTRY_BY_KEY = Object.fromEntries(
+  Object.entries(MEDICATION_REGISTRY_DEFAULTS).map(([name, meta]) => [registryKey(name), meta]),
+);
+
+/** ค่าตั้งต้นของยาหนึ่งตัวจากทะเบียน — ไม่รู้จักชื่อนี้คืนค่าว่างทั้งคู่ ไม่เดา */
+export const medicationRegistryDefaults = (name) =>
+  REGISTRY_BY_KEY[registryKey(name)] || { purpose: '', warning: '' };
+
 export const resolveMedicationImage = (name, explicitSrc) => {
   if (!name) {
     if (explicitSrc && String(explicitSrc).trim()) return explicitSrc;
