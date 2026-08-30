@@ -12,6 +12,9 @@
    ทะเบียนผู้รับบริการ + ข้อมูลย้อนหลังรายบุคคลอยู่ใน `homevisitRegistry.js`
    (ซึ่ง import ไฟล์นี้ — ห้าม import กลับทางเพื่อกัน circular import). */
 
+import { buildEmptyHomeScreening } from '@/data/homeScreeningForm';
+import { EMPTY_ADDRESS } from '@/data/registrationForm';
+import { findMrPatientByHn } from '@/data/mrPatients';
 import {
   MNA_ITEMS,
   countMnaAnswered,
@@ -116,8 +119,8 @@ export const setHomeVisitAccess = (allowed) => writeJson(ACCESS_KEY, !!allowed);
 export const HOMEVISIT_GROUPS = [
   { value: 'curable',          short: 'รักษาหายได้',        label: 'กลุ่มที่รักษาหายได้ (Curable)',                                    badge: 'green'  },
   { value: 'chronic',          short: 'เรื้อรังระยะยาว',    label: 'กลุ่มเจ็บป่วยเรื้อรังระยะยาว (Long-term chronic)',                 badge: 'blue'   },
-  { value: 'mildDisability',   short: 'พิการช่วยเหลือได้บ้าง', label: 'กลุ่มพิการระยะยาวที่ช่วยเหลือตัวเองได้บ้าง (Long-term mild disabilities)', badge: 'teal'   },
-  { value: 'severeDisability', short: 'พิการช่วยเหลือไม่ได้',  label: 'กลุ่มพิการระยะยาวที่ช่วยเหลือตัวเองไม่ได้ (Long-term extreme disabilities)', badge: 'orange' },
+  { value: 'mildDisability',   short: 'พิการช่วยเหลือได้บ้าง', label: 'กลุ่มพิการระยะยาวที่ช่วยเหลือตัวเองได้บ้าง', badge: 'teal'   },
+  { value: 'severeDisability', short: 'พิการช่วยเหลือไม่ได้',  label: 'กลุ่มพิการระยะยาวที่ช่วยเหลือตัวเองไม่ได้', badge: 'orange' },
   { value: 'terminal',         short: 'ระยะสุดท้าย',        label: 'กลุ่มผู้ป่วยระยะสุดท้าย (Terminally ill)',                        badge: 'red'    },
   { value: 'special',          short: 'กลุ่มพิเศษ',         label: 'กลุ่มพิเศษ (Special group)',                                       badge: 'purple' },
 ];
@@ -206,7 +209,9 @@ export const HOMEVISIT_TIME_SLOTS = [
 
 export const HOMEVISIT_STATUSES = [
   { value: 'scheduled', label: 'นัดวันนี้',       badge: 'blue'   },
-  { value: 'toDepart',  label: 'รอออกเยี่ยม',     badge: 'indigo' },
+  /* เดิม "รอออกเยี่ยม" — เปลี่ยนเป็น "กำลังเยี่ยม" ตามคำที่ทีมใช้จริง
+     (มติผู้ใช้ 30 ส.ค. 69) `value` คงเดิมเพื่อไม่ให้ข้อมูลที่บันทึกไว้เพี้ยน */
+  { value: 'toDepart',  label: 'กำลังเยี่ยม',     badge: 'indigo' },
   { value: 'done',      label: 'เยี่ยมเสร็จแล้ว', badge: 'teal'   },
   { value: 'draft',     label: 'ที่ร่างไว้',      badge: 'grey'   },
 ];
@@ -290,6 +295,82 @@ const HOMEVISIT_APPOINTMENT_SEED = [
     lastVisitDate: todayIsoDate(), visitCount: 6, confidential: false,
     flags: [], routeOrder: 0,
     note: 'ไตวายเรื้อรังระยะ 4 — ติดตามการจำกัดน้ำและโปรตีน',
+  },
+  /* เคสที่เยี่ยมเสร็จแล้ววันนี้ — แท็บ "เยี่ยมเสร็จแล้ว" เดิมมีตัวอย่างแค่สองราย
+     ทำให้ดูเหมือนแท็บว่าง (มติผู้ใช้ 30 ส.ค. 69) */
+  {
+    id: 'hv-2620', hn: '67-00003', name: 'วิชัย รุ่งเรือง', age: 68, gender: 'ชาย',
+    group: 'mildDisability', source: 'hv', statusKey: 'done',
+    district: 'เขตวัฒนา', community: 'ชุมชนซอยทองหล่อ 20',
+    address: '55/12 ซอยสุขุมวิท 55 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
+    home: { lat: 13.7312, lng: 100.5836, pinSaved: true },
+    responsible: 'กภ.ณัฐวุฒิ ฟื้นฟู', profession: 'physio',
+    visitDate: todayIsoDate(), timeSlot: 'morning', appointmentTime: '09:15',
+    lastVisitDate: todayIsoDate(), visitCount: 5, confidential: false,
+    flags: ['fallRisk'], routeOrder: 0,
+    note: 'ฝึกเดินด้วยไม้เท้าในบ้าน — ประเมินการทรงตัวหลังปรับราวจับ',
+  },
+  {
+    id: 'hv-2621', hn: '67-00013', name: 'พิมพ์ใจ จันทรา', age: 33, gender: 'หญิง',
+    group: 'curable', source: 'motherChildHv', statusKey: 'done',
+    district: 'เขตคลองเตย', community: 'ชุมชนหมู่บ้านพัฒนา',
+    address: '108/5 ซอยพระราม 4 ซอย 12 แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
+    home: { lat: 13.7141, lng: 100.5602, pinSaved: true },
+    responsible: 'พว.ดวงพร ห่วงใย', profession: 'nurse',
+    visitDate: todayIsoDate(), timeSlot: 'morning', appointmentTime: '10:00',
+    lastVisitDate: todayIsoDate(), visitCount: 2, confidential: false,
+    flags: [], routeOrder: 0,
+    note: 'เยี่ยมหลังคลอดครั้งที่ 2 — ประเมินการให้นมและแผลผ่าคลอด',
+  },
+  {
+    id: 'hv-2622', hn: '67-00011', name: 'อรอุมา ดวงสว่าง', age: 45, gender: 'หญิง',
+    group: 'special', source: 'healthDeskHv', statusKey: 'done',
+    district: 'เขตบางกอกน้อย', community: 'ชุมชนวัดระฆัง',
+    address: '77/3 ซอยอรุณอมรินทร์ 14 แขวงศิริราช เขตบางกอกน้อย กรุงเทพมหานคร 10700',
+    home: { lat: 13.7538, lng: 100.4849, pinSaved: true },
+    responsible: 'นสค.ปิยะ ช่วยชุมชน', profession: 'social',
+    visitDate: todayIsoDate(), timeSlot: 'afternoon', appointmentTime: '13:45',
+    lastVisitDate: todayIsoDate(), visitCount: 3, confidential: false,
+    flags: [], routeOrder: 0,
+    note: 'อยู่ลำพัง/ไม่มีผู้ดูแลกลางวัน — ประสานเครือข่ายชุมชนช่วยดูแล',
+  },
+  /* นัดล่วงหน้า — วันนัดอยู่ในอนาคต ใช้เติมแท็บ "นัดล่วงหน้า" ของหน้าคิว
+     (มติผู้ใช้ 30 ส.ค. 69) */
+  {
+    id: 'hv-2630', hn: '67-00005', name: 'สุดา ปลอดโปร่ง', age: 67, gender: 'หญิง',
+    group: 'severeDisability', source: 'hhc', statusKey: 'scheduled',
+    district: 'เขตพระโขนง', community: 'ชุมชนสุเหร่าบ้านดอน',
+    address: '12/45 ซอยสุขุมวิท 71 แขวงพระโขนงเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
+    home: { lat: 13.7229, lng: 100.5926, pinSaved: true },
+    responsible: 'พว.ศิริพร เยี่ยมสุข', profession: 'nurse',
+    visitDate: addDaysIso(todayIsoDate(), 2), timeSlot: 'morning', appointmentTime: '09:30',
+    lastVisitDate: null, visitCount: 11, confidential: false,
+    flags: ['bedbound'], routeOrder: 0,
+    note: 'ผู้ป่วยติดเตียง — ตรวจแผลกดทับและเปลี่ยนสายให้อาหาร',
+  },
+  {
+    id: 'hv-2631', hn: '67-00018', name: 'ธีรเดช อัครพงศ์', age: 55, gender: 'ชาย',
+    group: 'terminal', source: 'hhc', statusKey: 'scheduled',
+    district: 'เขตพระโขนง', community: 'ชุมชนริมคลองพระโขนง',
+    address: '88/2 ซอยปรีดี พนมยงค์ 14 แขวงพระโขนงเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
+    home: { lat: 13.7196, lng: 100.5878, pinSaved: true },
+    responsible: 'นพ.ธนวัฒน์ เมตตา', profession: 'doctor',
+    visitDate: addDaysIso(todayIsoDate(), 5), timeSlot: 'afternoon', appointmentTime: '13:30',
+    lastVisitDate: null, visitCount: 5, confidential: false,
+    flags: [], routeOrder: 0,
+    note: 'ดูแลแบบประคับประคอง — ทบทวนแผนการดูแลร่วมกับครอบครัว',
+  },
+  {
+    id: 'hv-2632', hn: '67-00012', name: 'วิชัย รุ่งเรือง', age: 60, gender: 'ชาย',
+    group: 'chronic', source: 'hv', statusKey: 'scheduled',
+    district: 'เขตวัฒนา', community: 'ชุมชนซอยทองหล่อ 20',
+    address: '31/9 ซอยทองหล่อ 20 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
+    home: { lat: 13.7351, lng: 100.5822, pinSaved: true },
+    responsible: 'พว.ดวงพร ห่วงใย', profession: 'nurse',
+    visitDate: addDaysIso(todayIsoDate(), 9), timeSlot: 'morning', appointmentTime: '10:15',
+    lastVisitDate: null, visitCount: 3, confidential: false,
+    flags: [], routeOrder: 0,
+    note: 'เบาหวาน/ความดัน — ติดตามการใช้ยาและระดับน้ำตาลที่บ้าน',
   },
   {
     id: 'hv-2607', hn: '67-00009', name: 'กิตติ ศรีสมบูรณ์', age: 52, gender: 'ชาย',
@@ -436,6 +517,21 @@ export const setHomeVisitStatus = (id, statusKey) =>
 
 /** "ออกเยี่ยม" — ย้ายจากรอออกเยี่ยม → กำลังเยี่ยม (คู่กับ 1.18.9 check-in). */
 
+/* ตัวอย่างนัดที่ถูกยกเลิกไว้แล้ว — การยกเลิกจริงเก็บใน sessionStorage อย่างเดียว
+   แท็บ "ยกเลิกนัดแล้ว" จึงว่างเสมอในเซสชันใหม่ (มติผู้ใช้ 30 ส.ค. 69) */
+const APPT_CANCEL_SEED = {
+  'hv-2611': {
+    reason: 'ครอบครัวขอเลื่อน — ผู้รับบริการไปพักกับญาติต่างจังหวัด 2 สัปดาห์',
+    by: 'พว.ศิริพร เยี่ยมสุข',
+    at: '29 สิงหาคม 2569 16:05',
+  },
+  'hv-2614': {
+    reason: 'ผู้รับบริการเข้ารับการรักษาในโรงพยาบาล — นัดใหม่หลังจำหน่าย',
+    by: 'พว.ดวงพร ห่วงใย',
+    at: '30 สิงหาคม 2569 08:20',
+  },
+};
+
 export const cancelHomeVisitAppointment = (id, reason) => {
   const all = readJson(APPT_CANCEL_KEY, {});
   writeJson(APPT_CANCEL_KEY, {
@@ -444,14 +540,18 @@ export const cancelHomeVisitAppointment = (id, reason) => {
   });
 };
 
+/* เปิดใช้งานอีกครั้ง — เขียน `null` ทับ ไม่ใช่ลบคีย์ทิ้ง เพราะเคสที่ยกเลิกมาจาก
+   seed จะกลับมาถูกยกเลิกใหม่ทันทีถ้าไม่มีตัวคั่น */
 export const reactivateHomeVisitAppointment = (id) => {
   const all = readJson(APPT_CANCEL_KEY, {});
-  const { [id]: _removed, ...rest } = all;
-  writeJson(APPT_CANCEL_KEY, rest);
+  writeJson(APPT_CANCEL_KEY, { ...all, [id]: null });
 };
 
-export const getHomeVisitAppointmentCancellation = (id) =>
-  readJson(APPT_CANCEL_KEY, {})[id] || null;
+export const getHomeVisitAppointmentCancellation = (id) => {
+  const stored = readJson(APPT_CANCEL_KEY, {});
+  if (Object.prototype.hasOwnProperty.call(stored, id)) return stored[id];
+  return APPT_CANCEL_SEED[id] || null;
+};
 
 /* ─── เยี่ยม/ติดตามประเมินผล (คู่มือระบบเดิม §2.2.6) ────────────────
    ระบบเดิมกำหนดรอบติดตามตามกลุ่มผู้รับบริการ: กลุ่มระยะสุดท้ายทุก 30 วัน,
@@ -1018,6 +1118,7 @@ const emptyVitals = () => ({
 export const createEmptyHomeVisitForm = (appointment = null, registryEntry = null) => ({
   /* 1 — ข้อมูลทั่วไปและการเดินทาง */
   serviceDate: todayIsoDate(),
+  /* `departTime` ยังอยู่ในโมเดลเผื่อรายงานเวลาเดินทาง แต่ไม่มีที่กรอกบนหน้าจอแล้ว */
   departTime: '',
   visitType: appointment?.visitCount ? 'followup' : 'first',
   team: appointment?.responsible ? [appointment.responsible] : [HOMEVISIT_CURRENT_USER],
@@ -1026,9 +1127,38 @@ export const createEmptyHomeVisitForm = (appointment = null, registryEntry = nul
   geolocationDenied: false,
   arrivalTime: '',
   photos: [],
+  /* 2 — ที่อยู่และการเดินทาง · ใช้ชุดฟิลด์เดียวกับขั้น "ที่อยู่" ของหน้าเวชระเบียน
+     ทั้งก้อน (ทะเบียนบ้าน / ปัจจุบัน / ติดต่อได้ + ธงยืมที่อยู่) เพื่อให้ทีมเยี่ยมบ้าน
+     กรอกด้วยหน้าตาเดียวกันเป๊ะ และข้อมูลสองที่เทียบกันได้ (มติผู้ใช้ 30 ส.ค. 69) */
+  /* เติมที่อยู่ให้ตั้งแต่เปิดฟอร์ม — เคสเยี่ยมบ้านมีที่อยู่จากทะเบียน/การลงพื้นที่
+     ชุมชนอยู่แล้ว ทีมจึงควรได้ "ตรวจ/แก้" ไม่ใช่ "พิมพ์ใหม่ทั้งชุด"
+     (มติผู้ใช้ 30 ส.ค. 69) */
+  addressRegistered: { ...EMPTY_ADDRESS, ...(findMrPatientByHn(registryEntry?.hn || appointment?.hn)?.address || {}) },
+  /* ที่อยู่ปัจจุบันของงานเยี่ยมบ้านคือบ้านที่ไปเยี่ยมจริง ซึ่งตามทะเบียนบ้านเป็นส่วนใหญ่ */
+  useRegisteredForCurrent: true,
+  addressCurrent: { ...EMPTY_ADDRESS, ...(findMrPatientByHn(registryEntry?.hn || appointment?.hn)?.address || {}) },
+  useRegisteredForContact: false,
+  useCurrentForContact: false,
+  addressContact: { ...EMPTY_ADDRESS },
+  /* หมุดบ้านที่แก้ได้จากหน้าเยี่ยมบ้าน — ตั้งต้นจากทะเบียน ถ้าทีมแก้ที่หน้างาน
+     ค่าจะอยู่ที่นี่ (ทะเบียนกลางยังไม่ถูกเขียนทับ) */
+  homeLocation: null,
+  /* กลุ่มผู้รับบริการ + ที่มาของเคส — ย้ายมาจากเวชระเบียนเยี่ยมบ้าน ให้กรอก/แก้
+     ได้ที่บันทึกการเยี่ยมโดยตรง (มติผู้ใช้ 30 ส.ค. 69) ค่าเริ่มต้นมาจากทะเบียน
+     ของเคสนี้ ถ้ามี */
+  patientGroup: registryEntry?.group || appointment?.group || '',
+  homevisitSource: registryEntry?.source || appointment?.source || '',
+  /* สภาพการเคลื่อนไหว — ย้ายมาจากเวชระเบียนเยี่ยมบ้านเช่นกัน เพื่อให้บันทึก
+     การเยี่ยมเป็นเจ้าของข้อมูลชุดนี้ทั้งหมดก่อนที่ทะเบียนเล่มนั้นจะถูกยกเลิก */
+  mobility: '',
+  mobilityOther: '',
   /* 2 — ประวัติ */
   illnessHistory: registryEntry?.illnessHistory || appointment?.note || '',
   medications: [],
+  /* แบบคัดกรองสุขภาพรายบุคคล (ฟอร์มกระดาษของทีมเยี่ยมบ้าน) — ช่องถูกกระจายไป
+     ตามขั้นที่ควรอยู่ (ประวัติ · สัญญาณชีพ · ประเมินและคัดกรอง) แต่เก็บรวมเป็น
+     ก้อนเดียวเพื่อให้บันทึก/พิมพ์/ส่งต่อได้ทั้งชุด */
+  homeScreening: buildEmptyHomeScreening(),
   /* 3 — สัญญาณชีพ */
   vitals: emptyVitals(),
   deviceReading: null,
@@ -1095,19 +1225,28 @@ export const buildHomeVisitForm = (visitId, appointment = null, registryEntry = 
 export const getStepValidationError = (form, stepIndex) => {
   switch (stepIndex) {
     case 0:
-      if (!form.serviceDate) return 'กรุณาระบุวันที่ให้บริการก่อนไปขั้นตอนถัดไป';
-      if (!form.arrivalTime) return 'กรุณากด “บันทึกเวลาถึงบ้าน” ก่อน จึงจะเริ่มบันทึกการเยี่ยมได้ (TOR 1.18.9)';
+      /* ไม่ต้องตรวจ `serviceDate` แล้ว — ช่องถูกถอดออกจากหน้าจอ ค่าตั้งเป็นวันนี้
+         อัตโนมัติเสมอ ด่านที่ผู้ใช้แก้ไม่ได้จึงไม่ใช่ด่าน (มติผู้ใช้ 30 ส.ค. 69) */
+      /* ปุ่ม "บันทึกเวลาถึงบ้าน" ถูกถอดออกจากหน้าจอแล้ว (มติผู้ใช้ 30 ส.ค. 69)
+         จึงไม่มีทางผ่านด่านนี้ได้ — ด่านที่ผู้ใช้ทำตามไม่ได้ไม่ใช่ด่าน */
+      /* บันทึกการเดินทางยังติดดาว (required) บนหน้าจอ แต่ไม่บล็อกการไปขั้นถัดไป
+         (มติผู้ใช้ 30 ส.ค. 69) — แถบแดงขึ้นค้างตั้งแต่เปิดหน้าทั้งที่ยังไม่ได้เริ่มกรอก */
       return null;
     case 1:
+      /* ขั้นที่อยู่และการเดินทาง — ไม่บังคับ ทีมบางบ้านสำรวจที่อยู่ไม่ครบ */
+      return null;
+    case 2:
       if (!String(form.illnessHistory || '').trim()) return 'กรุณาบันทึกประวัติการเจ็บป่วยของผู้รับบริการ';
       return null;
-    case 2: {
-      const { invalid, filled } = summarizeVitals(form.vitals);
+    case 3: {
+      /* ไม่บังคับให้มีสัญญาณชีพอย่างน้อย 1 ค่าแล้ว (มติผู้ใช้ 30 ส.ค. 69) — แถบแดง
+         ขึ้นค้างตั้งแต่เพิ่งเปิดขั้นนี้ทั้งที่ยังไม่ได้เริ่มวัด · ค่าที่ "กรอกผิด"
+         ยังบล็อกอยู่เหมือนเดิม เพราะค่าที่ผิดช่วงเป็นข้อมูลที่เชื่อไม่ได้ */
+      const { invalid } = summarizeVitals(form.vitals);
       if (invalid.length > 0) return invalid[0];
-      if (filled === 0) return 'กรุณาบันทึกสัญญาณชีพอย่างน้อย 1 ค่า (หรือกด “อ่านค่าจากอุปกรณ์”)';
       return null;
     }
-    case 3: {
+    case 4: {
       /* มติ คทง.4 ต่อ §1.18.5 — เครื่องมือมาตรฐานต้องประเมินให้ครบ
          ระบบจึงคำนวณคะแนนและวิเคราะห์ข้อมูลย้อนหลังได้ */
       if (!isMnaComplete(form.mna)) {
@@ -1150,7 +1289,11 @@ export const getStepValidationError = (form, stepIndex) => {
 
 /** สถานะ "ทำครบแล้ว" ของแต่ละขั้น สำหรับแถบ stepper. */
 export const getHomeVisitCompletedSteps = (form, stepIndex = 0) => ([
-  !!form.arrivalTime,
+  /* 1 ข้อมูลทั่วไป — ถือว่าครบเมื่อเลือกประเภทการเยี่ยมแล้ว */
+  !!form.visitType,
+  /* 2 ที่อยู่และการเดินทาง — มีที่อยู่ (อย่างน้อยเลขที่บ้าน/เขต) หรือปักหมุดแล้ว */
+  !!(form.addressRegistered?.houseNo || form.addressRegistered?.district
+    || form.addressCurrent?.houseNo || form.homeLocation?.pinSaved),
   !!String(form.illnessHistory || '').trim(),
   summarizeVitals(form.vitals).filled > 0 && summarizeVitals(form.vitals).invalid.length === 0,
   isBarthelComplete(form.adlAnswers) && isMnaComplete(form.mna)

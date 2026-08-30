@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import Select from '@/components/forms/Select';
 import { morphPanelPaddingStyle, morphStepScaleStyle } from '@/components/layout/headerMorphStyles';
 
 /* Figma node 2709:6562 — Step Indicator (MIH Design System Foundation)
@@ -346,11 +347,77 @@ const StepProgress = ({
     </div>
   );
 
-  /* จอแคบ: stepper เลื่อนแนวนอนได้ในกล่องของตัวเอง — ต่อ step เป็น shrink-0
-     + minWidth คงที่ (เส้นเชื่อมจะขาดถ้าปล่อยให้ wrap) ถ้าปล่อยไว้เฉย ๆ แถบ
-     sticky ทั้งแถบจะถูกดันจนล้นขอบขวาทั้งหน้า */
+  /* จอแคบ: ถ้าแถวขั้นตอนกว้างเกินพื้นที่จริง ๆ ให้ยุบเป็นดรอปดาวน์แทน
+     (มติผู้ใช้ 29 ส.ค. 69) — เดิมปล่อยให้เลื่อนแนวนอน ผู้ใช้บนแท็บเล็ต/หน้าต่าง
+     ซอยจึงเห็นขั้นตอนแค่สองสามใบและไม่รู้ว่ามีต่ออีกกี่ขั้น
+     ตัววัดขนาด (probe) ยังถูกเรนเดอร์เสมอ แค่ซ่อนไว้ตอนยุบ — ถ้าถอดออกเมื่อยุบ
+     จะวัดไม่ได้อีกและสลับไปมาไม่รู้จบ */
+  const wrapRef = useRef(null);
+  const probeRef = useRef(null);
+  const [collapsed, setCollapsed] = useState(false);
+
+  const measure = () => {
+    const wrap = wrapRef.current;
+    const probe = probeRef.current;
+    if (!wrap || !probe) return;
+    const available = wrap.clientWidth;
+    const needed = probe.scrollWidth;
+    if (!available || !needed) return;
+    setCollapsed(needed > available + 1);
+  };
+
+  useLayoutEffect(measure);
+
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const ro = new ResizeObserver(measure);
+    if (wrapRef.current) ro.observe(wrapRef.current);
+    if (probeRef.current) ro.observe(probeRef.current);
+    return () => ro.disconnect();
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [steps.length]);
+
+  const stepOptions = steps.map((raw, idx) => {
+    const { title } = normalizeStep(raw);
+    return { value: String(idx), label: `${idx + 1}. ${title}` };
+  });
+
   const scrollableRow = (
-    <div className='mih-step-progress-scroll w-full'>{row}</div>
+    <div ref={wrapRef} className='w-full' style={{ position: 'relative' }}>
+      <div
+        ref={probeRef}
+        aria-hidden={collapsed || undefined}
+        className={collapsed ? '' : 'mih-step-progress-scroll w-full'}
+        style={collapsed
+          ? {
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: 'max-content',
+              visibility: 'hidden',
+              pointerEvents: 'none',
+            }
+          : undefined}
+      >
+        {row}
+      </div>
+
+      {collapsed && (
+        <Select
+          size='sm'
+          label='ขั้นตอน'
+          showLabel={false}
+          showHelperText={false}
+          value={String(current)}
+          onChange={(v) => onStepClick?.(Number(v))}
+          options={stepOptions}
+          leadingIcon='list'
+        />
+      )}
+    </div>
   );
 
   const morphedRow = (framed || morph) ? (

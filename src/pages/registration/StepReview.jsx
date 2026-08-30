@@ -5,7 +5,11 @@ import StatusBadge from '@/components/badge/StatusBadge';
 import {
   REGISTRATION_STEP_NAMES,
   getStepMissingFields,
+  buildRegistrationFlagSources,
+  patientGroupLabel,
+  isHomeVisitRegistry,
 } from '@/data/registrationForm';
+import { resolveSource } from '@/data/homevisitVisits';
 
 /* PHCIS | เวชระเบียน — ขั้นที่ 7 "ตรวจสอบข้อมูล" (มติผู้ใช้ 27 ส.ค. 69)
 
@@ -128,14 +132,24 @@ const StepCard = ({ stepIndex, form, onJumpToStep, children }) => {
 const StepReview = ({ form, onJumpToStep }) => {
   const f = form || {};
   const emergency = Array.isArray(f.emergency) ? f.emergency : [];
+  /* Flag อ่านจาก `form.flags` ซึ่งเป็นที่เก็บจริงของขั้นที่ 6 — เดิมอ่านจากคีย์
+     `flagVip` / `flagDrugAllergy` ที่ไม่มีอยู่ในฟอร์ม แถวนี้จึงขึ้น "—" เสมอ
+     แม้ติ๊กครบทุกใบ (มติผู้ใช้ 29 ส.ค. 69) */
+  const flagState = f.flags || {};
   const flags = [
-    f.flagVip && 'VIP / ผู้ป่วยพิเศษ',
-    f.flagFoodAllergy && 'แพ้อาหาร',
-    f.flagDrugAllergy && 'แพ้ยา',
-    f.flagChemicalAllergy && 'แพ้สารเคมี',
-    f.flagChronic && 'โรคประจำตัว',
-    f.flagOther && 'อื่นๆ',
+    flagState.vip && 'VIP / ผู้ป่วยพิเศษ',
+    flagState.allergyDrug && 'แพ้ยา',
+    flagState.allergyOther && 'แพ้อาหาร',
+    flagState.skinReaction && 'แพ้สารเคมี',
+    flagState.chronic && 'โรคประจำตัว',
+    flagState.safety && 'ความปลอดภัย',
+    flagState.dnr && 'DNR — ไม่ประสงค์ปั๊มหัวใจ',
+    flagState.organDonor && 'ประสงค์บริจาคอวัยวะ',
+    flagState.flagOther && 'อื่นๆ',
   ].filter(Boolean);
+  /* ที่มาของ Flag สามใบตาม TOR ๑.๑.๑.๑๙ — ขั้นทวนต้องเห็นเอกสารอ้างอิงด้วย
+     ไม่ใช่เห็นแค่ชื่อธง */
+  const flagSources = buildRegistrationFlagSources(f);
 
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
@@ -202,8 +216,27 @@ const StepReview = ({ form, onJumpToStep }) => {
       </StepCard>
 
       <StepCard stepIndex={5} form={f} onJumpToStep={onJumpToStep}>
-        <Row label='การเคลื่อนไหว' value={dash(f.mobility === 'other' ? f.mobilityOther : f.mobility)} />
+        {/* สองแถวนี้เป็นคำถามของเวชระเบียนเยี่ยมบ้าน ทะเบียนของศูนย์ไม่ได้ถาม */}
+        {isHomeVisitRegistry(f) && (
+          <>
+            <Row label='ประเภทผู้รับบริการ 6 กลุ่ม' value={dash(patientGroupLabel(f.patientGroup))} />
+            <Row
+              label='ประเภทรับ–ส่งต่อ'
+              value={f.homevisitIntake === 'received'
+                ? `รับจาก ${resolveSource(f.homevisitSource)?.label || 'ไม่ระบุแหล่งที่มา'}`
+                : (f.homevisitIntake === 'centerFound' ? 'ศูนย์พบเอง' : '—')}
+            />
+          </>
+        )}
+        <Row
+          label={isHomeVisitRegistry(f) ? 'การเคลื่อนไหว' : 'สภาพที่มาใช้บริการ'}
+          value={dash(f.mobility === 'other' ? f.mobilityOther : f.mobility)}
+        />
         <Row label='Flag' value={flags.length ? flags.join(' · ') : '—'} />
+        {flagSources.safety && <Row label='ความปลอดภัย' value={flagSources.safety} />}
+        {flagSources.dnr && <Row label='DNR' value={flagSources.dnr} />}
+        {flagSources.organDonor && <Row label='บริจาคอวัยวะ' value={flagSources.organDonor} />}
+        {f.flagOtherNote && <Row label='หมายเหตุอื่น ๆ' value={f.flagOtherNote} />}
       </StepCard>
     </div>
   );

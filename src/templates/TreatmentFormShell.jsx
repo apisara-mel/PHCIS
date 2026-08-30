@@ -136,6 +136,8 @@ const TreatmentFormShell = ({
   queuePath = '/treat/queue',
   morphTitle,
   hideMorphTitle = false,
+  /** class เสริมของแถบขั้นตอน — หน้าที่วางหัวแฟ้มไว้เหนือแถบใช้เติมเงาด้านบน */
+  morphBandClassName = '',
   morphStickyTop = MORPH_STICKY_BELOW_PATIENT,
   /* ขั้นที่เนื้อหาเป็นการ์ดของตัวเองอยู่แล้ว (เช่น ตรวจร่างกาย · SOAP Note ของ
      CPOE) ส่งชุด index มาที่นี่ แล้วเปลือกจะไม่วางการ์ดขาวซ้อนให้อีก
@@ -276,6 +278,7 @@ const TreatmentFormShell = ({
           onStepClick={onStepChange}
           stickyTop={morphStickyTop}
           hideTitle={hideMorphTitle}
+          className={morphBandClassName}
         />
       </div>
       <div ref={bodyRef} className='flex-1 flex flex-col min-h-0' style={{

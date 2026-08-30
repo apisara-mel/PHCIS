@@ -32,7 +32,6 @@ import {
   getPatientByHN,
 } from '@/data/patientProfiles';
 import { buildRegistrationSearchHistorySeed } from '@/data/primarySearchHistorySeeds';
-import Alert from '@/components/alert/Alert';
 import { NEW_USER_AVATAR } from '@/data/avatarAssets';
 import { REGISTRY_CENTER, getRegistrationRegistry } from '@/data/registrationRegistries';
 import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
@@ -73,6 +72,9 @@ const TABS = [
   { key: 'done',      label: 'ลงทะเบียนแล้ว',         icon: 'check_circle',  count: 0 },
   { key: 'draft',     label: 'ที่ร่างไว้',             icon: 'save',          count: 0 },
   { key: 'directory', label: 'รายชื่อผู้ป่วยทั้งหมด',  icon: 'group',         count: 0 },
+  /* คิวที่ถูกยกเลิก — เดิมหายจากหน้าจอทันทีที่กดยกเลิก ไม่มีที่ตรวจสอบย้อนหลัง
+     (มติผู้ใช้ 30 ส.ค. 69) ชุดเดียวกับแท็บของงานคัดกรอง/เยี่ยมบ้าน */
+  { key: 'cancelled', label: 'ยกเลิกนัด',              icon: 'block',         count: 0 },
 ];
 
 /* Filter axes — Figma Register Home 331:147299:
@@ -122,6 +124,7 @@ const STATUS_TO_BADGE = {
   progress:   { tone: 'blue',   label: 'กำลังลงทะเบียน'  },
   pending:    { tone: 'orange', label: 'รอลงทะเบียน'    },
   draft:      { tone: 'grey',   label: 'ที่ร่างไว้'     },
+  cancelled:  { tone: 'red',    label: 'ยกเลิกนัด'       },
   /* Legacy MR_PATIENTS keys → visit-status wording */
   active:     { tone: 'teal',   label: 'ลงทะเบียนสำเร็จ และรอซักประวัติ' },
   inactive:   { tone: 'orange', label: 'รอลงทะเบียน'    },
@@ -308,6 +311,9 @@ const makeRenderActions = ({ onCall, onPause, onCancel, onMore, isCalled, showMo
       /* ปุ่มบอกสถานะจริงของแถว — 'progress' คือเคสที่เจ้าหน้าที่กำลังทำอยู่
          (มติผู้ใช้ 29 ส.ค. 69) */
       statusLabel={row.status === 'progress' ? 'กำลังลงทะเบียน' : undefined}
+      /* แถวที่กำลังลงทะเบียนแสดงเป็นป้าย ไม่ใช่ปุ่ม — ปุ่มที่อ่านเหมือนสถานะ
+         ทำให้กดเรียกคิวซ้ำโดยไม่ตั้งใจ (มติผู้ใช้ 30 ส.ค. 69) */
+      statusAsBadge
       /* กดเรียกคิวในตารางแล้วปุ่มต้องเปลี่ยนเป็น "เรียกแล้ว" ทันที — ไม่งั้น
          เจ้าหน้าที่จำไม่ได้ว่าเรียกใครไปแล้วบ้างในคิวยาว ๆ (มติผู้ใช้ 29 ส.ค. 69) */
       called={Boolean(isCalled?.(row))}
@@ -345,7 +351,14 @@ const makeRenderActions = ({ onCall, onPause, onCancel, onMore, isCalled, showMo
    Tab "รายชื่อผู้ป่วยทั้งหมด" (Register Home 331:147299) omits คิว +
    สถานะการเข้าใช้บริการ — patient directory, not today's visit queue.
    Actions column is bound later with page-level onCall / onPause / onCancel. */
-const buildColumns = ({ renderPrivacyCell, isDirectory = false, onCall, onPause, onCancel, onMore, isCalled }) => {
+const buildColumns = ({
+  renderPrivacyCell,
+  isDirectory = false,
+  onCall, onPause, onCancel, onMore, isCalled,
+  /* ทะเบียนที่ไม่มีคิวหน้าเคาน์เตอร์ (เช่น เวชระเบียนเยี่ยมบ้าน) ไม่มีคอลัมน์
+     "การดำเนินการ" — ดู `queueActions` ใน registrationRegistries.js */
+  showActions = true,
+}) => {
   const cols = [
     !isDirectory && { key: 'queue',        header: 'คิว',  sortable: true, render: renderQueue },
     { key: 'hn',           header: 'HN',  sortable: true, render: renderHn },
@@ -361,7 +374,7 @@ const buildColumns = ({ renderPrivacyCell, isDirectory = false, onCall, onPause,
        มาวันนี้ยังต้องใช้ · ผู้เสียชีวิตยังมีป้ายกำกับในช่องชื่ออยู่แล้ว */
     isDirectory && { key: 'lifeStatus',   header: 'สถานะชีวิต', sortable: true, render: renderLifeStatus },
     !isDirectory && { key: 'status',       header: 'สถานะการเข้าใช้บริการ', sortable: true, render: renderStatus },
-    { key: 'actions',      header: 'การดำเนินการ', render: makeRenderActions({ onCall, onPause, onCancel, onMore, isCalled, showMore: isDirectory }) },
+    showActions && { key: 'actions', header: 'การดำเนินการ', render: makeRenderActions({ onCall, onPause, onCancel, onMore, isCalled, showMore: isDirectory }) },
   ];
   return cols.filter(Boolean);
 };
@@ -396,7 +409,10 @@ const REGISTRATION_SEARCH_HISTORY_SEED = buildRegistrationSearchHistorySeed(
 const RegistrationQueuePage = ({ registryKey = REGISTRY_CENTER }) => {
   const registry = getRegistrationRegistry(registryKey);
   const history = useHistory();
-  const [activeTab, setActiveTab] = useState('pending');
+  /* ทะเบียนที่ไม่มีแท็บคิวเปิดมาที่ "รายชื่อผู้ป่วยทั้งหมด" เลย — ไม่งั้นจะค้าง
+     อยู่ที่ตัวกรอง 'pending' ที่ไม่มีทางเปลี่ยนได้เพราะแท็บถูกซ่อน */
+  const showQueueTabs = registry.queueTabs !== false;
+  const [activeTab, setActiveTab] = useState(showQueueTabs ? 'pending' : 'directory');
   const [searchQ, setSearchQ] = useState('');
   const [page, setPage] = useState(1);
   const {
@@ -645,8 +661,9 @@ const RegistrationQueuePage = ({ registryKey = REGISTRY_CENTER }) => {
       onCancel: handleAskCancel,
       onMore: handleOpenRowMenu,
       isCalled: (row) => Boolean(queueCalled[row.id]),
+      showActions: registry.queueActions !== false,
     }),
-    [renderPrivacyCell, isDirectoryTab, handleCall, handlePause, handleAskCancel, handleOpenRowMenu, queueCalled],
+    [renderPrivacyCell, isDirectoryTab, handleCall, handlePause, handleAskCancel, handleOpenRowMenu, queueCalled, registry.queueActions],
   );
 
   /* Edit-queue-order mode — toggled by "แก้ไขลำดับคิว". Rows show a drag
@@ -809,13 +826,15 @@ const RegistrationQueuePage = ({ registryKey = REGISTRY_CENTER }) => {
     if (isUnregistered(row) || !row.hn) {
       history.push({
         pathname: '/registration/register',
-        state: { queue: row.queue },
+        /* ฟอร์มต้องรู้ว่ามาจากทะเบียนเล่มไหน — ขั้น "หมายเหตุและ Flag" ถาม
+           คนละชุดระหว่างทะเบียนของศูนย์กับเวชระเบียนเยี่ยมบ้าน */
+        state: { queue: row.queue, registry: registry.key },
       });
       return;
     }
     history.push({
       pathname: '/registration/register',
-      state: { hn: row.hn, queue: row.queue },
+      state: { hn: row.hn, queue: row.queue, registry: registry.key },
     });
   };
 
@@ -849,20 +868,15 @@ const RegistrationQueuePage = ({ registryKey = REGISTRY_CENTER }) => {
         onAddQueue: () => setAddQueueOpen(true),
       })}
       summaryCards={summaryCards}
-      tabs={tabsWithCounts}
+      tabs={showQueueTabs ? tabsWithCounts : undefined}
       activeTab={activeTab}
       onTabChange={(key) => { setActiveTab(key); setPage(1); }}
-      /* ทะเบียนลับต้องบอกให้ชัดตั้งแต่หัวหน้าว่านี่คนละเล่มกับทะเบียนศูนย์
-         และการเปิดดูถูกบันทึกไว้ — ทะเบียนศูนย์ไม่มีแถบนี้ */
-      belowSummary={registry.confidential ? (
-        <Alert
-          type='warning'
-          title={registry.noticeTitle}
-          subtext={registry.noticeSubtext}
-        />
-      ) : null}
-      /* แท็บ "นัดล่วงหน้า" — shell เป็นคนเติมแท็บและวาดเนื้อหา */
-      upcoming={{}}
+      /* ถอดแถบ "ทะเบียนลับเฉพาะคลินิก" ออก (มติผู้ใช้ 30 ส.ค. 69) — ชื่อหน้าและ
+         breadcrumb บอกอยู่แล้วว่ากำลังเปิดทะเบียนของคลินิกไหน ส่วนการบันทึก
+         ร่องรอยการเข้าถึงยังทำงานเหมือนเดิม ไม่ได้ผูกกับแถบนี้ */
+      /* แท็บ "นัดล่วงหน้า" — shell เป็นคนเติมแท็บและวาดเนื้อหา · ทะเบียนที่ปิด
+         แท็บคิวก็ไม่มีแท็บนี้ (shell ข้ามให้เองเมื่อไม่มี `tabs` แต่บอกให้ชัด) */
+      upcoming={showQueueTabs ? {} : null}
     >
       <div
         className='flex flex-col flex-1 min-w-0'
@@ -960,7 +974,7 @@ const RegistrationQueuePage = ({ registryKey = REGISTRY_CENTER }) => {
                     variant='outline'
                     size='sm'
                     leadingIcon='person_add'
-                    onClick={() => history.push('/registration/register')}
+                    onClick={() => history.push({ pathname: '/registration/register', state: { registry: registry.key } })}
                   >
                     เพิ่มผู้รับบริการใหม่
                   </BrandSubdueButton>
@@ -1011,7 +1025,7 @@ const RegistrationQueuePage = ({ registryKey = REGISTRY_CENTER }) => {
                     variant='outline'
                     size='sm'
                     leadingIcon='person_add'
-                    onClick={() => history.push('/registration/register')}
+                    onClick={() => history.push({ pathname: '/registration/register', state: { registry: registry.key } })}
                   >
                     เพิ่มผู้รับบริการใหม่
                   </BrandSubdueButton>

@@ -31,6 +31,9 @@ const UnsavedChangesPopup = ({
   onDiscard,
   title = 'ต้องการบันทึกข้อมูลที่กรอกไว้หรือไม่ ?',
   description = 'คุณสามารถกลับมาทำต่อจากที่ค้างไว้ได้จากเมนู "ที่ร่างไว้" และสามารถกลับมาแก้ไขต่อได้ภายหลัง',
+  /** ปรับคำปุ่มได้ตามบริบท เช่น สลับไปคิวคนถัดไปแทนการออกจากหน้า */
+  discardLabel = 'ไม่บันทึก',
+  saveLabel = 'บันทึกร่างและออก',
 }) => (
   <AlertDialog
     open={open}
@@ -41,8 +44,8 @@ const UnsavedChangesPopup = ({
     alignment='center'
     title={title}
     description={description}
-    cancelLabel='ไม่บันทึก'
-    confirmLabel='บันทึกร่างและออก'
+    cancelLabel={discardLabel}
+    confirmLabel={saveLabel}
   />
 );
 

@@ -14,6 +14,7 @@ import {
   HOMEVISIT_CURRENT_USER,
   formatHomeVisitDateTime,
   todayIsoDate,
+  addDaysIso,
   readJson,
   writeJson,
 } from '@/data/homevisitVisits';
@@ -330,10 +331,71 @@ const VISIT_HISTORY_SEED = {
 const VISIT_HISTORY_OVERLAY_KEY = 'mih:homevisit:visit-history';
 
 /** ประวัติการเยี่ยมทั้งหมดของผู้รับบริการ (seed + ที่บันทึกใน session นี้). */
+/* ผู้รับบริการที่ยังไม่มีประวัติใน seed — สร้างประวัติจำลองจาก HN แบบคงที่
+   (มติผู้ใช้ 30 ส.ค. 69) ป๊อปอัป "ประวัติการเยี่ยมบ้าน" เดิมว่างเปล่าสำหรับคนส่วนใหญ่
+   ค่าเดียวกันทุกครั้งที่เปิด เพราะสุ่มจากผลรวมรหัสตัวอักษรของ HN ไม่ใช่ Math.random */
+const MOCK_VISITORS = [
+  { by: 'พว.ศิริพร เยี่ยมสุข',   profession: 'nurse'  },
+  { by: 'พว.ดวงพร ห่วงใย',      profession: 'nurse'  },
+  { by: 'กภ.ณัฐวุฒิ ฟื้นฟู',     profession: 'physio' },
+  { by: 'นสค.ปิยะ ช่วยชุมชน',    profession: 'social' },
+  { by: 'นพ.ธนวัฒน์ เมตตา',      profession: 'doctor' },
+];
+
+const MOCK_SUMMARIES = [
+  'ประเมินแรกรับ อาการคงที่ ญาติดูแลได้ดี',
+  'ทบทวนการใช้ยาที่บ้าน ไม่พบยาซ้ำซ้อน',
+  'ปรับสภาพบ้านลดความเสี่ยงพลัดตกหกล้ม',
+  'ให้คำแนะนำโภชนาการและการดื่มน้ำ',
+  'ติดตามแผลและการทำแผลโดยญาติ',
+  'อาการทั่วไปดีขึ้น นัดติดตามตามรอบกลุ่ม',
+];
+
+const MOCK_ORDERS = [
+  'ไม่มีคำสั่งการรักษา',
+  'ชุดทำแผลปลอดเชื้อ · ทำแผลสัปดาห์ละ 2 ครั้ง',
+  'กายภาพบำบัดที่บ้านสัปดาห์ละ 1 ครั้ง',
+  'BUN/Creatinine — การทำงานของไต',
+];
+
+const hnSeedNumber = (hn = '') => String(hn).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+
+const buildMockVisitHistory = (hn) => {
+  const seed = hnSeedNumber(hn);
+  const rounds = 2 + (seed % 3); /* 2–4 ครั้ง */
+  return Array.from({ length: rounds }).map((_, i) => {
+    const v = MOCK_VISITORS[(seed + i) % MOCK_VISITORS.length];
+    /* ไล่ย้อนหลังจากวันนี้ทีละ ~4 เดือน ครั้งที่ 1 เก่าสุด */
+    const daysAgo = (rounds - i) * 120 - (seed % 30);
+    return {
+      no: i + 1,
+      date: addDaysIso(todayIsoDate(), -daysAgo),
+      by: v.by,
+      profession: v.profession,
+      adl: 6 + ((seed + i * 3) % 15),
+      vitals: {
+        temp: (36.3 + ((seed + i) % 8) / 10).toFixed(1),
+        pulse: String(70 + ((seed + i * 5) % 25)),
+        respiration: String(16 + ((seed + i) % 6)),
+        oxygen: String(95 + ((seed + i) % 5)),
+        sys: String(110 + ((seed + i * 7) % 40)),
+        dia: String(68 + ((seed + i * 3) % 20)),
+        weight: String(48 + ((seed + i) % 25)),
+        height: String(150 + ((seed) % 25)),
+      },
+      summary: MOCK_SUMMARIES[(seed + i) % MOCK_SUMMARIES.length],
+      orders: MOCK_ORDERS[(seed + i) % MOCK_ORDERS.length],
+      mock: true,
+    };
+  });
+};
+
 export const getVisitHistory = (hn) => {
   if (!hn) return [];
   const overlay = readJson(VISIT_HISTORY_OVERLAY_KEY, {});
-  return [...(VISIT_HISTORY_SEED[hn] || []), ...(overlay[hn] || [])]
+  const seeded = VISIT_HISTORY_SEED[hn] || [];
+  const base = seeded.length > 0 ? seeded : buildMockVisitHistory(hn);
+  return [...base, ...(overlay[hn] || [])]
     .slice()
     .sort((a, b) => String(a.date).localeCompare(String(b.date)) || a.no - b.no);
 };

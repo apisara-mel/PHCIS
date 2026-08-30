@@ -27,7 +27,7 @@ import OpdWalkinRequestPage from '@/pages/opd/OpdWalkinRequestPage';
 import OpdRoomConfigPage from '@/pages/opd/OpdRoomConfigPage';
 import OpdRg506Page from '@/pages/opd/OpdRg506Page';
 import RegistrationQueuePage from '@/pages/registration/RegistrationQueuePage';
-import { REGISTRY_SAFE_LOVE, REGISTRY_ADDICTION } from '@/data/registrationRegistries';
+import { REGISTRY_SAFE_LOVE, REGISTRY_ADDICTION, REGISTRY_HOME_VISIT } from '@/data/registrationRegistries';
 import RegistrationFormPage from '@/pages/registration/RegistrationFormPage';
 import RegistrationVisitOpenPage from '@/pages/registration/RegistrationVisitOpenPage';
 import RegistrationConsentFillPage from '@/pages/registration/RegistrationConsentFillPage';
@@ -480,6 +480,12 @@ export default function Routes() {
           exact
           path='/registration/addiction'
           render={() => <RegistrationQueuePage registryKey={REGISTRY_ADDICTION} />}
+        />
+        {/* เวชระเบียนเยี่ยมบ้าน — หน้าเดียวกับทะเบียนศูนย์ ต่างที่ registryKey */}
+        <Route
+          exact
+          path='/registration/home-visit'
+          render={() => <RegistrationQueuePage registryKey={REGISTRY_HOME_VISIT} />}
         />
         <Route exact path='/registration/register' component={RegistrationFormPage} />
         {/* การบันทึกการมาสถานพยาบาล — เปิด Visit Number (TOR §1.1.2).

@@ -4,6 +4,7 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Tooltip from '@/components/tooltip/Tooltip';
 import AlertDialog from '@/components/popup/AlertDialog';
+import ColorfulBadge from '@/components/badge/ColorfulBadge';
 
 /* MIH QueueCallActions — ชุดปุ่มจัดการคิว 3 ปุ่ม: เรียกคิว · พัก/คืนคิว · ยกเลิกคิว
 
@@ -27,6 +28,9 @@ const QueueCallActions = ({
      ไม่ได้บอกว่าตอนนี้เคสไปถึงไหน (มติผู้ใช้ 29 ส.ค. 69) · ยังกดเรียกซ้ำได้
      เพราะคนไข้เดินออกจากห้องกลางคันเป็นเรื่องปกติ */
   statusLabel,
+  /** แถวที่กำลังดำเนินการอยู่ให้แสดงสถานะเป็น "ป้าย" แทนปุ่มเรียกคิว —
+      ปุ่มที่หน้าตาเหมือนสถานะทำให้กดเรียกซ้ำโดยไม่ตั้งใจ (มติผู้ใช้ 30 ส.ค. 69) */
+  statusAsBadge = false,
   paused = false,
   disabled = false,
   /** เหตุผลที่กดไม่ได้ — ขึ้นใน tooltip ของปุ่มเรียกคิวแทนข้อความปกติ */
@@ -54,6 +58,13 @@ const QueueCallActions = ({
   return (
     <>
     <div className='flex items-center' style={{ gap: 'var(--dim-space-150)' }}>
+      {statusAsBadge && statusLabel ? (
+        /* ป้ายสถานะ ไม่ใช่ปุ่ม — กดไม่ได้โดยตั้งใจ ป้องกันการเรียกคิวซ้ำโดยพลาด
+           (การเรียกซ้ำยังทำได้จากเมนูของแถวหรือหลังคิวเปลี่ยนสถานะแล้ว) */
+        <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>
+          {statusLabel}
+        </ColorfulBadge>
+      ) : (
       <Tooltip
         content={disabledReason || (labelledCall ? `${labelledCall} — กดเพื่อเรียกซ้ำ` : 'เรียกคิว')}
         position='top'
@@ -83,6 +94,7 @@ const QueueCallActions = ({
           />
         )}
       </Tooltip>
+      )}
       <Tooltip content={pauseLabel} position='top' disabled={blocked}>
         <BrandIconButton
           icon={paused ? 'play_arrow' : 'pause'}

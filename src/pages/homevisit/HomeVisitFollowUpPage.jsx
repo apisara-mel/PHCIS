@@ -17,7 +17,6 @@ import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import { LineChart } from '@/components/graph/Charts';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
-import HomeVisitSubNav from '@/components/homevisit/HomeVisitSubNav';
 import RowActionMenu from '@/components/overflow/RowActionMenu';
 import SuccessToast from '@/components/toast/SuccessToast';
 import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
@@ -426,7 +425,6 @@ const HomeVisitFollowUpPage = () => {
       /* แถบปุ่มบนหัวหน้าถูกลบออก — ทะเบียนเข้าถึงได้จากเมนูซ้าย
          (Sidebar subItems ของ "ระบบการเยี่ยมบ้าน") */
       summaryCards={selectedHn ? summaryCards : undefined}
-      belowSummary={<HomeVisitSubNav />}
     >
       <ExportFormatPopup
         open={!!exportReport}

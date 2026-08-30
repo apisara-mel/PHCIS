@@ -199,6 +199,9 @@ const PatientCard = ({
      (empty → "—") so the alert band matches TreatmentForm even when this
      HN has no seeded allergies yet. */
   forceAlertRow = false,
+  /** วางแถวป้าย (`tags`) ไว้ในแถวเดียวกับ แพ้ยา/โรคประจำตัว แทนที่จะเป็นแถวของ
+      ตัวเอง — หน้าที่มีป้ายไม่กี่ใบจะได้ไม่กินความสูงสองแถว */
+  tagsInAlertRow = false,
   /* Figma 343:5629 — compact / scrolled-up state. Single-row gradient
      card with product-density 40px avatar, 24h HN/VIP pills, four right-aligned summary
      fields (สิทธิ์ · หมู่เลือด · ประเภท · แพทย์), title row collapsed,
@@ -264,7 +267,8 @@ const PatientCard = ({
 
   const allergiesList = normalizeAlertItems(drugAllergies ?? patient?.drugAllergies);
   const diseasesList = normalizeAlertItems(chronicDiseases ?? patient?.chronicDiseases);
-  const showAlertRow = forceAlertRow || allergiesList.length > 0 || diseasesList.length > 0;
+  const showAlertRow = forceAlertRow || allergiesList.length > 0 || diseasesList.length > 0
+    || (tagsInAlertRow && !!tags);
   const [historyOpen, setHistoryOpen] = useState(false);
 
   /* Publish live sticky height so RecordWizardMorphBand can stick flush
@@ -560,7 +564,7 @@ const PatientCard = ({
       {/* Optional caller-supplied tag row (e.g. Observation's status/VN/
           nurse/admit-time) — sits in the white area below the gradient,
           same tier as the แพ้ยา/โรคประจำตัว row below. */}
-      {tags && (
+      {tags && !tagsInAlertRow && (
         <div
           className='flex w-full flex-wrap items-center'
           style={{ gap: 'var(--dim-space-100, 4px)', marginTop: 'var(--dim-space-200, 8px)' }}
@@ -583,6 +587,11 @@ const PatientCard = ({
             transition: `margin-top ${T}, padding-bottom ${T}`,
           }}
         >
+          {tags && tagsInAlertRow && (
+            <div className='flex flex-wrap items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+              {tags}
+            </div>
+          )}
           <AlertBadgeColumn label='แพ้ยา' items={allergiesList} compact={compact} />
           <AlertBadgeColumn label='โรคประจำตัว' items={diseasesList} compact={compact} />
           {showMedicalHistory && medicalHistoryPlacement === 'alert' && (

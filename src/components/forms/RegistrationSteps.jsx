@@ -11,6 +11,7 @@ import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Checkbox from '@/components/checkbox/Checkbox';
 import CheckboxButton from '@/components/checkbox/CheckboxButton';
+import TabPill, { TabBar } from '@/components/tab/TabPill';
 import RadioButton from '@/components/radio/RadioButton';
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandButton from '@/components/button/BrandButton';
@@ -58,6 +59,12 @@ import {
   ID_CARD_CHIP_PHOTO_MOCK,
   MOBILITY_OTHER_SUGGESTIONS,
   FLAG_OTHER_SUGGESTIONS,
+  PATIENT_GROUP_OPTIONS,
+  MOBILITY_OPTIONS,
+  isHomeVisitRegistry,
+  SAFETY_RISK_OPTIONS,
+  SAFETY_NOTE_SUGGESTIONS,
+  ORGAN_DONATION_SCOPES,
   buildMockRightsGroups,
   hasThaiCharacters,
   getBirthYearError,
@@ -67,6 +74,7 @@ import {
   OCCUPATION_OPTIONS,
 } from '@/data/registrationForm';
 import { MR_GENDERS, MR_GENDER_IDENTITIES } from '@/data/mrPatients';
+import { HOMEVISIT_SOURCES } from '@/data/homevisitVisits';
 import {
   THAI_PROVINCE_NAMES,
   THAI_POSTCODES,
@@ -1319,7 +1327,9 @@ const ADDRESS_PLACEHOLDERS = {
   houseNo:     'เลขที่บ้าน',
 };
 
-const AddressBlock = ({ data, onChange, disabled = false }) => {
+/* ใช้ซ้ำที่บันทึกการเยี่ยมบ้าน (ขั้น "ที่อยู่และการเดินทาง") — ที่อยู่ต้องกรอก
+   ด้วยชุดช่องเดียวกับหน้าเวชระเบียน ไม่งั้นข้อมูลสองที่เทียบกันไม่ได้ */
+export const AddressBlock = ({ data, onChange, disabled = false }) => {
   const set = (k) => (v) => onChange({ ...data, [k]: v });
   const districtOptions = districtsOfProvince(data.province);
   const subdistrictOptions = subdistrictsOfDistrict(data.province, data.district);
@@ -1428,7 +1438,7 @@ const isCurrentAddressUsable = (form) =>
     ? form?.addressRegistered
     : form?.addressCurrent);
 
-export const Step2Address = ({ form, setForm }) => {
+export const Step2Address = ({ form, setForm, mapHeading, currentAddressExtra = null }) => {
   const setAddr = (key) => (v) => setForm((s) => ({ ...s, [key]: v }));
   const registeredComplete = isRegisteredAddressComplete(form.addressRegistered);
 
@@ -1524,11 +1534,17 @@ export const Step2Address = ({ form, setForm }) => {
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
       {/* ไม่มีหัวข้อ "ที่อยู่" ซ้ำแล้ว — stepper ด้านบนบอกอยู่ว่าอยู่ขั้นนี้
           (มติผู้ใช้ 27 ส.ค. 69) */}
-      <SubCard titleTone='brand' titleIcon='home' title='ที่อยู่ตามทะเบียนบ้าน'>
+      <SubCard>
+        {/* หัวข้อใช้ <SectionTitle> ชุดเดียวกับ "ข้อมูลส่วนตัว" ในขั้นที่ 2
+            (มติผู้ใช้ 29 ส.ค. 69) — เดิมส่ง `titleTone`/`titleIcon` เข้า <SubCard>
+            ซึ่งไม่มี prop สองตัวนี้ หัวข้อจึงออกมาเป็นข้อความเทาเล็ก ไม่มีไอคอน
+            และไม่เป็นสีแบรนด์เหมือนหัวข้ออื่นในฟอร์มเดียวกัน */}
+        <SectionTitle icon='home'>ที่อยู่ตามทะเบียนบ้าน</SectionTitle>
         <AddressBlock data={form.addressRegistered} onChange={setAddr('addressRegistered')} />
       </SubCard>
 
-      <SubCard titleTone='brand' titleIcon='location_on' title='ที่อยู่ปัจจุบัน'>
+      <SubCard>
+        <SectionTitle icon='location_on'>ที่อยู่ปัจจุบัน</SectionTitle>
         <CheckboxButton
           checked={form.useRegisteredForCurrent}
           onChange={handleUseRegistered('addressCurrent', 'useRegisteredForCurrent')}
@@ -1547,14 +1563,21 @@ export const Step2Address = ({ form, setForm }) => {
         />
         <AddressMapBlock
           value={form.addressCurrent}
+          /* หน้าที่เอาขั้นนี้ไปใช้ซ้ำเปลี่ยนหัวข้อแผนที่ได้ (งานเยี่ยมบ้านเรียกว่า
+             "ตำแหน่งบ้านและการเดินทาง") ค่าเริ่มต้นยังเป็นของหน้าเวชระเบียน */
+          heading={mapHeading}
           onChange={(patch) => setForm((s) => ({
             ...s,
             addressCurrent: { ...s.addressCurrent, ...patch },
           }))}
         />
+        {/* ช่องเสริมของหน้าที่เอาขั้นนี้ไปใช้ซ้ำ — งานเยี่ยมบ้านวาง "บันทึกการเดินทาง"
+            ไว้ในการ์ดนี้ เพราะเป็นเรื่องของการไปถึงที่อยู่ปัจจุบันโดยตรง */}
+        {currentAddressExtra}
       </SubCard>
 
-      <SubCard titleTone='brand' titleIcon='contact_mail' title='ที่อยู่ติดต่อได้'>
+      <SubCard>
+        <SectionTitle icon='contact_mail'>ที่อยู่ติดต่อได้</SectionTitle>
         {/* สองทางเลือกที่ตัดกัน (มติผู้ใช้ 29 ส.ค. 69) — คนที่ย้ายมาอยู่คนละที่กับ
             ทะเบียนบ้านมักให้ติดต่อที่ที่อยู่ปัจจุบัน เดิมมีให้เลือกแค่ทะเบียนบ้าน
             จึงต้องพิมพ์ที่อยู่เดิมซ้ำทั้งชุด */}
@@ -1655,7 +1678,8 @@ export const Step3Contact = ({ form, setForm }) => {
     /* สองกลุ่มแยกเป็นการ์ดคนละใบ หัวการ์ดเขียวมีไอคอนนำหน้า ทรงเดียวกับขั้น
        "ที่อยู่" (มติผู้ใช้ 27 ส.ค. 69) */
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
-      <SubCard titleTone='brand' titleIcon='call' title='ข้อมูลการติดต่อ'>
+      <SubCard>
+        <SectionTitle icon='call'>ข้อมูลการติดต่อ</SectionTitle>
         <FieldGrid cols={4} rowGap={STEP1_FIELD_GAP} columnGap={STEP1_FIELD_GAP}>
           <Field label='โทรศัพท์มือถือ' required>
             <InputField value={form.phone} onChange={set('phone')} placeholder='081-234-5678' />
@@ -1669,7 +1693,8 @@ export const Step3Contact = ({ form, setForm }) => {
         </FieldGrid>
       </SubCard>
 
-      <SubCard titleTone='brand' titleIcon='emergency' title='ผู้ติดต่อฉุกเฉิน'>
+      <SubCard>
+        <SectionTitle icon='emergency'>ผู้ติดต่อฉุกเฉิน</SectionTitle>
         {form.emergency.map((e, idx) => (
           <SubCard
             key={idx}
@@ -2457,23 +2482,71 @@ const MobilityCircleIcon = ({ icon }) => (
   </span>
 );
 
-/* ไอคอนของ Flag แต่ละใบ — ใช้ชุดเดียวกับ MOBILITY ที่อยู่การ์ดบน เพื่อให้
-   สองแถวนี้อ่านเป็นระบบเดียวกัน (มติผู้ใช้ 29 ส.ค. 69) */
-const FLAG_ICONS = {
-  vip:          'star',
-  allergyOther: 'restaurant',
-  allergyDrug:  'medication',
-  skinReaction: 'science',
-  chronic:      'monitor_heart',
-  flagOther:    'more_horiz',
+/* หมวดของ "หมายเหตุและ Flag" — แสดงเป็นแท็บชุดเดียวกับขั้น "ประวัติการแพ้ /
+   โรคประจำตัว" ของหน้าคัดกรอง (ScreeningStep3) เพื่อให้สองหน้าที่บันทึกข้อมูล
+   ชุดเดียวกันอ่านเป็นระบบเดียวกัน (มติผู้ใช้ 29 ส.ค. 69) — เดิมเป็นปุ่มการ์ด
+   เรียงแถวเดียวแล้วกางแผงของทุกใบต่อกันลงมา พอ Flag เพิ่มเป็นเก้าใบตาม
+   TOR ๑.๑.๑.๑๙ (ความปลอดภัย · DNR · บริจาคอวัยวะ) แผงจะยาวจนหาไม่เจอ
+   ไอคอนสี่ใบแรกยึดตามแท็บของหน้าคัดกรองตัวต่อตัว */
+const FLAG_TABS = [
+  /* VIP มาก่อนหมวดอื่น (มติผู้ใช้ 29 ส.ค. 69) — เป็นธงที่เปลี่ยนวิธีรับบริการ
+     ตั้งแต่ต้นทาง ไม่ใช่รายละเอียดทางคลินิกที่ค่อยไล่อ่าน */
+  { key: 'vip',        flag: 'vip',          label: 'VIP',          icon: 'star',               toggleLabel: 'VIP / ผู้ป่วยพิเศษ' },
+  { key: 'drug',       flag: 'allergyDrug',  label: 'แพ้ยา',        icon: 'pill',               toggleLabel: 'มีประวัติแพ้ยา' },
+  { key: 'food',       flag: 'allergyOther', label: 'แพ้อาหาร',     icon: 'restaurant',         toggleLabel: 'มีประวัติแพ้อาหาร' },
+  { key: 'chemical',   flag: 'skinReaction', label: 'แพ้สารเคมี',   icon: 'science',            toggleLabel: 'มีประวัติแพ้สารเคมี' },
+  { key: 'chronic',    flag: 'chronic',      label: 'โรคประจำตัว',  icon: 'sick',               toggleLabel: 'มีโรคประจำตัว' },
+  { key: 'safety',     flag: 'safety',       label: 'ความปลอดภัย',  icon: 'health_and_safety',  toggleLabel: 'มีข้อควรระวังด้านความปลอดภัย' },
+  { key: 'dnr',        flag: 'dnr',          label: 'DNR',          icon: 'do_not_disturb_on',  toggleLabel: 'มีหนังสือแสดงเจตนาไม่ปั๊มหัวใจ (DNR)' },
+  { key: 'organDonor', flag: 'organDonor',   label: 'บริจาคอวัยวะ', icon: 'volunteer_activism', toggleLabel: 'ประสงค์บริจาคอวัยวะ / ดวงตา' },
+  { key: 'other',      flag: 'flagOther',    label: 'อื่น ๆ',        icon: 'help',               toggleLabel: 'มีข้อควรระวังอื่น ๆ' },
+];
+
+/* สีชิปสรุป — แท็บซ่อนหมวดที่ไม่ได้เปิดอยู่ไว้ ถ้าไม่สรุปธงที่เปิดไว้ใต้แถบ
+   เจ้าหน้าที่ต้องไล่กดทีละแท็บกว่าจะรู้ว่าผู้รับบริการติดธงอะไร ซึ่งข้อมูล
+   ความปลอดภัย/DNR ห้ามซ่อน */
+/* ประเภทรับ–ส่งต่อของงานเยี่ยมบ้าน — สองทางตามคู่มือระบบเดิม §2.2
+   "รับจาก" = เคสถูกดึงมาจากระบบอื่นโดยอัตโนมัติ จึงต้องเลือกและแสดงแหล่งที่มา
+   ส่วน "ศูนย์พบเอง" = เจ้าหน้าที่ค้นพบในพื้นที่ ไม่มีต้นทาง */
+const HOMEVISIT_INTAKE = [
+  { key: 'received',    label: 'รับจาก (ดึงเคสอัตโนมัติ)', icon: 'move_to_inbox' },
+  { key: 'centerFound', label: 'ศูนย์พบเอง',               icon: 'travel_explore' },
+];
+
+/* ตัวเลือกแหล่งที่มา = แหล่งที่ระบบดึงเคสมาให้เอง (auto) เท่านั้น — "ศูนย์พบเอง"
+   เป็นอีกทางเลือกหนึ่งของคำถามข้างบน ไม่ใช่แหล่งที่รับเคสมา */
+const HOMEVISIT_AUTO_SOURCES = HOMEVISIT_SOURCES.filter((s) => s.auto);
+
+/* ทุกปุ่มในแถวเดียวกันกว้างเท่ากัน (มติผู้ใช้ 29 ส.ค. 69) — flex-wrap เดิมให้ปุ่ม
+   กว้างตามความยาวข้อความ แถวหนึ่งจึงมีปุ่มห้าขนาด อ่านไม่ออกว่าเป็นชุดเดียวกัน
+   grid auto-fit ทำให้ทุกใบในแถวกว้างเท่ากันและยุบลงบรรทัดใหม่เองเมื่อจอแคบ */
+const CHOICE_GRID = {
+  display: 'grid',
+  /* auto-fill + ช่วงกว้างตายตัว: ทุกปุ่มในขั้นนี้กว้างเท่ากันหมด ไม่ว่าจะแถวละ
+     สองใบหรือหกใบ (มติผู้ใช้ 29 ส.ค. 69) — ถ้าใช้ 1fr แถวที่มีสองใบจะยืดเต็ม
+     ความกว้างจนดูเป็นคนละชุดกับแถวที่มีหกใบ · ยุบลงบรรทัดใหม่เองเมื่อจอแคบ */
+  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 260px))',
+  /* ระยะในกลุ่มเดียวกันคงเดิม 12px — 24px เป็นระยะ *ระหว่างกลุ่ม*
+     (มติผู้ใช้ 29 ส.ค. 69) */
+  gap: 'var(--dim-space-300)',
+};
+const CHOICE_ITEM = { width: '100%', maxWidth: '100%' };
+/* แผงรายละเอียดที่กางออกใต้แถวตัวเลือก กว้างเท่าปุ่มสองใบรวมกัน (มติผู้ใช้
+   29 ส.ค. 69) — เป็นรายละเอียดของตัวเลือกที่เพิ่งกด จึงต้องอยู่ในกรอบเดียวกัน
+   ไม่ใช่ยืดเต็มความกว้างการ์ดจนดูเป็นคนละเรื่อง */
+const CHOICE_DETAIL_WIDTH = { maxWidth: 'calc(260px * 2 + var(--dim-space-300, 12px))' };
+
+/* ธงที่ติ๊กแล้วต้องมี "รายการ" ตามมาอย่างน้อยหนึ่งใบ — ติ๊กแล้ว seed ใบแรกให้เลย
+   เพื่อให้เห็นช่องกรอกทันที (พฤติกรรมเดิมของแพ้ยา/แพ้อาหาร ย้ายมารวมที่เดียว) */
+const FLAG_SEED_LISTS = {
+  allergyDrug:  'drugAllergies',
+  allergyOther: 'foodAllergies',
+  skinReaction: 'chemicalAllergies',
+  chronic:      'chronicConditions',
 };
 
-const MOBILITY = [
-  { key: 'walk',  label: 'เดิน',         icon: 'directions_walk'   },
-  { key: 'wheel', label: 'นั่งรถเข็น',    icon: 'accessible'         },
-  { key: 'gurney',label: 'เปลนอน',       icon: 'self_improvement'   },
-  { key: 'other', label: 'อื่นๆ',         icon: 'more_horiz'         },
-];
+/* แคตตาล็อกอยู่ที่ `registrationForm.js` แล้ว — บันทึกการเยี่ยมบ้านใช้ชุดเดียวกัน */
+const MOBILITY = MOBILITY_OPTIONS;
 
 /* Figma PHCIS-Registration 134:29261 — group input below mobility radios. */
 const MOBILITY_OTHER_PANEL = {
@@ -2671,6 +2744,21 @@ const ALLERGY_SYMPTOM_SUGGESTIONS = [
 ];
 
 export const Step5Flags = ({ form, setForm }) => {
+  /* หมวดที่เปิดอยู่ของแถบ Flag — เริ่มที่ "แพ้ยา" เหมือนหน้าคัดกรอง */
+  const [flagTab, setFlagTab] = useState(FLAG_TABS[0].key);
+  const activeTab = FLAG_TABS.find((t) => t.key === flagTab) ?? FLAG_TABS[0];
+  /* ทะเบียนเยี่ยมบ้านถาม ๓ อย่าง (๖ กลุ่มผู้รับบริการ · ประเภทรับ–ส่งต่อ ·
+     การเคลื่อนไหว) ส่วนทะเบียนของศูนย์ถามอย่างเดียวว่า "สภาพที่มาใช้บริการ"
+     (มติผู้ใช้ 29 ส.ค. 69) */
+  const homeVisit = isHomeVisitRegistry(form);
+  const setPatientGroup = (key) => setForm((s) => ({ ...s, patientGroup: key }));
+  /* สลับไป "ศูนย์พบเอง" แล้วแหล่งที่มาต้องหลุดไปด้วย ไม่งั้นจะเหลือต้นทางค้างอยู่
+     ทั้งที่ไม่มีใครส่งเคสมา */
+  const setHomevisitIntake = (key) => setForm((s) => ({
+    ...s,
+    homevisitIntake: key,
+    homevisitSource: key === 'received' ? s.homevisitSource : '',
+  }));
   const setMobility = (key) => setForm((s) => ({
     ...s,
     mobility: key,
@@ -2680,17 +2768,45 @@ export const Step5Flags = ({ form, setForm }) => {
     ...s,
     mobilityOther: e?.target?.value ?? '',
   }));
-  const setFlag = (key, v) => setForm((s) => ({
-    ...s,
-    flags: { ...s.flags, [key]: v },
-    /* ปลด "อื่นๆ" แล้วข้อความที่พิมพ์ไว้ต้องหายไปด้วย ไม่งั้นจะถูกบันทึกทั้งที่
-       ไม่มี flag รองรับ — ทรงเดียวกับ mobilityOther */
-    ...(key === 'flagOther' && !v ? { flagOtherNote: '' } : null),
-  }));
   const setFlagOtherNote = (e) => setForm((s) => ({
     ...s,
     flagOtherNote: e?.target?.value ?? '',
   }));
+  /* เปิด/ปิดธงของแท็บที่เปิดอยู่ — ธงที่มีรายการตามมา (แพ้ยา/อาหาร/สารเคมี/
+     โรคประจำตัว) จะ seed ใบแรกให้เห็นช่องกรอกทันที · ปลดธงแล้วข้อมูลที่พิมพ์ไว้
+     ยังอยู่ ยกเว้น "อื่น ๆ" ที่ข้อความไม่มีธงรองรับก็ไม่ควรถูกบันทึกต่อ */
+  const toggleFlag = (flagKey) => (v) => setForm((s) => {
+    const next = { ...s, flags: { ...s.flags, [flagKey]: v } };
+    const listKey = FLAG_SEED_LISTS[flagKey];
+    if (v && listKey && (next[listKey] ?? []).length === 0) {
+      next[listKey] = [{
+        drugAllergies:     createDrugAllergyEntry,
+        foodAllergies:     createFoodAllergyEntry,
+        chemicalAllergies: createChemicalAllergyEntry,
+        chronicConditions: createChronicConditionEntry,
+      }[listKey]()];
+    }
+    if (flagKey === 'flagOther' && !v) next.flagOtherNote = '';
+    return next;
+  });
+  /* ช่องข้อความ/วันที่ของ Flag สามใบใหม่ */
+  const setFlagField = (key) => (v) => setForm((s) => ({ ...s, [key]: v }));
+  /* เอกสารยืนยันของ DNR / การบริจาคอวัยวะ — entry ทรงเดียวกับเอกสารประกอบของ
+     ขั้นสิทธิการรักษา (`{ id, name, sizeLabel }`) จึงใช้ตัวแปลงและชิปใบเดียวกัน */
+  const addFlagDocuments = (key) => (filesOrEntries) => {
+    const list = Array.isArray(filesOrEntries) ? filesOrEntries : Array.from(filesOrEntries || []);
+    if (!list.length) return;
+    const entries = list[0]?.sizeLabel != null ? list : filesToRightsDocuments(list);
+    setForm((s) => ({ ...s, [key]: [...(s[key] ?? []), ...entries] }));
+  };
+  const removeFlagDocument = (key, id) => setForm((s) => ({
+    ...s,
+    [key]: (s[key] ?? []).filter((d) => d.id !== id),
+  }));
+  const toggleInList = (key, value) => (on) => setForm((s) => {
+    const prev = Array.isArray(s[key]) ? s[key] : [];
+    return { ...s, [key]: on ? [...prev.filter((v) => v !== value), value] : prev.filter((v) => v !== value) };
+  });
 
   const updateAllergy = (idx, key, value) => {
     setForm((s) => ({
@@ -2874,18 +2990,110 @@ export const Step5Flags = ({ form, setForm }) => {
   const lastChronicCondition = chronicConditions[chronicConditions.length - 1];
   const canAddChronicCondition = isDrugAllergyEntryComplete(lastChronicCondition);
 
+  /* ตัวเลขบนแท็บ = จำนวนรายการที่กรอกจริง (ใบเปล่าไม่นับ) — บอกได้ทันทีว่า
+     หมวดไหนมีข้อมูลโดยไม่ต้องเปิดเข้าไปดู */
+  const countFilled = (list) => (list ?? []).filter((e) => !isDrugAllergyEntryEmpty(e)).length;
+  const tabCounts = {
+    drug:       countFilled(form.drugAllergies),
+    food:       countFilled(form.foodAllergies),
+    chemical:   countFilled(form.chemicalAllergies),
+    chronic:    countFilled(form.chronicConditions),
+    safety:     (form.safetyRisks ?? []).length,
+    organDonor: (form.organDonorScopes ?? []).length,
+  };
+
   return (
     /* สองกลุ่มแยกการ์ดคนละใบ (มติผู้ใช้ 27 ส.ค. 69) */
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
       {/* Figma PHCIS-Registration 210:21268 — mobility block */}
-      <SubCard titleTone='brand' titleIcon='directions_walk' title='สภาพของผู้รับบริการ'>
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-          <div
-            role='radiogroup'
-            aria-label='สภาพการเคลื่อนไหว'
-            className='flex flex-wrap'
-            style={{ gap: 'var(--dim-space-400)' }}
-          >
+      <SubCard>
+        <SectionTitle icon='directions_walk'>
+          {homeVisit ? 'สภาพของผู้รับบริการ' : 'สภาพที่มาใช้บริการ'}
+        </SectionTitle>
+        {/* ระหว่างกลุ่มคำถาม (๖ กลุ่มผู้รับบริการ · ประเภทรับ–ส่งต่อ · การเคลื่อนไหว)
+            ห่าง 24px ส่วนระยะระหว่างปุ่มในกลุ่มเดียวกันยังเป็น 12px ตามเดิม
+            (มติผู้ใช้ 29 ส.ค. 69) */}
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+          {homeVisit && (
+          <>
+          {/* ๖ กลุ่มผู้รับบริการตาม TOR ๑.๑๐.๑๒.๑ — จัดกลุ่มที่ห้องบัตรตั้งแต่แรก
+              เพราะกลุ่มเป็นตัวกำหนดรอบติดตามของงานเยี่ยมบ้าน (ระยะสุดท้าย 30 วัน ·
+              เรื้อรัง/พิการช่วยเหลือไม่ได้ 6 เดือน · กลุ่มอื่นปีละครั้ง) และจุดคัดกรอง
+              ต้องเห็นด้วยว่ากำลังรับใครอยู่ (มติผู้ใช้ 29 ส.ค. 69) */}
+          <Field label='เลือกประเภทผู้รับบริการ 6 กลุ่ม' required>
+            <div role='radiogroup' aria-label='ประเภทผู้รับบริการ' className='w-full' style={CHOICE_GRID}>
+              {PATIENT_GROUP_OPTIONS.map((g) => (
+                <RadioButton
+                  key={g.key}
+                  name='patient-group'
+                  value={g.key}
+                  checked={form.patientGroup === g.key}
+                  onChange={setPatientGroup}
+                  title={g.label}
+                  style={CHOICE_ITEM}
+                  circleIcon={<MobilityCircleIcon icon={g.icon} />}
+                  showCircleIcon
+                  showRadio={false}
+                  showIcon={false}
+                  showBadgeTitle={false}
+                  showBadge={false}
+                  showDescription={false}
+                />
+              ))}
+            </div>
+          </Field>
+
+          {/* ประเภทรับ–ส่งต่อ (คู่มือระบบเดิม §2.2) — เคสที่ "รับจาก" ระบบอื่นถูกดึงมา
+              อัตโนมัติ งานเยี่ยมบ้านจึงต้องเห็นแหล่งที่มาติดไปกับเคสตลอด */}
+          <Field label='ประเภทรับ–ส่งต่อ'>
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              <div role='radiogroup' aria-label='ประเภทรับ–ส่งต่อของงานเยี่ยมบ้าน' className='w-full' style={CHOICE_GRID}>
+                {HOMEVISIT_INTAKE.map((o) => (
+                  <RadioButton
+                    key={o.key}
+                    name='homevisit-intake'
+                    value={o.key}
+                    checked={form.homevisitIntake === o.key}
+                    onChange={setHomevisitIntake}
+                    title={o.label}
+                    style={CHOICE_ITEM}
+                    circleIcon={<MobilityCircleIcon icon={o.icon} />}
+                    showCircleIcon
+                    showRadio={false}
+                    showIcon={false}
+                    showBadgeTitle={false}
+                    showBadge={false}
+                    showDescription={false}
+                  />
+                ))}
+              </div>
+
+              {form.homevisitIntake === 'received' && (
+                <div
+                  className='flex flex-col w-full'
+                  style={{ ...MOBILITY_OTHER_PANEL, ...CHOICE_DETAIL_WIDTH }}
+                >
+                  <Field label='แหล่งที่รับเคสมา' required>
+                    <Select
+                      size='lg'
+                      value={form.homevisitSource}
+                      onChange={(v) => setForm((s) => ({ ...s, homevisitSource: v }))}
+                      placeholder='-- เลือกแหล่งที่รับเคสมา --'
+                      options={HOMEVISIT_AUTO_SOURCES.map((o) => ({ value: o.value, label: o.label }))}
+                      showLabel={false}
+                      showHelperText={false}
+                    />
+                  </Field>
+                </div>
+              )}
+            </div>
+          </Field>
+
+          </>
+          )}
+
+          <Field label={homeVisit ? 'การเคลื่อนไหว' : 'สภาพที่มาใช้บริการ'} required>
+          <div role='radiogroup' aria-label='สภาพการเคลื่อนไหว' className='w-full' style={CHOICE_GRID}>
             {MOBILITY.map((m) => (
               <RadioButton
                 key={m.key}
@@ -2894,6 +3102,7 @@ export const Step5Flags = ({ form, setForm }) => {
                 checked={form.mobility === m.key}
                 onChange={setMobility}
                 title={m.label}
+                style={CHOICE_ITEM}
                 circleIcon={m.key === 'other' ? undefined : <MobilityCircleIcon icon={m.icon} />}
                 showCircleIcon={m.key !== 'other'}
                 showRadio={false}
@@ -2904,12 +3113,13 @@ export const Step5Flags = ({ form, setForm }) => {
               />
             ))}
           </div>
+          </Field>
 
           {form.mobility === 'other' && (
             <div className='flex flex-col w-full' style={MOBILITY_OTHER_PANEL}>
               <SuggestibleTextarea
                 voice
-                label='ระบุสภาพของผู้รับบริการ'
+                label={homeVisit ? 'ระบุสภาพของผู้รับบริการ' : 'ระบุสภาพที่มาใช้บริการ'}
                 required
                 value={form.mobilityOther}
                 onChange={(e) => setMobilityOther(e?.target ? e.target.value : e)}
@@ -2927,78 +3137,36 @@ export const Step5Flags = ({ form, setForm }) => {
       </SubCard>
 
       {/* Figma 210:21275 — topic + choices in one column, 24px (space/600) between rows */}
-      <SubCard titleTone='brand' titleIcon='flag' title='หมายเหตุและ Flag'>
-          {/* ปุ่ม Flag ทั้งหกอยู่แถวเดียวกัน ทรงเดียวกับแถว "สภาพของผู้รับบริการ"
-              ในการ์ดด้านบน (มติผู้ใช้ 29 ส.ค. 69) — เดิมเป็นการ์ดเต็มความกว้าง
-              เรียงลงมาหกแถว กินความสูงจนต้องเลื่อนกว่าจะเห็นครบ และมองไม่ออก
-              ว่าเป็นชุดตัวเลือกชุดเดียวกัน · ส่วนที่กางออกของแต่ละ Flag ยังอยู่
-              ใต้แถวนี้ตามลำดับเดิม */}
+      <SubCard>
+        <SectionTitle icon='flag'>หมายเหตุและ Flag</SectionTitle>
+          {/* แถบหมวดทรงเดียวกับขั้นประวัติการแพ้ของหน้าคัดกรอง (มติผู้ใช้ 29 ส.ค. 69)
+              — จุดคัดกรองอ่านข้อมูลชุดนี้ต่อ สองหน้าจึงต้องจัดหมวดเหมือนกัน */}
+          <div className='flex w-full justify-center'>
+            <TabBar aria-label='หมวดหมายเหตุและ Flag' className='max-w-full'>
+              {FLAG_TABS.map((t) => (
+                <TabPill
+                  key={t.key}
+                  size='small'
+                  selected={flagTab === t.key}
+                  leadingIcon={t.icon}
+                  count={tabCounts[t.key] || undefined}
+                  onClick={() => setFlagTab(t.key)}
+                >
+                  {t.label}
+                </TabPill>
+              ))}
+            </TabBar>
+          </div>
+
+          {/* ธงของหมวดที่เปิดอยู่ — หนึ่งแท็บมีธงเดียว ปุ่มจึงอยู่บนสุดของแผง
+              แล้วรายละเอียดค่อยกางออกเมื่อธงถูกเปิด */}
           <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-300)' }}>
             <CheckboxButton
-              checked={form.flags.vip}
-              onChange={(v) => setFlag('vip', v)}
-              label='VIP / ผู้ป่วยพิเศษ'
+              checked={!!form.flags?.[activeTab.flag]}
+              onChange={toggleFlag(activeTab.flag)}
+              label={activeTab.toggleLabel}
               showCircleIcon
-              circleIcon={<MobilityCircleIcon icon={FLAG_ICONS.vip} />}
-            />
-            <CheckboxButton
-              checked={form.flags.allergyOther}
-              onChange={(v) => setForm((s) => {
-                const next = { ...s, flags: { ...s.flags, allergyOther: v } };
-                if (v && (next.foodAllergies ?? []).length === 0) {
-                  next.foodAllergies = [createFoodAllergyEntry()];
-                }
-                return next;
-              })}
-              label='แพ้อาหาร'
-              showCircleIcon
-              circleIcon={<MobilityCircleIcon icon={FLAG_ICONS.allergyOther} />}
-            />
-            <CheckboxButton
-              checked={form.flags.allergyDrug}
-              onChange={(v) => setForm((s) => {
-                const next = { ...s, flags: { ...s.flags, allergyDrug: v } };
-                if (v && (next.drugAllergies ?? []).length === 0) {
-                  next.drugAllergies = [createDrugAllergyEntry()];
-                }
-                return next;
-              })}
-              label='แพ้ยา'
-              showCircleIcon
-              circleIcon={<MobilityCircleIcon icon={FLAG_ICONS.allergyDrug} />}
-            />
-            <CheckboxButton
-              checked={form.flags.skinReaction}
-              onChange={(v) => setForm((s) => {
-                const next = { ...s, flags: { ...s.flags, skinReaction: v } };
-                if (v && (next.chemicalAllergies ?? []).length === 0) {
-                  next.chemicalAllergies = [createChemicalAllergyEntry()];
-                }
-                return next;
-              })}
-              label='แพ้สารเคมี'
-              showCircleIcon
-              circleIcon={<MobilityCircleIcon icon={FLAG_ICONS.skinReaction} />}
-            />
-            <CheckboxButton
-              checked={form.flags.chronic}
-              onChange={(v) => setForm((s) => {
-                const next = { ...s, flags: { ...s.flags, chronic: v } };
-                if (v && (next.chronicConditions ?? []).length === 0) {
-                  next.chronicConditions = [createChronicConditionEntry()];
-                }
-                return next;
-              })}
-              label='โรคประจำตัว'
-              showCircleIcon
-              circleIcon={<MobilityCircleIcon icon={FLAG_ICONS.chronic} />}
-            />
-            <CheckboxButton
-              checked={form.flags.flagOther}
-              onChange={(v) => setFlag('flagOther', v)}
-              label='อื่นๆ'
-              showCircleIcon
-              circleIcon={<MobilityCircleIcon icon={FLAG_ICONS.flagOther} />}
+              circleIcon={<MobilityCircleIcon icon={activeTab.icon} />}
             />
           </div>
           {/* Flag เป็นปุ่มการ์ด ไม่ใช่ checkbox บรรทัดเล็ก ๆ (มติผู้ใช้ 29 ส.ค. 69)
@@ -3009,7 +3177,7 @@ export const Step5Flags = ({ form, setForm }) => {
               "แพ้ยา" pattern below. Toggling OFF only flips the flag —
               typed entries stay so a wrong tick doesn't wipe data. */}
 
-          {form.flags.allergyOther && (
+          {flagTab === 'food' && form.flags.allergyOther && (
             <>
               {foodAllergies.map((a, idx) => (
                 <SubCard
@@ -3103,7 +3271,7 @@ export const Step5Flags = ({ form, setForm }) => {
               data stays so the user doesn't lose work if they uncheck
               by accident. */}
 
-          {form.flags.allergyDrug && (
+          {flagTab === 'drug' && form.flags.allergyDrug && (
             <>
               {drugAllergies.map((a, idx) => (
                 /* Figma PHCIS-Registration 134:27582 — group input (2498:6269):
@@ -3203,7 +3371,7 @@ export const Step5Flags = ({ form, setForm }) => {
               receptionist sees the input fields immediately, same pattern
               as the drug + food allergy checkboxes above. */}
 
-          {form.flags.skinReaction && (
+          {flagTab === 'chemical' && form.flags.skinReaction && (
             <>
               {chemicalAllergies.map((a, idx) => (
                 <SubCard
@@ -3294,7 +3462,7 @@ export const Step5Flags = ({ form, setForm }) => {
 
           {/* Toggling "โรคประจำตัว" ON seeds the first chronic card. */}
 
-          {form.flags.chronic && (
+          {flagTab === 'chronic' && form.flags.chronic && (
             <>
               {chronicConditions.map((a, idx) => (
                 <SubCard
@@ -3366,10 +3534,186 @@ export const Step5Flags = ({ form, setForm }) => {
               </div>
             </>
           )}
+          {/* ความปลอดภัยในการรักษา (TOR ๑.๑.๑.๑๙) — ธงเปล่า ๆ ไม่พอ ต้องบอกได้ว่า
+              เสี่ยงเรื่องอะไรและรู้ได้จากอะไร เพราะจุดคัดกรองและห้องตรวจอ่านต่อ
+              เป็นข้อควรระวังระหว่างให้บริการ */}
+          {/* ไม่มีหัวข้อซ้ำในแผง — แท็บด้านบนบอกหมวดอยู่แล้ว (ทรงเดียวกับ
+              `showTopic: false` ของขั้นประวัติการแพ้ในหน้าคัดกรอง) */}
+          {flagTab === 'safety' && form.flags.safety && (
+            <SubCard surfaceTone='brandQuaternary'>
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+                <Field label='ประเภทความเสี่ยง' required>
+                  <div className='w-full' style={CHOICE_GRID}>
+                    {SAFETY_RISK_OPTIONS.map((o) => (
+                      <CheckboxButton
+                        key={o.key}
+                        checked={(form.safetyRisks ?? []).includes(o.key)}
+                        onChange={toggleInList('safetyRisks', o.key)}
+                        label={o.label}
+                        style={CHOICE_ITEM}
+                        showCircleIcon
+                        circleIcon={<MobilityCircleIcon icon={o.icon} />}
+                      />
+                    ))}
+                  </div>
+                </Field>
+                <SuggestibleTextarea
+                  voice
+                  label='ที่มา / รายละเอียด'
+                  style={{ maxWidth: 'none', width: '100%' }}
+                  value={form.safetyNote ?? ''}
+                  onChange={(e) => setFlagField('safetyNote')(e?.target ? e.target.value : e)}
+                  placeholder='เช่น ประเมิน Morse Fall Scale อยู่ในระดับเสี่ยงสูง เมื่อ 6 พ.ค. 2569'
+                  suggestions={SAFETY_NOTE_SUGGESTIONS}
+                  minChars={1}
+                  height={112}
+                  minHeight={80}
+                  popoverAriaLabel='คำแนะนำที่มาของข้อควรระวังด้านความปลอดภัย'
+                />
+              </div>
+            </SubCard>
+          )}
+
+          {/* DNR — ธงที่มีผลทางกฎหมาย จึงผูกกับเลขที่หนังสือแสดงเจตนาและวันที่
+              ลงนามเสมอ (พ.ร.บ.สุขภาพแห่งชาติ ม.๑๒) ไม่ใช่ติ๊กลอย ๆ */}
+          {flagTab === 'dnr' && form.flags.dnr && (
+            <SubCard surfaceTone='brandQuaternary' title='หนังสือแสดงเจตนาไม่ประสงค์ปั๊มหัวใจ (DNR)'>
+              <FieldGrid cols={3}>
+                <Field label='เลขที่หนังสือแสดงเจตนา' required>
+                  <InputField
+                    value={form.dnrDocNo ?? ''}
+                    onChange={setFlagField('dnrDocNo')}
+                    placeholder='เช่น LW-2568-0114'
+                    showLabel={false}
+                  />
+                </Field>
+                <Field label='วันที่ลงนาม' required>
+                  <DatePicker
+                    size='lg'
+                    value={parseThaiBuddhistDate(form.dnrSignedDate)}
+                    onChange={(d) => setFlagField('dnrSignedDate')(d ? formatThaiBuddhistDate(d) : '')}
+                    format={formatThaiBuddhistDate}
+                    placeholder='วว/ดด/ปปปป'
+                    showLabel={false}
+                    showHelperText={false}
+                  />
+                </Field>
+                <Field label='พยาน / ผู้รับมอบอำนาจ'>
+                  <InputField
+                    value={form.dnrWitness ?? ''}
+                    onChange={setFlagField('dnrWitness')}
+                    placeholder='ชื่อ-นามสกุล'
+                    showLabel={false}
+                  />
+                </Field>
+              </FieldGrid>
+              {/* สำเนาหนังสือแสดงเจตนา — เลขที่กับวันที่พิสูจน์อะไรไม่ได้ถ้าไม่มีตัว
+                  เอกสารให้เปิดดู (ทรงเดียวกับเอกสารประกอบของขั้นสิทธิการรักษา) */}
+                <Field label='เอกสารยืนยัน'>
+                  <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                    {(form.dnrDocuments ?? []).length > 0 && (
+                      <div
+                        className='flex flex-wrap items-center w-full'
+                        style={{ gap: 'var(--dim-space-400)' }}
+                      >
+                        {(form.dnrDocuments ?? []).map((doc) => (
+                          <RightsUploadedDocChip
+                            key={doc.id}
+                            name={doc.name}
+                            sizeLabel={doc.sizeLabel}
+                            onRemove={() => removeFlagDocument('dnrDocuments', doc.id)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <DragAndDrop
+                      size='sm'
+                      value={[]}
+                      onChange={addFlagDocuments('dnrDocuments')}
+                      accept='image/*,.pdf'
+                    />
+                  </div>
+                </Field>
+            </SubCard>
+          )}
+
+          {/* บริจาคอวัยวะ — สภากาชาดไทยแยกบัตรระหว่างอวัยวะกับดวงตา และ
+              "อุทิศร่างกาย" เป็นคนละเรื่อง จึงเลือกได้หลายข้อ ส่วนเลขบัตร/วันที่
+              ไม่บังคับ เพราะผู้รับบริการแจ้งความประสงค์ก่อนทำบัตรได้ */}
+          {flagTab === 'organDonor' && form.flags.organDonor && (
+            <SubCard surfaceTone='brandQuaternary' title='ความประสงค์บริจาคอวัยวะ'>
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+                <Field label='สิ่งที่ประสงค์บริจาค' required>
+                  <div className='w-full' style={CHOICE_GRID}>
+                    {ORGAN_DONATION_SCOPES.map((o) => (
+                      <CheckboxButton
+                        key={o.key}
+                        checked={(form.organDonorScopes ?? []).includes(o.key)}
+                        onChange={toggleInList('organDonorScopes', o.key)}
+                        label={o.label}
+                        style={CHOICE_ITEM}
+                        showCircleIcon
+                        circleIcon={<MobilityCircleIcon icon={o.icon} />}
+                      />
+                    ))}
+                  </div>
+                </Field>
+                <FieldGrid cols={3}>
+                  <Field label='เลขที่บัตรผู้แสดงความจำนง (สภากาชาดไทย)'>
+                    <InputField
+                      value={form.organDonorCardNo ?? ''}
+                      onChange={setFlagField('organDonorCardNo')}
+                      placeholder='เช่น OD-6812774'
+                      showLabel={false}
+                    />
+                  </Field>
+                  <Field label='วันที่แสดงเจตนา'>
+                    <DatePicker
+                      size='lg'
+                      value={parseThaiBuddhistDate(form.organDonorDate)}
+                      onChange={(d) => setFlagField('organDonorDate')(d ? formatThaiBuddhistDate(d) : '')}
+                      format={formatThaiBuddhistDate}
+                      placeholder='วว/ดด/ปปปป'
+                      showLabel={false}
+                      showHelperText={false}
+                    />
+                  </Field>
+                </FieldGrid>
+                {/* สำเนาบัตรผู้แสดงความจำนงบริจาคอวัยวะ/ดวงตา */}
+                <Field label='เอกสารยืนยัน'>
+                  <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                    {(form.organDonorDocuments ?? []).length > 0 && (
+                      <div
+                        className='flex flex-wrap items-center w-full'
+                        style={{ gap: 'var(--dim-space-400)' }}
+                      >
+                        {(form.organDonorDocuments ?? []).map((doc) => (
+                          <RightsUploadedDocChip
+                            key={doc.id}
+                            name={doc.name}
+                            sizeLabel={doc.sizeLabel}
+                            onRemove={() => removeFlagDocument('organDonorDocuments', doc.id)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <DragAndDrop
+                      size='sm'
+                      value={[]}
+                      onChange={addFlagDocuments('organDonorDocuments')}
+                      accept='image/*,.pdf'
+                    />
+                  </div>
+                </Field>
+
+              </div>
+            </SubCard>
+          )}
+
           {/* ติ๊ก "อื่นๆ" แล้วต้องระบุได้ว่าอื่นๆ คืออะไร — ลำพัง flag เปล่า ๆ
               ไม่บอกอะไรกับคนที่เปิดเวชระเบียนต่อ ใช้แผงและ Voice Textarea
               ชุดเดียวกับ "อื่นๆ" ของสภาพผู้รับบริการ (มติผู้ใช้ 29 ส.ค. 69) */}
-          {form.flags.flagOther && (
+          {flagTab === 'other' && form.flags.flagOther && (
             <div className='flex flex-col w-full' style={MOBILITY_OTHER_PANEL}>
               <SuggestibleTextarea
                 voice
@@ -3386,10 +3730,8 @@ export const Step5Flags = ({ form, setForm }) => {
               />
             </div>
           )}
-        {/* ปุ่มอยู่ชิดซ้าย ไม่ใช่กลางการ์ด (มติผู้ใช้ 27 ส.ค. 69) */}
-        <div className='flex justify-start'>
-          <AddRowButton>เพิ่ม Flag</AddRowButton>
-        </div>
+        {/* เดิมมีปุ่ม "เพิ่ม Flag" ที่ไม่ผูกกับอะไรเลย — แถบหมวดด้านบนแจกแจง Flag
+            ครบทุกใบอยู่แล้ว ปุ่มที่กดแล้วไม่เกิดอะไรจึงถูกถอดออก */}
       </SubCard>
 
       <DeleteDrugAllergyConfirmPopup

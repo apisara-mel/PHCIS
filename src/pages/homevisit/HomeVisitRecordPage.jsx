@@ -5,8 +5,10 @@ import Header, { SubHeader } from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import PatientCard from '@/components/card/PatientCard';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
+import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
+import HomeVisitHistoryPopup from '@/components/homevisit/HomeVisitHistoryPopup';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import TreatmentFormShell from '@/templates/TreatmentFormShell';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
@@ -25,7 +27,6 @@ import {
   findHomeVisitAppointmentByHn,
   setHomeVisitStatus,
   getVisitSubmission,
-  resolveSource,
 } from '@/data/homevisitVisits';
 import { findRegistryEntryByHn, getVisitHistory } from '@/data/homevisitRegistry';
 import { HOMEVISIT_STEP_RENDERERS } from '@/pages/homevisit/HomeVisitSteps';
@@ -51,7 +52,10 @@ import {
 const breadcrumb = ['ระบบเยี่ยมบ้าน', 'บันทึกประเมินการเยี่ยมบ้าน'];
 
 const HOMEVISIT_STEPS = [
-  { title: 'ข้อมูลทั่วไปและการเดินทาง', subtitle: 'Travel & GPS Check-in' },
+  { title: 'ข้อมูลทั่วไป',              subtitle: 'Visit Information' },
+  /* ที่อยู่ + ปักหมุด + บันทึกการเดินทาง แยกเป็นขั้นของตัวเอง
+     (มติผู้ใช้ 30 ส.ค. 69) */
+  { title: 'ที่อยู่และการเดินทาง',       subtitle: 'Address & GPS Check-in' },
   { title: 'ประวัติ',                    subtitle: 'History' },
   { title: 'สัญญาณชีพ',                  subtitle: 'Vital Signs' },
   { title: 'ประเมินและคัดกรอง',          subtitle: 'Assessment & ADL' },
@@ -150,16 +154,16 @@ const HomeVisitRecordPage = () => {
     if (hasAppointment && !completion) setHomeVisitStatus(visitId, 'draft');
   }, [form, stepIndex, dirty, readOnly, visitId, hasAppointment, completion]);
 
-  /* ไปขั้นถัดไปได้เมื่อขั้นปัจจุบันครบถ้วน (ย้อนกลับไม่ตรวจ). */
+  /* ข้ามขั้นได้อิสระ (มติผู้ใช้ 30 ส.ค. 69) — ทีมเยี่ยมบ้านทำงานที่บ้านผู้รับบริการ
+     ลำดับจริงไม่ได้เรียงตามฟอร์มเสมอ (บางบ้านวัดสัญญาณชีพก่อนซักประวัติ บางบ้าน
+     ต้องข้ามไปสั่งการรักษาก่อนแล้วย้อนกลับมา) การล็อกไม่ให้ไปขั้นถัดไปจึงขวางงาน
+     มากกว่าช่วย · ยังคำนวณข้อความ "ยังกรอกไม่ครบ" ไว้เตือนที่หัวขั้น แต่ไม่บล็อก */
   const setStepIndex = (next) => {
-    if (next > stepIndex && !readOnly) {
-      const err = getStepValidationError(formRef.current, stepIndex);
-      if (err) {
-        setBlockedMsg(err);
-        return;
-      }
-    }
-    setBlockedMsg('');
+    setBlockedMsg(
+      next > stepIndex && !readOnly
+        ? (getStepValidationError(formRef.current, stepIndex) || '')
+        : '',
+    );
     setStepIndexRaw(next);
   };
 
@@ -174,6 +178,28 @@ const HomeVisitRecordPage = () => {
   const startEditSession = () => {
     setEditSession(logHomeVisitEdit(visitId, 'แก้ไขบันทึกการเยี่ยมหลังปิดการบันทึก'));
     setTick((t) => t + 1);
+  };
+
+  /* ป๊อปอัปประวัติการเยี่ยมบ้าน — เปิดจากหัวแฟ้มระหว่างกำลังบันทึกอยู่ได้เลย
+     (มติผู้ใช้ 30 ส.ค. 69) ทรงเดียวกับป๊อปอัป "ข้อมูลทางการแพทย์ (EMR)" */
+  const [visitHistoryOpen, setVisitHistoryOpen] = useState(false);
+  /* อ่านบัตรสมาร์ทการ์ดที่หน้างาน (TOR ๑.๑.๑.๗ — ปุ่มชุดเดียวกับหน้าเวชระเบียน)
+     ทีมเยี่ยมบ้านพกเครื่องอ่านบัตรไปด้วย จึงยืนยันตัวตนและดึงที่อยู่ตามบัตรได้
+     ที่บ้านเลย (มติผู้ใช้ 30 ส.ค. 69) · เดโมนี้เติมที่อยู่จากทะเบียนกลางแทนการ
+     อ่านชิปจริง แล้วบอกผลด้วยแถบข้อความ */
+  const [smartCardMsg, setSmartCardMsg] = useState('');
+
+  const readSmartCard = () => {
+    const addr = mrPatient?.address;
+    if (!addr) {
+      setSmartCardMsg('อ่านบัตรไม่สำเร็จ — ไม่พบข้อมูลที่อยู่ตามบัตรของผู้รับบริการรายนี้');
+      return;
+    }
+    setForm((f) => ({
+      ...f,
+      addressRegistered: { ...f.addressRegistered, ...addr },
+    }));
+    setSmartCardMsg(`อ่านบัตรสำเร็จ — เติมที่อยู่ตามบัตรให้ในขั้น "ที่อยู่และการเดินทาง" แล้ว (${mrPatient.prefixTh || ''}${mrPatient.firstNameTh || ''} ${mrPatient.lastNameTh || ''})`);
   };
 
   const finishVisit = () => {
@@ -206,7 +232,35 @@ const HomeVisitRecordPage = () => {
         <Sidebar activeKey='homevisit' />
         <div className='flex-1 min-w-0 flex flex-col'>
           <Header breadcrumb={breadcrumb} standalone={false} />
-          <SubHeader title={`บันทึกประเมินการเยี่ยมบ้าน — ครั้งที่ ${visitNo}`} hideBottomBorder />
+          {/* ปุ่มประวัติการเยี่ยมบ้านอยู่แถวเดียวกับ "ขอเข้าถึงข้อมูล" ของ SubHeader
+              (มติผู้ใช้ 30 ส.ค. 69) — สองปุ่มนี้เป็นทางเข้าไปดูข้อมูลย้อนหลังเหมือนกัน
+              ควรอยู่ที่เดียวกัน ไม่ใช่กระจายอยู่บนหัวแฟ้มอีกจุด */}
+          <SubHeader title={`บันทึกประเมินการเยี่ยมบ้าน — ครั้งที่ ${visitNo}`} hideBottomBorder>
+            <BrandSubdueButton
+              variant='outline'
+              size='sm'
+              leadingIcon='history'
+              onClick={() => setVisitHistoryOpen(true)}
+            >
+              ประวัติการเยี่ยมบ้าน
+            </BrandSubdueButton>
+            {/* อ่านบัตรสมาร์ทการ์ดอยู่ขวาสุดและเป็นปุ่มหลัก (มติผู้ใช้ 30 ส.ค. 69)
+                — เป็นการกระทำแรกที่ทีมทำเมื่อไปถึงบ้าน จึงเด่นกว่าปุ่มอ่านข้อมูล */}
+            <BrandPrimaryButton
+              size='sm'
+              leadingIcon='credit_card'
+              onClick={readSmartCard}
+            >
+              อ่านบัตรสมาร์ทการ์ด
+            </BrandPrimaryButton>
+          </SubHeader>
+
+          <HomeVisitHistoryPopup
+            open={visitHistoryOpen}
+            onClose={() => setVisitHistoryOpen(false)}
+            hn={hn}
+            patientName={registryEntry?.name || appointment?.name}
+          />
 
           <UnsavedChangesPopup
             open={unsavedOpen}
@@ -230,8 +284,21 @@ const HomeVisitRecordPage = () => {
             <PatientCard
               sticky
               showBack={false}
+              /* `embedded` = ไม่วาดแถวหัวการ์ด (ชื่อหน้า + ปุ่ม) ทั้งแถว
+                 (มติผู้ใช้ 30 ส.ค. 69) — SubHeader ด้านบนบอกอยู่แล้วว่าอยู่หน้าไหน
+                 ส่วนการปิดบันทึกทำได้ที่ปุ่มขั้นสุดท้ายของวิซาร์ด */
+              embedded
+              /* ไม่มีปุ่ม "ข้อมูลทางการแพทย์ (EMR)" บนหัวแฟ้มของหน้านี้
+                 (มติผู้ใช้ 30 ส.ค. 69) — ทางเข้าดูข้อมูลย้อนหลังของงานเยี่ยมบ้านคือ
+                 ปุ่ม "ประวัติการเยี่ยมบ้าน" บนแถบหัวข้อ */
+              showMedicalHistory={false}
+              /* ป้ายกลุ่ม/แหล่งรับเข้า อยู่แถวเดียวกับ แพ้ยา/โรคประจำตัว
+                 (มติผู้ใช้ 30 ส.ค. 69) — ป้ายไม่กี่ใบไม่ต้องกินความสูงสองแถว */
+              tagsInAlertRow
               patient={cardPatient}
-              title={`บันทึกประเมินการเยี่ยมบ้าน — ครั้งที่ ${visitNo}`}
+              /* ไม่ใส่ `title` ซ้ำแล้ว (มติผู้ใช้ 30 ส.ค. 69) — SubHeader เหนือการ์ด
+                 พิมพ์ประโยคเดียวกันเป๊ะอยู่แล้ว เหลือไว้แต่ปุ่ม "จบการบันทึกการเยี่ยม"
+                 ซึ่งเป็นทางลัดปิดบันทึกโดยไม่ต้องเดินไปขั้นสุดท้าย */
               drugAllergies={mrPatient.drugAllergies}
               chronicDiseases={mrPatient.chronicDiseases}
               tags={(
@@ -254,17 +321,6 @@ const HomeVisitRecordPage = () => {
                   )}
                 </div>
               )}
-              actions={
-                readOnly ? (
-                  <BrandSubdueButton variant='fill' leadingIcon='edit' onClick={startEditSession}>
-                    แก้ไขบันทึก (บันทึกผู้แก้ไข)
-                  </BrandSubdueButton>
-                ) : (
-                  <BrandSubdueButton variant='fill' leadingIcon='task_alt' onClick={finishVisit}>
-                    จบการบันทึกการเยี่ยม
-                  </BrandSubdueButton>
-                )
-              }
             />
 
             {!registryEntry && (
@@ -295,27 +351,17 @@ const HomeVisitRecordPage = () => {
               </div>
             )}
 
-            {seed.fromDraft && (
-              <div style={{
-                paddingTop: 'var(--dim-space-300)',
-                paddingLeft: 'var(--dim-space-600)',
-                paddingRight: 'var(--dim-space-600)',
-              }}>
-                <NoticeBand tone='info' icon='history'>
-                  เปิดจากแบบร่างที่บันทึกไว้เมื่อ {seed.draftSavedAt} — ทำต่อจากขั้นตอนล่าสุดได้ทันที
-                </NoticeBand>
-              </div>
-            )}
+            {/* ถอดแถบ "เปิดจากแบบร่าง…" และ "เคสนี้รับต่อจากระบบอื่น…" ออก
+                (มติผู้ใช้ 30 ส.ค. 69) — ที่มาของเคสมีป้ายอยู่บนหัวแฟ้มแล้ว
+                ส่วนแบบร่างเห็นได้จากแท็บ "ที่ร่างไว้" ของหน้าคิว */}
 
-            {source && resolveSource(source)?.auto && (
+            {smartCardMsg && (
               <div style={{
                 paddingTop: 'var(--dim-space-300)',
                 paddingLeft: 'var(--dim-space-600)',
                 paddingRight: 'var(--dim-space-600)',
               }}>
-                <NoticeBand tone='neutral' icon='link'>
-                  เคสนี้รับต่อจากระบบอื่น: {resolveSource(source)?.label} — ข้อมูลที่มาถูกล็อกไว้ที่ทะเบียนผู้รับบริการ
-                </NoticeBand>
+                <NoticeBand tone='info' icon='credit_card'>{smartCardMsg}</NoticeBand>
               </div>
             )}
 
@@ -326,9 +372,16 @@ const HomeVisitRecordPage = () => {
                 paddingRight: 'var(--dim-space-600)',
               }}>
                 <NoticeBand tone='info' icon='lock'>
-                  การเยี่ยมครั้งนี้ปิดการบันทึกแล้ว — เปิดแบบอ่านอย่างเดียว กด “แก้ไขบันทึก”
-                  เพื่อแก้ไข (ระบบจะบันทึกผู้แก้ไขและเวลาเป็น audit trail)
+                  การเยี่ยมครั้งนี้ปิดการบันทึกแล้ว — เปิดแบบอ่านอย่างเดียว
+                  (ระบบจะบันทึกผู้แก้ไขและเวลาเป็น audit trail เมื่อกดแก้ไข)
                 </NoticeBand>
+                {/* ปุ่มแก้ไขย้ายมาที่นี่หลังถอดแถวหัวการ์ดออก — ไม่งั้นบันทึกที่ปิดแล้ว
+                    จะไม่มีทางเปิดแก้ได้เลย */}
+                <div style={{ paddingTop: 'var(--dim-space-200)' }}>
+                  <BrandSubdueButton variant='fill' leadingIcon='edit' onClick={startEditSession}>
+                    แก้ไขบันทึก (บันทึกผู้แก้ไข)
+                  </BrandSubdueButton>
+                </div>
               </div>
             )}
 
@@ -346,7 +399,19 @@ const HomeVisitRecordPage = () => {
             )}
 
             <TreatmentFormShell
+              /* ไม่มีคำว่า "เยี่ยมบ้าน" ซ้ำเหนือแถบขั้นตอนแล้ว (มติผู้ใช้ 30 ส.ค. 69)
+                 — breadcrumb กับหัวข้อหน้า (SubHeader) บอกอยู่แล้วว่าอยู่ที่บันทึก
+                 ประเมินการเยี่ยมบ้านครั้งที่เท่าไหร่ · ยังส่ง `morphTitle` ไว้เพราะ
+                 ป๊อปอัปส่งต่อใช้เป็นชื่อต้นทาง (referFromDepartment) */
               morphTitle='เยี่ยมบ้าน'
+              hideMorphTitle
+              /* การ์ดขาวที่รองแถบขั้นตอนมีเงาด้านบน คั่นออกจากหัวแฟ้มผู้รับบริการ
+                 เหมือนหน้าบันทึกการรักษา (มติผู้ใช้ 30 ส.ค. 69) */
+              morphBandClassName='mih-morph-band-top-shadow'
+              /* ขั้น "ที่อยู่และการเดินทาง" ยกการ์ดที่อยู่ของหน้าเวชระเบียนมาทั้งก้อน
+                 ซึ่งเป็นการ์ดขาวอยู่แล้ว — ไม่ต้องมีพื้นขาวของ shell ครอบอีกชั้น
+                 (มติผู้ใช้ 30 ส.ค. 69) */
+              plainBodySteps={[1]}
               stepIndex={stepIndex}
               onStepChange={setStepIndex}
               completedSteps={completedSteps}

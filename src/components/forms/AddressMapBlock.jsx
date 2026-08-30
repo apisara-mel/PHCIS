@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import SecondarySearch from '@/components/search/SecondarySearch';
-import { FilterDropdown } from '@/components/forms/FilterTag';
+import TabPill, { TabBar } from '@/components/tab/TabPill';
 import { Sym } from '@/components/forms/Fields';
 
 /* MIH AddressMapBlock — PHCIS Registration 133:9181 "ปักหมุดตำแหน่งบ้าน".
@@ -448,10 +448,7 @@ const AddressMapBlock = ({
               maxHeight: 320,
             }}
           >
-            {/* ตัวเลือกชนิดสถานที่ — `FilterDropdown` ของ design system ไม่ใช่
-                แถวชิปที่จัดสไตล์เอง (มติผู้ใช้ 29 ส.ค. 69) มันคือตัวกรองว่าจะดู
-                อะไร ทรงเดียวกับตัวกรองบน worklist ทุกหน้า และกินที่แถวเดียว
-                แทนสามชิปเรียง · ตรึงไว้บนสุด รายการด้านล่างเลื่อนของมันเอง */}
+            {/* ตัวเลือกชนิดสถานที่ — ตรึงไว้บนสุด รายการด้านล่างเลื่อนของมันเอง */}
             <div
               className='flex items-center shrink-0'
               style={{
@@ -459,16 +456,22 @@ const AddressMapBlock = ({
                 borderBottom: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary, #F4F5F5)',
               }}
             >
-              <FilterDropdown
-                prefix='ประเภท:'
-                size='sm'
-                options={SEARCH_TABS.map((t) => ({
-                  value: t.key,
-                  label: `${t.label} (${tabCounts[t.key] ?? 0})`,
-                }))}
-                value={searchTab}
-                onChange={setSearchTab}
-              />
+              {/* ตัวเลือกชนิดเป็นแท็บ ไม่ใช่ดรอปดาวน์ (มติผู้ใช้ 30 ส.ค. 69) —
+                  มีสามชนิดเท่านั้น การซ่อนไว้ใต้ดรอปดาวน์ทำให้ต้องกดสองครั้ง
+                  กว่าจะสลับ และมองไม่เห็นว่าชนิดอื่นมีกี่รายการ */}
+              <TabBar aria-label='ชนิดของสถานที่' className='max-w-full'>
+                {SEARCH_TABS.map((t) => (
+                  <TabPill
+                    key={t.key}
+                    size='small'
+                    selected={searchTab === t.key}
+                    count={tabCounts[t.key] ?? 0}
+                    onClick={() => setSearchTab(t.key)}
+                  >
+                    {t.label}
+                  </TabPill>
+                ))}
+              </TabBar>
             </div>
 
             <div style={{ overflowY: 'auto' }}>

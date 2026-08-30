@@ -12,6 +12,7 @@ import ScreeningStep1 from '@/pages/opd/ScreeningStep1';
 import ScreeningStep3 from '@/pages/opd/ScreeningStep3';
 import { setScreeningSection, getScreeningReview } from '@/data/opdScreeningReview';
 import ScreeningStep4 from '@/pages/opd/ScreeningStep4';
+import { findMrPatientByHn } from '@/data/mrPatients';
 import ScreeningStep5 from '@/pages/opd/ScreeningStep5';
 import ScreeningStepDoctor from '@/pages/opd/ScreeningStepDoctor';
 import AlertDialog from '@/components/popup/AlertDialog';
@@ -51,6 +52,10 @@ import {
   OPD_QUEUE_SUBMENU_LABELS,
 } from '@/data/opdQueue';
 
+/* คัดกรองเยี่ยมบ้านใช้ "คัดกรองสุขภาพรายบุคคล" (แบบฟอร์มกระดาษของทีมเยี่ยมบ้าน)
+   แทนขั้น "พฤติกรรมสุขภาพ" ของคัดกรองที่ศูนย์ — รายการความเสี่ยง 15 ข้อในฟอร์ม
+   คลุมบุหรี่/เหล้า/ออกกำลังกายอยู่แล้ว ถามสองที่จะได้คำตอบที่ขัดกันเอง
+   (มติผู้ใช้ 29 ส.ค. 69) ลำดับขั้นอื่นเหมือนกันทุกประการ */
 const STEPS = [
   'สัญญาณชีพ',
   'อาการป่วย',
@@ -752,6 +757,9 @@ const STEP_COMPONENTS = [
   ScreeningStep5,
 ];
 
+/* จุดคัดกรองเหลือแห่งเดียว (ของศูนย์) — การคัดกรองที่บ้านย้ายไปอยู่ในบันทึก
+   การเยี่ยมบ้านทั้งชุดแล้ว (มติผู้ใช้ 30 ส.ค. 69) หน้านี้จึงมีลำดับขั้นชุดเดียว */
+
 /* ปลายทางจากป๊อปอัปส่งต่อเป็น "ชื่อแผนก" ส่วนคิวรวมรอรับเคสพูดภาษา "คลินิก"
    ตามเมนู จับคู่ด้วยชื่อที่ตรงกันก่อน แล้วค่อยจับคำที่ซ้อนกัน ถ้าไม่เข้าเลยให้
    ลงคลินิกตรวจรักษาซึ่งเป็นปลายทางกลางของศูนย์ — ดีกว่าปล่อยเคสค้างไร้คลินิก */
@@ -777,21 +785,9 @@ const vitalsFromReview = (review = {}) => {
 
 const ScreeningPage = () => {
   const [current, setCurrent] = useState(0);
-  /* ขั้นที่วางการ์ดของตัวเองมาแล้ว จึงไม่ต้องการการ์ดครอบจาก fieldset */
-  const stepHasOwnCards = STEPS[current] === 'เลือกคลินิกและแพทย์'
-    || STEPS[current] === 'ตรวจสอบข้อมูล';
-  const StepBody = STEP_COMPONENTS[current];
-  const isLast = current === STEPS.length - 1;
   /* Step-content slide animation (forward / backward). Shared with
      FormShell so the OPD Screening flow matches Registration's UX. */
   const stepDirection = useStepDirection(current);
-  /* TOR 1.2.1.3 → 1.2.1.4 — the last step completes the screening by
-     forwarding the patient to a destination department, which is what
-     PRODUCES the Walk-in Request row consumed by /opd/requests. */
-  const nextStepLabel = isLast
-    ? 'บันทึกและส่งต่อ'
-    : `ถัดไป: ${STEPS[current + 1]}`;
-
   /* Look up the selected patient from QueuePage's <Link state={...}>.
      Fall back to the default profile so direct visits don't render empty. */
   const { state: navState } = useLocation();
@@ -799,6 +795,26 @@ const ScreeningPage = () => {
   const patient =
     (navState && (getPatientByHN(navState.hn) || getPatientByShortName(navState.name))) ||
     DEFAULT_PATIENT;
+
+  /* ประวัติแพ้ยา/โรคประจำตัวของทะเบียนกลาง — หัวแฟ้มคัดกรองต้องเห็นชุดเดียวกับ
+     ห้องตรวจและห้องยา */
+  const mrPatient = findMrPatientByHn(patient?.hn) || {};
+  /* ⚠️ ต้องประกาศก่อน `nextStepLabel` — ป้ายปุ่มถัดไปอ่าน `isLast` (const เป็น TDZ
+     ถ้าอ่านก่อนประกาศจะพังทั้งหน้า) */
+  const steps = STEPS;
+  const stepComponents = STEP_COMPONENTS;
+  /* ขั้นที่วางการ์ดของตัวเองมาแล้ว จึงไม่ต้องการการ์ดครอบจาก fieldset */
+  const stepHasOwnCards = steps[current] === 'เลือกคลินิกและแพทย์'
+    || steps[current] === 'ตรวจสอบข้อมูล';
+  const StepBody = stepComponents[current];
+  const isLast = current === steps.length - 1;
+
+  /* TOR 1.2.1.3 → 1.2.1.4 — the last step completes the screening by
+     forwarding the patient to a destination department, which is what
+     PRODUCES the Walk-in Request row consumed by /opd/requests. */
+  const nextStepLabel = isLast
+    ? 'บันทึกและส่งต่อ'
+    : `ถัดไป: ${steps[current + 1]}`;
 
   /* ป๊อปอัป "ยืนยันรับผู้ป่วย" อยู่ที่หน้าคิว (QueuePage) ก่อนมาถึงหน้านี้ —
      ถอดออก 27 ส.ค. 69 เพราะมองเป็นคลิกเปล่า และกลับมา 29 ส.ค. 69 เพราะต้องการ
@@ -916,7 +932,9 @@ const ScreeningPage = () => {
   useEffect(() => {
     if (readOnlyMode || !patient.hn) return;
     const provider = 'พว.กานดา ศรีวิไล';
-    const stationOf = (idx) => `จุดคัดกรอง — ${STEPS[idx]}`;
+    /* ชื่อสถานีต้องเป็นชื่อขั้นของผู้รับบริการรายนี้ (โฟลว์เยี่ยมบ้านมีชื่อขั้นที่ 4
+       ต่างออกไป) ไม่ใช่ชื่อขั้นของโฟลว์ศูนย์เสมอ */
+    const stationOf = (idx) => `จุดคัดกรอง — ${steps[idx]}`;
     if (prevStepRef.current !== null && prevStepRef.current !== current) {
       stampStationTime(patient.hn, stationOf(prevStepRef.current), provider); // close
     }
@@ -926,7 +944,7 @@ const ScreeningPage = () => {
     }
   }, [current, readOnlyMode, patient.hn]);
 
-  const goNext = () => setCurrent((c) => Math.min(STEPS.length - 1, c + 1));
+  const goNext = () => setCurrent((c) => Math.min(steps.length - 1, c + 1));
   const goPrev = () => setCurrent((c) => Math.max(0, c - 1));
 
   /* ── Dirty tracking + unsaved-changes guard ──────────────────
@@ -997,7 +1015,7 @@ const ScreeningPage = () => {
      Steps that haven't adopted it yet fall back to "complete after
      advance" semantics so the user still sees a green check once they
      move past, instead of an indefinite empty circle. */
-  const completedSteps = STEPS.map((_, idx) => {
+  const completedSteps = steps.map((_, idx) => {
     const reported = stepValidities[idx];
     if (reported !== undefined) return reported;
     return idx < current;
@@ -1077,6 +1095,10 @@ const ScreeningPage = () => {
       queue: r.queue,
       badge: r.vipBadge,
       statusKey: r.statusKey,
+      /* หมวด "กำลังคัดกรอง" ต้องบอกว่าใครกำลังทำอยู่ — ไม่งั้นพยาบาลอีกคน
+         ไม่รู้ว่าเคสนี้มีเจ้าของแล้ว แล้วไปหยิบซ้ำ (มติผู้ใช้ 30 ส.ค. 69)
+         ชุดเดียวกับ "ลงทะเบียนโดย …" ของพาเนลเวชระเบียน */
+      sublabel: r.screenedBy ? `คัดกรองโดย ${r.screenedBy}` : undefined,
     }));
     return {
       done: { items: map(raw.done.items), total: raw.done.total },
@@ -1210,6 +1232,9 @@ const ScreeningPage = () => {
             /* หมวดที่กำลังทำอยู่ → ปุ่มบอกสถานะจริง · หมวดที่รอ แถวแรกคือคิวที่
                กำลังถูกเรียก (มติผู้ใช้ 29 ส.ค. 69) */
             statusLabel={section === 'inProgress' ? 'กำลังคัดกรอง' : undefined}
+            /* แถวที่กำลังทำอยู่แสดงเป็นป้าย ไม่ใช่ปุ่ม — ตรรกะเดียวกับเวชระเบียน
+               ปุ่มที่อ่านเหมือนสถานะทำให้กดเรียกคิวซ้ำโดยไม่ตั้งใจ */
+            statusAsBadge
             called={!!queueCalled[p.id] || (section === 'waiting' && rowIdx === 0)}
             paused={!!queuePaused[p.id]}
             onPause={() => setQueuePaused((s2) => ({ ...s2, [p.id]: !s2[p.id] }))}
@@ -1227,11 +1252,21 @@ const ScreeningPage = () => {
            ต้นทางต้องอ่านว่า "คัดกรอง" ให้ตรงกับชื่อเมนูและหน้าคิว */}
         <Header standalone={false} breadcrumb={['คัดกรอง', 'คัดกรองและซักประวัติ']} />
         <SubHeader title='คัดกรองและซักประวัติ' hideBottomBorder />
-        <PatientCard sticky patient={patient} embedded />
+        {/* ไม่มีปุ่ม "ข้อมูลทางการแพทย์ (EMR)" บนหัวแฟ้มของหน้าคัดกรอง
+            (มติผู้ใช้ 30 ส.ค. 69) · แถวแพ้ยา/โรคประจำตัวขึ้นเฉพาะเคสที่มีจริง
+            รายการดึงจากทะเบียนกลางชุดเดียวกับห้องตรวจและห้องยา */}
+        <PatientCard
+          sticky
+          patient={patient}
+          embedded
+          showMedicalHistory={false}
+          drugAllergies={mrPatient.drugAllergies}
+          chronicDiseases={mrPatient.chronicDiseases}
+        />
         <RecordWizardMorphBand
           title='คัดกรองและซักประวัติ'
           hideTitle
-          steps={STEPS}
+          steps={steps}
           current={current}
           completedSteps={completedSteps}
           onStepClick={setCurrent}

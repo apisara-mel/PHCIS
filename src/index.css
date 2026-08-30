@@ -895,7 +895,12 @@ a:focus, a:focus-visible,
    ถ้าปล่อยให้ wrap · แถบเลื่อนซ่อนไว้ ตัว stepper บอกตำแหน่งอยู่แล้ว */
 .mih-step-progress-scroll {
   overflow-x: auto;
+  /* overflow-x: auto บังคับให้แกน y กลายเป็น clip ไปด้วย (สเปก CSS) วงกลมของ
+     ขั้นตอนปัจจุบันซึ่งถูก scale ขึ้นตอน morph จึงโดนตัดขอบบน — เว้นพื้นที่ให้
+     6px บน-ล่างแทนการปล่อยให้ชนขอบกล่อง (มติผู้ใช้ 29 ส.ค. 69) */
   overflow-y: hidden;
+  padding-top: 6px;
+  padding-bottom: 6px;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
@@ -905,4 +910,41 @@ a:focus, a:focus-visible,
 .mih-step-progress-scroll > [data-step-progress] {
   width: max-content;
   min-width: 100%;
+}
+
+/* แถบขั้นตอนของฟอร์มบันทึก — การ์ดขาวได้เงาด้านบนเพิ่ม เพื่อคั่นตัวเองออกจาก
+   หัวแฟ้มผู้รับบริการที่อยู่เหนือขึ้นไป (มติผู้ใช้ 30 ส.ค. 69) ใช้เฉพาะหน้าที่วาง
+   PatientCard ไว้เหนือแถบ เช่น บันทึกประเมินการเยี่ยมบ้าน */
+/* เงาของแถบขั้นตอนต้องอยู่ที่ "ตัวห่อ sticky" ไม่ใช่ที่ <section> ข้างใน
+   (มติผู้ใช้ 30 ส.ค. 69) — section ถูก PageHeaderInfoPanel ตั้ง overflow:hidden
+   ไว้ตอน dense และเนื้อหาการ์ดขาวของขั้นตอนที่อยู่ถัดลงไปทับเงาที่วาดจากข้างใน
+   ตัวห่อเป็น element ที่ sticky + z-index 1090 อยู่แล้ว เงาที่วาดตรงนี้จึงลอย
+   อยู่เหนือเนื้อหาด้านล่างเสมอ */
+.mih-morph-band-top-shadow {
+  position: relative;
+  z-index: 1090;
+  background: var(--surface-card-100);
+  border-bottom: var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB);
+  box-shadow:
+    var(--shadow-brand-top-200),
+    var(--shadow-brand-drop-bottom-200);
+}
+/* section ข้างในไม่ต้องวาดเงาซ้ำ ไม่งั้นจะได้เส้นสองชั้น */
+.mih-morph-band-top-shadow > section {
+  box-shadow: none !important;
+  border-bottom: none !important;
+}
+
+/* FieldGrid — จอแคบยุบคอลัมน์ลงเอง (มติผู้ใช้ 29 ส.ค. 69) ค่าเริ่มต้นของจอกว้าง
+   มาจาก inline style ของคอมโพเนนต์ (`cols`) ส่วนสองเบรกพอยต์นี้ทับให้เมื่อ
+   ที่ว่างเหลือน้อย: ≤1024px ไม่เกิน 2 คอลัมน์ · ≤680px เหลือคอลัมน์เดียว */
+@media (max-width: 1024px) {
+  .mih-field-grid {
+    grid-template-columns: repeat(min(2, var(--field-grid-cols, 2)), minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 680px) {
+  .mih-field-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }

@@ -32,7 +32,6 @@ import Popup from '@/components/popup/Popup';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import { getPatientByHN } from '@/data/patientProfiles';
-import HomeVisitSubNav from '@/components/homevisit/HomeVisitSubNav';
 import {
   HOMEVISIT_GROUPS,
   HOMEVISIT_SOURCES,
@@ -777,14 +776,15 @@ const HomeVisitRegistryPage = () => {
         </BrandPrimaryButton>
       )}
       summaryCards={summaryCards}
-      belowSummary={<HomeVisitSubNav />}
     >
       <Popup
         open={!!cancelTarget}
         onClose={() => setCancelTarget(null)}
         title='ยกเลิกทะเบียนผู้รับบริการเยี่ยมบ้าน'
         subtitle={cancelTarget ? `${cancelTarget.confidential ? 'ผู้รับบริการ (ข้อมูลลับ)' : cancelTarget.name} · HN: ${cancelTarget?.hn}` : ''}
-        tertiaryAction={{ label: 'กลับไปแก้ต่อ', onClick: () => setCancelTarget(null) }}
+        /* ปุ่มรองเป็น "ปิด" (มติผู้ใช้ 30 ส.ค. 69) — ป๊อปอัปนี้ไม่ได้กลับไปแก้อะไร
+           แค่ปิดหน้าต่างแล้วนัดยังอยู่เหมือนเดิม */
+        tertiaryAction={{ label: 'ปิด', onClick: () => setCancelTarget(null) }}
         primaryAction={{ label: 'ยืนยันยกเลิกทะเบียน', onClick: confirmCancel, tone: 'danger' }}
       >
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>

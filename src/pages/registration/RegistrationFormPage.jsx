@@ -20,6 +20,8 @@ import {
   PatientStatusCard,
 } from '@/components/forms/RegistrationSteps';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT, MR_PATIENTS } from '@/data/mrPatients';
+import { publishRegistrationHandoff } from '@/data/registrationHandoff';
+import { REGISTRY_CENTER } from '@/data/registrationRegistries';
 import {
   applySmartCardRead,
   buildEmptyRegistrationForm,
@@ -107,7 +109,13 @@ const RegistrationFormPage = () => {
   }, [navState]);
 
   const [stepIndex, setStepIndex] = useState(0);
-  const [form, setForm] = useState(() => loadRegistrationDraft() || buildEmptyRegistrationForm());
+  /* ทะเบียนที่พามาเปิดฟอร์ม — หน้าคิวส่งมาใน router state · ขั้น "หมายเหตุและ
+     Flag" ถามคนละชุดระหว่างทะเบียนของศูนย์กับเวชระเบียนเยี่ยมบ้าน และตัวตรวจ
+     "ข้อมูลไม่ครบ" ก็อ่านค่านี้ ค่าจึงอยู่ในฟอร์ม ไม่ใช่ state แยก */
+  const [form, setForm] = useState(() => {
+    const base = loadRegistrationDraft() || buildEmptyRegistrationForm();
+    return { ...base, registryKey: navState?.registry || base.registryKey || REGISTRY_CENTER };
+  });
 
   /* ── toasts ─────────────────────────────────────────────────────── */
   const [toastSession, setToastSession] = useState(null);
@@ -215,6 +223,10 @@ const RegistrationFormPage = () => {
         ].filter(Boolean).join(' · '),
       });
     }
+    /* จุดคัดกรองต้องเห็นสิ่งที่ห้องบัตรเพิ่งบันทึก (สิทธิ · ประเภทผู้รับบริการ ·
+       หมายเหตุและ Flag) — ยกเว้นข้อมูลส่วนตัว/ที่อยู่/การติดต่อ ซึ่งไม่ส่งต่อ
+       โดยตั้งใจ (มติผู้ใช้ 29 ส.ค. 69) */
+    publishRegistrationHandoff(buildHnPreview(f), f);
     clearRegistrationDraft();
     dirtyRef.current = false;
     setSuccessToast('บันทึกข้อมูลผู้รับบริการสำเร็จ');
@@ -343,11 +355,24 @@ const RegistrationFormPage = () => {
     };
   }, [queueCancelled]);
 
-  const goToPatientRegister = (p) => {
+  /* สลับไปคิวคนอื่นจากพาเนลด้านซ้าย — ถ้าฟอร์มของคนปัจจุบันยังกรอกค้างอยู่
+     ต้องถามก่อน (มติผู้ใช้ 30 ส.ค. 69) เดิมกดแล้วเปลี่ยนคนทันที ข้อมูลที่พิมพ์
+     ค้างไว้หายเงียบ ๆ */
+  const [switchTarget, setSwitchTarget] = useState(null);
+
+  const openPatientRegister = (p) => {
     history.push({
       pathname: '/registration/register',
       state: { hn: p.hn || undefined, queue: p.queue },
     });
+  };
+
+  const goToPatientRegister = (p) => {
+    if (dirtyRef.current) {
+      setSwitchTarget(p);
+      return;
+    }
+    openPatientRegister(p);
   };
 
   return (
@@ -375,6 +400,30 @@ const RegistrationFormPage = () => {
         patientName={queueCancelCandidate?.name || '—'}
         avatarSrc={queueCancelCandidate?.avatarUrl}
       />
+      {/* ยืนยันก่อนสลับไปคิวคนอื่นทั้งที่บันทึกของคนปัจจุบันยังไม่เสร็จ */}
+      <UnsavedChangesPopup
+        open={!!switchTarget}
+        onClose={() => setSwitchTarget(null)}
+        title='บันทึกของผู้รับบริการรายนี้ยังไม่เสร็จ'
+        description={`ยังกรอกข้อมูลของ ${patient?.prefixTh || ''}${patient?.firstNameTh || ''} ${patient?.lastNameTh || ''} ค้างอยู่ — ถ้าเปิดคิว ${switchTarget?.queue || ''} ${switchTarget?.name || ''} ตอนนี้ ข้อมูลที่ยังไม่บันทึกจะหายไป เลือก "บันทึกร่างและเปิดคิวถัดไป" เพื่อกลับมาทำต่อได้จากแท็บ "ที่ร่างไว้"`}
+        discardLabel='ไม่บันทึก แล้วเปิดคิวถัดไป'
+        saveLabel='บันทึกร่างและเปิดคิวถัดไป'
+        onSave={() => {
+          saveRegistrationDraft(formRef.current);
+          const target = switchTarget;
+          setSwitchTarget(null);
+          dirtyRef.current = false;
+          if (target) openPatientRegister(target);
+        }}
+        onDiscard={() => {
+          clearRegistrationDraft();
+          const target = switchTarget;
+          setSwitchTarget(null);
+          dirtyRef.current = false;
+          if (target) openPatientRegister(target);
+        }}
+      />
+
       <MissingFieldsPopup
         open={!!(missingReport && missingReport.length > 0)}
         onClose={() => setMissingReport(null)}

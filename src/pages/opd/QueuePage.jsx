@@ -63,11 +63,15 @@ const TABS = [
   { key: 'done',     label: 'คัดกรองแล้ว',     icon: 'check_circle',  count: 2   },
   { key: 'draft',    label: 'ที่ร่างไว้',       icon: 'save',          count: 6   },
   { key: 'all',      label: 'รายชื่อผู้ป่วยทั้งหมด', icon: 'group',         count: 130 },
+  /* คิวที่ถูกยกเลิก — เดิมหายไปจากหน้าจอทันทีที่กดยกเลิก ไม่มีที่ให้ตรวจสอบย้อนหลัง
+     (มติผู้ใช้ 30 ส.ค. 69) ทรงเดียวกับแท็บ "ยกเลิกนัดแล้ว" ของงานเยี่ยมบ้าน */
+  { key: 'cancelled', label: 'ยกเลิกนัด',        icon: 'block',         count: 0   },
 ];
 
 /* Reverse map — used by the activeTab filter below. 'all' bypasses the
    filter; every other tab keeps only rows whose statusKey matches. */
 const TAB_STATUS_FILTER = {
+  cancelled: (r) => r.statusKey === 'cancelled',
   waiting:  (r) => r.statusKey === 'waiting',
   progress: (r) => r.statusKey === 'doing',
   done:     (r) => r.statusKey === 'screened',
@@ -279,6 +283,7 @@ const STATUS_PILL = {
   done:     { style: 'warning', label: 'รอตรวจ'           },
   examined: { style: 'success', label: 'ตรวจเสร็จแล้ว'   },
   draft:    { style: 'info',    label: 'กำลังคัดกรอง'    },
+  cancelled:{ style: 'error',   label: 'ยกเลิกนัด'        },
 };
 
 /* Default table + สถานะ sort — รอคัดกรอง → กำลังคัดกรอง → คัดกรองแล้ว → รอตรวจ → ตรวจเสร็จแล้ว */
@@ -449,6 +454,8 @@ const PAGE_SIZE = 20;
 
 /* Status seed — ผู้มาก่อน (A001…) อยู่บน: ตรวจเสร็จแล้ว 2 · คัดกรองแล้ว 2 · รอตรวจ 2 · ที่เหลือรอคัดกรอง */
 const seedStatus = (i) => {
+  /* สองแถวเป็นคิวที่ถูกยกเลิกไว้เป็นตัวอย่าง เพื่อให้แท็บ "ยกเลิกนัด" มีข้อมูล */
+  if (i === 20 || i === 23) return 'cancelled';
   if (i < 2) return 'examined';
   if (i < 4) return 'screened';
   if (i < 6) return 'done';

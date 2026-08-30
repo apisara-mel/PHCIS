@@ -21,6 +21,8 @@ export const REGISTRY_CENTER = 'center';
 export const REGISTRY_SAFE_LOVE = 'safe-love';
 /** คลินิกบำบัดและรักษาผู้ป่วยติดสารเสพติด */
 export const REGISTRY_ADDICTION = 'addiction';
+/** ทะเบียนผู้รับบริการที่รับการดูแลถึงบ้าน (งานเยี่ยมบ้าน) */
+export const REGISTRY_HOME_VISIT = 'home-visit';
 
 export const REGISTRATION_REGISTRIES = [
   {
@@ -74,6 +76,35 @@ export const REGISTRATION_REGISTRIES = [
       'ทะเบียนนี้แยกจากเวชระเบียนของศูนย์ เปิดให้เฉพาะผู้มีสิทธิ์ในคลินิกบำบัดและรักษา'
       + 'ผู้ป่วยติดสารเสพติด การเปิดดูทุกครั้งถูกบันทึกไว้ในร่องรอยการใช้งาน',
   },
+  /* เวชระเบียนเยี่ยมบ้าน — ไม่ใช่ทะเบียนลับ แต่เป็นคนละเล่มกับทะเบียนศูนย์
+     เพราะผู้รับบริการกลุ่มนี้ถูกจัดกลุ่มไว้ตั้งแต่ขั้นทะเบียน (๖ กลุ่มผู้รับบริการ
+     ตาม TOR ๑.๑๐.๑๒.๑ + ประเภทรับ–ส่งต่อ ที่กรอกในขั้น "หมายเหตุและ Flag")
+     และงานเยี่ยมบ้านต้องเปิดดูรายชื่อของตัวเองโดยไม่ปนกับคิวหน้าห้องบัตร
+     (มติผู้ใช้ 29 ส.ค. 69) */
+  {
+    key: REGISTRY_HOME_VISIT,
+    label: 'เวชระเบียนเยี่ยมบ้าน',
+    title: 'เวชระเบียนเยี่ยมบ้าน',
+    breadcrumb: ['ระบบงานเวชระเบียน', 'เยี่ยมบ้าน'],
+    path: '/registration/home-visit',
+    menuKey: 'mr-home-visit',
+    /* ไม่ขึ้นในเมนูแล้ว (มติผู้ใช้ 30 ส.ค. 69) — ข้อมูลชุดนี้ย้ายไปกรอกที่บันทึก
+       การเยี่ยมบ้านโดยตรง ทะเบียน/route ยังอยู่เพื่อไม่ให้ลิงก์เดิมพัง แต่ไม่มี
+       ทางเข้าจาก rail อีก */
+    hiddenInMenu: true,
+    confidential: false,
+    /* ทะเบียนเยี่ยมบ้านไม่มีคิวหน้าเคาน์เตอร์ — ปุ่มเรียกคิว/พักคิว/ยกเลิกคิว
+       จึงไม่มีความหมาย คอลัมน์ "การดำเนินการ" ถูกตัดออกทั้งคอลัมน์
+       (มติผู้ใช้ 29 ส.ค. 69) */
+    queueActions: false,
+    /* ไม่มีแท็บคิว (คิววันนี้ / กำลังลงทะเบียน / ที่ร่างไว้ / นัดล่วงหน้า) ด้วย —
+       เล่มนี้เป็น "รายชื่อผู้รับบริการที่ดูแลถึงบ้าน" ไม่ใช่ worklist ของวัน
+       หน้าจึงเปิดมาที่รายชื่อทั้งหมดตรง ๆ (มติผู้ใช้ 29 ส.ค. 69) */
+    queueTabs: false,
+    clinicKey: null,
+    rosterSize: 42,
+    seedOffset: 101,
+  },
 ];
 
 const BY_KEY = Object.fromEntries(REGISTRATION_REGISTRIES.map((r) => [r.key, r]));
@@ -82,11 +113,13 @@ const BY_KEY = Object.fromEntries(REGISTRATION_REGISTRIES.map((r) => [r.key, r])
 export const getRegistrationRegistry = (key) => BY_KEY[key] ?? BY_KEY[REGISTRY_CENTER];
 
 /** รายการเมนูย่อยของเมนู "เวชระเบียน" ใน rail — เรียงตามลำดับในไฟล์นี้ */
-export const REGISTRATION_MENU_SUBITEMS = REGISTRATION_REGISTRIES.map((r) => ({
-  key: r.menuKey,
-  label: r.label,
-  path: r.path,
-}));
+export const REGISTRATION_MENU_SUBITEMS = REGISTRATION_REGISTRIES
+  .filter((r) => !r.hiddenInMenu)
+  .map((r) => ({
+    key: r.menuKey,
+    label: r.label,
+    path: r.path,
+  }));
 
 /** ทะเบียนแยกทั้งหมด (ไม่รวมของศูนย์) — ใช้สร้าง route และตรวจสิทธิ์ */
 export const CONFIDENTIAL_REGISTRIES = REGISTRATION_REGISTRIES.filter((r) => r.confidential);

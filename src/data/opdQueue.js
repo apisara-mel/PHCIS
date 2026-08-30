@@ -3,6 +3,7 @@
 
 import { PATIENT_PROFILES } from '@/data/patientProfiles';
 import { applyOpdScreeningDrafts } from '@/data/opdScreeningDrafts';
+import { USERS } from '@/data/usersAccess';
 
 /* Status seed — ผู้มาก่อน (A001…) อยู่บน: ตรวจเสร็จแล้ว 2 · คัดกรองแล้ว 2 ·
    รอตรวจ 2 · รอคัดกรอง · กำลังคัดกรอง · ที่ร่างไว้ (matches QueuePage). */
@@ -15,6 +16,12 @@ const seedStatus = (i) => {
   if (i < 20) return 'draft';
   return 'waiting';
 };
+
+/* พยาบาลที่กำลังคัดกรองอยู่ — ดึงจากทะเบียนผู้ใช้จริงเหมือนฝั่งเวชระเบียน
+   ถ้าเพิ่ม/ลบผู้ใช้ในระบบสิทธิ์ รายชื่อตรงนี้ตามทันที (มติผู้ใช้ 30 ส.ค. 69) */
+const SCREENERS = USERS
+  .filter((u) => (u.role === 'nurse' || u.role === 'registrar') && u.status === 'active')
+  .map((u) => u.name);
 
 export const buildOpdQueueRoster = (total = 25) => {
   const rows = [];
@@ -43,6 +50,10 @@ export const buildOpdQueueRoster = (total = 25) => {
       contactKey: ['contacted', 'notContacted', 'noAnswer'][i % 3],
       time: `${hh}:${mm}`,
       vipBadge: profile.vip ? 'VIP / ผู้ป่วยพิเศษ' : undefined,
+      /* เฉพาะแถวที่กำลังคัดกรองอยู่ — คิวที่ยังไม่มีใครหยิบยังไม่มีเจ้าของงาน */
+      screenedBy: statusKey === 'doing' && SCREENERS.length > 0
+        ? SCREENERS[i % SCREENERS.length]
+        : '',
     });
   }
   return rows;

@@ -3,6 +3,7 @@ import VitalsForm from '@/components/forms/VitalsForm';
 import { setScreeningSection } from '@/data/opdScreeningReview';
 import VitalsGraphPopup from '@/components/popup/VitalsGraphPopup';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
+import RegistrationInfoPanel from '@/components/registration/RegistrationInfoPanel';
 import Icon from '@/components/icons/Icon';
 
 /* ScreeningStep1 — OPD Screening step 1 wrapper (sibling-file pattern, same
@@ -175,6 +176,16 @@ const ScreeningStep1 = ({ onValidityChange, patient = {} }) => {
 
   return (
     <div className='flex flex-col'>
+      {/* สิ่งที่ห้องบัตรบันทึกไว้ต้องอ่านได้ที่จุดคัดกรองก่อนลงมือวัดสัญญาณชีพ —
+          สิทธิการรักษา · ประเภทผู้รับบริการ · หมายเหตุและ Flag (ไม่รวมข้อมูล
+          ส่วนตัว/ที่อยู่/การติดต่อ ตามมติผู้ใช้ 29 ส.ค. 69) */}
+      <div
+        className='w-full'
+        style={{ padding: 'var(--dim-space-600) var(--dim-space-600) 0' }}
+      >
+        <RegistrationInfoPanel patient={patient} />
+      </div>
+
       <VitalsForm
         onValidityChange={onValidityChange}
         /* ToR ๑.๒.๒.๕ — ใช้ตัดสินว่าโชว์ BMI หรือกราฟการเจริญเติบโต */

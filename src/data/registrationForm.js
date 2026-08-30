@@ -78,7 +78,15 @@ export const buildEmptyConsentRecords = () =>
   }));
 
 /** First visit — all fields default / empty (placeholders only). */
+/* ทะเบียนที่ฟอร์มนี้กำลังเปิดอยู่ — ทะเบียนของศูนย์กับเวชระเบียนเยี่ยมบ้านถามคนละชุด
+   ในขั้น "หมายเหตุและ Flag" (มติผู้ใช้ 29 ส.ค. 69):
+     • ศูนย์      → "สภาพที่มาใช้บริการ" อย่างเดียว
+     • เยี่ยมบ้าน → ๖ กลุ่มผู้รับบริการ · ประเภทรับ–ส่งต่อ · การเคลื่อนไหว
+   ค่าเดียวกับ `REGISTRATION_REGISTRIES[].key` */
+export const isHomeVisitRegistry = (form) => form?.registryKey === 'home-visit';
+
 export const buildEmptyRegistrationForm = () => ({
+  registryKey: 'center',
   // Step 1 — consent (Figma 292:104252 · face-scan StepConsent)
   consentCompletedIds: [],
   // Kept for RegistrationConsentStep / catalog-driven consent UI
@@ -156,6 +164,18 @@ export const buildEmptyRegistrationForm = () => ({
   rightsGroups: [],
 
   // Step 5 — flags
+  /* TOR ๑.๑๐.๑๒.๑ — ๖ กลุ่มผู้รับบริการ (Curable → Special group) ทะเบียนเป็นจุดที่
+     จัดกลุ่มไว้ตั้งแต่แรก แล้วเยี่ยมบ้าน/คัดกรองอ่านต่อ ค่า `value` ตรงกับ
+     `HOMEVISIT_GROUPS` ใน `homevisitVisits.js` ตัวต่อตัว — สองโมดูลต้องพูดภาษา
+     เดียวกัน ไม่ใช่ต่างคนต่างตั้งรหัสกลุ่ม */
+  patientGroup: '',
+  /* ประเภทรับ–ส่งต่อของงานเยี่ยมบ้าน (คู่มือระบบเดิม §2.2) — เคสเข้าระบบได้สองทาง
+     คือ "รับต่อจากระบบอื่น" (HHC / HV จาก OPD-ห้องสังเกตอาการ / Health Desk–HV /
+     มารดาและทารก–HV / ส่งต่อระหว่างศูนย์ฯ) ซึ่งดึงเคสมาอัตโนมัติและต้องแสดง
+     แหล่งที่มาไว้ตลอด กับ "ศูนย์พบเอง" · ค่า `homevisitSource` ตรงกับ
+     `HOMEVISIT_SOURCES` ใน `homevisitVisits.js` */
+  homevisitIntake: '',
+  homevisitSource: '',
   mobility: '',
   /** Free text when mobility === 'other' (Figma 134:29264 Voice Textarea). */
   mobilityOther: '',
@@ -165,6 +185,14 @@ export const buildEmptyRegistrationForm = () => ({
     allergyOther: false,
     skinReaction: false,
     chronic: false,
+    /* TOR ๑.๑.๑.๑๙ — Flag ที่ ToR เรียกชื่อไว้ตรง ๆ ว่า "ความปลอดภัยในการรักษา ·
+       ความประสงค์ในการไม่ปั๊มหัวใจ · ความประสงค์ในการบริจาคอวัยวะ" หน้าบันทึก
+       การรักษาแสดงป้ายสามใบนี้อยู่แล้ว (TreatmentSafetyRail) แต่ค่ามาจาก overlay
+       `treatmentPatientFlags.js` เพราะทะเบียนไม่เคยมีที่กรอก — ช่องชุดนี้คือ
+       ต้นทางจริงของป้ายนั้น (มติผู้ใช้ 29 ส.ค. 69) */
+    safety: false,
+    dnr: false,
+    organDonor: false,
     flagOther: false,
   },
   /** Free text when flags.flagOther is ticked — Voice Textarea เหมือน
@@ -180,6 +208,25 @@ export const buildEmptyRegistrationForm = () => ({
   /* Same entry shape — surfaced when "โรคประจำตัว" is ticked. The
      `severity` field reads as "ระดับความรุนแรงของโรค" in that context. */
   chronicConditions: [],
+
+  /* ── รายละเอียดของ Flag สามใบตาม TOR ๑.๑.๑.๑๙ ──────────────────────
+     ป้ายเปล่า ๆ บอกแค่ว่า "มี" แต่คนที่อ่านต่อ (จุดคัดกรอง / ห้องตรวจ) ต้อง
+     ตรวจสอบย้อนกลับได้ว่ามาจากเอกสารใบไหน จึงเก็บที่มาไว้คู่กับธงเสมอ */
+  /** keys จาก SAFETY_RISK_OPTIONS — เลือกได้หลายข้อพร้อมกัน */
+  safetyRisks: [],
+  safetyNote: '',
+  /** หนังสือแสดงเจตนาไม่ประสงค์รับบริการสาธารณสุขฯ (Living Will) */
+  dnrDocNo: '',
+  dnrSignedDate: '',
+  dnrWitness: '',
+  /* สำเนาหนังสือแสดงเจตนาที่สแกน/ถ่ายมาแนบไว้ — รูปแบบ entry เดียวกับเอกสาร
+     ประกอบของขั้นสิทธิการรักษา (`{ id, name, sizeLabel }`) */
+  dnrDocuments: [],
+  /** keys จาก ORGAN_DONATION_SCOPES — อวัยวะ / ดวงตา / อุทิศร่างกาย */
+  organDonorScopes: [],
+  organDonorCardNo: '',
+  organDonorDate: '',
+  organDonorDocuments: [],
 });
 
 /** Mock lookup result — Figma PHCIS-Registration 1:4150 (สิทธิที่ 1 + สิทธิที่ 2).
@@ -312,6 +359,103 @@ export const FLAG_OTHER_SUGGESTIONS = [
   'ผู้ต้องขัง มีเจ้าหน้าที่ราชทัณฑ์คุมมาด้วย',
   'ไม่ประสงค์ให้ญาติทราบผลการตรวจ',
 ];
+
+/* สภาพการเคลื่อนไหว / สภาพที่มาใช้บริการ — ทะเบียนกับบันทึกการเยี่ยมบ้านต้องใช้
+   ชุดเดียวกัน ไม่งั้นค่าที่กรอกคนละหน้าจะเทียบกันไม่ได้ (มติผู้ใช้ 30 ส.ค. 69) */
+export const MOBILITY_OPTIONS = [
+  { key: 'walk',   label: 'เดิน',       icon: 'directions_walk' },
+  { key: 'wheel',  label: 'นั่งรถเข็น',  icon: 'accessible' },
+  { key: 'gurney', label: 'เปลนอน',     icon: 'self_improvement' },
+  { key: 'other',  label: 'อื่นๆ',       icon: 'more_horiz' },
+];
+
+export const mobilityLabel = (key) =>
+  MOBILITY_OPTIONS.find((o) => o.key === key)?.label || key || '';
+
+/* ๖ กลุ่มผู้รับบริการ (TOR ๑.๑๐.๑๒.๑) — ป้ายสั้นตามที่เจ้าหน้าที่เรียกกันจริง
+   ส่วน `value` ยึดตาม `HOMEVISIT_GROUPS` เพื่อให้ส่งต่อไปงานเยี่ยมบ้านได้ตรง ๆ */
+export const PATIENT_GROUP_OPTIONS = [
+  { key: 'curable',          label: 'รักษาหายได้',        icon: 'healing' },
+  { key: 'chronic',          label: 'เรื้อรัง',            icon: 'event_repeat' },
+  { key: 'mildDisability',   label: 'เรื้อรังพิการเล็กน้อย', icon: 'accessible' },
+  { key: 'severeDisability', label: 'เรื้อรังพิการรุนแรง',  icon: 'wheelchair_pickup' },
+  { key: 'terminal',         label: 'ระยะสุดท้าย',        icon: 'hourglass_bottom' },
+  { key: 'special',          label: 'กลุ่มเฉพาะ',          icon: 'diversity_3' },
+];
+
+export const patientGroupLabel = (key) =>
+  PATIENT_GROUP_OPTIONS.find((o) => o.key === key)?.label || '';
+
+/* Step 6 — "ความปลอดภัย" (TOR ๑.๑.๑.๑๙ "ความปลอดภัยในการรักษา").
+   ติ๊กได้หลายข้อ เพราะผู้รับบริการรายหนึ่งเสี่ยงได้หลายทางพร้อมกัน และ
+   หน้าคัดกรอง/ห้องตรวจอ่านรายการนี้ต่อเป็นข้อควรระวังระหว่างให้บริการ */
+export const SAFETY_RISK_OPTIONS = [
+  { key: 'fall',       label: 'เสี่ยงพลัดตกหกล้ม',        icon: 'personal_injury' },
+  { key: 'selfHarm',   label: 'เสี่ยงทำร้ายตนเอง',        icon: 'sentiment_stressed' },
+  { key: 'aggression', label: 'ก้าวร้าว / เสี่ยงต่อผู้อื่น', icon: 'report' },
+  { key: 'elopement',  label: 'เสี่ยงหลบหนี / พลัดหลง',    icon: 'directions_run' },
+  { key: 'transfer',   label: 'ต้องระวังการเคลื่อนย้าย',   icon: 'sync_alt' },
+  { key: 'infection',  label: 'ต้องแยกป้องกันการติดเชื้อ', icon: 'masks' },
+];
+
+export const SAFETY_NOTE_SUGGESTIONS = [
+  'ประเมิน Morse Fall Scale อยู่ในระดับเสี่ยงสูง',
+  'เคยพลัดตกหกล้มภายใน 6 เดือนที่ผ่านมา',
+  'เดินเซ ต้องมีผู้พยุงตลอดเวลา',
+  'สายตาเลือนราง มองทางไม่ชัด',
+  'มีภาวะสับสน ต้องมีผู้ดูแลมาด้วยทุกครั้ง',
+  'เคยมีประวัติก้าวร้าวต่อเจ้าหน้าที่',
+  'มีความคิดทำร้ายตนเอง ต้องเฝ้าระวังใกล้ชิด',
+  'เคยหลบออกจากจุดบริการระหว่างรอคิว',
+  'ต้องใช้เปลยกตัวจากเตียงไปรถเข็น',
+  'ต้องแยกห้องตรวจเพื่อป้องกันการแพร่เชื้อ',
+];
+
+/* สิ่งที่ผู้รับบริการแสดงเจตนาบริจาค — สภากาชาดไทยแยกบัตรคนละใบระหว่าง
+   อวัยวะ กับ ดวงตา ส่วน "อุทิศร่างกาย" เป็นคนละเรื่องกับการบริจาคอวัยวะ
+   จึงต้องเลือกได้แยกกัน ไม่ใช่ธงเดียวเหมารวม */
+export const ORGAN_DONATION_SCOPES = [
+  { key: 'organ', label: 'บริจาคอวัยวะ',              icon: 'volunteer_activism' },
+  { key: 'eye',   label: 'บริจาคดวงตา',               icon: 'visibility' },
+  { key: 'body',  label: 'อุทิศร่างกาย (อาจารย์ใหญ่)', icon: 'diversity_1' },
+];
+
+/* บรรทัด "ที่มา" ของ Flag สามใบ — รูปแบบเดียวกับ `flagSources` ที่
+   TreatmentSafetyRail แสดงใต้ป้ายในหน้าบันทึกการรักษา วันที่ย้าย seed จาก
+   `treatmentPatientFlags.js` มาใช้ค่าจริงจากทะเบียน ข้อความจะไม่ต้องเปลี่ยนรูป */
+export const buildRegistrationFlagSources = (form) => {
+  const f = form || {};
+  const flags = f.flags || {};
+  const out = {};
+  if (flags.safety) {
+    const risks = (f.safetyRisks || [])
+      .map((key) => SAFETY_RISK_OPTIONS.find((o) => o.key === key)?.label)
+      .filter(Boolean);
+    out.safety = [risks.join(' · '), f.safetyNote].filter(nonEmpty).join(' — ');
+  }
+  if (flags.dnr) {
+    const dnrDocs = (f.dnrDocuments || []).length;
+    out.dnr = [
+      nonEmpty(f.dnrDocNo) ? `หนังสือแสดงเจตนาฯ เลขที่ ${f.dnrDocNo}` : '',
+      nonEmpty(f.dnrSignedDate) ? `ลงนาม ${f.dnrSignedDate}` : '',
+      nonEmpty(f.dnrWitness) ? `พยาน / ผู้รับมอบอำนาจ ${f.dnrWitness}` : '',
+      dnrDocs ? `แนบเอกสารยืนยัน ${dnrDocs} ไฟล์` : '',
+    ].filter(nonEmpty).join(' · ');
+  }
+  if (flags.organDonor) {
+    const scopes = (f.organDonorScopes || [])
+      .map((key) => ORGAN_DONATION_SCOPES.find((o) => o.key === key)?.label)
+      .filter(Boolean);
+    const odDocs = (f.organDonorDocuments || []).length;
+    out.organDonor = [
+      scopes.join(' · '),
+      nonEmpty(f.organDonorCardNo) ? `บัตรผู้แสดงความจำนงฯ สภากาชาดไทย เลขที่ ${f.organDonorCardNo}` : '',
+      nonEmpty(f.organDonorDate) ? `แสดงเจตนา ${f.organDonorDate}` : '',
+      odDocs ? `แนบเอกสารยืนยัน ${odDocs} ไฟล์` : '',
+    ].filter(nonEmpty).join(' · ');
+  }
+  return out;
+};
 
 export const formatNationalId = (value) => {
   const digits = String(value ?? '').replace(/\D/g, '').slice(0, 13);
@@ -670,12 +814,42 @@ const isStepContactComplete = (form) => {
    lookup answer. */
 const isStepRightsComplete = (form) => Boolean(form?.rightsLookupDone);
 
-const isStepFlagsComplete = (form) => {
-  if (!form) return false;
-  if (!nonEmpty(form.mobility)) return false;
-  if (form.mobility === 'other' && !nonEmpty(form.mobilityOther)) return false;
-  return true;
+/* Flag ที่ติ๊กแล้วต้องมีที่มากำกับ — ป้าย DNR หรือ "เสี่ยงพลัดตกหกล้ม" ลอย ๆ
+   ไปโผล่ที่หน้าคัดกรองและห้องตรวจโดยที่ไม่มีใครตรวจสอบย้อนกลับได้ว่ามาจาก
+   เอกสารใบไหน จึงกันไว้ตั้งแต่ขั้นกรอก (TOR ๑.๑.๑.๑๙ + ๑.๑.๑.๑๓) */
+const getFlagsMissingFields = (form) => {
+  const missing = [];
+  const homeVisit = isHomeVisitRegistry(form);
+  /* ๖ กลุ่มผู้รับบริการ กับ ประเภทรับ–ส่งต่อ เป็นคำถามของงานเยี่ยมบ้าน — ทะเบียน
+     ของศูนย์ไม่ถาม จึงต้องไม่ไปติดเป็น "ข้อมูลไม่ครบ" ของคิวหน้าห้องบัตรด้วย */
+  if (homeVisit) {
+    if (!nonEmpty(form?.patientGroup)) missing.push('ประเภทผู้รับบริการ 6 กลุ่ม');
+    if (form?.homevisitIntake === 'received' && !nonEmpty(form?.homevisitSource)) {
+      missing.push('แหล่งที่รับเคสมา');
+    }
+  }
+  /* ช่องเดียวกัน คนละชื่อตามทะเบียน — ศูนย์ถามว่า "มาถึงในสภาพไหน"
+     ส่วนเยี่ยมบ้านถามว่า "เคลื่อนไหวได้แค่ไหน" */
+  const mobilityLabel = homeVisit ? 'การเคลื่อนไหวของผู้รับบริการ' : 'สภาพที่มาใช้บริการ';
+  if (!nonEmpty(form?.mobility)) missing.push(mobilityLabel);
+  else if (form?.mobility === 'other' && !nonEmpty(form?.mobilityOther)) {
+    missing.push(`รายละเอียด${mobilityLabel} (อื่นๆ)`);
+  }
+  const flags = form?.flags || {};
+  if (flags.safety && !(form?.safetyRisks || []).length) {
+    missing.push('ประเภทความเสี่ยงด้านความปลอดภัย');
+  }
+  if (flags.dnr) {
+    if (!nonEmpty(form?.dnrDocNo)) missing.push('เลขที่หนังสือแสดงเจตนา (DNR)');
+    if (!nonEmpty(form?.dnrSignedDate)) missing.push('วันที่ลงนามหนังสือแสดงเจตนา (DNR)');
+  }
+  if (flags.organDonor && !(form?.organDonorScopes || []).length) {
+    missing.push('สิ่งที่ประสงค์บริจาค (อวัยวะ / ดวงตา)');
+  }
+  return missing;
 };
+
+const isStepFlagsComplete = (form) => Boolean(form) && getFlagsMissingFields(form).length === 0;
 
 export const getRegistrationCompletedSteps = (form) => [
   isStepConsentComplete(form),
@@ -714,12 +888,7 @@ const STEP_MISSING_BUILDERS = [
     return missing;
   },
   (form) => (isStepRightsComplete(form) ? [] : ['ตรวจสอบสิทธิการรักษา']),
-  (form) => {
-    const missing = [];
-    if (!nonEmpty(form?.mobility)) missing.push('การเคลื่อนไหวของผู้รับบริการ');
-    else if (form?.mobility === 'other' && !nonEmpty(form?.mobilityOther)) missing.push('รายละเอียดการเคลื่อนไหว (อื่นๆ)');
-    return missing;
-  },
+  (form) => getFlagsMissingFields(form),
   /* ตรวจสอบข้อมูล — ขั้นทวนอย่างเดียว ไม่มีฟิลด์ของตัวเอง */
   () => [],
 ];

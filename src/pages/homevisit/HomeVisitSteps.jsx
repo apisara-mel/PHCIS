@@ -9,6 +9,13 @@ import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import PhotoUploadField from '@/components/forms/PhotoUploadField';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
 import CarriedDentalPanel from '@/components/dental/CarriedDentalPanel';
+import {
+  PersonalProfileFields,
+  DtxFields,
+  HealthRiskFields,
+} from '@/components/homevisit/homeScreeningSections';
+import { PATIENT_GROUP_OPTIONS, MOBILITY_OPTIONS } from '@/data/registrationForm';
+import { Step2Address as RegistrationAddressStep } from '@/components/forms/RegistrationSteps';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import BrandIconButton from '@/components/button/BrandIconButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -18,7 +25,6 @@ import VitalReadingCard from '@/components/card/VitalReadingCard';
 import Table from '@/components/table/Table';
 import Popup from '@/components/popup/Popup';
 import {
-  HOMEVISIT_STAFF,
   HOMEVISIT_TIME_SLOTS,
   HOMEVISIT_CENTER,
   HOMEVISIT_CENTER_LOCATION,
@@ -68,7 +74,7 @@ import {
   getHomeVisitAccess,
   resolveGroup,
   resolveSource,
-  resolveProfession,
+  HOMEVISIT_SOURCES,
 } from '@/data/homevisitVisits';
 import {
   MNA_ITEMS,
@@ -132,7 +138,173 @@ import {
 
 /* ── Step 1 — ข้อมูลทั่วไปและการเดินทาง ───────────────────────────── */
 
-export const HomeVisitStep1Travel = ({
+/* ── Step 1 — ข้อมูลทั่วไป ─────────────────────────────────────────
+   ข้อมูลของการเยี่ยมครั้งนี้ล้วน ๆ · ที่อยู่/แผนที่/บันทึกการเดินทางย้ายไปขั้นที่ 2
+   (มติผู้ใช้ 30 ส.ค. 69) */
+export const HomeVisitStep1Service = ({ form, setForm, readOnly, blockedMsg }) => {
+  const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
+
+  return (
+    <StepCard>
+      {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+
+      <StepSection>
+        <TopicHeader icon='event'>ข้อมูลการให้บริการ</TopicHeader>
+        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+          {/* ถอด "วันที่ให้บริการ" กับ "เวลาออกเดินทางจากศูนย์บริการฯ" ออก
+              (มติผู้ใช้ 30 ส.ค. 69) — วันที่ยังถูกบันทึกเป็นวันนี้อัตโนมัติ
+              (`serviceDate` ตั้งค่าเริ่มต้นใน `buildEmptyHomeVisitForm`) และ
+              เวลาที่ใช้จริงคือ "เวลาถึงบ้าน" ที่ปั๊มจาก GPS ตาม TOR 1.18.9
+              ไม่ใช่เวลาที่ออกจากศูนย์ */}
+          {/* ๖ กลุ่มผู้รับบริการ (TOR ๑.๑๐.๑๒.๑) กับที่มาของเคส — ย้ายมาจาก
+              เวชระเบียนเยี่ยมบ้านให้กรอกที่บันทึกการเยี่ยมโดยตรง ไม่ต้องสลับหน้า */}
+          <Field label='ประเภทผู้รับบริการ 6 กลุ่ม'>
+            <Select
+              showLabel={false} showHelperText={false} searchable={false} size='lg'
+              value={form.patientGroup} onChange={set('patientGroup')} disabled={readOnly}
+              options={PATIENT_GROUP_OPTIONS.map((g) => ({ value: g.key, label: g.label }))}
+              placeholder='เลือกกลุ่มผู้รับบริการ'
+            />
+          </Field>
+          <Field label='ที่มาของเคส (ประเภทรับ–ส่งต่อ)'>
+            <Select
+              showLabel={false} showHelperText={false} searchable={false} size='lg'
+              value={form.homevisitSource} onChange={set('homevisitSource')} disabled={readOnly}
+              options={HOMEVISIT_SOURCES.map((o) => ({ value: o.value, label: o.label }))}
+              placeholder='เลือกที่มาของเคส'
+            />
+          </Field>
+          {/* สภาพการเคลื่อนไหว — ช่องสุดท้ายของเวชระเบียนเยี่ยมบ้านที่ย้ายมาอยู่ที่นี่
+              บันทึกการเยี่ยมจึงเป็นเจ้าของข้อมูลชุดนี้ครบทั้งสามช่อง */}
+          <Field label='สภาพการเคลื่อนไหว'>
+            <Select
+              showLabel={false} showHelperText={false} searchable={false} size='lg'
+              value={form.mobility} onChange={set('mobility')} disabled={readOnly}
+              options={MOBILITY_OPTIONS.map((o) => ({ value: o.key, label: o.label }))}
+              placeholder='เลือกสภาพการเคลื่อนไหว'
+            />
+          </Field>
+          {form.mobility === 'other' && (
+            <Field label='ระบุสภาพการเคลื่อนไหว'>
+              <InputField
+                showLabel={false} showHelperText={false}
+                value={form.mobilityOther || ''}
+                onChange={set('mobilityOther')}
+                disabled={readOnly}
+                placeholder='เช่น ใช้ walker · ต้องมีผู้พยุง'
+              />
+            </Field>
+          )}
+          <Field label='ประเภทการเยี่ยม'>
+            <Select
+              showLabel={false} showHelperText={false} searchable={false} size='lg'
+              value={form.visitType} onChange={set('visitType')} disabled={readOnly}
+              options={[
+                { value: 'first', label: 'เยี่ยมครั้งแรก (แรกรับ)' },
+                { value: 'followup', label: 'เยี่ยมติดตาม' },
+                { value: 'urgent', label: 'เยี่ยมกรณีเร่งด่วน' },
+              ]}
+              placeholder='เลือกประเภทการเยี่ยม'
+            />
+          </Field>
+        </div>
+
+        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+          {/* ถอดแถบ "ทีมผู้ออกเยี่ยม (เลือกได้หลายคน)" ออก (มติผู้ใช้ 30 ส.ค. 69)
+              — ToR §๑.๑๐.๑๒ ไม่ได้ขอช่องนี้ และฟอร์มกระดาษของทีมเยี่ยมบ้านก็ไม่มี
+              `form.team` ยังอยู่ในบันทึก โดยตั้งค่าเป็นผู้รับผิดชอบของนัด (หรือ
+              ผู้ใช้ที่ล็อกอิน) ให้เอง — §๑.๑๘.๕ ยังต้องรู้ว่าวิชาชีพไหนเป็นผู้บันทึก */}
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-150, 6px)', minWidth: 260 }}>
+            <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+              รูปถ่ายระหว่างการเยี่ยม
+            </span>
+            <PhotoUploadField
+              label={form.photos.length ? `เพิ่มรูป (มีแล้ว ${form.photos.length} รูป)` : 'ถ่าย/อัปโหลดรูป'}
+              icon='photo_camera'
+              capture='environment'
+              multiple
+              disabled={readOnly}
+              /* เก็บ previewUrl ไว้ด้วย ไม่ใช่เก็บแค่ชื่อไฟล์ (มติผู้ใช้ 30 ส.ค. 69)
+                 — อัปแล้วต้องเห็นรูป ไม่ใช่เห็นแต่ชื่อไฟล์ซึ่งบอกไม่ได้ว่าถ่ายอะไรมา
+                 รูปเก่าที่บันทึกไว้เป็นสตริงยังอ่านได้ (แสดงเป็นชื่อไฟล์เหมือนเดิม) */
+              /* อ่านเป็น data URL ไม่ใช่ blob URL (มติผู้ใช้ 30 ส.ค. 69) — blob URL
+                 ใช้ได้เฉพาะในหน้าที่เปิดอยู่ พอบันทึกร่างลง sessionStorage แล้ว
+                 กลับมาเปิดใหม่ ลิงก์จะตายและเหลือแค่ชื่อไฟล์เหมือนเดิม */
+              onFiles={(files) => Array.from(files).forEach((file, i) => {
+                const entryId = `hv-photo-${Date.now()}-${i}`;
+                const push = (previewUrl) => setForm((f) => ({
+                  ...f,
+                  photos: [...f.photos, { id: entryId, name: file.name, previewUrl }],
+                }));
+                if (typeof FileReader === 'undefined') {
+                  push('');
+                  return;
+                }
+                const reader = new FileReader();
+                reader.onload = () => push(String(reader.result || ''));
+                reader.onerror = () => push('');
+                reader.readAsDataURL(file);
+              })}
+            />
+            {form.photos.length > 0 && (
+              <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                {form.photos.map((photo, i) => {
+                  const entry = typeof photo === 'string' ? { name: photo, previewUrl: '' } : photo;
+                  const key = entry.id || `${entry.name}-${i}`;
+                  return entry.previewUrl ? (
+                    <div
+                      key={key}
+                      className='relative'
+                      style={{
+                        width: 96,
+                        height: 96,
+                        borderRadius: 'var(--dim-radius-300, 8px)',
+                        overflow: 'hidden',
+                        border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #E5E7EB)',
+                        background: 'var(--surface-neutral-quaternary, #F3F4F6)',
+                      }}
+                    >
+                      <img
+                        src={entry.previewUrl}
+                        alt={entry.name}
+                        title={entry.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      />
+                      {!readOnly && (
+                        <div className='absolute' style={{ top: 2, right: 2 }}>
+                          <BrandIconButton
+                            icon='close'
+                            variant='fill'
+                            size='sm'
+                            aria-label={`ลบรูป ${entry.name}`}
+                            onClick={() => setForm((f) => ({
+                              ...f,
+                              photos: f.photos.filter((_, idx) => idx !== i),
+                            }))}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <ColorfulBadge key={key} style='grey' size='small' hierarchy='secondary' width='hug' maxWidth={220}>
+                      {entry.name}
+                    </ColorfulBadge>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </StepSection>
+    </StepCard>
+  );
+};
+
+/* ── Step 2 — ที่อยู่และการเดินทาง ────────────────────────────────
+   หน้าตาเหมือนขั้น "ที่อยู่" ของหน้าเวชระเบียนทุกอย่าง (ใช้คอมโพเนนต์ตัวเดียวกัน)
+   ต่างแค่ต่อท้ายด้วยตำแหน่งบ้าน/เวลาถึงบ้าน และบันทึกการเดินทาง
+   (มติผู้ใช้ 30 ส.ค. 69) */
+export const HomeVisitStep2Address = ({
   form, setForm, readOnly, visitId, appointment, registryEntry, onDataChanged, blockedMsg,
 }) => {
   const [geoBusy, setGeoBusy] = useState(false);
@@ -151,11 +323,6 @@ export const HomeVisitStep1Travel = ({
   const tooFar = distance !== null && distance > ARRIVAL_DISTANCE_THRESHOLD_M;
 
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
-
-  const toggleTeamMember = (name) => setForm((f) => ({
-    ...f,
-    team: f.team.includes(name) ? f.team.filter((n) => n !== name) : [...f.team, name],
-  }));
 
   const captureLocation = () => {
     setGeoError('');
@@ -222,103 +389,49 @@ export const HomeVisitStep1Travel = ({
     <StepCard>
       {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
 
-      <StepSection>
-        <TopicHeader icon='event'>ข้อมูลการให้บริการ</TopicHeader>
-        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-          <Field label='วันที่ให้บริการ' required>
-            <DatePicker
-              showLabel={false}
-              value={form.serviceDate ? new Date(form.serviceDate) : null}
-              onChange={(d) => set('serviceDate')(d ? d.toISOString().slice(0, 10) : '')}
-              disabled={readOnly}
-              placeholder='เลือกวันที่'
-            />
-          </Field>
-          <Field label='เวลาออกเดินทางจากศูนย์บริการฯ'>
-            <TimePicker
-              showLabel={false} showHelperText={false}
-              value={form.departTime}
-              onChange={(v) => set('departTime')(v)}
-              disabled={readOnly}
-              size='lg'
-            />
-          </Field>
-          <Field label='ประเภทการเยี่ยม'>
-            <Select
-              showLabel={false} showHelperText={false} searchable={false} size='lg'
-              value={form.visitType} onChange={set('visitType')} disabled={readOnly}
-              options={[
-                { value: 'first', label: 'เยี่ยมครั้งแรก (แรกรับ)' },
-                { value: 'followup', label: 'เยี่ยมติดตาม' },
-                { value: 'urgent', label: 'เยี่ยมกรณีเร่งด่วน' },
-              ]}
-              placeholder='เลือกประเภทการเยี่ยม'
-            />
-          </Field>
-        </div>
-
-        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-          <div className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-150, 6px)', minWidth: 320 }}>
-            <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-              ทีมผู้ออกเยี่ยม (เลือกได้หลายคน)
-            </span>
-            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              {HOMEVISIT_STAFF.map((s) => (
-                <SelectableTag
-                  key={s.name}
-                  label={`${s.name} · ${resolveProfession(s.profession)?.label || ''}`}
-                  size='md'
-                  selected={form.team.includes(s.name)}
-                  onClick={readOnly ? undefined : () => toggleTeamMember(s.name)}
-                />
-              ))}
-            </div>
-          </div>
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-150, 6px)', minWidth: 260 }}>
-            <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-              รูปถ่ายระหว่างการเยี่ยม
-            </span>
-            <PhotoUploadField
-              label={form.photos.length ? `เพิ่มรูป (มีแล้ว ${form.photos.length} รูป)` : 'ถ่าย/อัปโหลดรูป'}
-              icon='photo_camera'
-              capture='environment'
-              multiple
-              disabled={readOnly}
-              onFiles={(files) => setForm((f) => ({
-                ...f,
-                photos: [...f.photos, ...Array.from(files).map((file) => file.name)],
-              }))}
-            />
-            {form.photos.length > 0 && (
-              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-                {form.photos.map((name, i) => (
-                  <ColorfulBadge key={`${name}-${i}`} style='grey' size='small' hierarchy='secondary' width='hug' maxWidth={220}>
-                    {name}
-                  </ColorfulBadge>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </StepSection>
+      {/* ยกขั้น "ที่อยู่" ของหน้าเวชระเบียนมาทั้งก้อน (`Step2Address`)
+          — ที่อยู่ตามทะเบียนบ้าน / ที่อยู่ปัจจุบัน (+ปักหมุดแผนที่) / ที่อยู่ติดต่อได้
+          พร้อมธง "เหมือนที่อยู่…" ครบเหมือนกันทุกช่อง (มติผู้ใช้ 30 ส.ค. 69)
+          หน้านี้เพิ่มเฉพาะการเดินทาง/เวลาถึงบ้านต่อท้าย */}
+      <RegistrationAddressStep
+        form={form}
+        setForm={setForm}
+        mapHeading='ตำแหน่งบ้านและการเดินทาง'
+        /* บันทึกการเดินทางอยู่ในการ์ด "ที่อยู่ปัจจุบัน" (มติผู้ใช้ 30 ส.ค. 69) —
+           เป็นเรื่องของการเดินทางไปยังที่อยู่นั้นโดยตรง ไม่ใช่หัวข้อแยก */
+        currentAddressExtra={(
+        <SuggestibleTextarea
+          label='บันทึกการเดินทาง'
+          required
+          voice
+          value={form.travelNote}
+          onChange={(e) => set('travelNote')(e.target.value)}
+          suggestions={[
+            'เดินทางโดยรถของศูนย์บริการฯ ใช้เวลาประมาณ 20 นาที',
+            'บ้านอยู่ในซอยแคบ ต้องจอดรถปากซอยและเดินเข้า 200 เมตร',
+            'ไม่พบผู้รับบริการที่บ้านในรอบแรก ต้องกลับมาเยี่ยมซ้ำในช่วงบ่าย',
+          ]}
+          minChars={2}
+          disabled={readOnly}
+          placeholder='เส้นทาง อุปสรรคการเข้าถึงบ้าน และข้อมูลที่ทีมครั้งถัดไปควรรู้'
+        />
+        )}
+      />
 
       <StepSection>
-        <TopicHeader icon='map-pin'>ตำแหน่งบ้านและการเดินทาง (TOR 1.18.2 / 1.18.8 / 1.18.9)</TopicHeader>
-        <NoticeBand tone='neutral' icon='info'>
-          แผนที่ทั้งหมดเป็นแผนที่จำลอง (mock) ตามขอบเขต TOR §2.3 — ระบบสารสนเทศภูมิศาสตร์จริงเป็นของทีมอื่น
-          ปุ่ม “บันทึกพิกัดปัจจุบัน” เรียกใช้ Geolocation ของเบราว์เซอร์จริง แล้วฉายลงบนแผนที่จำลอง
-        </NoticeBand>
-
+        <TopicHeader icon='map-pin'>การเดินทางและเวลาถึงบ้าน</TopicHeader>
         <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-600, 24px)' }}>
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)', flex: '1 1 380px', minWidth: 320 }}>
-            {home?.pinSaved ? (
-              <AddressMapBlock value={home} readOnly heading='ตำแหน่งบ้านผู้รับบริการ (จากทะเบียน)' />
-            ) : (
-              <EmptyHint icon='wrong_location'>
-                ทะเบียนของผู้รับบริการรายนี้ยังไม่ได้ปักหมุดตำแหน่งบ้าน — บันทึกการเยี่ยมต่อได้
-                แต่จะเทียบระยะพิกัดไม่ได้ ควรกลับไปปักหมุดที่ทะเบียนผู้รับบริการ
-              </EmptyHint>
-            )}
+            {/* ปักหมุดบ้านได้จากหน้านี้เลย — ชุดเดียวกับหน้าเวชระเบียน (ค้นหาชุมชน/
+                สถานที่ + ลากหมุด) ไม่ใช่แผนที่อ่านอย่างเดียว (มติผู้ใช้ 30 ส.ค. 69)
+                ทีมเยี่ยมบ้านคือคนที่ไปยืนอยู่หน้าบ้านจริง ถ้าหมุดในทะเบียนผิด
+                คนที่แก้ได้ถูกต้องที่สุดคือคนที่อยู่ตรงนั้น */}
+            <AddressMapBlock
+              value={form.homeLocation || home || {}}
+              onChange={(next) => set('homeLocation')({ ...(form.homeLocation || home || {}), ...next })}
+              readOnly={readOnly}
+              heading='ตำแหน่งบ้านผู้รับบริการ'
+            />
             <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
               {registryEntry?.address || appointment?.address || '—'}
             </span>
@@ -332,43 +445,9 @@ export const HomeVisitStep1Travel = ({
               >
                 {geoBusy ? 'กำลังอ่านพิกัด…' : 'บันทึกพิกัดปัจจุบัน'}
               </BrandSubdueButton>
-              <BrandSubdueButton
-                variant='fill' size='md' leadingIcon='where_to_vote'
-                onClick={requestStampArrival} disabled={readOnly}
-              >
-                {checkIn ? 'บันทึกเวลาถึงบ้านอีกครั้ง' : 'บันทึกเวลาถึงบ้าน'}
-              </BrandSubdueButton>
             </div>
 
             {geoError && <NoticeBand tone='danger' icon='location_off'>{geoError}</NoticeBand>}
-
-            <div
-              className='flex flex-col w-full'
-              style={{
-                gap: 'var(--dim-space-150, 6px)',
-                paddingTop: 'var(--dim-space-300, 12px)',
-                paddingBottom: 'var(--dim-space-300, 12px)',
-                paddingLeft: 'var(--dim-space-400, 16px)',
-                paddingRight: 'var(--dim-space-400, 16px)',
-                borderRadius: 'var(--dim-radius-300, 10px)',
-                border: 'var(--dim-stroke-100) solid var(--border-card-default, #E2E4E6)',
-                background: 'var(--surface-neutral-quaternary, #F9FBFB)',
-                fontSize: 'var(--type-size-sm)',
-                color: 'var(--text-content-secondary, #636B72)',
-              }}
-            >
-              <span>ต้นทาง: {HOMEVISIT_CENTER} ({HOMEVISIT_CENTER_LOCATION.lat.toFixed(4)}, {HOMEVISIT_CENTER_LOCATION.lng.toFixed(4)})</span>
-              <span>
-                พิกัดปัจจุบัน: {form.currentLocation
-                  ? `${form.currentLocation.lat.toFixed(4)}, ${form.currentLocation.lng.toFixed(4)}${form.currentLocation.source === 'manual' ? ' (ปักหมุดเอง)' : ''}`
-                  : 'ยังไม่ได้บันทึกพิกัด'}
-              </span>
-              <span>
-                ระยะจากพิกัดปัจจุบันถึงบ้าน: {distance === null ? '—' : formatDistance(distance)}
-                {tooFar && ' — เกินเกณฑ์ที่ถือว่าถึงบ้านแล้ว'}
-              </span>
-              <span>เวลาถึงบ้านที่บันทึกไว้: {form.arrivalTime || 'ยังไม่ได้บันทึก'}</span>
-            </div>
 
             {tooFar && (
               <NoticeBand tone='warning' icon='social_distance'>
@@ -409,20 +488,6 @@ export const HomeVisitStep1Travel = ({
           </div>
         </div>
 
-        <SuggestibleTextarea
-          label='บันทึกการเดินทาง'
-          voice
-          value={form.travelNote}
-          onChange={(e) => set('travelNote')(e.target.value)}
-          suggestions={[
-            'เดินทางโดยรถของศูนย์บริการฯ ใช้เวลาประมาณ 20 นาที',
-            'บ้านอยู่ในซอยแคบ ต้องจอดรถปากซอยและเดินเข้า 200 เมตร',
-            'ไม่พบผู้รับบริการที่บ้านในรอบแรก ต้องกลับมาเยี่ยมซ้ำในช่วงบ่าย',
-          ]}
-          minChars={2}
-          disabled={readOnly}
-          placeholder='เส้นทาง อุปสรรคการเข้าถึงบ้าน และข้อมูลที่ทีมครั้งถัดไปควรรู้'
-        />
       </StepSection>
 
       <Popup
@@ -484,9 +549,6 @@ export const HomeVisitStep1Travel = ({
 /* ── Step 2 — ประวัติ ─────────────────────────────────────────────── */
 
 export const HomeVisitStep2History = ({ form, setForm, readOnly, hn, registryEntry, blockedMsg }) => {
-  const canSeeHistory = getHomeVisitAccess();
-  const historyRows = useMemo(() => (canSeeHistory && hn ? getVisitHistory(hn).slice().reverse() : []), [canSeeHistory, hn]);
-
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
   const addMedication = () => setForm((f) => ({
@@ -502,28 +564,14 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, hn, registryEnt
     medications: f.medications.filter((m) => m.id !== id),
   }));
 
-  const historyColumns = [
-    { key: 'no', label: 'ครั้งที่' },
-    { key: 'date', label: 'วันที่เยี่ยม', render: (r) => formatHomeVisitDate(r.date) },
-    { key: 'by', label: 'ผู้เยี่ยม', flex: true, minWidth: 160 },
-    {
-      key: 'vitals', label: 'สัญญาณชีพ', sortable: false, flex: true, minWidth: 200,
-      render: (r) => (
-        <span>
-          {r.vitals?.sys && r.vitals?.dia ? `BP ${r.vitals.sys}/${r.vitals.dia}` : 'BP —'}
-          {' · '}{r.vitals?.pulse ? `PR ${r.vitals.pulse}` : 'PR —'}
-          {' · '}{r.vitals?.temp ? `T ${r.vitals.temp}` : 'T —'}
-        </span>
-      ),
-    },
-    { key: 'adl', label: 'ADL', render: (r) => (r.adl === null || r.adl === undefined ? '—' : `${r.adl}/${BARTHEL_MAX_SCORE}`) },
-    { key: 'summary', label: 'สรุปการเยี่ยม', flex: true, minWidth: 280 },
-    { key: 'orders', label: 'คำสั่งการรักษา', flex: true, minWidth: 220 },
-  ];
-
   return (
     <StepCard>
       {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+
+      {/* ถอดการ์ด "ข้อมูลจากเวชระเบียน" ออกจากขั้นนี้ (มติผู้ใช้ 30 ส.ค. 69) —
+          สิทธิ/แพ้ยา/โรคประจำตัว/ธงต่าง ๆ อยู่บนหัวแฟ้มผู้รับบริการด้านบนแล้ว
+          ส่วน ๖ กลุ่มผู้รับบริการ · ประเภทรับ–ส่งต่อ · การเคลื่อนไหว ย้ายไปกรอกที่
+          ขั้นที่ 1 ของบันทึกการเยี่ยมโดยตรง */}
 
       <StepSection>
         <TopicHeader icon='file-text'>ประวัติการเจ็บป่วย</TopicHeader>
@@ -591,35 +639,9 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, hn, registryEnt
         />
       </StepSection>
 
-      <StepSection>
-        <TopicHeader
-          icon='history'
-          aside={(
-            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-              TOR 1.18.3 — ดูย้อนหลังได้ตามสิทธิผู้ใช้
-            </span>
-          )}
-        >
-          ประวัติการเยี่ยมบ้านย้อนหลัง
-        </TopicHeader>
-        {!canSeeHistory ? (
-          <NoticeBand tone='danger' icon='lock_person'>
-            บัญชีของคุณไม่มีสิทธิ์ดูประวัติการเยี่ยมย้อนหลังของผู้รับบริการรายนี้ (TOR §1.18.3 · ข้อมูลลับ §1.4.2)
-            — ข้อมูลถูกปิดบังไว้ ไม่ใช่ “ไม่มีประวัติ”
-          </NoticeBand>
-        ) : historyRows.length === 0 ? (
-          <EmptyHint icon='event_note'>
-            ยังไม่มีประวัติการเยี่ยมบ้านของผู้รับบริการรายนี้ — การเยี่ยมครั้งนี้จะเป็นครั้งแรกที่บันทึกเข้าระบบ
-          </EmptyHint>
-        ) : (
-          <Table
-            columns={historyColumns}
-            rows={historyRows}
-            rowKey={(r) => `${hn}-${r.no}`}
-            emptyMessage='ยังไม่มีประวัติการเยี่ยมบ้าน'
-          />
-        )}
-      </StepSection>
+      {/* ตารางประวัติการเยี่ยมย้อนหลังถูกถอดออก (มติผู้ใช้ 30 ส.ค. 69) — ย้ายไปดูที่
+          ปุ่ม "ประวัติการเยี่ยมบ้าน" บนแถบหัวข้อ ซึ่งเปิดอ่านทีละครั้งได้เต็ม ๆ
+          และเปิดจากขั้นไหนก็ได้ ไม่ต้องเลื่อนลงมาที่ขั้นประวัติ */}
     </StepCard>
   );
 };
@@ -894,6 +916,40 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
             ความเสี่ยงของสภาพแวดล้อมที่ยังไม่ผ่านเกณฑ์ {envRisks.length} ข้อ — {envRisks.map((i) => i.label).join(' · ')}
           </NoticeBand>
         )}
+      </StepSection>
+
+      {/* แบบคัดกรองสุขภาพรายบุคคล — ฟอร์มเดียวกับหน้า "คัดกรองเยี่ยมบ้าน" ที่เคยทำไว้
+          ยกมาไว้ทั้งชุดในขั้น "ประเมินและคัดกรอง" (มติผู้ใช้ 30 ส.ค. 69) ซึ่งเป็นที่ของ
+          เครื่องมือคัดกรองทั้งหมดอยู่แล้ว (ADL/Barthel · MNA-SF · 2Q/9Q · PPS)
+          ช่องที่ระบบมีอยู่แล้วไม่ถูกยกมาซ้ำ: ชื่อ-ที่อยู่-เบอร์-สิทธิ (เวชระเบียน) ·
+          น้ำหนัก/ส่วนสูง/BMI/BP/PR/RR/T (ขั้นสัญญาณชีพ) · รายการยา/อาหารที่แพ้และ
+          โรคประจำตัว (ขั้นประวัติ) · วันที่สำรวจ (ใช้วันที่ให้บริการของบันทึกนี้) */}
+      <StepSection>
+        <TopicHeader icon='assignment_ind'>แบบคัดกรองสุขภาพรายบุคคล — ข้อมูลประชากรและสิทธิ</TopicHeader>
+        <PersonalProfileFields
+          value={form.homeScreening}
+          onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
+          readOnly={readOnly}
+        />
+      </StepSection>
+
+      <StepSection>
+        <TopicHeader icon='warning'>ความเสี่ยงด้านสุขภาพ (เลือกได้หลายข้อ)</TopicHeader>
+        <HealthRiskFields
+          value={form.homeScreening}
+          onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
+          readOnly={readOnly}
+        />
+      </StepSection>
+
+      {/* DTX คู่กับสถานะการอดอาหาร — ค่าน้ำตาลอ่านไม่ได้ถ้าไม่รู้ว่าอดอาหารมาหรือไม่ */}
+      <StepSection>
+        <TopicHeader icon='bloodtype'>น้ำตาลปลายนิ้ว (DTX)</TopicHeader>
+        <DtxFields
+          value={form.homeScreening}
+          onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
+          readOnly={readOnly}
+        />
       </StepSection>
 
       <StepSection>
@@ -1881,7 +1937,8 @@ export const HomeVisitStep7Family = ({
 };
 
 export const HOMEVISIT_STEP_RENDERERS = [
-  HomeVisitStep1Travel,
+  HomeVisitStep1Service,
+  HomeVisitStep2Address,
   HomeVisitStep2History,
   HomeVisitStep3Vitals,
   HomeVisitStep4Assessment,

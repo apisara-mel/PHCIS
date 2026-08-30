@@ -9,7 +9,10 @@ import { FilterDropdown } from '@/components/forms/FilterTag';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
 import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
-import StickyStatusTabBar, { QUEUE_STICKY_UNDER_STATUS_TABS } from '@/components/tab/StickyStatusTabBar';
+/* หน้านี้ใช้ underline tab แทนแถบชิปแล้ว — ยังยืมค่า sticky offset ของแถบสถานะ
+   มาใช้กับหัวตาราง เพราะตำแหน่ง/ความสูงของแถบยังอยู่ระดับเดียวกัน */
+import { QUEUE_STICKY_UNDER_STATUS_TABS } from '@/components/tab/StickyStatusTabBar';
+import TabUnderline from '@/components/tab/TabUnderline';
 import ViewToggle from '@/components/toggle/ViewToggle';
 import SuccessToast from '@/components/toast/SuccessToast';
 import { ExportFormatPopup } from '@/pages/consent/consentExportPopup';
@@ -22,6 +25,8 @@ import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Popup from '@/components/popup/Popup';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
 import QueuePatientAvatar, { resolveQueuePatientAvatarProps } from '@/components/patient/QueuePatientAvatar';
+import PatientCard from '@/components/card/PatientCard';
+import ScreeningConfirmPopup from '@/components/popup/ScreeningConfirmPopup';
 import { getPatientByHN } from '@/data/patientProfiles';
 import {
   HOMEVISIT_GROUPS,
@@ -32,6 +37,7 @@ import {
   HOMEVISIT_CANCEL_REASONS,
   GROUP_FOLLOWUP_DAYS,
   addDaysIso,
+  todayIsoDate,
   formatHomeVisitDate,
   getHomeVisitQueueRows,
   getHomeVisitAppointmentCancellation,
@@ -56,7 +62,6 @@ import {
 } from '@/data/homevisitHhc';
 import HomeVisitRouteMapPanel from '@/pages/homevisit/HomeVisitRouteMapPanel';
 import HomeVisitMapPopup from '@/pages/homevisit/HomeVisitMapPopup';
-import HomeVisitSubNav from '@/components/homevisit/HomeVisitSubNav';
 import {
   HomeVisitAccessGate,
   GroupBadge,
@@ -89,8 +94,6 @@ const FILTER_DEFAULTS = {
   profession: 'all',
   source: 'all',
   district: 'all',
-  slot: 'all',
-  dateValue: { quick: 'today' },
 };
 
 const DATE_CHIP_LABELS = { today: 'วันนี้', yesterday: 'เมื่อวาน', tomorrow: 'พรุ่งนี้' };
@@ -122,12 +125,19 @@ const HOMEVISIT_VIEW_OPTIONS = [
   { value: 'map',  icon: 'map',                  label: 'มุมมองแผนที่ (แผนเส้นทาง)' },
 ];
 
+/* นัดที่วันนัดอยู่ในอนาคต — แยกออกจากคิวของวันนี้ทุกแท็บ ไม่งั้นงานพรุ่งนี้
+   จะมาปนกับงานที่ต้องออกเยี่ยมวันนี้ (มติผู้ใช้ 30 ส.ค. 69) */
+const isUpcomingVisit = (r) => !!r.visitDate && r.visitDate > todayIsoDate();
+
 const TAB_PREDICATE = {
-  toDepart: (r) => !r.cancellation && (r.statusKey === 'toDepart' || r.statusKey === 'scheduled'),
-  done:     (r) => !r.cancellation && r.statusKey === 'done',
-  draft:    (r) => !r.cancellation && r.statusKey === 'draft',
+  /* แท็บรายชื่อทั้งหมด — ไม่กรองอะไรเลย รวมนัดที่ถูกยกเลิกด้วย */
+  all: () => true,
+  toDepart: (r) => !r.cancellation && !isUpcomingVisit(r) && (r.statusKey === 'toDepart' || r.statusKey === 'scheduled'),
+  done:     (r) => !r.cancellation && !isUpcomingVisit(r) && r.statusKey === 'done',
+  draft:    (r) => !r.cancellation && !isUpcomingVisit(r) && r.statusKey === 'draft',
   overdue:  (r) => !r.cancellation && !!r.overdue,
   cancelled: (r) => !!r.cancellation,
+  upcoming: (r) => !r.cancellation && isUpcomingVisit(r),
 };
 
 /** นัดติดตามครั้งถัดไปตามรอบของกลุ่มผู้รับบริการ. */
@@ -136,6 +146,9 @@ const nextDueDate = (row) => {
   if (!base) return null;
   return addDaysIso(base, GROUP_FOLLOWUP_DAYS[row.group] ?? 365);
 };
+
+/* ขนาดรูปโปรไฟล์ในตาราง — ค่าเดียวกับตารางหน้าเวชระเบียน */
+const TABLE_AVATAR_SIZE = 36;
 
 const HomeVisitQueuePage = () => {
   const history = useHistory();
@@ -191,22 +204,22 @@ const HomeVisitQueuePage = () => {
   );
 
   const tabs = useMemo(() => ([
-    { key: 'today',     label: 'นัดวันนี้',         icon: 'event_available',      count: rows.filter((r) => !r.cancellation).length },
-    { key: 'toDepart',  label: 'รอออกเยี่ยม',       icon: 'directions_car',       count: rows.filter(TAB_PREDICATE.toDepart).length },
+    { key: 'today',     label: 'นัดวันนี้',         icon: 'event_available',      count: rows.filter((r) => !r.cancellation && !isUpcomingVisit(r)).length },
+    { key: 'toDepart',  label: 'กำลังเยี่ยม',        icon: 'directions_car',       count: rows.filter(TAB_PREDICATE.toDepart).length },
     { key: 'done',      label: 'เยี่ยมเสร็จแล้ว',   icon: 'check_circle',         count: rows.filter(TAB_PREDICATE.done).length },
     { key: 'draft',     label: 'ที่ร่างไว้',        icon: 'save',                 count: rows.filter(TAB_PREDICATE.draft).length },
-    { key: 'overdue',   label: 'เลยกำหนดติดตาม',    icon: 'running_with_errors',  count: rows.filter(TAB_PREDICATE.overdue).length },
     { key: 'cancelled', label: 'ยกเลิกนัดแล้ว',     icon: 'block',                count: rows.filter(TAB_PREDICATE.cancelled).length },
+    /* รายชื่อทั้งหมด — ทุกสถานะรวมนัดที่ยกเลิก ไว้ค้นหาคนที่ไม่รู้ว่าอยู่แท็บไหน
+       (มติผู้ใช้ 30 ส.ค. 69) ทรงเดียวกับแท็บ "รายชื่อผู้ป่วยทั้งหมด" ของเวชระเบียน */
+    { key: 'all',       label: 'รายชื่อผู้ป่วยทั้งหมด', icon: 'groups',            count: rows.length },
+    { key: 'upcoming',  label: 'นัดล่วงหน้า',        icon: 'event_upcoming',       count: rows.filter(TAB_PREDICATE.upcoming).length },
   ]), [rows]);
 
-  /* แถบสถานะย้ายมาเป็น TabPill เหนือช่องค้นหา (ตำแหน่งเดียวกับงานเภสัชกรรม)
-     — ตัวชิปแสดงชื่อสถานะ + จำนวน ไม่ใช้ไอคอนเหมือนแถบ underline เดิม */
+  /* แถบสถานะเหนือช่องค้นหา — ชื่อสถานะ + จำนวน (ไม่ใช้ไอคอน) */
   const statusTabs = useMemo(
     () => tabs.map(({ key, label, count }) => ({ key, label, count })),
     [tabs],
   );
-
-  const dateRange = useMemo(() => dateFilterToIsoRange(filters.dateValue), [filters.dateValue]);
 
   const filtered = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
@@ -214,24 +227,22 @@ const HomeVisitQueuePage = () => {
       const pred = TAB_PREDICATE[activeTab];
       if (pred) {
         if (!pred(r)) return false;
-      } else if (r.cancellation) {
-        /* แท็บ "นัดวันนี้" ไม่รวมนัดที่ถูกยกเลิก — ดูได้ที่แท็บยกเลิกนัดแล้ว */
+      } else if (r.cancellation || isUpcomingVisit(r)) {
+        /* แท็บ "นัดวันนี้" ไม่รวมนัดที่ถูกยกเลิกและนัดล่วงหน้า — ดูได้ที่แท็บของมันเอง */
         return false;
       }
       if (filters.group !== 'all' && r.group !== filters.group) return false;
       if (filters.profession !== 'all' && r.profession !== filters.profession) return false;
       if (filters.source !== 'all' && r.source !== filters.source) return false;
       if (filters.district !== 'all' && r.district !== filters.district) return false;
-      if (filters.slot !== 'all' && r.timeSlot !== filters.slot) return false;
-      if (dateRange && activeTab !== 'overdue') {
-        if (!r.visitDate) return false;
-        if (r.visitDate < dateRange.from || r.visitDate > dateRange.to) return false;
-      }
+      /* ไม่กรองตามวันนัด/ช่วงเวลาแล้ว — ตัวกรองสองตัวถูกถอดออกจากหน้าจอ
+         (มติผู้ใช้ 30 ส.ค. 69) ถ้ายังกรองอยู่เบื้องหลัง แท็บอื่นจะขึ้นศูนย์รายการ
+         ทั้งที่มีข้อมูล และผู้ใช้จะแก้อะไรไม่ได้เพราะไม่มีชิปให้กด */
       if (!q) return true;
       return [r.hn, r.name, r.responsible, r.community, r.district, r.address]
         .some((f) => f && String(f).toLowerCase().includes(q));
     });
-  }, [rows, activeTab, filters, dateRange, searchQ]);
+  }, [rows, activeTab, filters, searchQ]);
 
   const sortedRows = useMemo(() => {
     const byTime = (a, b) => String(a.appointmentTime || '').localeCompare(String(b.appointmentTime || ''));
@@ -267,7 +278,7 @@ const HomeVisitQueuePage = () => {
 
   const summaryCards = useMemo(() => ([
     { key: 'today',    label: 'นัดเยี่ยมวันนี้',   value: rows.filter((r) => !r.cancellation).length, color: 'info',        icon: 'event_available' },
-    { key: 'toDepart', label: 'รอออกเยี่ยม',       value: rows.filter(TAB_PREDICATE.toDepart).length,  color: 'brand',       icon: 'directions_car'  },
+    { key: 'toDepart', label: 'กำลังเยี่ยม',        value: rows.filter(TAB_PREDICATE.toDepart).length,  color: 'brand',       icon: 'directions_car'  },
     { key: 'done',     label: 'เยี่ยมเสร็จแล้ว',   value: rows.filter(TAB_PREDICATE.done).length,      color: 'positive',    icon: 'check_circle'    },
     { key: 'overdue',  label: 'เลยกำหนดติดตาม',    value: rows.filter(TAB_PREDICATE.overdue).length,   color: 'destructive', icon: 'running_with_errors' },
   ]), [rows]);
@@ -300,6 +311,25 @@ const HomeVisitQueuePage = () => {
     const target = quotaTarget;
     setQuotaTarget(null);
     openRecord(target);
+  };
+
+  /* ป๊อปอัป "ยืนยันรับผู้ป่วย" คั่นก่อนเข้าแบบบันทึกการเยี่ยม (มติผู้ใช้ 30 ส.ค. 69)
+     — ชุดเดียวกับจุดคัดกรอง (ScreeningConfirmPopup) เพื่อให้สองที่ถามเหมือนกัน
+     ด่านโควตา สปสช. ยังทำงานก่อนหน้านั้นเสมอ (§1.18.1) */
+  const [acceptTarget, setAcceptTarget] = useState(null);
+
+  const requestOpenRecord = (row) => {
+    if (row.quota?.level === 'over' && !row.quotaOverride) {
+      startRecord(row);
+      return;
+    }
+    setAcceptTarget(row);
+  };
+
+  const confirmAccept = () => {
+    const target = acceptTarget;
+    setAcceptTarget(null);
+    if (target) openRecord(target);
   };
 
   const openCancel = (row) => {
@@ -357,20 +387,19 @@ const HomeVisitQueuePage = () => {
   };
 
   /* ── ตัวกรอง / สถานะว่าง ─────────────────────────────────────────── */
+  /* ปุ่ม "ล้างตัวกรอง" ขึ้นเฉพาะตอนที่มีตัวกรองถูกเลือกจริง ๆ (มติผู้ใช้ 30 ส.ค. 69)
+     — การอยู่คนละแท็บไม่ใช่ "ตัวกรองที่ตั้งไว้" แต่เป็นการเลือกดูคนละชุด ถ้านับรวม
+     ปุ่มจะโผล่ตลอดเวลาที่ไม่ได้อยู่แท็บแรก และการกดล้างจะเด้งกลับแท็บอื่นโดยไม่คาดคิด */
   const filtersActive = searchQ.trim() !== ''
     || filters.group !== 'all'
     || filters.profession !== 'all'
     || filters.source !== 'all'
-    || filters.district !== 'all'
-    || filters.slot !== 'all'
-    || (filters.dateValue?.quick || 'today') !== 'today'
-    || activeTab !== 'today';
+    || filters.district !== 'all';
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     filtersActive,
     () => {
       setSearchQ('');
       setFilters(FILTER_DEFAULTS);
-      setActiveTab('today');
     },
   );
 
@@ -380,8 +409,6 @@ const HomeVisitQueuePage = () => {
     filters.profession === 'all' ? null : `วิชาชีพ ${resolveProfession(filters.profession)?.label}`,
     filters.source === 'all' ? null : `แหล่งรับเข้า ${resolveSource(filters.source)?.short}`,
     filters.district === 'all' ? null : filters.district,
-    filters.slot === 'all' ? null : HOMEVISIT_TIME_SLOTS.find((s) => s.value === filters.slot)?.label,
-    dateRange ? `วันนัด ${formatHomeVisitDate(dateRange.from)} – ${formatHomeVisitDate(dateRange.to)}` : null,
     searchQ.trim() ? `ค้นหา "${searchQ.trim()}"` : null,
   ].filter(Boolean).join(' · ');
 
@@ -415,15 +442,19 @@ const HomeVisitQueuePage = () => {
   /* รูปผู้รับบริการ + ชื่อ — แบบเดียวกับคิวตรวจสุขภาพ/เภสัชกรรม.
      เคส "ข้อมูลลับ" (§1.4.2) ไม่โชว์รูปจริง ใช้อักษรย่อแทน (noProfilePhoto)
      ไม่งั้นรูปจะเปิดเผยตัวตนทั้งที่ชื่อถูกปิดบังอยู่ */
-  const renderName = (row) => (
+  const renderName = (row) => {
+    /* รูปจริงเฉพาะเคสที่ไม่ใช่ข้อมูลลับ · คนที่ยังไม่มีรูปโปรไฟล์ใช้ภาพ Avatar
+       (ซิลูเอตต์) ไม่ใช่วงกลมอักษรย่อ และขนาดเท่ากับตารางหน้าเวชระเบียน
+       (มติผู้ใช้ 30 ส.ค. 69) */
+    const avatarUrl = row.confidential ? undefined : getPatientByHN(row.hn)?.avatarUrl;
+    return (
     <span className='inline-flex items-center min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
       <QueuePatientAvatar
-        {...resolveQueuePatientAvatarProps({
-          hn: row.hn,
-          displayName: row.name,
-          noProfilePhoto: row.confidential,
-        })}
-        size={28}
+        hn={row.hn}
+        name={row.name}
+        avatarUrl={avatarUrl}
+        newUser={!avatarUrl}
+        size={TABLE_AVATAR_SIZE}
       />
       {row.confidential ? (
         <MaskedWorklistName
@@ -440,7 +471,8 @@ const HomeVisitQueuePage = () => {
         </span>
       )}
     </span>
-  );
+    );
+  };
 
   const columns = useMemo(() => ([
     {
@@ -576,16 +608,11 @@ const HomeVisitQueuePage = () => {
             </BrandSubdueButton>
           ) : (
             <>
-              <BrandSubdueButton
-                variant={r.quota?.level === 'over' && !r.quotaOverride ? 'outline' : 'fill'}
-                size='sm'
-                leadingIcon={r.quota?.level === 'over' && !r.quotaOverride ? 'lock' : 'assignment'}
-                onClick={(e) => { e.stopPropagation(); startRecord(r); }}
-              >
-                {r.quota?.level === 'over' && !r.quotaOverride ? 'เกินโควตา — ขออนุมัติ' : 'บันทึกการเยี่ยม'}
-              </BrandSubdueButton>
+              {/* ไม่มีปุ่มเปิดแบบบันทึกในคอลัมน์นี้แล้ว (มติผู้ใช้ 30 ส.ค. 69) — กดที่แถว
+                  เป็นทางเข้าเดียว · เคสเกินโควตา สปสช. ยังถูกกันไว้ที่ `startRecord`
+                  ซึ่งเปิดป๊อปอัปขออนุมัติก่อนเสมอ (§1.18.1) */}
               <NeutralSubdueButton
-                size='sm' leadingIcon='block'
+                size='sm'
                 onClick={(e) => { e.stopPropagation(); openCancel(r); }}
               >
                 ยกเลิกนัด
@@ -617,17 +644,40 @@ const HomeVisitQueuePage = () => {
       /* แถบปุ่มบนหัวหน้าถูกลบออก — ทะเบียน/ติดตามเข้าถึงได้จากเมนูซ้าย
          (Sidebar subItems ของ "ระบบการเยี่ยมบ้าน") อยู่แล้ว */
       summaryCards={summaryCards}
-      belowSummary={<HomeVisitSubNav />}
+      /* แถบสถานะเป็น underline tab และอยู่ใต้การ์ดสรุป (มติผู้ใช้ 30 ส.ค. 69)
+         — การ์ดสรุปบอกภาพรวมทั้งวัน แล้วแท็บคือตัวกรองตารางที่อยู่ถัดลงไป
+         ลำดับจึงอ่านจากบนลงล่างได้ตรง ๆ */
+      belowSummary={(
+        <TabUnderline
+          tabs={statusTabs}
+          value={activeTab}
+          onChange={setActiveTab}
+          aria-label='กรองตามสถานะ'
+        />
+      )}
     >
       <Popup
         open={!!cancelTarget}
         onClose={() => setCancelTarget(null)}
         title='ยกเลิกนัดหมายเยี่ยมบ้าน'
         subtitle={cancelTarget ? `${cancelTarget.confidential ? 'ผู้รับบริการ (ข้อมูลลับ)' : cancelTarget.name} · HN: ${cancelTarget?.hn}` : ''}
-        tertiaryAction={{ label: 'กลับไปแก้ต่อ', onClick: () => setCancelTarget(null) }}
+        /* ปุ่มรองเป็น "ปิด" (มติผู้ใช้ 30 ส.ค. 69) — ป๊อปอัปนี้ไม่ได้กลับไปแก้อะไร
+           แค่ปิดหน้าต่างแล้วนัดยังอยู่เหมือนเดิม */
+        tertiaryAction={{ label: 'ปิด', onClick: () => setCancelTarget(null) }}
         primaryAction={{ label: 'ยืนยันยกเลิกนัด', onClick: confirmCancel, tone: 'danger' }}
       >
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          {/* การ์ดผู้รับบริการในป๊อปอัป (มติผู้ใช้ 30 ส.ค. 69) — คนกดยกเลิกต้องเห็น
+              ว่ากำลังยกเลิกนัดของใคร ไม่ใช่อ่านจากบรรทัดหัวข้อบรรทัดเดียว
+              เคสข้อมูลลับไม่ส่งโปรไฟล์จริงเข้าไป */}
+          {cancelTarget && !cancelTarget.confidential && (
+            <PatientCard
+              embedded
+              showBack={false}
+              showMedicalHistory={false}
+              patient={getPatientByHN(cancelTarget.hn) || { name: cancelTarget.name, hn: cancelTarget.hn }}
+            />
+          )}
           <SuggestibleTextarea
             label='เหตุผลการยกเลิกนัด'
             required
@@ -638,14 +688,32 @@ const HomeVisitQueuePage = () => {
             minChars={2}
             placeholder='เช่น ครอบครัวขอเลื่อน / ผู้รับบริการเข้ารับการรักษาในโรงพยาบาล'
           />
-          <span style={{
-            color: cancelError ? 'var(--text-input-errorHelper, #DC2626)' : 'var(--text-content-tertiary, #858C92)',
-            fontSize: 'var(--type-size-xs)',
-          }}>
-            {cancelError || 'ต้องระบุเหตุผล — ระบบบันทึกผู้ยกเลิกและเวลาให้อัตโนมัติ และนัดจะยังแสดงอยู่ในแท็บ “ยกเลิกนัดแล้ว”'}
-          </span>
+          {/* เหลือเฉพาะข้อความ error — คำอธิบายว่าระบบบันทึกผู้ยกเลิก/เวลาให้เอง
+              ถูกถอดออก (มติผู้ใช้ 30 ส.ค. 69) */}
+          {cancelError && (
+            <span style={{
+              color: 'var(--text-input-errorHelper, #DC2626)',
+              fontSize: 'var(--type-size-xs)',
+            }}>
+              {cancelError}
+            </span>
+          )}
         </div>
       </Popup>
+
+      <ScreeningConfirmPopup
+        open={!!acceptTarget}
+        description='ยืนยันการรับผู้รับบริการเข้าสู่แบบบันทึกประเมินการเยี่ยมบ้าน'
+        patient={acceptTarget ? {
+          ...(getPatientByHN(acceptTarget.hn) || {}),
+          fullName: getPatientByHN(acceptTarget.hn)?.fullName || acceptTarget.name,
+          hn: acceptTarget.hn,
+          /* เคสข้อมูลลับไม่โชว์รูปจริงในป๊อปอัปเช่นกัน */
+          avatarUrl: acceptTarget.confidential ? undefined : getPatientByHN(acceptTarget.hn)?.avatarUrl,
+        } : undefined}
+        onConfirm={confirmAccept}
+        onCancel={() => setAcceptTarget(null)}
+      />
 
       <Popup
         open={!!quotaTarget}
@@ -723,12 +791,6 @@ const HomeVisitQueuePage = () => {
               gap: 'var(--dim-space-600, 24px)',
             }}
           >
-            <StickyStatusTabBar
-              tabs={statusTabs}
-              value={activeTab}
-              onChange={setActiveTab}
-            />
-
             <div className='w-full flex items-start' style={{ gap: 'var(--dim-space-300, 12px)' }}>
               <div className='flex-1 min-w-0' />
               <PrimarySearch
@@ -784,19 +846,10 @@ const HomeVisitQueuePage = () => {
                   value={filters.district}
                   onChange={(v) => setFilters((f) => ({ ...f, district: v }))}
                 />
-                <FilterDateTag
-                  prefix='วันนัด:'
-                  value={filters.dateValue}
-                  onChange={(v) => setFilters((f) => ({ ...f, dateValue: v }))}
-                  defaultQuick='today'
-                  quickLabels={DATE_CHIP_LABELS}
-                />
-                <FilterDropdown
-                  prefix='ช่วงเวลา:'
-                  options={[{ value: 'all', label: 'ทั้งวัน' }, ...HOMEVISIT_TIME_SLOTS]}
-                  value={filters.slot}
-                  onChange={(v) => setFilters((f) => ({ ...f, slot: v }))}
-                />
+                {/* ถอดตัวกรอง "วันนัด" และ "ช่วงเวลา" ออก (มติผู้ใช้ 30 ส.ค. 69) —
+                    แท็บสถานะบอกอยู่แล้วว่ากำลังดูชุดไหน และตัวกรองวันนัดที่ตั้งค้าง
+                    เป็น "วันนี้" ทำให้แท็บอื่น (เช่น เยี่ยมเสร็จแล้ว) ขึ้นศูนย์รายการ
+                    ทั้งที่มีข้อมูลอยู่ */}
                 <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
               </OverflowFlexRow>
               {/* สลับ รายการ ↔ แผนที่ — อยู่ท้ายแถวตัวกรอง (นอก OverflowFlexRow
@@ -865,7 +918,9 @@ const HomeVisitQueuePage = () => {
                   rowKey={(r) => r.id}
                   sortConfig={sortConfig}
                   onSort={handleSort}
-                  onRowClick={(r) => (r.cancellation ? undefined : openRecord(r))}
+                  /* กดแถว → ป๊อปอัปยืนยันรับผู้ป่วย → เข้าแบบบันทึก · เคสเกินโควตา
+                     เด้งป๊อปอัปขออนุมัติแทน (ด่าน §1.18.1 อยู่ใน `startRecord`) */
+                  onRowClick={(r) => (r.cancellation ? undefined : requestOpenRecord(r))}
                   stickyColCount={3}
                   stickyHeaderTop={QUEUE_STICKY_UNDER_STATUS_TABS}
                   emptyMessage='ไม่พบนัดเยี่ยมที่ตรงกับเงื่อนไข'

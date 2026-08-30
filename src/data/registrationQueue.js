@@ -102,6 +102,8 @@ export const compareRegistrationQueueRows = (a, b) => {
 
 /* Demo distribution — ลงทะเบียนแล้ว 2 · กำลังลงทะเบียน 2 · รอลงทะเบียน … */
 const seedRegistrationStatus = (i) => {
+  /* สองแถวเป็นคิวที่ถูกยกเลิกไว้เป็นตัวอย่าง ให้แท็บ "ยกเลิกนัด" มีข้อมูล */
+  if (i === 24 || i === 29) return 'cancelled';
   if (i < 2) return 'done';
   if (i < 4) return 'progress';
   if (i < 16) return 'pending';

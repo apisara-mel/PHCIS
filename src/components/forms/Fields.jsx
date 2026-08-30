@@ -182,9 +182,14 @@ export const FieldGrid = ({
   children,
 }) => (
   <div
-    className='w-full'
+    /* จอแคบยุบจำนวนคอลัมน์เอง (มติผู้ใช้ 29 ส.ค. 69) — เดิมตรึงไว้ที่ `cols`
+       เสมอ แท็บเล็ตแนวตั้ง/หน้าต่างซอยจึงถูกบีบจนช่องกรอกแคบเกินพิมพ์
+       กติกาอยู่ที่ `.mih-field-grid` ใน index.css (media query ทำใน CSS ไม่ได้
+       ด้วย inline style) โดยยังใช้ `--field-grid-cols` เป็นค่าตั้งต้นของจอกว้าง */
+    className='w-full mih-field-grid'
     style={{
       display: 'grid',
+      '--field-grid-cols': cols,
       gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
       rowGap,
       columnGap,
