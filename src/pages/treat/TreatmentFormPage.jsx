@@ -763,8 +763,14 @@ const TreatmentFormPage = () => {
         /* แถวเรียบคั่นด้วยเส้น ไม่ใช่การ์ดซ้อนการ์ด (มติผู้ใช้ 28 ส.ค. 69) —
            กรอบรอบทุกแถวในพาเนลแคบทำให้ดูเป็นกล่องเล็ก ๆ เรียงกันแทนที่จะเป็นคิว */
         rowVariant='divider'
-        /* คิวรวมใช้การ์ดเต็มใบ พาเนลจึงต้องกว้างกว่าปกติ */
-        expandedWidth={poolPanel && poolView === 'clinic' ? 420 : undefined}
+        /* คิวรวมใช้การ์ดเต็มใบ พาเนลจึงต้องกว้างกว่าปกติ · มุมมอง "แยกตามคลินิก"
+           กางเต็มจอแล้วเลื่อนคอลัมน์คลินิกตามแนวนอน (มติผู้ใช้ 31 ส.ค. 69) —
+           420px เดิมใส่ได้คลินิกเดียว ต้องเลื่อนลงยาวมากกว่าจะเห็นคลินิกที่สอง
+           `100vw` หักความกว้างของรางเมนูหลักที่พาเนลจอดต่อท้าย */
+        expandedWidth={poolPanel && poolView === 'clinic'
+          ? 'calc(100vw - var(--sm-width-closed))'
+          : undefined}
+        bodyOrientation={poolPanel && poolView === 'clinic' ? 'horizontal' : 'vertical'}
         queue={poolPanel ? poolPanel.queue : queueBuckets}
         sectionLabels={poolPanel ? poolPanel.labels : TREATMENT_QUEUE_SUBMENU_LABELS}
         /* ตัวสลับมุมมองของคิวรวม — ป้ายและพฤติกรรมชุดเดียวกับหน้าคิวรวมรอรับเคส */

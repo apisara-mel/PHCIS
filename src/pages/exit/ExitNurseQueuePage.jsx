@@ -3,6 +3,7 @@ import QueuePageShell, { QUEUE_STICKY_UNDER_TABS } from '@/templates/QueuePageSh
 import Table, { EllipsisText as TableEllipsisText } from '@/components/table/Table';
 import Popup from '@/components/popup/Popup';
 import Icon from '@/components/icons/Icon';
+import StepProgress from '@/components/step/StepProgress';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Checkbox from '@/components/checkbox/Checkbox';
 import Textarea from '@/components/forms/Textarea';
@@ -14,7 +15,17 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import QueueCallActions from '@/components/queue/QueueCallActions';
 import SuccessToast from '@/components/toast/SuccessToast';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import Select from '@/components/forms/Select';
+import InputField from '@/components/forms/InputField';
+import BrandButton from '@/components/button/BrandButton';
 import { getPatientByHN } from '@/data/patientProfiles';
+import { APPT_CLINIC_OPTIONS, APPT_DOCTOR_OPTIONS, APPT_TYPE_OPTIONS } from '@/data/treatmentVisits';
+import { addExtraAppointments } from '@/pages/appointment/appointmentExtraStore';
+import { findLatestTreatmentRecord } from '@/data/treatmentDraftStore';
+import { LAB_TEST_BY_ID } from '@/data/labCatalog';
+import { XRAY_EXAM_BY_ID } from '@/data/xrayCatalog';
+import { TREATMENT_DOCTOR_OPTIONS, CERT_TYPE_CARDS, DIAGNOSIS_TYPE_OPTIONS } from '@/data/treatmentVisits';
+import { ANY_DOCTOR_VALUE, APPT_STATUS_CONFIRMED } from '@/pages/appointment/appointmentShared';
 import {
   EXIT_STATUS, EXIT_TASKS, getExitRows, subscribeExitQueue,
   taskProgress, toggleExitTask, closeExitVisit, reopenExitVisit, updateExitRow,
@@ -77,11 +88,316 @@ const PatientAvatar = ({ row }) => {
   );
 };
 
+const RECORD_LABEL_STYLE = {
+  color: 'var(--text-content-tertiary)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-xs)',
+  lineHeight: 1.5,
+};
+
+const RECORD_VALUE_STYLE = {
+  color: 'var(--text-content-default)',
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-sm)',
+  lineHeight: 1.5,
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+};
+
+const RecordRow = ({ label, value }) => (
+  <div
+    className='grid w-full items-start'
+    style={{ gridTemplateColumns: '180px minmax(0, 1fr)', columnGap: 'var(--dim-space-300)' }}
+  >
+    <span style={RECORD_LABEL_STYLE}>{label}</span>
+    <span style={{
+      ...RECORD_VALUE_STYLE,
+      color: String(value || '').trim() ? RECORD_VALUE_STYLE.color : 'var(--text-content-tertiary)',
+    }}
+    >
+      {String(value || '').trim() || '—'}
+    </span>
+  </div>
+);
+
+const RecordCard = ({ icon, title, children }) => (
+  <section
+    className='flex flex-col w-full min-w-0'
+    style={{
+      gap: 'var(--dim-space-300)',
+      padding: 'var(--dim-space-400)',
+      borderRadius: 'var(--dim-radius-300)',
+      border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+    }}
+  >
+    <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+      <Icon name={icon} size={18} color='var(--icon-brandPrimary-default)' />
+      <span style={{
+        color: 'var(--text-content-default)',
+        fontFamily: 'var(--type-family-heading-content)',
+        fontSize: 'var(--type-size-sm)',
+        fontWeight: 'var(--type-weight-bold)',
+        lineHeight: 1.5,
+      }}
+      >
+        {title}
+      </span>
+    </div>
+    {children}
+  </section>
+);
+
+const RecordList = ({ rows, empty }) => (
+  rows.length === 0
+    ? <span style={RECORD_LABEL_STYLE}>{empty}</span>
+    : (
+      <ul className='flex flex-col' style={{ gap: 'var(--dim-space-100)', margin: 0, paddingLeft: 'var(--dim-space-400)' }}>
+        {rows.map((r, i) => (
+          <li key={`${r}-${i}`} style={{ ...RECORD_VALUE_STYLE, listStyle: 'disc' }}>{r}</li>
+        ))}
+      </ul>
+    )
+);
+
+/* สิ่งที่แพทย์กรอกไว้ใน visit นี้ แบบอ่านอย่างเดียว — Exist Nurse แก้ไม่ได้
+   ถ้ายังไม่มีบันทึกในเซสชันนี้ ให้บอกตรง ๆ แล้วโชว์เท่าที่ตารางคิวรู้ ดีกว่า
+   ป๊อปอัปเปล่าที่อ่านไม่ออกว่าแพทย์ยังไม่บันทึกหรือระบบพัง */
+/* ขั้นตอนของป๊อปอัป "ข้อมูลจากแพทย์" — เรียงตามลำดับที่แพทย์กรอกจริงในหน้าตรวจรักษา
+   (มติผู้ใช้ 31 ส.ค. 69) พยาบาลจึงอ่านเป็นเรื่องเดียวกับที่หมอเดิน ไม่ใช่กองข้อมูล
+   ยาว ๆ ที่ต้องเลื่อนหา */
+const RECORD_STEPS = [
+  'ตรวจร่างกาย',
+  'วินิจฉัย',
+  'สั่งการรักษา',
+  'SOAP Note',
+  'นัดหมาย',
+  'เอกสาร',
+];
+
+/* สิ่งที่แพทย์กรอกไว้ใน visit นี้ แบบอ่านอย่างเดียว — Exist Nurse แก้ไม่ได้
+   ถ้ายังไม่มีบันทึกในเซสชันนี้ ให้บอกตรง ๆ แล้วโชว์เท่าที่ตารางคิวรู้ ดีกว่า
+   ป๊อปอัปเปล่าที่อ่านไม่ออกว่าแพทย์ยังไม่บันทึกหรือระบบพัง */
+const DoctorRecordView = ({ row, record, step, onStepChange }) => {
+  const form = record?.form || null;
+  const activeRows = (rows) => (rows || []).filter((r) => !r.cancelledAt);
+
+  if (!form) {
+    return (
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+        <RecordCard icon='info' title='ยังไม่มีบันทึกของแพทย์ในเซสชันนี้'>
+          <span style={RECORD_LABEL_STYLE}>
+            บันทึกการตรวจถูกเก็บไว้ต่อเซสชันของเบราว์เซอร์ — ถ้าแพทย์ตรวจจบจากเครื่องอื่น
+            หรือเพิ่งรีเฟรชหน้า จะยังไม่มีให้อ่านที่นี่ · ข้อมูลเท่าที่คิวรู้อยู่ข้างล่าง
+          </span>
+        </RecordCard>
+        <RecordCard icon='stethoscope' title='ข้อมูลจากคิว'>
+          <RecordRow label='คลินิก' value={row.clinic} />
+          <RecordRow label='แพทย์ผู้ตรวจ' value={row.doctor} />
+          <RecordRow label='การวินิจฉัย' value={row.diagnosis} />
+          <RecordRow label='ตรวจเสร็จเมื่อ' value={row.examDoneAt} />
+        </RecordCard>
+      </div>
+    );
+  }
+
+  const exam = form.doctorExam || {};
+  const soap = form.soap || {};
+  const appt = form.appointment || {};
+  const diagnoses = (form.diagnoses || []).map((d) => {
+    const type = DIAGNOSIS_TYPE_OPTIONS.find((o) => o.value === d.type)?.labelTh || '';
+    return `${d.code} — ${d.name}${type ? ` · ${type}` : ''}`;
+  });
+  const meds = activeRows(form.medications).map((m) =>
+    [m.name, m.usage, m.quantity ? `${m.quantity} ${m.unit || ''}`.trim() : '', m.warning]
+      .filter(Boolean).join(' · '));
+  const labs = activeRows(form.labs).map((l) => {
+    const test = LAB_TEST_BY_ID[l.testId];
+    return [test?.nameTh || test?.nameEn || l.testId,
+      l.urgency === 'stat' ? 'ด่วน (STAT)' : '',
+      test?.fastingHours ? `งดอาหาร ${test.fastingHours} ชม.` : '']
+      .filter(Boolean).join(' · ');
+  });
+  const xrays = activeRows(form.xrayOrders).map((x) => {
+    const e = XRAY_EXAM_BY_ID[x.examId];
+    return [e?.name || x.examId, x.view, x.urgency === 'stat' ? 'ด่วน (STAT)' : '']
+      .filter(Boolean).join(' · ');
+  });
+
+  /* ขั้นที่ "มีของ" จริง — ใช้ติ๊กถูกบนแถบขั้นตอน พยาบาลจึงเห็นตั้งแต่แรกว่า
+     ขั้นไหนแพทย์กรอกไว้บ้าง ไม่ต้องกดไล่ทีละขั้นเพื่อเจอหน้าว่าง */
+  const filled = [
+    ['cc', 'pi', 'pe', 'duration'].some((k) => String(exam[k] || '').trim()),
+    diagnoses.length > 0 || !!String(form.diagnosisNote || '').trim(),
+    meds.length + labs.length + xrays.length > 0,
+    ['s', 'o', 'a', 'p'].some((k) => String(soap[k] || '').trim()),
+    !!appt.mode,
+    !!form.certIssue || !!String(form.patientAdvice || '').trim(),
+  ];
+
+  return (
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-500)' }}>
+      <div className='flex w-full justify-center'>
+        <StepProgress
+          steps={RECORD_STEPS}
+          current={step}
+          completedSteps={filled}
+          onStepClick={onStepChange}
+          compact
+        />
+      </div>
+
+      {step === 0 && (
+        <RecordCard icon='stethoscope' title='บันทึกการตรวจร่างกาย'>
+          <RecordRow label='อาการ (Chief Complaint)' value={exam.cc} />
+          <RecordRow label='ประวัติการเจ็บป่วยปัจจุบัน' value={exam.pi} />
+          <RecordRow label='ระยะเวลาที่มีอาการ' value={exam.duration} />
+          <RecordRow label='ตรวจร่างกาย (Physical Examination)' value={exam.pe} />
+        </RecordCard>
+      )}
+
+      {step === 1 && (
+        <RecordCard icon='clinical_notes' title='วินิจฉัยและคำสั่งของแพทย์'>
+          <RecordRow label='วินิจฉัยเบื้องต้น' value={form.diagnosisNote} />
+          <RecordRow label='คำสั่งการรักษา' value={form.doctorOrderNote} />
+          <RecordRow
+            label='แพทย์ผู้สั่ง'
+            value={TREATMENT_DOCTOR_OPTIONS.find((o) => o.value === form.orderingDoctor)?.label}
+          />
+          <RecordList rows={diagnoses} empty='ยังไม่มีรหัสการวินิจฉัย (ICD-10)' />
+        </RecordCard>
+      )}
+
+      {/* Exist Nurse ต้องอธิบายวิธีใช้ยาและการเตรียมตัวก่อนตรวจ — สามหมวดนี้จึงเป็น
+          หัวใจของป๊อปอัป ไม่ใช่ของแถม (มติผู้ใช้ 31 ส.ค. 69) */}
+      {step === 2 && (
+        <>
+          <RecordCard icon='pill' title={`ยาที่สั่ง (${meds.length})`}>
+            <RecordList rows={meds} empty='ไม่มีรายการยาที่สั่งใน visit นี้' />
+          </RecordCard>
+          <RecordCard icon='biotech' title={`ตรวจทางห้องปฏิบัติการ (${labs.length})`}>
+            <RecordList rows={labs} empty='ไม่มีรายการแล็บที่สั่งใน visit นี้' />
+          </RecordCard>
+          <RecordCard icon='radiology' title={`ตรวจทางรังสี (${xrays.length})`}>
+            <RecordList rows={xrays} empty='ไม่มีรายการตรวจทางรังสีที่สั่งใน visit นี้' />
+          </RecordCard>
+        </>
+      )}
+
+      {step === 3 && (
+        <RecordCard icon='description' title='SOAP Note'>
+          <RecordRow label='S — Subjective' value={soap.s} />
+          <RecordRow label='O — Objective' value={soap.o} />
+          <RecordRow label='A — Assessment' value={soap.a} />
+          <RecordRow label='P — Plan' value={soap.p} />
+        </RecordCard>
+      )}
+
+      {step === 4 && (
+        <RecordCard icon='event' title='นัดหมายที่แพทย์ระบุ'>
+          {appt.mode === 'skip' ? (
+            <RecordRow label='การนัดหมาย' value='ไม่นัดหมายครั้งถัดไป' />
+          ) : (
+            <>
+              <RecordRow label='วันที่นัด' value={appt.date} />
+              <RecordRow label='เหตุผลการนัด' value={appt.reason} />
+              <RecordRow label='การเตรียมตัว' value={appt.preparation} />
+            </>
+          )}
+        </RecordCard>
+      )}
+
+      {step === 5 && (
+        <RecordCard icon='contract' title='เอกสาร / ใบรับรองแพทย์'>
+          <RecordRow
+            label='ใบรับรองแพทย์'
+            value={form.certIssue === 'yes'
+              ? `ออกใบรับรองแพทย์${CERT_TYPE_CARDS.find((c) => c.value === form.certType)?.titleTh ? ` · ${CERT_TYPE_CARDS.find((c) => c.value === form.certType).titleTh}` : ''}`
+              : (form.certIssue === 'no' ? 'ไม่ออกใบรับรองแพทย์' : '')}
+          />
+          <RecordRow label='คำแนะนำสำหรับผู้รับบริการ' value={form.patientAdvice} />
+        </RecordCard>
+      )}
+    </div>
+  );
+};
+
 const ExitNurseQueuePage = () => {
   const [activeTab, setActiveTab] = useState('today');
   const [searchQ, setSearchQ] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [openId, setOpenId] = useState(null);
+  /* นัดหมายครั้งต่อไปจากจุด Exist Nurse (มติผู้ใช้ 31 ส.ค. 69) — งานสุดท้ายก่อน
+     ผู้รับบริการกลับบ้านคือ "ยืนยันวันนัดครั้งต่อไป" ซึ่งเดิมเป็นแค่ช่องติ๊ก
+     พยาบาลต้องไปเปิดโมดูลนัดหมายอีกหน้าเพื่อจองจริง · นัดที่สร้างที่นี่เขียนลง
+     `appointmentExtraStore` ตัวเดียวกับที่หน้ารับคำขอนัดใช้ จึงไปโผล่ในโมดูล
+     นัดหมายและแท็บ "นัดล่วงหน้า" ของทุกจุดงานทันที */
+  /* ดูสิ่งที่แพทย์กรอกไว้ใน visit นี้ (มติผู้ใช้ 31 ส.ค. 69) — พยาบาลจุดส่งกลับ
+     ต้องอธิบายยา ย้ำวันนัด และให้คำแนะนำ ซึ่งทั้งหมดเป็นของที่แพทย์เพิ่งบันทึก
+     แต่หน้านี้เห็นแค่คลินิก/แพทย์/การวินิจฉัยย่อ ๆ ในตาราง */
+  const [recordRow, setRecordRow] = useState(null);
+  const [recordStep, setRecordStep] = useState(0);
+  const openRecord = (row) => { setRecordRow(row); setRecordStep(0); };
+  const doctorRecord = useMemo(
+    () => (recordRow ? findLatestTreatmentRecord(recordRow.hn) : null),
+    [recordRow],
+  );
+  const [apptRow, setApptRow] = useState(null);
+  const [apptForm, setApptForm] = useState(null);
+
+  const openAppointment = (row) => {
+    setApptRow(row);
+    setApptForm({
+      clinic: '',
+      doctor: ANY_DOCTOR_VALUE,
+      type: 'followup',
+      date: '',
+      time: '',
+      reason: row?.diagnosis || '',
+      prep: '',
+    });
+  };
+  const closeAppointment = () => { setApptRow(null); setApptForm(null); };
+  const setApptField = (k) => (v) => setApptForm((f) => ({ ...f, [k]: typeof v === 'string' ? v : v?.target?.value ?? '' }));
+  /* ครบพอจะจองจริง = รู้ว่าไปคลินิกไหน วันไหน เวลาไหน · แพทย์ปล่อย
+     "ไม่ระบุแพทย์" ได้ เพราะบางคลินิกจัดแพทย์วันจริง */
+  const apptReady = !!(apptForm?.clinic && apptForm?.date && apptForm?.time);
+
+  const saveAppointment = () => {
+    if (!apptRow || !apptReady) return;
+    const clinicLabel = APPT_CLINIC_OPTIONS.find((o) => o.value === apptForm.clinic)?.label || apptForm.clinic;
+    const doctorLabel = apptForm.doctor === ANY_DOCTOR_VALUE
+      ? ANY_DOCTOR_VALUE
+      : (APPT_DOCTOR_OPTIONS.find((o) => o.value === apptForm.doctor)?.label || apptForm.doctor);
+    const typeLabel = APPT_TYPE_OPTIONS.find((o) => o.value === apptForm.type)?.label || 'ติดตามผล';
+    addExtraAppointments([{
+      id: `A-EXIT-${apptRow.id}-${Date.now()}`,
+      staffId: null,
+      date: apptForm.date,
+      time: apptForm.time,
+      slotRange: '',
+      status: APPT_STATUS_CONFIRMED,
+      patient: apptRow.name,
+      patientAvatar: getPatientByHN(apptRow.hn)?.avatarUrl,
+      hn: apptRow.hn,
+      rights: getPatientByHN(apptRow.hn)?.insurance,
+      clinic: clinicLabel,
+      dept: clinicLabel,
+      type: typeLabel,
+      doctor: doctorLabel,
+      examMode: 'onsite',
+      orderingUnit: 'Exist Nurse',
+      reason: apptForm.reason,
+      prep: apptForm.prep,
+      createdBy: 'Exist Nurse',
+    }]);
+    /* จองแล้ว = งาน "ยืนยันวันนัดครั้งต่อไป" ของแถวนั้นถือว่าเสร็จ ไม่ต้องให้
+       พยาบาลไปติ๊กซ้ำอีกที */
+    if (apptRow.tasks?.includes('appointment') && !apptRow.doneTasks?.appointment) {
+      toggleExitTask(apptRow.id, 'appointment');
+    }
+    setToast(`นัด ${apptRow.name} วันที่ ${apptForm.date} เวลา ${apptForm.time} น. เรียบร้อย`);
+    closeAppointment();
+  };
   const [toast, setToast] = useState('');
 
   const [tick, setTick] = useState(0);
@@ -197,20 +513,51 @@ const ExitNurseQueuePage = () => {
      (มติผู้ใช้ 29 ส.ค. 69) เรียกคิว = เรียกผู้รับบริการมาที่โต๊ะแล้วเปิดรายการ
      สิ่งที่ต้องทำก่อนกลับ ปุ่มเรียกเป็น fill เมื่อยังรอ และจางลงเมื่อเริ่มทำแล้ว
      ทรงเดียวกับที่คิวอื่นแยก "รอ" กับ "กำลังทำ" */
+  /* ปุ่มนัดหมายอยู่ในทุกสถานะของแถว — เคสที่ส่งกลับไปแล้วก็ยังต้องนัดตามได้
+     (มติผู้ใช้ 31 ส.ค. 69) */
+  const renderRecordButton = (row) => (
+    <NeutralSubdueButton
+      variant='outline'
+      size='sm'
+      leadingIcon='clinical_notes'
+      onClick={(e) => { e.stopPropagation(); openRecord(row); }}
+    >
+      ข้อมูลจากแพทย์
+    </NeutralSubdueButton>
+  );
+
+  const renderAppointmentButton = (row) => (
+    <BrandSubdueButton
+      variant='outline'
+      size='sm'
+      leadingIcon='event_available'
+      onClick={(e) => { e.stopPropagation(); openAppointment(row); }}
+    >
+      นัดหมาย
+    </BrandSubdueButton>
+  );
+
   const renderActions = (row) => {
     if (row.status === 'done' || row.status === 'cancelled') {
       return (
-        <NeutralSubdueButton
-          variant='outline'
-          size='sm'
-          leadingIcon='undo'
-          onClick={(e) => { e.stopPropagation(); reopenExitVisit(row.id); setToast(`เปิด ${row.name} กลับมาแก้ไขแล้ว`); }}
-        >
-          เปิดกลับมาแก้
-        </NeutralSubdueButton>
+        <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-200)' }}>
+          {renderRecordButton(row)}
+          {renderAppointmentButton(row)}
+          <NeutralSubdueButton
+            variant='outline'
+            size='sm'
+            leadingIcon='undo'
+            onClick={(e) => { e.stopPropagation(); reopenExitVisit(row.id); setToast(`เปิด ${row.name} กลับมาแก้ไขแล้ว`); }}
+          >
+            เปิดกลับมาแก้
+          </NeutralSubdueButton>
+        </div>
       );
     }
     return (
+      <div className='flex items-center justify-center' style={{ gap: 'var(--dim-space-200)' }}>
+      {renderRecordButton(row)}
+      {renderAppointmentButton(row)}
       <QueueCallActions
         /* ปุ่มบอกสถานะจริงของแถว (มติผู้ใช้ 29 ส.ค. 69) */
         statusLabel={row.status === 'doing' ? 'กำลังส่งกลับ' : undefined}
@@ -220,6 +567,7 @@ const ExitNurseQueuePage = () => {
         onPause={() => { toggleExitPause(row.id); setToast(row.paused ? `เรียก ${row.name} ต่อ` : `พักคิว ${row.name}`); }}
         onCancel={() => { cancelExitVisit(row.id); setToast(`ยกเลิกคิว ${row.name}`); }}
       />
+      </div>
     );
   };
 
@@ -281,9 +629,10 @@ const ExitNurseQueuePage = () => {
       },
     },
     {
-      key: 'actions', label: 'การดำเนินการ', sortable: false, align: 'center',
-      /* ไม่มีปุ่ม EMR ที่นี่ (มติผู้ใช้ 29 ส.ค. 69) — Exist Nurse ทำงานจากรายการ
-         สิ่งที่ต้องทำก่อนกลับ ไม่ได้อ่านประวัติการรักษาย้อนหลัง */
+      key: 'actions', label: 'การดำเนินการ', sortable: false, align: 'center', minWidth: 420,
+      /* ไม่มีปุ่ม EMR (ประวัติย้อนหลัง) ที่นี่ (มติผู้ใช้ 29 ส.ค. 69) — แต่มีปุ่ม
+         "ข้อมูลจากแพทย์" ซึ่งอ่านเฉพาะ visit ที่เพิ่งตรวจจบ (มติผู้ใช้ 31 ส.ค. 69)
+         คนละเรื่องกัน: อันแรกคือประวัติสะสม อันหลังคือสิ่งที่ต้องเอาไปอธิบายวันนี้ */
       render: renderActions,
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -375,6 +724,104 @@ const ExitNurseQueuePage = () => {
         )}
       </Popup>
 
+      <Popup
+        open={!!recordRow}
+        onClose={() => setRecordRow(null)}
+        size='extraLarge'
+        title={recordRow ? `ข้อมูลจากแพทย์ — ${recordRow.name}` : 'ข้อมูลจากแพทย์'}
+        subtitle={recordRow
+          ? `HN ${recordRow.hn} · ${recordRow.clinic} · ${recordRow.doctor}`
+          : ''}
+        /* ไม่มีบันทึกของแพทย์ = ไม่มีขั้นให้เดิน เหลือปุ่มปิดอย่างเดียว
+           (พบตอนตรวจด้วย headless 31 ส.ค. 69 — ปุ่ม "ถัดไป" พาไปหน้าว่างเปล่า
+           เพราะฝั่ง empty state ไม่ได้เรนเดอร์แถบขั้นตอน) */
+        onBack={doctorRecord?.form && recordStep > 0 ? () => setRecordStep((v) => v - 1) : undefined}
+        secondaryAction={doctorRecord?.form && recordStep > 0
+          ? { label: 'ย้อนกลับ', onClick: () => setRecordStep((v) => v - 1) }
+          : { label: 'ปิด', onClick: () => setRecordRow(null) }}
+        primaryAction={doctorRecord?.form && recordStep < RECORD_STEPS.length - 1
+          ? { label: 'ถัดไป', onClick: () => setRecordStep((v) => v + 1) }
+          : { label: 'ปิด', onClick: () => setRecordRow(null) }}
+      >
+        {recordRow && (
+          <DoctorRecordView
+            row={recordRow}
+            record={doctorRecord}
+            step={recordStep}
+            onStepChange={setRecordStep}
+          />
+        )}
+      </Popup>
+
+      <Popup
+        open={!!apptForm}
+        onClose={closeAppointment}
+        size='large'
+        title={apptRow ? `นัดหมายครั้งต่อไป — ${apptRow.name}` : 'นัดหมายครั้งต่อไป'}
+        subtitle={apptRow ? `HN ${apptRow.hn} · ${apptRow.clinic} · ${apptRow.doctor}` : ''}
+        secondaryAction={{ label: 'ยกเลิก', onClick: closeAppointment }}
+        primaryAction={{
+          label: 'บันทึกนัดหมาย',
+          onClick: saveAppointment,
+          disabled: !apptReady,
+        }}
+      >
+        {apptForm && (
+          <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+            <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-400)' }}>
+              <Select
+                label='คลินิก'
+                required
+                value={apptForm.clinic}
+                onChange={setApptField('clinic')}
+                options={APPT_CLINIC_OPTIONS}
+                placeholder='เลือกคลินิก'
+              />
+              <Select
+                label='ประเภทการนัด'
+                value={apptForm.type}
+                onChange={setApptField('type')}
+                options={APPT_TYPE_OPTIONS}
+              />
+              <Select
+                label='แพทย์ผู้นัด'
+                value={apptForm.doctor}
+                onChange={setApptField('doctor')}
+                options={[{ value: ANY_DOCTOR_VALUE, label: 'ไม่ระบุแพทย์' }, ...APPT_DOCTOR_OPTIONS]}
+              />
+              <InputField
+                label='วันที่นัด'
+                required
+                type='date'
+                value={apptForm.date}
+                onChange={setApptField('date')}
+              />
+              <InputField
+                label='เวลานัด'
+                required
+                type='time'
+                value={apptForm.time}
+                onChange={setApptField('time')}
+              />
+            </div>
+            <Textarea
+              label='เหตุผลการนัด'
+              rows={2}
+              value={apptForm.reason}
+              onChange={setApptField('reason')}
+              placeholder='เช่น ติดตามผลเลือดหลังปรับยา'
+            />
+            <Textarea
+              label='สิ่งที่ต้องเตรียมมา'
+              rows={2}
+              value={apptForm.prep}
+              onChange={setApptField('prep')}
+              placeholder='เช่น งดอาหารก่อนเจาะเลือด 8 ชั่วโมง · นำยาเดิมมาด้วย'
+            />
+          </div>
+        )}
+      </Popup>
+
       <QueuePageShell
         activeKey='exit'
         breadcrumb={breadcrumb}
@@ -427,7 +874,11 @@ const ExitNurseQueuePage = () => {
               rowKey={(row) => row.id}
               sortConfig={sortConfig}
               onSort={handleSort}
-              onRowClick={(row) => (row.status === 'done' || row.status === 'cancelled' ? null : setOpenId(row.id))}
+              /* คลิกแถว = เปิดข้อมูลที่แพทย์บันทึกไว้ (มติผู้ใช้ 31 ส.ค. 69) —
+                 ของเดิมคลิกแล้วเปิดป๊อปอัป "ส่งกลับ" ทันที ซึ่งเป็นการลงมือทำ
+                 ไม่ใช่การอ่าน · การส่งกลับยังกดได้จากปุ่มเรียกคิวในแถวเหมือนเดิม
+                 และเปิดได้ทุกสถานะ เพราะเคสที่ส่งกลับไปแล้วก็ยังต้องเปิดอ่านได้ */
+              onRowClick={(row) => openRecord(row)}
               stickyColCount={3}
               stickyRightColCount={1}
               stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}

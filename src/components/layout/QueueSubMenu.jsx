@@ -286,6 +286,11 @@ const QueueSubMenu = ({
   rowVariant = 'card',
   /** ความกว้างตอนกาง — ตั้งได้ต่อหน้าเผื่อพาเนลที่มีปุ่มท้ายแถว */
   expandedWidth = DEFAULT_EXPANDED_WIDTH,
+  /* 'vertical' (ค่าเริ่มต้น) = หมวดเรียงลงมา · 'horizontal' = หมวดเป็นคอลัมน์
+     เรียงข้างกันแล้วเลื่อนตามแนวนอน (มติผู้ใช้ 31 ส.ค. 69) — มุมมอง "แยกตาม
+     คลินิก" ของคิวรวมมีหลายคลินิกพร้อมกัน เรียงลงมาในพาเนลแคบทำให้ต้องเลื่อน
+     ยาวมากกว่าจะเห็นคลินิกที่สอง */
+  bodyOrientation = 'vertical',
   /** แสดงเลขคิวหน้าชื่อ (พาเนลคิวรอลงทะเบียนต้องเห็นเลขคิว) */
   showQueueNo = false,
   /** จุดสีนำหน้าชื่อ — บอกหมวดของแถว จึงไม่มีประโยชน์เมื่อพาเนลเหลือหมวดเดียว
@@ -306,6 +311,7 @@ const QueueSubMenu = ({
   const [internalExpanded, setInternalExpanded] = useState(false);
   const isControlled = controlledExpanded !== undefined;
   const expanded = isControlled ? controlledExpanded : internalExpanded;
+  const isHorizontal = bodyOrientation === 'horizontal';
   /* Toggle handler — fires for BOTH icon variants (chevron_right when
      collapsed → expand · chevron_left when expanded → collapse). The
      parent can listen via `onExpandedChange` if it wants to sync other
@@ -412,17 +418,38 @@ const QueueSubMenu = ({
           opacity: expanded ? 1 : 0,
           pointerEvents: expanded ? 'auto' : 'none',
           transition: 'opacity 200ms ease',
-          overflowY: 'auto',
+          /* แนวนอน: ตัวห่อนอกไม่เลื่อนเอง ปล่อยให้รางด้านในเลื่อนทั้งสองแกน
+             ไม่งั้นจะได้แถบเลื่อนซ้อนกันสองชั้น */
+          overflowY: isHorizontal ? 'hidden' : 'auto',
           overflowX: 'hidden',
           overscrollBehavior: 'contain',
         }}
       >
         {headerSlot}
+        <div
+          className={isHorizontal ? 'flex flex-row flex-1 min-h-0' : 'contents'}
+          style={isHorizontal ? {
+            gap: 'var(--dim-space-400, 16px)',
+            overflowX: 'auto',
+            overflowY: 'auto',
+            overscrollBehavior: 'contain',
+            alignItems: 'flex-start',
+          } : undefined}
+        >
         {sections.map((key) => {
           const bucket = BUCKETS[key];
           if (!bucket) return null;
           return (
-            <div key={key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            <div
+              key={key}
+              className='flex flex-col'
+              style={isHorizontal ? {
+                gap: 'var(--dim-space-200, 8px)',
+                /* คอลัมน์กว้างพอให้การ์ดเต็มใบอ่านได้ และไม่ยุบตามพื้นที่ที่เหลือ */
+                flex: '0 0 var(--dim-size-2500, 320px)',
+                width: 'var(--dim-size-2500, 320px)',
+              } : { gap: 'var(--dim-space-200, 8px)', width: '100%' }}
+            >
               {/* ปุ่ม "ดูทั้งหมด" ขึ้นเฉพาะเมื่อผู้เรียกส่ง onViewAll มา — หน้า
                   ลงทะเบียนไม่ส่งแล้ว (มติผู้ใช้ 27 ส.ค. 69) */}
               <SectionLabel
@@ -455,6 +482,7 @@ const QueueSubMenu = ({
             </div>
           );
         })}
+        </div>
       </div>
       </div>
 

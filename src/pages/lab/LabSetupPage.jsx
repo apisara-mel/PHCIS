@@ -430,6 +430,9 @@ const blankTest = () => ({
   icd10tm: '',
   opbkk: '',
   confidential: false,
+  /* คอลัมน์ "สถานะ" ในทะเบียนอ่านจากคีย์นี้ — ไม่ตั้งไว้ รายการใหม่จะเข้าไปแบบ
+     สถานะไม่ระบุ แล้วสวิตช์ในตารางอ่านเป็นปิด (มติผู้ใช้ 31 ส.ค. 69) */
+  active: true,
   analytes: [{ key: 'value', label: '', unit: '', normalRange: '' }],
 });
 
@@ -1192,7 +1195,10 @@ const LabSetupPage = () => {
             open={!!form}
             onClose={cancelEdit}
             size='extraLarge'
-            title={editingId === 'new' ? 'เพิ่มรายการตรวจใหม่' : `แก้ไข ${form?.nameEn || form?.code || ''}`}
+            /* ชื่อป๊อปอัปตรงกับปุ่มที่กดเข้ามา (มติผู้ใช้ 31 ส.ค. 69) — ปุ่มเขียน
+               "เพิ่มทะเบียนรายการตรวจ" แต่หัวป๊อปอัปเขียน "เพิ่มรายการตรวจใหม่"
+               อ่านเหมือนคนละอย่าง */
+            title={editingId === 'new' ? 'เพิ่มทะเบียนรายการตรวจ' : `แก้ไข ${form?.nameEn || form?.code || ''}`}
             /* ปุ่ม ‹ บนหัวป๊อปอัปคือย้อนขั้น ส่วน "ยกเลิก" ยังปิดฟอร์มทั้งใบเสมอ
                เหมือนป๊อปอัปทะเบียนยา ผู้ใช้จึงไม่ต้องเดาว่าปุ่มไหนออกจากฟอร์ม */
             onBack={step > 0 ? goPrevStep : undefined}
@@ -1288,6 +1294,15 @@ const LabSetupPage = () => {
                     <TextField label='รหัส ICD10TM' mono value={form.icd10tm} onChange={(v) => setField('icd10tm', v)} placeholder='เช่น 0531601' />
                     <TextField label='รหัส OPBKK' mono value={form.opbkk} onChange={(v) => setField('opbkk', v)} placeholder='เช่น 30208' />
                   </div>
+
+                  {/* คอลัมน์ "สถานะ" ของทะเบียนต้องตั้งได้จากฟอร์มด้วย (มติผู้ใช้
+                      31 ส.ค. 69) — เดิมตั้งได้เฉพาะสวิตช์บนแถวหลังบันทึกไปแล้ว */}
+                  <Checkbox
+                    label='เปิดใช้งานรายการนี้'
+                    description='ปิดไว้ = ยังอยู่ในทะเบียนแต่สั่งตรวจไม่ได้'
+                    checked={form.active !== false}
+                    onChange={(next) => setField('active', next)}
+                  />
                 </SectionCard>
                 </>
               )}
@@ -1300,15 +1315,9 @@ const LabSetupPage = () => {
                   subtitle='หลอด/สีจุกผูกกับรายการตรวจ ไม่ใช่ผูกกับใบสั่ง — ทุกหน้าจอจะดึงสีจากตรงนี้เหมือนกันทั้งระบบ'
                 >
                   <TubePicker value={form.tubeKey} onChange={(v) => setField('tubeKey', v)} />
-                  {/* Some analytes accept a second tube type (Electrolytes:
-                      "Clot หรือ Li-Hep"), so the alternative is a first-class
-                      field rather than a note. */}
-                  <TubePicker
-                    label='หลอดทางเลือก (ถ้ามี)'
-                    allowNone
-                    value={form.altTubeKey}
-                    onChange={(v) => setField('altTubeKey', v)}
-                  />
+                  {/* ช่อง "หลอดทางเลือก (ถ้ามี)" ถูกเอาออก 31 ส.ค. 69 (มติผู้ใช้) —
+                      `form.altTubeKey` ยังอยู่บนฟอร์มและยังขึ้นในขั้นตรวจสอบข้อมูล
+                      ของรายการที่เคยตั้งค่าไว้ แค่ไม่มีที่ให้ตั้งใหม่แล้ว */}
                   <div className='grid grid-cols-1 md:grid-cols-3 gap-3 w-full'>
                     <NumberField label='จำนวนหลอด' value={form.tubeCount} onChange={(v) => setField('tubeCount', v)} />
                     <NumberField label='ต้องงดอาหารก่อนตรวจ' suffix='ชั่วโมง · 0 = ไม่ต้องงด' value={form.fastingHours} onChange={(v) => setField('fastingHours', v)} />

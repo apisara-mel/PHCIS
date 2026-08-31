@@ -97,7 +97,9 @@ const COLUMNS = [
 
 const SchedulePage = () => {
   const history = useHistory();
-  const [activeTab, setActiveTab] = useState('all');
+  /* เปิดหน้ามาที่ "รอจัดตารางเวร" ซึ่งเป็นแท็บแรกและเป็นกองงานที่ต้องทำ
+     (มติผู้ใช้ 31 ส.ค. 69) — ของเดิมเปิดมาที่ "ทั้งหมด" ซึ่งเป็นมุมมองภาพรวม */
+  const [activeTab, setActiveTab] = useState('pending');
   const [page, setPage] = useState(1);
   /* Search state — text query (free-form) + persisted history (LRU stored in
      localStorage under a page-scoped key, so recent terms surface across

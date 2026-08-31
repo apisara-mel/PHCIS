@@ -56,3 +56,26 @@ export const saveTreatmentRecord = ({ hn, visitKey, form }) => {
   });
   return { ok, savedAt };
 };
+
+export const loadTreatmentRecord = (hn, visitKey) => (
+  read(encounterKey(RECORD_PREFIX, hn, visitKey))
+);
+
+/* จุด Exist Nurse รู้แค่ HN — ไม่รู้ `visitKey` ของ visit ที่แพทย์เพิ่งปิด
+   (มติผู้ใช้ 31 ส.ค. 69) จึงต้องกวาดคีย์ทั้งหมดของ HN นั้นแล้วเอาใบที่บันทึก
+   ล่าสุด · คีย์ถูก encode ไว้ตอนเขียน จึงเทียบด้วยรูปแบบเดียวกัน ไม่ใช่ substring
+   ของ HN ดิบ (HN "67-00001" กับ "67-000010" จะชนกัน) */
+export const findLatestTreatmentRecord = (hn) => {
+  const store = storage();
+  if (!store || !hn) return null;
+  const prefix = `${RECORD_PREFIX}:${encodeURIComponent(String(hn))}:`;
+  let latest = null;
+  for (let i = 0; i < store.length; i += 1) {
+    const key = store.key(i);
+    if (!key || !key.startsWith(prefix)) continue;
+    const value = read(key);
+    if (!value) continue;
+    if (!latest || String(value.savedAt || '') > String(latest.savedAt || '')) latest = value;
+  }
+  return latest;
+};
