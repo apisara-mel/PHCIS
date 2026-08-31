@@ -576,8 +576,10 @@ const TreatmentOrderPickerPopup = ({ open, onClose, items = [], onConfirm, patie
             (mrPatients) เก็บเป็นตัวเลขปีของ MPI คนละชุด ซึ่งของ HN เดียวกัน
             ไม่ตรงกัน (42 vs 37) — popup เคยหยิบตัวหลัง หมอจึงเห็นอายุสองค่า
             ในหน้าจอเดียว ให้ยึดของ Visit ก่อนเสมอ */}
+        {/* แถบเขียวเข้มเปลี่ยนเป็นแถบสีอ่อน (มติผู้ใช้ 31 ส.ค. 69) — ในป๊อปอัป
+            แถบทึบแย่งสายตาจากตารางรายการที่เป็นงานหลักของหน้านี้ */}
         <PatientSummaryCard
-          variant='gradient'
+          variant='default'
           avatarUrl={cardPatient?.avatarUrl || patient?.avatarUrl}
           avatarAlt={patientName}
           cells={[

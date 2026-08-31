@@ -349,59 +349,9 @@ const RadiologyOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
         </PanelCard>
       ) : null}
 
-      {/* ── รายละเอียดคำสั่ง + note + ยอดรวม ────────────────── */}
-      <PanelCard
-        title='รายละเอียดคำสั่งตรวจทางรังสีวิทยา'
-        subtitle='กรอก Note ต่อรายการเพื่อบอกคำถามทางคลินิกให้รังสีแพทย์ — ช่วยให้รายงานผลตรงประเด็น'
-        action={<CountLabel n={orders.filter((o) => !o.cancelledAt).length} unit='รายการ' />}
-      >
-        {rightNotInFeeSchedule ? (
-          <PanelAlert tone='info' icon='payments' title={`สิทธิ "${patient?.rights || 'ไม่ระบุ'}" ยังไม่มีในตารางค่าบริการรังสีวิทยา`}>
-            ระบบยังคำนวณยอดเบิกไม่ได้สำหรับสิทธินี้ จึงแสดงยอดเบิกได้เป็น 0 ไว้ก่อน —
-            ไม่ได้แปลว่าผู้รับบริการต้องชำระเอง ให้ตรวจสอบเงื่อนไขกับงานประกันสุขภาพก่อนเรียกเก็บ
-          </PanelAlert>
-        ) : null}
-
-        {orders.length === 0 ? (
-          <PanelEmptyState
-            icon='radiology'
-            title='ยังไม่มีรายการ X-ray ที่สั่ง'
-            subtitle='กรุณาสั่ง X-ray — กด "เพิ่ม X-ray" ด้านบนเพื่อเปิดตัวเลือกรายการตรวจทางรังสีวิทยา'
-          />
-        ) : (
-          <>
-            <div className='w-full min-w-0' style={{ overflowX: 'auto' }}>
-              <Table columns={noteColumns} rows={orders} rowKey={(o) => o.examId} />
-            </div>
-            <div
-              className='flex flex-wrap items-center justify-end w-full'
-              style={{
-                gap: 'var(--dim-space-600, 24px)',
-                background: 'var(--surface-table-footer, var(--brand-p100, #E2F3EB))',
-                borderRadius: 'var(--dim-radius-200, 8px)',
-                paddingTop: 'var(--dim-space-300, 12px)',
-                paddingRight: 'var(--dim-space-400, 16px)',
-                paddingBottom: 'var(--dim-space-300, 12px)',
-                paddingLeft: 'var(--dim-space-400, 16px)',
-                fontFamily: 'var(--type-family-body)',
-                fontSize: 'var(--type-size-sm, 14px)',
-                fontWeight: 'var(--type-weight-bold)',
-                color: 'var(--text-table-footer, var(--brand-p800, #004C31))',
-              }}
-            >
-              <span>รวมเงินทั้งหมด ({summary.count} รายการ) {baht(summary.total)} บาท</span>
-              <span>รวมเบิกได้ {baht(summary.claimTotal)} บาท</span>
-              <span style={{
-                color: summary.patientPay > 0
-                  ? 'var(--text-statusbadge-warning, #C2410C)'
-                  : 'var(--text-table-footer, var(--brand-p800, #004C31))',
-              }}>
-                ต้องชำระเอง {baht(summary.patientPay)} บาท
-              </span>
-            </div>
-          </>
-        )}
-      </PanelCard>
+      {/* การ์ด "รายละเอียดคำสั่งตรวจทางรังสีวิทยา" ถูกเอาออก 31 ส.ค. 69
+          (มติผู้ใช้) — รายการที่สั่งอยู่ในตารางของขั้นสั่งการรักษาแล้ว การ์ดนี้
+          เป็นชุดเดียวกันในอีกรูปแบบ · ตัวช่วยที่มันใช้ยังอยู่ครบในไฟล์ */}
 
       {/* ── สถานะและผลตรวจ (§1.5.3.7 / §1.5.3.8) ─────────────── */}
       <PanelCard
@@ -416,9 +366,9 @@ const RadiologyOrderPanel = ({ form, setForm, patient, onGoToInterfaces }) => {
               checked={onlyAbnormal}
               onChange={() => { setOnlyAbnormal(!onlyAbnormal); setPage(1); }}
             />
-            <StatusBadge style={pacsUp ? 'success' : 'error'} size='small' icon={pacsUp ? 'lan' : 'lan_disconnect'}>
-              PACS · {pacsIface?.status === 'up' ? 'พร้อมใช้งาน' : 'ไม่พร้อมใช้งาน'}
-            </StatusBadge>
+            {/* ป้าย "PACS · …" ถูกเอาออก 31 ส.ค. 69 (มติผู้ใช้) — เป็นสถานะของ
+                ระบบเชื่อมต่อ ไม่ใช่ของผู้รับบริการรายนี้ ปุ่ม "ดูสถานะการเชื่อมต่อ"
+                ข้าง ๆ พาไปหน้าที่บอกสถานะจริงอยู่แล้ว */}
             {onGoToInterfaces ? (
               <NeutralSubdueButton variant='outline' size='sm' leadingIcon='settings_ethernet' onClick={onGoToInterfaces}>
                 ดูสถานะการเชื่อมต่อ

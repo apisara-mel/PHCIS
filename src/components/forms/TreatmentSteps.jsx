@@ -4082,11 +4082,22 @@ export const Step5Orders = ({
   /* `medication` and `xray` are the two categories with a real table on
      this branch; the other three stay empty-state-only (their pickers
      don't exist yet — do not invent them here). */
+  /* จำนวนรายการของหมวดที่เปิดอยู่ — เดิมคืน [] ให้สี่หมวดที่มี panel ของตัวเอง
+     ทำให้ทั้งสี่ข้ามด่าน empty state ไปเปิดฟอร์มสั่งทันทีแม้ยังไม่มีรายการเลย
+     (มติผู้ใช้ 31 ส.ค. 69 — ให้ทั้งห้าหมวดขึ้น empty state เหมือนกัน) */
   const rows = activeCategory === 'medication'
     ? form.medications
     : activeCategory === 'xray'
       ? form.xrayOrders
-      : [];
+      : activeCategory === 'medicalSupply'
+        ? (form.medicalSupplies || [])
+        : activeCategory === 'lab'
+          ? (form.labs || []).filter((item) => !item.cancelledAt)
+          : activeCategory === 'procedure'
+            ? (form.procedureOrders || []).filter((item) => !item.cancelledAt)
+            : activeCategory === 'consult'
+              ? (form.consultOrders || []).filter((item) => !item.cancelledAt)
+              : [];
 
   const hasAnyTreatmentOrder = (form.medications?.length || 0)
     + (form.medicalSupplies?.length || 0)
@@ -4273,7 +4284,7 @@ export const Step5Orders = ({
             จึงลัดออกก่อนถึง empty-state/ตารางของ 5 หมวดเดิม */}
         {activeCategory === MEDREC_CATEGORY ? (
           <MedRecPanel form={form} setForm={setForm} patient={patient} />
-        ) : CPOE_PANEL_CATEGORIES.has(activeCategory) ? (
+        ) : CPOE_PANEL_CATEGORIES.has(activeCategory) && rows.length > 0 ? (
           /* CPOE §1.5.2 / §1.5.5 / §1.5.6 — สามหมวดนี้เดิมมีแต่ empty state
              (ยังไม่มี picker) ตอนนี้มี panel เต็มรูปของตัวเองแล้ว ซึ่งมี
              empty state ของตัวเองด้วยคำเดียวกับ ORDER_EMPTY_STATE_TEXT */
@@ -4353,7 +4364,14 @@ export const Step5Orders = ({
               <BrandPrimaryButton
                 size='sm'
                 leadingIcon='add'
-                onClick={activeCategory === 'xray' ? openAddXray : openAddMed}
+                /* X-ray มี picker ของตัวเอง · ยา เปิดป๊อปอัปเพิ่มยา ·
+                   สี่หมวดที่เหลือเปิดตัวเลือกรายการรวมซึ่งค้นได้ทุกหมวด
+                   (ของเดิมส่งไปที่ป๊อปอัปเพิ่ม "ยา" หมด ซึ่งผิดหมวด) */
+                onClick={activeCategory === 'xray'
+                  ? openAddXray
+                  : activeCategory === 'medication'
+                    ? openAddMed
+                    : () => setOrderPickerOpen(true)}
               >
                 {ORDER_EMPTY_STATE_TEXT[activeCategory].addLabel}
               </BrandPrimaryButton>
