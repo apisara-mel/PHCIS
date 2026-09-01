@@ -9,12 +9,15 @@ import PharmacyBorrowReturnRequestButton from '@/components/pharmacy/PharmacyBor
    convention of one direct-click destination per module). This row uses the
    design-system TabUnderline (page-level nav) instead of pill chips. */
 
+/* "ผู้รับบริการทั้งหมด" ย้ายไปแท็บสุดท้าย (มติผู้ใช้ 1 ก.ย. 69) — สี่แท็บแรกคืองาน
+   ประจำวันของห้องยา (จ่ายยา → คลัง → เบิกจ่าย → รายงาน) ส่วนทะเบียนผู้รับบริการ
+   เป็นที่ค้นหาข้ามคิว เปิดเมื่อต้องการ ไม่ใช่ขั้นในเส้นทางงาน */
 const LINKS = [
   { key: 'queue',       label: 'คิวจ่ายยา',           path: '/pharmacy/queue'       },
-  { key: 'patients',    label: 'ผู้รับบริการทั้งหมด', path: '/pharmacy/patients'    },
   { key: 'stock',       label: 'คลังยาและเวชภัณฑ์',   path: '/pharmacy/stock'       },
   { key: 'requisition', label: 'เบิกจ่าย/รับเข้าคลัง', path: '/pharmacy/requisition' },
   { key: 'reports',     label: 'รายงาน',              path: '/pharmacy/reports'     },
+  { key: 'patients',    label: 'ผู้รับบริการทั้งหมด', path: '/pharmacy/patients'    },
 ];
 
 const TABS = LINKS.map(({ key, label }) => ({ key, label }));

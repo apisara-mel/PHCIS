@@ -4,7 +4,13 @@ import { DISPENSE_STATUS } from '@/data/pharmacyQueue';
    / OPD QueuePage pattern: cards stay the same when status tabs change; only the
    table below filters. Counts always come from the full dataset (today's queue). */
 
-export const countRows = (rows, pred) => rows.filter(pred).length;
+/* ไม่มี predicate = นับไม่ได้ ไม่ใช่ 0 รายการ — แต่ต้องไม่ทำให้ทั้งหน้าพัง
+   (แก้ 1 ก.ย. 69) แท็บ "นัดล่วงหน้า" ถูกเพิ่มเข้า `TABS` ของหน้าคิวห้องยาเมื่อ
+   29 ส.ค. 69 โดยไม่มีคีย์คู่กันใน `TAB_STATUS_FILTER` การไล่นับทุกแท็บจึงเรียก
+   `rows.filter(undefined)` แล้วโยน TypeError ตั้งแต่ตอน render — ทั้งหน้าขาว */
+export const countRows = (rows, pred) => (
+  typeof pred === 'function' ? (rows || []).filter(pred).length : 0
+);
 
 const dispenseStatusPred = {
   waiting:   (r) => r.status === DISPENSE_STATUS.WAITING,

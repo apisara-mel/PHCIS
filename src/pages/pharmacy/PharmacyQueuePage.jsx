@@ -353,8 +353,12 @@ const PharmacyQueuePage = () => {
 
   /* Every status tab carries its own count, so the pharmacist can see where
      the backlog is without clicking through. */
+  /* นับเฉพาะแท็บที่มีเงื่อนไขสถานะของตัวเอง — "นัดล่วงหน้า" ไม่ได้กรองจาก `rows`
+     ของวันนี้ แต่ใช้ `upcomingCount` ด้านล่างแทน (แก้ 1 ก.ย. 69) */
   const tabCounts = useMemo(() => Object.fromEntries(
-    TABS.map((t) => [t.key, countRows(rows, TAB_STATUS_FILTER[t.key])]),
+    TABS
+      .filter((t) => TAB_STATUS_FILTER[t.key])
+      .map((t) => [t.key, countRows(rows, TAB_STATUS_FILTER[t.key])]),
   ), [rows]);
 
   const filtersActive = queueTypeFilter !== 'all'

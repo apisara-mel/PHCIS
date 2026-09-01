@@ -1133,24 +1133,21 @@ const PharmacyDispensePage = () => {
               แถบแรก: ยังไม่ยืนยัน = ห้องการเงินยังออกใบเสร็จไม่ได้ (กันต้อง
               ยกเลิกใบเสร็จเมื่อเภสัชแก้จำนวนยาทีหลัง)
               แถบสอง: ยังไม่ชำระ = ปุ่ม "ยืนยันจ่ายยา" ถูกล็อก (กันยักยอกยา) */}
+          {/* แถบข้อความ "ยังไม่ได้ยืนยันรายการยาไปห้องการเงิน" ถูกเอาออก 1 ก.ย. 69
+              (มติผู้ใช้) — เหลือเฉพาะปุ่ม เพราะปุ่มนี้เป็นทางเดียวที่ทำให้ห้องการเงิน
+              ออกใบเสร็จได้ ถ้าลบไปทั้งแถบ ลำดับ เภสัชยืนยัน → เก็บเงิน → จ่ายยา
+              จะเดินต่อไม่ได้เลย (ปุ่ม "ยืนยันจ่ายยา" ถูกล็อกด้วย `paymentBlocked`) */}
           {!isClosed && !verification && (
-            <Alert
-              type='info'
-              title='ยังไม่ได้ยืนยันรายการยาไปห้องการเงิน'
-              subtext='ห้องการเงินจะออกใบเสร็จได้ก็ต่อเมื่อเภสัชกรตรวจสอบและยืนยันรายการยาแล้ว — ยืนยันหลังจากปรับจำนวน/เปลี่ยนยาเสร็จเรียบร้อย เพื่อไม่ต้องยกเลิกใบเสร็จภายหลัง'
-              showCloseButton={false}
-              style={{ maxWidth: '100%' }}
-              action={(
-                <BrandSubdueButton
-                  variant='fill'
-                  size='sm'
-                  leadingIcon='fact_check'
-                  onClick={() => { verifyPharmacyOrder(row.queueNo); bump(); }}
-                >
-                  ยืนยันรายการยา (ส่งห้องการเงิน)
-                </BrandSubdueButton>
-              )}
-            />
+            <div className='flex w-full justify-end'>
+              <BrandSubdueButton
+                variant='fill'
+                size='sm'
+                leadingIcon='fact_check'
+                onClick={() => { verifyPharmacyOrder(row.queueNo); bump(); }}
+              >
+                ยืนยันรายการยา (ส่งห้องการเงิน)
+              </BrandSubdueButton>
+            </div>
           )}
           {!isClosed && verification && (
             <Alert
@@ -1334,35 +1331,10 @@ const PharmacyDispensePage = () => {
             </div>
           </SectionCard>
 
-          {/* ความเสี่ยงของใบสั่งยานี้ — อ่านอย่างเดียว ไม่มีปุ่ม เพราะขั้นนี้คือ
-              "แพทย์สั่งอะไรมา" การแก้ไข/เปลี่ยนยา/แนบเอกสารอยู่ที่ step ตรวจสอบ */}
-          {conflicts.length > 0 && (
-            <Alert
-              type='warning'
-              title='ผู้รับบริการมีประวัติแพ้ยาที่ตรงกับรายการในใบสั่งยา'
-              subtext={conflicts.map((c) => `${c.item.name} อยู่ในกลุ่ม ${c.allergyClass} ซึ่งผู้ป่วยมีประวัติแพ้ (${c.symptom})`).join(' · ')}
-              showDetail={false} showIndicator={false} showBadge={false} showCloseButton={false}
-              style={{ maxWidth: '100%' }}
-            />
-          )}
-          {nonFormularyItems.length > 0 && (
-            <Alert
-              type='warning'
-              title='มีรายการยานอกบัญชียาหลัก'
-              subtext={`${nonFormularyItems.map((i) => i.name).join(', ')} — โดยทั่วไปต้องมีเหตุผล/เอกสารประกอบการสั่งใช้`}
-              showDetail={false} showIndicator={false} showBadge={false} showCloseButton={false}
-              style={{ maxWidth: '100%' }}
-            />
-          )}
-          {outOfRightsItems.length > 0 && (
-            <Alert
-              type='error'
-              title='มีรายการยานอกสิทธิการรักษา'
-              subtext={`${outOfRightsItems.map((i) => i.name).join(', ')} ไม่อยู่ในสิทธิ "${mrPatient.rights}" ของผู้ป่วย — ต้องมีเอกสารประกอบหรือให้ผู้ป่วยชำระเงินเอง`}
-              showDetail={false} showIndicator={false} showBadge={false} showCloseButton={false}
-              style={{ maxWidth: '100%' }}
-            />
-          )}
+          {/* สามแถบเตือนของขั้นที่ 1 (แพ้ยาตรงกับใบสั่ง · ยานอกบัญชียาหลัก ·
+              ยานอกสิทธิการรักษา) ถูกเอาออก 1 ก.ย. 69 (มติผู้ใช้) — ตัวแปร
+              `conflicts` / `nonFormularyItems` / `outOfRightsItems` ยังคำนวณอยู่
+              และยังถูกใช้ในขั้นตรวจสอบ (step 2) ซึ่งเป็นที่ที่เภสัชกรลงมือแก้จริง */}
 
           {/* Step 1 = อ่านอย่างเดียว: เภสัชกรดู "แพทย์สั่งอะไรมา" ก่อน แล้วค่อย
               ลงมือแก้/จัด/พิมพ์ในขั้นตรวจสอบ (step 2) — ตารางที่แก้ไขได้พร้อม
