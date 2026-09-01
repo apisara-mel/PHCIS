@@ -1,23 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import TabUnderline from '@/components/tab/TabUnderline';
 import BrandButton from '@/components/button/BrandButton';
 import PharmacyBorrowReturnRequestButton from '@/components/pharmacy/PharmacyBorrowReturnRequestButton';
+import PharmacyRegistryEditPopup from '@/components/pharmacy/PharmacyRegistryEditPopup';
 
 /* Cross-links the pharmacy module pages. The Sidebar's `pharmacy` entry stays
    a flat item pointing at the queue (matches the OPD/Registration/Treatment
    convention of one direct-click destination per module). This row uses the
    design-system TabUnderline (page-level nav) instead of pill chips. */
 
-/* "ผู้รับบริการทั้งหมด" ย้ายไปแท็บสุดท้าย (มติผู้ใช้ 1 ก.ย. 69) — สี่แท็บแรกคืองาน
-   ประจำวันของห้องยา (จ่ายยา → คลัง → เบิกจ่าย → รายงาน) ส่วนทะเบียนผู้รับบริการ
-   เป็นที่ค้นหาข้ามคิว เปิดเมื่อต้องการ ไม่ใช่ขั้นในเส้นทางงาน */
+/* ลำดับแท็บ (มติผู้ใช้ 1 ก.ย. 69) — สามแท็บแรกคืองานประจำวันของห้องยาเรียงตาม
+   ลำดับที่ทำจริง (จ่ายยา → คลัง → เบิกจ่าย) ตามด้วยทะเบียนผู้รับบริการซึ่งเป็นที่
+   ค้นหาข้ามคิว แล้วปิดท้ายด้วยรายงานซึ่งเป็นการมองย้อนหลัง ไม่ใช่งานหน้าเคาน์เตอร์ */
 const LINKS = [
   { key: 'queue',       label: 'คิวจ่ายยา',           path: '/pharmacy/queue'       },
   { key: 'stock',       label: 'คลังยาและเวชภัณฑ์',   path: '/pharmacy/stock'       },
   { key: 'requisition', label: 'เบิกจ่าย/รับเข้าคลัง', path: '/pharmacy/requisition' },
-  { key: 'reports',     label: 'รายงาน',              path: '/pharmacy/reports'     },
   { key: 'patients',    label: 'ผู้รับบริการทั้งหมด', path: '/pharmacy/patients'    },
+  { key: 'reports',     label: 'รายงาน',              path: '/pharmacy/reports'     },
 ];
 
 const TABS = LINKS.map(({ key, label }) => ({ key, label }));
@@ -33,14 +34,24 @@ const resolveActiveKey = (pathname) => {
 };
 
 /** Primary action — same SubHeader slot on every pharmacy list page. */
+/* กดแล้วเปิดเป็นป๊อปอัป ไม่ใช่เปิดแท็บใหม่ไปหน้า จัดการระบบ (มติผู้ใช้ 1 ก.ย. 69)
+   — เภสัชกรที่กำลังดูคิวอยู่ไม่ควรถูกเด้งออกไปอีกแท็บเพื่อเพิ่มยาหนึ่งรายการ
+   ป๊อปอัปเป็นตัวเดียวกับที่ใช้แก้ทะเบียนยา (`PharmacyRegistryEditPopup` ที่ห่อ
+   `PharmacyRegistryEditor variant='popup'`) จึงเป็นวิซาร์ดชุดเดียวกัน ไม่ใช่ฟอร์ม
+   ชุดที่สอง · `drugId='new'` ทำให้ editor เข้าโหมดสร้างใหม่ (`isNew`) */
 export const PharmacyAddDrugButton = () => {
-  const openCreateDrug = () => {
-    window.open('/admin/pharmacy/registry/new', '_blank', 'noopener,noreferrer');
-  };
+  const [createOpen, setCreateOpen] = useState(false);
   return (
-    <BrandButton size='md' leadingIcon='add' onClick={openCreateDrug}>
-      เพิ่มทะเบียนยา
-    </BrandButton>
+    <>
+      <BrandButton size='md' leadingIcon='add' onClick={() => setCreateOpen(true)}>
+        เพิ่มทะเบียนยา
+      </BrandButton>
+      <PharmacyRegistryEditPopup
+        open={createOpen}
+        drugId='new'
+        onClose={() => setCreateOpen(false)}
+      />
+    </>
   );
 };
 
