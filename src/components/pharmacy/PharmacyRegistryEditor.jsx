@@ -629,8 +629,10 @@ const PharmacyRegistryEditor = ({
             title='ชื่อยา'
             action={
               isNew && selectedTmt ? (
-                <NeutralSubdueButton size='sm' leadingIcon='search' onClick={clearCatalogPick}>
-                  ล้างค่าและค้นหาใหม่
+                /* "ล้างค่า" พร้อมไอคอนกากบาท (มติผู้ใช้ 1 ก.ย. 69) — ไอคอนแว่นขยาย
+                   อ่านเหมือนปุ่ม "ค้นหา" ทั้งที่หน้าที่จริงคือล้างของที่เลือกไว้ */
+                <NeutralSubdueButton size='sm' leadingIcon='close' onClick={clearCatalogPick}>
+                  ล้างค่า
                 </NeutralSubdueButton>
               ) : null
             }
@@ -1151,7 +1153,12 @@ const PharmacyRegistryEditor = ({
                   gap: 'var(--dim-space-300)',
                 }}
               >
-                <span
+                {/* ปุ่มอยู่แถวหัวการ์ด ไม่ใช่ท้ายรายการ (มติผู้ใช้ 1 ก.ย. 69) —
+                    `marginTop: auto` เดิมดันปุ่มไปติดขอบล่าง พอรายการที่เลือกไว้ยาว
+                    ปุ่มจึงหลุดจอ ต้องเลื่อนหาก่อนถึงจะแก้ได้ */}
+                <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                  <span
+                    className='flex-1 min-w-0'
                   style={{
                     color: 'var(--text-topic-tertiary-title, #363B3F)',
                     fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
@@ -1160,21 +1167,21 @@ const PharmacyRegistryEditor = ({
                     lineHeight: 1.5,
                   }}
                 >
-                  กิจกรรม / กิจกรรมย่อย / แผนก
-                </span>
+                    กิจกรรม / กิจกรรมย่อย / แผนก
+                  </span>
+                  <NeutralSubdueButton
+                    variant='outline'
+                    size='sm'
+                    leadingIcon='edit'
+                    onClick={() => setPrescriberScopeOpen(true)}
+                    className='shrink-0'
+                  >
+                    {prescriberScopes.length ? 'แก้ไข กิจกรรม' : 'เลือก กิจกรรม'}
+                  </NeutralSubdueButton>
+                </div>
                 {prescriberScopes.length > 0 ? (
                   <FormScopeGrouping scopes={prescriberScopes} columns={1} variant='panel' dense />
                 ) : null}
-                <NeutralSubdueButton
-                  variant='outline'
-                  size='sm'
-                  leadingIcon='edit'
-                  onClick={() => setPrescriberScopeOpen(true)}
-                  className='w-fit'
-                  style={{ alignSelf: 'flex-start', width: 'fit-content', marginTop: 'auto' }}
-                >
-                  {prescriberScopes.length ? 'แก้ไข กิจกรรม' : 'เลือก กิจกรรม'}
-                </NeutralSubdueButton>
               </div>
 
               <div
@@ -1185,7 +1192,12 @@ const PharmacyRegistryEditor = ({
                   gap: 'var(--dim-space-300)',
                 }}
               >
-                <span
+                {/* ปุ่มอยู่แถวหัวการ์ด ไม่ใช่ท้ายรายการ (มติผู้ใช้ 1 ก.ย. 69) —
+                    `marginTop: auto` เดิมดันปุ่มไปติดขอบล่าง พอรายการที่เลือกไว้ยาว
+                    ปุ่มจึงหลุดจอ ต้องเลื่อนหาก่อนถึงจะแก้ได้ */}
+                <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300)' }}>
+                  <span
+                    className='flex-1 min-w-0'
                   style={{
                     color: 'var(--text-topic-tertiary-title, #363B3F)',
                     fontFamily: 'var(--type-family-heading-content, var(--type-family-body))',
@@ -1194,21 +1206,21 @@ const PharmacyRegistryEditor = ({
                     lineHeight: 1.5,
                   }}
                 >
-                  ตำแหน่ง
-                </span>
+                    ตำแหน่ง
+                  </span>
+                  <NeutralSubdueButton
+                    variant='outline'
+                    size='sm'
+                    leadingIcon='edit'
+                    onClick={() => setPrescriberPositionOpen(true)}
+                    className='shrink-0'
+                  >
+                    {prescriberPositions.length ? 'แก้ไขตำแหน่ง' : 'เลือกตำแหน่ง'}
+                  </NeutralSubdueButton>
+                </div>
                 {prescriberPositions.length > 0 ? (
                   <FormPositionGrouping positions={prescriberPositions} columns={1} variant='panel' />
                 ) : null}
-                <NeutralSubdueButton
-                  variant='outline'
-                  size='sm'
-                  leadingIcon='edit'
-                  onClick={() => setPrescriberPositionOpen(true)}
-                  className='w-fit'
-                  style={{ alignSelf: 'flex-start', width: 'fit-content', marginTop: 'auto' }}
-                >
-                  {prescriberPositions.length ? 'แก้ไขตำแหน่ง' : 'เลือกตำแหน่ง'}
-                </NeutralSubdueButton>
               </div>
             </div>
           </SectionCard>
@@ -1600,13 +1612,21 @@ const PharmacyRegistryEditor = ({
     return (
       <>
         <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
-          <StepProgress
-            steps={STEPS}
-            current={step}
-            onStepClick={handleStepClick}
-            completedSteps={completedSteps}
-            compact
-          />
+          {/* แถบขั้นตอนจัดกึ่งกลางป๊อปอัป (มติผู้ใช้ 1 ก.ย. 69) — `StepProgress`
+              กว้างเท่าเนื้อหาของตัวเอง ถ้าไม่ห่อก็จะไปเกาะขอบซ้าย
+              (ทำแบบเดียวกับป๊อปอัปทะเบียนรายการตรวจของห้องปฏิบัติการ) */}
+          <div className='flex w-full justify-center'>
+            <StepProgress
+              steps={STEPS}
+              current={step}
+              onStepClick={handleStepClick}
+              completedSteps={completedSteps}
+              compact
+              /* `StepProgress` เป็น `w-full` อยู่แล้ว การห่อด้วย justify-center
+                 ที่ตัวห่อจึงไม่ได้ผล ต้องสั่งที่แถวของมันเอง */
+              className='justify-center'
+            />
+          </div>
           <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
             {stepBody}
           </div>

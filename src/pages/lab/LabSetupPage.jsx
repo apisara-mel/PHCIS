@@ -1223,6 +1223,7 @@ const LabSetupPage = () => {
                   completedSteps={completedSteps}
                   onStepClick={handleStepClick}
                   compact
+                  className='justify-center'
                 />
               </div>
 

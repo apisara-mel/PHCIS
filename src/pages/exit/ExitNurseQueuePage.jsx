@@ -243,6 +243,7 @@ const DoctorRecordView = ({ row, record, step, onStepChange }) => {
           completedSteps={filled}
           onStepClick={onStepChange}
           compact
+          className='justify-center'
         />
       </div>
 
