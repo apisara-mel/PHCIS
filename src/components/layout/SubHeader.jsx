@@ -36,16 +36,22 @@ import { ButtonSizeAliasProvider } from '@/components/button/ButtonSizeAliasCont
        "พิมพ์ฉลากตรวจแล็บ")
      flushSummaryCardsBelow — when true, removes bottom border + drop-shadow so
        SummaryCardsBar can sit flush with no visible “top stroke” on the panel.
-     hideBottomBorder — when true, omits only the 1px bottom border (keeps shadow). */
+     hideBottomBorder — when true, omits only the 1px bottom border (keeps shadow).
+     hideConsentAction — when true, suppresses the built-in "คำขอเข้าถึงข้อมูล"
+       action so a page can render it somewhere of its own choosing. */
 
 /* Density contract: every button rendered in this page-title row inherits the
    existing `sm` size alias (36px) through ButtonSizeAliasProvider. This also
    reaches buttons nested inside compound header actions without page-by-page
    overrides. */
 
-const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', children, leadingActions = null, flushSummaryCardsBelow = false, hideBottomBorder = false }) => {
+const SubHeader = ({ title, afterTitle, onBack, backLabel = 'กลับ', children, leadingActions = null, flushSummaryCardsBelow = false, hideBottomBorder = false, hideConsentAction = false }) => {
   const { pathname } = useLocation();
-  const showConsentAction = canCreateConsentRequest() && shouldShowCreateConsentRequestAction(pathname);
+  /* `hideConsentAction` — หน้าที่ย้ายปุ่ม "คำขอเข้าถึงข้อมูล" ไปวางเองที่อื่น
+     (เช่น แถวปุ่มบนการ์ดผู้ป่วยของคลินิกฝากครรภ์ · มติผู้ใช้ 1 ก.ย. 69) ต้องปิด
+     ตัวที่ SubHeader วางให้ ไม่งั้นจะมีปุ่มเดียวกันสองที่ในจอเดียว */
+  const showConsentAction = !hideConsentAction
+    && canCreateConsentRequest() && shouldShowCreateConsentRequestAction(pathname);
   const hasActions = children || leadingActions || showConsentAction;
 
   return (

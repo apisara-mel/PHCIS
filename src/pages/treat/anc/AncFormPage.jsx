@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header, { SubHeader } from '@/components/layout/Header';
+import CreateConsentRequestHeaderAction from '@/components/consent/CreateConsentRequestHeaderAction';
 import Footer from '@/components/layout/Footer';
 import PatientCard from '@/components/card/PatientCard';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -92,6 +93,9 @@ const AncFormPage = () => {
         <SubHeader
           title={`บันทึกฝากครรภ์ — ตรวจครรภ์ครั้งที่ ${seed.visitNo}`}
           hideBottomBorder
+          /* ปุ่ม "คำขอเข้าถึงข้อมูล" ย้ายลงไปอยู่แถวปุ่มบนการ์ดผู้ป่วย
+             (มติผู้ใช้ 1 ก.ย. 69) จึงต้องปิดตัวที่ SubHeader วางให้ */
+          hideConsentAction
         />
         <PatientCard
           sticky
@@ -101,7 +105,11 @@ const AncFormPage = () => {
           drugAllergies={patient.drugAllergies}
           chronicDiseases={patient.chronicDiseases}
           actions={
-            <BrandSubdueButton variant='fill' leadingIcon='credit_card'>พิมพ์บัตรฝากครรภ์</BrandSubdueButton>
+            <>
+              {/* "คำขอเข้าถึงข้อมูล" มาก่อนปุ่มพิมพ์บัตร (มติผู้ใช้ 1 ก.ย. 69) */}
+              <CreateConsentRequestHeaderAction />
+              <BrandSubdueButton variant='fill' leadingIcon='credit_card'>พิมพ์บัตรฝากครรภ์</BrandSubdueButton>
+            </>
           }
         />
         <AncPregnancyProgress form={form} cardPatient={cardPatient} ancHn={ancHn} visitNo={seed.visitNo} />
