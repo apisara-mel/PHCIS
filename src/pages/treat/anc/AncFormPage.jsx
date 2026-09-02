@@ -49,7 +49,7 @@ const ANC_STEPS = [
   { title: 'ตรวจร่างกายและวินิจฉัย', subtitle: 'Examination & Diagnosis' },
   { title: 'สั่งการรักษา', subtitle: 'Treatment Order' },
   { title: 'นัดหมาย', subtitle: 'Appointment' },
-  { title: 'ใบฝากครรภ์', subtitle: 'ANC Card' },
+  { title: 'ตรวจสอบ', subtitle: 'Review' },
 ];
 
 const STEP_RENDERERS = [
