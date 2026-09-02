@@ -1976,29 +1976,7 @@ export const FpStep7Documents = ({
 
   return (
     <StepCard>
-      {validationErrors.length > 0 && (
-        <div
-          className='flex flex-col w-full'
-          style={{
-            gap: 'var(--dim-space-200, 8px)',
-            paddingTop: 'var(--dim-space-300, 12px)',
-            paddingBottom: 'var(--dim-space-300, 12px)',
-            paddingLeft: 'var(--dim-space-400, 16px)',
-            paddingRight: 'var(--dim-space-400, 16px)',
-            borderRadius: 'var(--dim-radius-200, 8px)',
-            background: 'var(--surface-danger-quaternary, #FFF0F0)',
-          }}
-        >
-          <span className='flex items-center gap-2' style={{ color: 'var(--text-danger-default, #B91C1C)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}>
-            <Icon name='error' size={18} />
-            ต้องแก้ไข {validationErrors.length} รายการก่อนบันทึก
-          </span>
-          {validationErrors.map((e) => (
-            <span key={e} style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-danger-default, #B91C1C)' }}>• {e}</span>
-          ))}
-        </div>
-      )}
-
+      {/* แบนเนอร์ "ต้องแก้ไข N รายการก่อนบันทึก" ถูกตัดออก (มติผู้ใช้ 3 ก.ย. 69) */}
       {/* ── เอกสารแนบ (TOR 1.10.8.4) ───────────────────────────────── */}
       <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
         <TopicHeader icon='attach_file'>เอกสารแนบ / e-Document</TopicHeader>
