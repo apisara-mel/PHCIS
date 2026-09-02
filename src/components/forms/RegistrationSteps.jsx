@@ -2362,12 +2362,15 @@ const RightsGroupCard = ({
         {/* ช่องอัปโหลดกับปุ่มถ่ายรูปอยู่แถวเดียวกัน — เป็นสองทางของการแนบสิ่งเดียวกัน
             ปุ่มถ่ายรูปยืดสูงเท่าช่องอัปโหลดแทนสี่เหลี่ยม 128×128 ตายตัว */}
         <div className='flex items-stretch w-full' style={{ gap: 'var(--dim-space-400)' }}>
-          <div className='flex-1 min-w-0'>
+          {/* ช่องอัปโหลดสูงเท่าปุ่มถ่ายรูป/สแกนที่อยู่ข้างกัน (มติผู้ใช้ 2 ก.ย. 69)
+              — `DragAndDrop` มีแค่ `minHeight` ไม่ได้ยืดเต็มแถวเอง */}
+          <div className='flex-1 min-w-0 flex'>
             <DragAndDrop
               size='sm'
               value={[]}
               onChange={handleUploadFiles}
               accept='image/*,.pdf'
+              style={{ height: '100%' }}
             />
           </div>
           {useNativeCapture ? (

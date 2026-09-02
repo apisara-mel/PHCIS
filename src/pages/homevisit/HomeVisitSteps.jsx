@@ -71,7 +71,6 @@ import {
   CAREGIVER_OPTIONS,
   SCREEN_2Q_QUESTIONS,
   PAIN_SCALE,
-  NUTRITION_OPTIONS,
   PRESSURE_SORE_OPTIONS,
   ROLE_NOTE_SECTIONS,
   CARE_ACTIVITIES,
@@ -399,27 +398,135 @@ export const HomeVisitStep1Service = ({ form, setForm, readOnly, hn, blockedMsg,
    เพราะเป็นหลักฐานของ "บ้านหลังนี้" ไม่ใช่ของการเยี่ยมครั้งใดครั้งหนึ่ง */
 export const HOMEVISIT_HOUSE_PHOTO_LIMIT = 5;
 
-/* ลำดับรูปที่ทีมต้องถ่าย (มติผู้ใช้ 2 ก.ย. 69) — บอกกำกับไว้ทั้งบนปุ่มถ่ายและ
-   ใต้รูปที่ถ่ายแล้ว จะได้ไม่ต้องจำว่ารูปไหนคือรูปอะไร */
-const HOUSE_PHOTO_GUIDES = [
-  'บริเวณรอบบ้าน',
-  'ป้ายเลขที่บ้าน',
+/* กล่องถ่ายรูปบ้าน — สองช่องแรกเป็นรูปที่ ToR ขอเป็นลำดับ (บริเวณรอบบ้าน แล้ว
+   ป้ายเลขที่บ้าน) ช่องที่สามไว้ถ่ายเพิ่มได้ตามสถานการณ์ (มติผู้ใช้ 2 ก.ย. 69)
+   เก็บทั้งหมดใน `form.housePhotos` โดยยึดตำแหน่ง: index 0 = รอบบ้าน ·
+   index 1 = ป้ายเลขที่บ้าน · index 2+ = รูปเพิ่มเติม */
+const HOUSE_PHOTO_SLOTS = [
+  { key: 'around', title: 'ถ่ายรูปที่ 1', caption: 'บริเวณรอบบ้าน' },
+  { key: 'houseNo', title: 'ถ่ายรูปที่ 2', caption: 'ติดบ้านเลขที่' },
 ];
-const houseGuideOf = (index) => HOUSE_PHOTO_GUIDES[index] || 'รูปเพิ่มเติม';
 
 /* กรอบรูปบ้านเป็นสัดส่วน 4:3 (มติผู้ใช้ 2 ก.ย. 69) — ตรงกับภาพที่ได้จากกล้อง
    มือถือแนวนอน ไม่ต้องครอบตัดจนเลขที่บ้านหาย */
 const HOUSE_PHOTO_W = 192;
 const HOUSE_PHOTO_H = 144;
 
+const readAsDataUrl = (file, done) => {
+  if (typeof FileReader === 'undefined') { done(''); return; }
+  const reader = new FileReader();
+  reader.onload = () => done(String(reader.result || ''));
+  reader.onerror = () => done('');
+  reader.readAsDataURL(file);
+};
+
+const HouseThumb = ({ photo, caption, onRemove, readOnly }) => (
+  <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+    <div className='relative shrink-0'>
+      <img
+        src={photo.previewUrl}
+        alt={`${caption} — ${photo.name || ''}`.trim()}
+        style={{
+          width: HOUSE_PHOTO_W,
+          height: HOUSE_PHOTO_H,
+          objectFit: 'cover',
+          borderRadius: 'var(--dim-radius-300, 10px)',
+          border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
+          display: 'block',
+        }}
+      />
+      {!readOnly && (
+        <span style={{ position: 'absolute', top: 'var(--dim-space-100, 4px)', right: 'var(--dim-space-100, 4px)' }}>
+          <NeutralIconButton
+            icon='close'
+            variant='ghost'
+            size='sm'
+            aria-label={`ลบรูป ${caption}`}
+            onClick={onRemove}
+          />
+        </span>
+      )}
+    </div>
+    <span style={{
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-xs)',
+      color: 'var(--text-content-tertiary, #858C92)',
+      maxWidth: HOUSE_PHOTO_W,
+    }}>
+      {caption}
+    </span>
+  </div>
+);
+
 const HomeVisitHousePhotoField = ({ form, setForm, readOnly }) => {
   const photos = form.housePhotos || [];
-  const remaining = HOMEVISIT_HOUSE_PHOTO_LIMIT - photos.length;
+  const extras = photos.slice(HOUSE_PHOTO_SLOTS.length).filter(Boolean);
+  const extrasRoom = HOMEVISIT_HOUSE_PHOTO_LIMIT - HOUSE_PHOTO_SLOTS.length - extras.length;
 
-  const removeAt = (index) => setForm((f) => ({
-    ...f,
-    housePhotos: (f.housePhotos || []).filter((_, i) => i !== index),
-  }));
+  /* ช่องที่ 1–2 ผูกกับตำแหน่งคงที่ — ถ่ายทับได้โดยไม่กระทบรูปช่องอื่น */
+  const setSlot = (index, entry) => setForm((f) => {
+    const next = [...(f.housePhotos || [])];
+    while (next.length < HOUSE_PHOTO_SLOTS.length) next.push(null);
+    next[index] = entry;
+    return { ...f, housePhotos: next };
+  });
+
+  const addExtras = (files) => {
+    Array.from(files).slice(0, Math.max(0, extrasRoom)).forEach((file, i) => {
+      readAsDataUrl(file, (previewUrl) => setForm((f) => ({
+        ...f,
+        housePhotos: [...(f.housePhotos || []), { id: `hv-house-extra-${Date.now()}-${i}`, name: file.name, previewUrl }],
+      })));
+    });
+  };
+
+  const removeExtra = (extraIndex) => setForm((f) => {
+    const list = [...(f.housePhotos || [])];
+    list.splice(HOUSE_PHOTO_SLOTS.length + extraIndex, 1);
+    return { ...f, housePhotos: list };
+  });
+
+  const slotBox = (slot, index) => {
+    const photo = photos[index];
+    if (photo && photo.previewUrl) {
+      return (
+        <HouseThumb
+          key={slot.key}
+          photo={photo}
+          caption={`${slot.title} · ${slot.caption}`}
+          readOnly={readOnly}
+          onRemove={() => setSlot(index, null)}
+        />
+      );
+    }
+    return (
+      <PhotoUploadField
+        key={slot.key}
+        icon='photo_camera'
+        capture='environment'
+        disabled={readOnly}
+        style={{ width: HOUSE_PHOTO_W, height: HOUSE_PHOTO_H }}
+        aria-label={`${slot.title} ${slot.caption}`}
+        label={(
+          /* ชื่อรูปขึ้นบรรทัดใหม่จากคำว่า "ถ่ายรูปที่ N" (มติผู้ใช้ 2 ก.ย. 69) */
+          <>
+            {slot.title}
+            <br />
+            {slot.caption}
+          </>
+        )}
+        onFiles={(files) => {
+          const file = files[0];
+          if (!file) return;
+          readAsDataUrl(file, (previewUrl) => setSlot(index, {
+            id: `hv-house-${slot.key}-${Date.now()}`,
+            name: file.name,
+            previewUrl,
+          }));
+        }}
+      />
+    );
+  };
 
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
@@ -430,76 +537,30 @@ const HomeVisitHousePhotoField = ({ form, setForm, readOnly }) => {
       }}>
         รูปถ่ายบ้าน (หน้าบ้าน + เลขที่บ้าน)
       </span>
-      <span style={{
-        fontFamily: 'var(--type-family-body)',
-        fontSize: 'var(--type-size-xs)',
-        color: 'var(--text-content-tertiary, #858C92)',
-      }}>
-        รูปที่ 1: บริเวณรอบบ้าน (เห็นทางเข้าและสภาพแวดล้อม) · รูปที่ 2: ถ่ายติดป้ายเลขที่บ้าน
-      </span>
       <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+        {HOUSE_PHOTO_SLOTS.map(slotBox)}
+
+        {extras.map((photo, i) => (
+          <HouseThumb
+            key={photo.id || `extra-${i}`}
+            photo={photo}
+            caption='ภาพเพิ่มเติม'
+            readOnly={readOnly}
+            onRemove={() => removeExtra(i)}
+          />
+        ))}
+
         <PhotoUploadField
-          label={remaining > 0
-            ? `ถ่ายรูปที่ ${photos.length + 1} — ${houseGuideOf(photos.length)}`
-            : `ครบ ${HOMEVISIT_HOUSE_PHOTO_LIMIT} รูปแล้ว`}
-          icon='photo_camera'
+          icon='add_a_photo'
           capture='environment'
           multiple
-          disabled={readOnly || remaining <= 0}
+          disabled={readOnly || extrasRoom <= 0}
           style={{ width: HOUSE_PHOTO_W, height: HOUSE_PHOTO_H }}
-          /* data URL เหมือนรูปประกอบการเยี่ยม — blob URL ตายหลังบันทึกร่าง */
-          onFiles={(files) => {
-            Array.from(files).slice(0, Math.max(0, remaining)).forEach((file, i) => {
-              const entryId = `hv-house-${Date.now()}-${i}`;
-              const push = (previewUrl) => setForm((f) => ({
-                ...f,
-                housePhotos: [...(f.housePhotos || []), { id: entryId, name: file.name, previewUrl }],
-              }));
-              if (typeof FileReader === 'undefined') { push(''); return; }
-              const reader = new FileReader();
-              reader.onload = () => push(String(reader.result || ''));
-              reader.onerror = () => push('');
-              reader.readAsDataURL(file);
-            });
-          }}
+          label={extrasRoom > 0
+            ? 'ถ่ายภาพเพิ่มเติม'
+            : `ครบ ${HOMEVISIT_HOUSE_PHOTO_LIMIT} รูปแล้ว`}
+          onFiles={addExtras}
         />
-        {photos.map((photo, i) => (
-          <div key={photo.id || `${photo.name}-${i}`} className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-            <div className='relative shrink-0'>
-              <img
-                src={photo.previewUrl}
-                alt={`${houseGuideOf(i)} — ${photo.name || ''}`.trim()}
-                style={{
-                  width: HOUSE_PHOTO_W,
-                  height: HOUSE_PHOTO_H,
-                  objectFit: 'cover',
-                  borderRadius: 'var(--dim-radius-300, 10px)',
-                  border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
-                  display: 'block',
-                }}
-              />
-              {!readOnly && (
-                <span style={{ position: 'absolute', top: 'var(--dim-space-100, 4px)', right: 'var(--dim-space-100, 4px)' }}>
-                  <NeutralIconButton
-                    icon='close'
-                    variant='ghost'
-                    size='sm'
-                    aria-label={`ลบรูป ${houseGuideOf(i)}`}
-                    onClick={() => removeAt(i)}
-                  />
-                </span>
-              )}
-            </div>
-            <span style={{
-              fontFamily: 'var(--type-family-body)',
-              fontSize: 'var(--type-size-xs)',
-              color: 'var(--text-content-tertiary, #858C92)',
-              maxWidth: HOUSE_PHOTO_W,
-            }}>
-              {`รูปที่ ${i + 1} · ${houseGuideOf(i)}`}
-            </span>
-          </div>
-        ))}
       </div>
     </div>
   );
@@ -722,11 +783,6 @@ export const HomeVisitTelemedSection = ({ form, setForm, readOnly, visitId, hn, 
 };
 
 export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, appointment, registryEntry, blockedMsg }) => {
-  /* ภาวะโภชนาการในการ์ดอาการป่วยแปลผลจาก MNA-SF ที่ประเมินในขั้นเดียวกัน
-     (มติผู้ใช้ 2 ก.ย. 69 — ย้ายสามช่องนี้เข้ามาจากหมวด "คัดกรองสุขภาพรายบุคคล") */
-  const mnaTotalHistory = useMemo(() => scoreMna(form.mna), [form.mna]);
-  const mnaDone = isMnaComplete(form.mna);
-  const mnaInterp = useMemo(() => interpretMna(mnaTotalHistory), [mnaTotalHistory]);
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
   const addMedication = () => setForm((f) => ({
@@ -801,35 +857,9 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
               placeholder='เลือกลักษณะผู้ดูแล'
             />
           </Field>
-          <Field
-            label='ภาวะโภชนาการ'
-            hint='ระบบแปลผลจากคะแนน MNA-SF ด้านล่างให้อัตโนมัติ — ไม่ต้องเลือกเอง'
-          >
-            <div
-              className='flex items-center'
-              style={{
-                /* สูงเท่ากับ <Select size='lg'> ที่อยู่ข้าง ๆ (มติผู้ใช้ 2 ก.ย. 69)
-                   — `--dim-size-800` คือความสูงของช่องกรอกไซซ์ lg */
-                height: 'var(--dim-size-800, 40px)',
-                gap: 'var(--dim-space-200, 8px)',
-                paddingLeft: 'var(--dim-space-300, 12px)',
-                paddingRight: 'var(--dim-space-300, 12px)',
-                borderRadius: 'var(--dim-radius-200, 8px)',
-                border: 'var(--dim-stroke-100, 1px) solid var(--border-input-default, #DFE1E3)',
-                background: 'var(--surface-neutral-quaternary, #F9FBFB)',
-              }}
-            >
-              {mnaDone ? (
-                <ColorfulBadge style={mnaInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={320}>
-                  {NUTRITION_OPTIONS.find((o) => o.value === mnaInterp.nutrition)?.label || mnaInterp.label}
-                </ColorfulBadge>
-              ) : (
-                <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary, #858C92)' }}>
-                  ยังประเมิน MNA-SF ไม่ครบ
-                </span>
-              )}
-            </div>
-          </Field>
+          {/* ช่อง "ภาวะโภชนาการ" ถูกถอดออก (มติผู้ใช้ 2 ก.ย. 69) — ค่าที่แสดง
+              เป็นผลแปลจาก MNA-SF ซึ่งอ่านได้จากการ์ดแบบประเมินด้านล่างอยู่แล้ว
+              คีย์ `form.nutrition` ยังอยู่ในโมเดลและในใบสรุป */}
           <Field label='แผลกดทับ'>
             <Select
               showLabel={false} showHelperText={false} searchable={false} size='lg'
@@ -1397,70 +1427,61 @@ export const HomeVisitPhotoSection = ({ form, setForm, readOnly }) => {
    (หัวการ์ดพื้นอ่อน + รหัส/ป้ายเวอร์ชัน + ชื่อ + แถวปุ่มล่าง) แต่ "เวอร์ชัน"
    ของแบบประเมินคือ *คะแนน* และป้ายคือ *การแปลผล* ซึ่งเป็นสิ่งที่พยาบาลต้อง
    เห็นก่อนตัดสินใจว่าจะเปิดชุดไหน (มติผู้ใช้ 30 ส.ค. 69) */
-const AssessmentToolCard = ({ code, title, done, scoreLabel, interp, readOnly, onOpen }) => (
-  <section
-    className='flex flex-col w-full min-w-0'
+/* แถวของแบบประเมินแต่ละชุด — ไม่ใช่การ์ดอีกแล้ว (มติผู้ใช้ 2 ก.ย. 69)
+   สี่ชุดเรียงเป็นรายการอ่านจากบนลงล่าง: ชื่อ + คะแนน/ผลแปล + ปุ่มเปิดป๊อปอัป
+   ทำแบบประเมิน · การ์ดสี่ใบกินพื้นที่ทั้งแถวโดยที่เนื้อหาจริงมีไม่กี่บรรทัด */
+const AssessmentToolRow = ({ code, title, done, scoreLabel, interp, readOnly, onOpen, first }) => (
+  <div
+    className='flex items-center w-full flex-wrap'
     style={{
-      borderRadius: 'var(--dim-radius-400, 12px)',
-      border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
-      background: 'var(--surface-card-100, #FFFFFF)',
-      overflow: 'hidden',
+      gap: 'var(--dim-space-300, 12px)',
+      paddingTop: 'var(--dim-space-300, 12px)',
+      paddingBottom: 'var(--dim-space-300, 12px)',
+      borderTop: first ? undefined : 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
     }}
   >
-    <div
-      className='flex flex-col items-center w-full'
-      style={{
-        gap: 'var(--dim-space-100, 4px)',
-        paddingTop: 'var(--dim-space-500, 20px)',
-        paddingBottom: 'var(--dim-space-500, 20px)',
-        background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
-      }}
-    >
-      <span style={{
-        color: 'var(--text-brandPrimary-default, #007549)',
-        fontFamily: 'var(--type-family-heading-content)',
-        fontSize: 'var(--type-size-xl)',
-      }}>
-        {scoreLabel}
+    <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-50, 2px)', flex: '1 1 240px' }}>
+      <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+        {title}
       </span>
       <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
         {code}
       </span>
     </div>
 
-    <div
-      className='flex flex-col w-full flex-1'
-      style={{
-        gap: 'var(--dim-space-200, 8px)',
-        padding: 'var(--dim-space-400, 16px)',
-      }}
-    >
-      <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-        {title}
-      </span>
-      {done && interp ? (
-        <ColorfulBadge style={interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={260}>
-          {interp.label}
-        </ColorfulBadge>
-      ) : (
-        <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
-          ยังไม่ได้ประเมิน
-        </ColorfulBadge>
-      )}
-      <div className='flex-1' />
+    <span style={{
+      color: 'var(--text-brandPrimary-default, #007549)',
+      fontFamily: 'var(--type-family-heading-content)',
+      fontSize: 'var(--type-size-base)',
+      minWidth: 72,
+      textAlign: 'right',
+    }}>
+      {scoreLabel}
+    </span>
+
+    {done && interp ? (
+      <ColorfulBadge style={interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={260}>
+        {interp.label}
+      </ColorfulBadge>
+    ) : (
+      <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
+        ยังไม่ได้ประเมิน
+      </ColorfulBadge>
+    )}
+
+    <span style={{ marginLeft: 'auto' }}>
       <BrandSubdueButton
         variant='outline'
         size='sm'
         /* ปุ่มของ DS เรนเดอร์ไอคอนเป็น Material Symbols (ligature) — ชื่อที่ไม่มี
-           ในฟอนต์อย่าง `clipboard-list` จะโผล่เป็นตัวอักษร "CLIPBOARD-" บนปุ่ม
-           (บั๊กที่ผู้ใช้เจอ 2 ก.ย. 69) */
+           ในฟอนต์อย่าง `clipboard-list` จะโผล่เป็นตัวอักษรบนปุ่ม */
         leadingIcon={done ? 'edit' : 'assignment'}
         onClick={onOpen}
       >
         {readOnly ? 'ดูผลประเมิน' : (done ? 'แก้ไข' : 'ทำแบบประเมิน')}
       </BrandSubdueButton>
-    </div>
-  </section>
+    </span>
+  </div>
 );
 
 export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }) => {
@@ -1598,10 +1619,11 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
             เวชระเบียน (มติผู้ใช้ 30 ส.ค. 69) — เดิมกางเป็นฟอร์มยาวเรียงกันสี่ชุด
             ในขั้นเดียว ทำให้เลื่อนหาไม่เจอว่าเหลือชุดไหนยังไม่ได้ทำ · การ์ดบอก
             สถานะ/คะแนน/การแปลผลของแต่ละชุดในบรรทัดเดียว แล้วค่อยกดเข้าไปทำ */}
-        <FieldGrid cols={4} rowGap='var(--dim-space-400)' columnGap='var(--dim-space-400)'>
-          {ASSESSMENT_TOOL_CARDS.map((t) => (
-            <AssessmentToolCard
+        <div className='flex flex-col w-full'>
+          {ASSESSMENT_TOOL_CARDS.map((t, i) => (
+            <AssessmentToolRow
               key={t.key}
+              first={i === 0}
               code={t.code}
               title={t.title}
               done={t.done}
@@ -1611,7 +1633,7 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
               onOpen={() => setOpenTool(t.key)}
             />
           ))}
-        </FieldGrid>
+        </div>
 
         <Popup
           open={!!openTool}
