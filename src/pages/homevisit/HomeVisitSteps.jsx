@@ -58,6 +58,8 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import VitalsForm from '@/components/forms/VitalsForm';
 import Table from '@/components/table/Table';
 import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
+import ViewToggle from '@/components/toggle/ViewToggle';
+import FamilyGenogram from '@/components/homevisit/FamilyGenogram';
 import Popup from '@/components/popup/Popup';
 import {
   HOMEVISIT_TIME_SLOTS,
@@ -180,6 +182,12 @@ import {
    (ตั้งแต่ตื่นนอน · ตั้งแต่เช้านี้ · ตั้งแต่เมื่อคืน) ออก (มติผู้ใช้ 30 ส.ค. 69)
    — คำพวกนี้เป็นภาษาของคนเดินมาห้องฉุกเฉินในวันเดียวกัน ส่วนการเยี่ยมบ้านนัด
    ล่วงหน้าเป็นรอบ อาการที่ทีมเจอจึงนับเป็นวัน/สัปดาห์/เดือนขึ้นไป */
+/* มุมมองของแฟ้มครอบครัว — ผังเครือญาติ / ตาราง (มติผู้ใช้ 2 ก.ย. 69) */
+const FAMILY_VIEW_OPTIONS = [
+  { value: 'map', icon: 'account_tree', label: 'มุมมองผังเครือญาติ' },
+  { value: 'table', icon: 'table_rows', label: 'มุมมองตาราง' },
+];
+
 const HOMEVISIT_DURATION_EXCLUDED = ['ตั้งแต่ตื่นนอน', 'ตั้งแต่เช้านี้', 'ตั้งแต่เมื่อคืน'];
 
 const HOMEVISIT_DURATION_OPTIONS = DURATION_SUGGESTIONS
@@ -621,10 +629,9 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
       <SectionCard>
       <StepSection gap='var(--dim-space-600)'>
         <TopicHeader icon='stethoscope'>อาการป่วยที่พบในการเยี่ยมครั้งนี้</TopicHeader>
-        {/* กริด 2 คอลัมน์ — อาการสำคัญ / ระยะเวลา / ประวัติปัจจุบัน กว้างเท่ากันหมด
-            (มติผู้ใช้ 30 ส.ค. 69) เดิมประวัติปัจจุบันเป็นแถวเต็มความกว้างอยู่ใต้
-            สองช่องนั้น ขนาดจึงไม่ตรงกัน */}
-        <FieldGrid cols={2} rowGap='var(--dim-space-600)' columnGap='var(--dim-space-600)'>
+        {/* สามช่องอยู่แถวเดียวกัน (มติผู้ใช้ 2 ก.ย. 69) — กริด 2 คอลัมน์เดิม
+            ดันประวัติปัจจุบันลงไปแถวสอง เหลือช่องว่างข้างระยะเวลาทั้งช่อง */}
+        <FieldGrid cols={3} rowGap='var(--dim-space-600)' columnGap='var(--dim-space-600)'>
           <Field label='อาการสำคัญ (Chief Complaint)' required>
             <SuggestibleTextarea
               showLabel={false}
@@ -2024,6 +2031,9 @@ export const HomeVisitStep7Family = ({
      ชุดเบิกจ่าย สปสช. (§1.7.1.1) · เขียนแฟ้มครอบครัวกลับทะเบียน
      โค้ดยังอยู่ครบในไฟล์นี้ รอต่อกลับเข้าปุ่มใหม่ */
   const [familyEditOpen, setFamilyEditOpen] = useState(false);
+  /* สลับดูแฟ้มครอบครัวเป็น "ผังเครือญาติ" หรือ "ตาราง" (มติผู้ใช้ 2 ก.ย. 69) —
+     ผังอ่านโครงสร้างครัวเรือนได้เร็วกว่า ส่วนตารางไว้กวาดตาอ่านรายละเอียด */
+  const [familyView, setFamilyView] = useState('map');
   /* ครัวเรือนที่ยังไม่เคยบันทึกสมาชิกได้ชุด mock คงที่ต่อ HN — ตารางจะได้ไม่ว่าง
      เปล่าทุกราย (มติผู้ใช้ 30 ส.ค. 69) กดแก้ไขแล้วบันทึกจึงกลายเป็นข้อมูลจริง */
   const familyRows = form.familyMembers.length > 0 ? form.familyMembers : getFamilyMembers(hn);
@@ -2072,9 +2082,20 @@ export const HomeVisitStep7Family = ({
         >
           Family Folder — แฟ้มครอบครัว
         </TopicHeader>
-        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+        {/* หัวแฟ้มอยู่แถวเดียวจบ (มติผู้ใช้ 2 ก.ย. 69) — เดิมเป็น flex-wrap ที่ให้
+            ที่อยู่กินความกว้างตามข้อความ "เบอร์ผู้ติดต่อ" จึงตกไปขึ้นบรรทัดใหม่
+            กริดแบ่งสัดส่วนคงที่ ช่องที่อยู่ยาวจะตัดบรรทัดอยู่ในช่องตัวเอง */}
+        <div
+          className='w-full'
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1.8fr 1fr 0.8fr 1.2fr 1fr',
+            gap: 'var(--dim-space-600, 24px)',
+            alignItems: 'start',
+          }}
+        >
           {householdRows.map((r) => (
-            <div key={r.label} className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)', minWidth: 200 }}>
+            <div key={r.label} className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
               <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
                 {r.label}
               </span>
@@ -2085,6 +2106,25 @@ export const HomeVisitStep7Family = ({
           ))}
         </div>
 
+        {/* สลับมุมมองอยู่เหนือผัง/ตารางที่มันควบคุม (มติผู้ใช้ 2 ก.ย. 69) —
+            บนหัวข้อมันปนกับปุ่มแก้ไขจนอ่านไม่ออกว่าคุมอะไร */}
+        <div className='flex items-center justify-end w-full'>
+          <ViewToggle
+            value={familyView}
+            onChange={setFamilyView}
+            options={FAMILY_VIEW_OPTIONS}
+            aria-label='สลับมุมมองแฟ้มครอบครัว'
+          />
+        </div>
+
+        {familyView === 'map' ? (
+          <FamilyGenogram
+            members={familyRows}
+            patientName={registryEntry?.name || appointment?.name}
+            patientHn={hn}
+            patientAvatarUrl={registryEntry?.avatarUrl || appointment?.avatarUrl}
+          />
+        ) : (
         <Table
           columns={[
             {
@@ -2116,6 +2156,7 @@ export const HomeVisitStep7Family = ({
           rowKey={(r) => r.id}
           emptyMessage='ยังไม่มีข้อมูลสมาชิกในครอบครัวในทะเบียนของครัวเรือนนี้'
         />
+        )}
 
       </StepSection>
 

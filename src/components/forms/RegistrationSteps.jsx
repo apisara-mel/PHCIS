@@ -1829,7 +1829,9 @@ const RIGHTS_LOOKUP_PANEL_STYLE = {
   background: 'var(--surface-positive-quaternary, #F4FBFA)',
   width: 'fit-content',
   boxSizing: 'border-box',
-  marginTop: 'var(--dim-space-1200)',
+  /* ระยะจากขอบบนของการ์ดถึงกล่อง = 24px ตามระยะขอบของการ์ด (มติผู้ใช้
+     2 ก.ย. 69) — เดิมเว้นเพิ่มอีก 48px แล้วยังจัดกึ่งกลางในกรอบสูง 400px
+     ทำให้เหนือกล่องเป็นพื้นที่ว่างเกือบครึ่งจอ */
 };
 
 /* การ์ดกลุ่มสิทธิ — ขาวแยกใบเหมือนการ์ดอื่นในฟอร์ม (มติผู้ใช้ 27 ส.ค. 69) */
@@ -2409,10 +2411,7 @@ const RightsGroupCard = ({
    ชื่อ step (มติผู้ใช้ 27 ส.ค. 69) */
 const Step4RightsLookupEmpty = ({ form, setForm }) => (
   <SubCard>
-    <div
-      className='flex w-full items-center justify-center'
-      style={{ minHeight: 400 }}
-    >
+    <div className='flex w-full items-center justify-center'>
       <RightsLookupPanel form={form} setForm={setForm} />
     </div>
   </SubCard>
