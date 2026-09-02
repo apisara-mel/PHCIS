@@ -755,22 +755,23 @@ export const DEFAULT_FP_VISIT = {
   urineSugar: '',
   urineAlbumin: '',
 
-  /* S2 — คัดกรอง 11 ข้อ (คู่มือ p.2-5) */
-  screening: {},
-  screeningNote: '',
+  /* S2 — คัดกรอง 11 ข้อ (คู่มือ p.2-5) — ค่าตั้งต้นเป็น mock ของวิสิตนี้ (มติผู้ใช้
+     3 ก.ย. 69) เพื่อให้ขั้น "ตรวจสอบ" มีข้อมูลจากขั้น 1-3 ให้ทวนจริง */
+  screening: { q1: 'no', q2: 'no', q3: 'no', q4: 'no', q5: 'no', q6: 'no', q7: 'no', q8: 'no', q9: 'no', q10: 'no', q11: 'no' },
+  screeningNote: 'ไม่พบข้อห้ามการใช้ยาคุมกำเนิดชนิดฮอร์โมน',
   doctorConsulted: false,          /* ส่งปรึกษาแพทย์แล้ว → ปลดล็อกการจ่ายยา */
   doctorConsultedBy: '',
   doctorConsultedAt: '',
 
   /* S3 — วางแผนครอบครัวและคำแนะนำ (1.10.8.7) */
   serviceDate: todayIso(),
-  clientType: '',
-  lastMethod: '',
+  clientType: 'old',
+  lastMethod: 'pill',
   lastMethodOther: '',
   services: [],                    /* บริการที่ได้รับ — array ของ FP_SERVICES key */
   removals: [],                    /* ถอดห่วง / ถอดยาฝัง */
   dispensed: false,                /* จ่ายยาคุมกำเนิดจริงในครั้งนี้ */
-  pregnancyTest: '',
+  pregnancyTest: 'negative',
   lastDeliveryMonth: '',
   lastDeliveryYear: '',
   lastDeliveryType: '',            /* 'delivery' | 'abortion' */
@@ -778,24 +779,25 @@ export const DEFAULT_FP_VISIT = {
   adviceNote: '',
 
   /* S4 — ตรวจสตรี (มะเร็งเต้านม + ตรวจภายใน/ปากมดลูก) */
-  breastExamDate: '',
+  breastExamDate: todayIso(),
   breast: {
-    left:  { result: '', detail: '' },
-    right: { result: '', detail: '' },
+    left:  { result: 'normal', detail: 'ไม่คลำพบก้อน ไม่มีสิ่งคัดหลั่งจากหัวนม' },
+    right: { result: 'normal', detail: 'ไม่คลำพบก้อน ผิวหนังปกติ ต่อมน้ำเหลืองรักแร้ไม่โต' },
   },
   breastMarkers: [],
   breastDrawings: [],
   /* ข้อสรุปทางคลินิกของวิสิตนี้ ใช้กับแผงวินิจฉัยในขั้น 2 โดยไม่ปะปน
      กับ diagnosis ของ ANC หรือผล Pap จากห้องปฏิบัติการ */
   clinicalAssessment: '',
-  diagnosisNote: '',
+  diagnosisNote: 'ผู้รับบริการวางแผนครอบครัวรายเก่า ไม่พบข้อห้ามการใช้ฮอร์โมน ตรวจเต้านมและตรวจภายในปกติ',
   pvExamDate: '',
   pvPatientType: '',
   counselingReceived: '',
   counselingType: '',
   counselingDetail: '',
   pv: {
-    vagina: '', cervix: '', uterusPosition: '', uterusSize: '', adnexa: '', detail: '',
+    vagina: 'normal', cervix: 'normal', uterusPosition: 'anteverted', uterusSize: 'normal',
+    adnexa: 'free', detail: 'ตรวจภายในปกติ ไม่พบรอยโรค',
   },
   papMethod: '',
   papResult: '',

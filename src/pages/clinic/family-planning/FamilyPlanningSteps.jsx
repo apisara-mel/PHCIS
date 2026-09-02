@@ -1359,7 +1359,15 @@ export const FpStep5Postpartum = ({ form, setForm, locked }) => {
         <>
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
             <TopicHeader icon='pregnant_woman'>ข้อมูลครรภ์</TopicHeader>
-            <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+            <div
+              className='w-full'
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+                gap: 'var(--dim-space-400, 16px)',
+                alignItems: 'start',
+              }}
+            >
               <Field label='ครรภ์ที่'>
                 <InputField value={mother.pregnancyNo} onChange={setMother('pregnancyNo')} disabled={locked} placeholder='เช่น 2' />
               </Field>
@@ -1391,7 +1399,15 @@ export const FpStep5Postpartum = ({ form, setForm, locked }) => {
 
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
             <TopicHeader icon='monitor_heart'>ข้อมูลการดูแลมารดา</TopicHeader>
-            <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+            <div
+              className='w-full'
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+                gap: 'var(--dim-space-400, 16px)',
+                alignItems: 'start',
+              }}
+            >
               <Field label='ดูแลครั้งที่'>
                 <InputField value={mother.visitNo} onChange={setMother('visitNo')} disabled={locked} placeholder='1' />
               </Field>
@@ -1409,7 +1425,7 @@ export const FpStep5Postpartum = ({ form, setForm, locked }) => {
               className='w-full'
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
                 gap: 'var(--dim-space-400, 16px)',
                 alignItems: 'start',
               }}
@@ -1437,7 +1453,7 @@ export const FpStep5Postpartum = ({ form, setForm, locked }) => {
               className='w-full'
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
                 gap: 'var(--dim-space-400, 16px)',
                 alignItems: 'start',
               }}
@@ -2846,8 +2862,8 @@ export const FpReviewStep = ({ form, registration, cardPatient, ...props }) => {
         />
       </div>
 
-      {/* บัตรติดตาม · เอกสารแนบ/e-Document · สรุปและปุ่มยืนยันบันทึก */}
-      <FpStep7Documents form={form} registration={registration} cardPatient={cardPatient} {...props} />
+      {/* บัตรติดตาม/เอกสารแนบ/ปุ่มยืนยัน ถูกตัดออกจากขั้นตรวจสอบ (มติผู้ใช้ 3 ก.ย. 69) —
+          ขั้นนี้เป็นการทวนข้อมูลอย่างเดียว การบันทึกใช้ปุ่มบนแถบล่าง */}
     </StepCard>
   );
 };
