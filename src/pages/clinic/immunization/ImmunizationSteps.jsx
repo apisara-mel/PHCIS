@@ -518,7 +518,7 @@ const useImmGrowthRecords = (immHn, form) => useMemo(() => {
 
 /* กราฟการเจริญเติบโต (percentile) — แยกออกมาให้แถบ vital signs ของหน้าบันทึก
    เปิดดูในป๊อปอัปได้ด้วย (มติผู้ใช้ 3 ก.ย. 69) */
-export const ImmGrowthCharts = ({ form, immHn, child, showTitle = true, chartHeight, legendAlign }) => {
+export const ImmGrowthCharts = ({ form, immHn, child, showTitle = true, chartHeight, legendAlign, showHistory = false }) => {
   const [chartKey, setChartKey] = useState(GROWTH_CHART_DEFS[0].key);
   const records = useImmGrowthRecords(immHn, form);
   const months = ageInMonths(child?.birthDate);
@@ -558,7 +558,31 @@ export const ImmGrowthCharts = ({ form, immHn, child, showTitle = true, chartHei
           latestEvaluation={evaluation}
           emptyMessage='ยังไม่มีข้อมูลการเจริญเติบโตของเด็กในช่วงอายุนี้ — กรอกน้ำหนัก/ส่วนสูงด้านบนเพื่อลงจุดแรก'
         />
-      </div>
+        {showHistory && (
+        <div className='flex flex-col gap-3'>
+          <TopicHeader icon='table_chart'>ตารางบันทึกการเจริญเติบโตย้อนหลัง</TopicHeader>
+          <Table
+            columns={[
+              { key: 'date', label: 'วันที่', render: (r) => formatImmDate(r.date) },
+              { key: 'age', label: 'อายุ', render: (r) => formatAgeShort(child?.birthDate, r.date) },
+              { key: 'weight', label: 'น้ำหนัก (กก.)', render: (r) => r.weight ?? '—' },
+              { key: 'height', label: 'ส่วนสูง (ซม.)', render: (r) => r.height ?? '—' },
+              { key: 'headCirc', label: 'รอบศีรษะ (ซม.)', render: (r) => r.headCirc ?? '—' },
+              { key: 'chestCirc', label: 'รอบอก (ซม.)', render: (r) => r.chestCirc ?? '—' },
+              {
+                key: 'note', label: 'สถานะ', sortable: false,
+                render: (r) => (r.draft
+                  ? <ColorfulBadge style='blue' size='small' hierarchy='secondary'>กำลังบันทึกครั้งนี้</ColorfulBadge>
+                  : <ColorfulBadge style='grey' size='small' hierarchy='secondary'>บันทึกแล้ว</ColorfulBadge>),
+              },
+            ]}
+            rows={[...records].reverse()}
+            rowKey={(r) => `${r.date}-${r.weight}`}
+            emptyMessage='ยังไม่มีบันทึกการเจริญเติบโต'
+          />
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -577,7 +601,6 @@ const FONTANELLE_POSTERIOR_OPTIONS = [
 ];
 
 export const ImmStep3Growth = ({ form, setForm, immHn, child, locked }) => {
-  const records = useImmGrowthRecords(immHn, form);
   const setGrowth = (key) => (value) => {
     if (locked) return;
     setForm((f) => ({ ...f, growth: { ...f.growth, [key]: value } }));
@@ -632,28 +655,6 @@ export const ImmStep3Growth = ({ form, setForm, immHn, child, locked }) => {
       </div>
 
       <ImmGrowthCharts form={form} immHn={immHn} child={child} />
-      <div className='flex flex-col gap-3'>
-        <TopicHeader icon='table_chart'>ตารางบันทึกการเจริญเติบโตย้อนหลัง</TopicHeader>
-        <Table
-          columns={[
-            { key: 'date', label: 'วันที่', render: (r) => formatImmDate(r.date) },
-            { key: 'age', label: 'อายุ', render: (r) => formatAgeShort(child?.birthDate, r.date) },
-            { key: 'weight', label: 'น้ำหนัก (กก.)', render: (r) => r.weight ?? '—' },
-            { key: 'height', label: 'ส่วนสูง (ซม.)', render: (r) => r.height ?? '—' },
-            { key: 'headCirc', label: 'รอบศีรษะ (ซม.)', render: (r) => r.headCirc ?? '—' },
-            { key: 'chestCirc', label: 'รอบอก (ซม.)', render: (r) => r.chestCirc ?? '—' },
-            {
-              key: 'note', label: 'สถานะ', sortable: false,
-              render: (r) => (r.draft
-                ? <ColorfulBadge style='blue' size='small' hierarchy='secondary'>กำลังบันทึกครั้งนี้</ColorfulBadge>
-                : <ColorfulBadge style='grey' size='small' hierarchy='secondary'>บันทึกแล้ว</ColorfulBadge>),
-            },
-          ]}
-          rows={[...records].reverse()}
-          rowKey={(r) => `${r.date}-${r.weight}`}
-          emptyMessage='ยังไม่มีบันทึกการเจริญเติบโต'
-        />
-      </div>
     </StepCard>
   );
 };
