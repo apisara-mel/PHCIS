@@ -646,15 +646,6 @@ export const ImmStep3Growth = ({ form, setForm, immHn, child, locked }) => {
             />
           </Field>
         </div>
-        <SuggestibleTextarea
-          voice
-          disabled={locked}
-          value={form.growthNote}
-          onChange={(e) => setForm((f) => ({ ...f, growthNote: e.target.value }))}
-          suggestions={GROWTH_NOTE_SUGGESTIONS}
-          minChars={3}
-          placeholder='ข้อสังเกต/คำแนะนำเรื่องการเจริญเติบโต'
-        />
       </div>
 
       {/* กราฟ/ตารางการเจริญเติบโตย้ายไปอยู่ในป๊อปอัป "ดูการเจริญเติบโต" บนแถบ vital signs (มติผู้ใช้ 3 ก.ย. 69) */}
@@ -1244,7 +1235,10 @@ export const ImmStep6GeneralExam = ({ form, setForm, immHn, child, locked, showD
     <StepCard>
       <div className='flex flex-col gap-3'>
         <div className='flex items-center justify-between w-full flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <TopicHeader icon='stethoscope'>การตรวจสุขภาพทั่วไป (14 ระบบ)</TopicHeader>
+          {/* หัวข้อย่อยเป็นข้อความธรรมดา สีดำ เล็ก ไม่มีไอคอน (มติผู้ใช้ 3 ก.ย. 69) */}
+          <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)', color: 'var(--text-content-default, #363B3F)' }}>
+            การตรวจสุขภาพทั่วไป (14 ระบบ)
+          </span>
           <SelectableTag
             label='ปกติทุกรายการ'
             size='lg'
@@ -1253,26 +1247,26 @@ export const ImmStep6GeneralExam = ({ form, setForm, immHn, child, locked, showD
           />
         </div>
 
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        <div
+          className='w-full'
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gap: 'var(--dim-space-400, 16px)',
+            alignItems: 'start',
+          }}
+        >
           {GENERAL_EXAM_ITEMS.map((item) => (
-            <div
-              key={item.key}
-              className='flex items-center justify-between gap-4 w-full flex-wrap'
-              style={{
-                paddingTop: 'var(--dim-space-200, 8px)',
-                paddingBottom: 'var(--dim-space-200, 8px)',
-                paddingLeft: 'var(--dim-space-300, 12px)',
-                paddingRight: 'var(--dim-space-300, 12px)',
-                borderRadius: 'var(--dim-radius-200, 8px)',
-                border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #EEF0F1)',
-              }}
-            >
-              <span className='text-sm' style={{ color: 'var(--text-content-default, #363B3F)' }}>{item.label}</span>
-              <div className='flex items-center gap-2 shrink-0'>
-                <SelectableTag label='ปกติ' size='md' selected={form.exam?.[item.key] === 'normal'} onClick={() => setExam(item.key, 'normal')} />
-                <SelectableTag label='ผิดปกติ' size='md' selected={form.exam?.[item.key] === 'abnormal'} onClick={() => setExam(item.key, 'abnormal')} />
-              </div>
-            </div>
+            <Field key={item.key} label={item.label}>
+              <Select
+                showLabel={false} searchable={false} size='lg'
+                disabled={locked}
+                value={form.exam?.[item.key] || ''}
+                onChange={(v) => setExam(item.key, v)}
+                options={[{ value: 'normal', label: 'ปกติ' }, { value: 'abnormal', label: 'ผิดปกติ' }]}
+                placeholder='เลือกผล'
+              />
+            </Field>
           ))}
         </div>
 
@@ -1283,26 +1277,17 @@ export const ImmStep6GeneralExam = ({ form, setForm, immHn, child, locked, showD
           </Banner>
         )}
 
-        <SuggestibleTextarea
-          voice
-          label='รายละเอียดผลการตรวจร่างกาย'
-          disabled={locked}
-          value={form.examNote}
-          onChange={(e) => setForm((f) => ({ ...f, examNote: e.target.value }))}
-          suggestions={EXAM_NOTE_SUGGESTIONS}
-          minChars={3}
-          placeholder='บันทึกสิ่งที่ตรวจพบ โดยเฉพาะระบบที่ผิดปกติ'
-        />
-      </div>
-
-      {/* สุขภาพช่องปากเด็กดี (มติ คทง.6 ครั้งที่ 3) — ผลตรวจฟันจริงมาจาก
-          หน้าทันตกรรมที่เดียว (แผงด้านล่าง อ่านอย่างเดียว) ส่วนที่ WBC ลงเอง
-          คือข้อมูลส่งเสริมสุขภาพช่องปาก: ฟันซี่แรกขึ้นเมื่ออายุเท่าไร และ
-          เริ่มแปรงสีฟันซี่แรกแล้วหรือยัง (blueprint หน้า 9) */}
-      <div className='flex flex-col gap-3'>
-        <TopicHeader icon='dentistry'>สุขภาพช่องปากเด็ก</TopicHeader>
-        <div className='flex flex-wrap w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <div style={{ minWidth: 220, flex: '1 1 220px' }}>
+        {/* ช่องช่องปากอยู่บนกริด 3 คอลัมน์เดียวกับ 14 ระบบ ให้ขอบกล่องตรงกัน (มติผู้ใช้ 3 ก.ย. 69) */}
+        <div
+          className='w-full'
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gap: 'var(--dim-space-400, 16px)',
+            alignItems: 'start',
+          }}
+        >
+          <div className='min-w-0'>
             <InputField
               label='ฟันซี่แรกขึ้นเมื่ออายุ (เดือน)'
               disabled={locked}
@@ -1311,7 +1296,7 @@ export const ImmStep6GeneralExam = ({ form, setForm, immHn, child, locked, showD
               placeholder='เช่น 7'
             />
           </div>
-          <div style={{ minWidth: 240, flex: '1 1 240px' }}>
+          <div className='min-w-0'>
             <Select
               label='เริ่มแปรงสีฟันซี่แรกแล้วหรือยัง'
               disabled={locked}
@@ -1338,6 +1323,24 @@ export const ImmStep6GeneralExam = ({ form, setForm, immHn, child, locked, showD
           disabled={locked}
           onChange={() => { if (!locked) setForm((f) => ({ ...f, oralCareAdvice: !f.oralCareAdvice })); }}
         />
+
+        <SuggestibleTextarea
+          voice
+          label='รายละเอียดผลการตรวจร่างกาย'
+          disabled={locked}
+          value={form.examNote}
+          onChange={(e) => setForm((f) => ({ ...f, examNote: e.target.value }))}
+          suggestions={EXAM_NOTE_SUGGESTIONS}
+          minChars={3}
+          placeholder='บันทึกสิ่งที่ตรวจพบ โดยเฉพาะระบบที่ผิดปกติ'
+        />
+      </div>
+
+      {/* สุขภาพช่องปากเด็กดี (มติ คทง.6 ครั้งที่ 3) — ผลตรวจฟันจริงมาจาก
+          หน้าทันตกรรมที่เดียว (แผงด้านล่าง อ่านอย่างเดียว) ส่วนที่ WBC ลงเอง
+          คือข้อมูลส่งเสริมสุขภาพช่องปาก: ฟันซี่แรกขึ้นเมื่ออายุเท่าไร และ
+          เริ่มแปรงสีฟันซี่แรกแล้วหรือยัง (blueprint หน้า 9) */}
+      <div className='flex flex-col gap-3'>
         {/* หน้าบันทึกเด็กดีวางแผงทันตกรรมไว้เต็มความกว้างใต้การ์ดซ้าย/ขวาเอง
             (ทรงเดียวกับฝากครรภ์ · มติผู้ใช้ 3 ก.ย. 69) จึงปิดตรงนี้ได้ */}
         {showDentalPanel && (

@@ -205,6 +205,7 @@ const ImmStepExamDiagnosis = (props) => (
         from='wbc'
         readOnly={props.locked}
         title='ผลการตรวจทันตกรรม (จากคลินิกทันตกรรม)'
+        showReadOnlyNote={false}
         bordered={false}
         badgeNextToTitle
         showAskButton={false}

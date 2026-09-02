@@ -277,6 +277,82 @@ export const COMPLETED_DENTAL_VISITS = {
     savedBy: 'ทพญ.ปวีณา ทองใบ',
     savedAt: '3 ส.ค. 2569 · 09:15',
   },
+
+  /* ── เด็กคลินิกสุขภาพเด็กดี (mock ให้แผง "ผลการตรวจทันตกรรม" ในบันทึกเด็กดีมีเนื้อหา ·
+     มติผู้ใช้ 3 ก.ย. 69) — ฟันน้ำนม · ตรวจช่องปาก/เคลือบฟลูออไรด์/เคลือบหลุมร่องฟัน ── */
+  '69-10001': {
+    chiefComplaint: 'ตรวจสุขภาพช่องปากทารกครั้งแรก (ส่งตรวจจากคลินิกเด็กดี อายุ 2 เดือน)',
+    dentalDoctorNote: 'ยังไม่มีฟันขึ้น เหงือกและเยื่อบุช่องปากปกติ ไม่พบฝ้าขาว ลิ้นเคลื่อนไหวได้ดี',
+    treatmentNote: 'สาธิตการเช็ดเหงือกด้วยผ้าสะอาดชุบน้ำต้มสุกหลังมื้อนม แนะนำงดนมขวดขณะหลับ นัดตรวจซ้ำเมื่อฟันซี่แรกขึ้น',
+    dentition: 'primary',
+    toothMarks: { permanent: {}, primary: {} },
+    otherServices: [],
+    diagnoses: [],
+    /* ตรวจ+ให้คำแนะนำอย่างเดียว ยังไม่มีหัตถการ (ทารกยังไม่มีฟัน) */
+    procedures: [],
+    consumables: [],
+    savedBy: 'ทพญ.กมลชนก ศรีสุวรรณ',
+    savedAt: '10 ส.ค. 2569 · 10:30',
+  },
+  '69-10005': {
+    chiefComplaint: 'ตรวจสุขภาพช่องปากตามนัด อายุ 1 ปี 6 เดือน ฟันน้ำนมขึ้น 12 ซี่',
+    dentalDoctorNote: 'ฟันน้ำนมขึ้น 12 ซี่ สะอาดดี ไม่พบรอยผุ มีคราบจุลินทรีย์เล็กน้อยบริเวณฟันหน้าบน',
+    treatmentNote: 'เคลือบฟลูออไรด์วานิชทั้งปาก ฝึกผู้ปกครองแปรงฟันให้ลูกด้วยยาสีฟันฟลูออไรด์ขนาดแตะขนแปรง',
+    dentition: 'primary',
+    toothMarks: { permanent: {}, primary: {} },
+    otherServices: [],
+    diagnoses: [],
+    procedures: [
+      {
+        id: 'pr-imm-1005-1', procedureId: 'fluoride', teeth: [], surfaces: [],
+        quantity: 1, unitPrice: 0, reimbursable: true,
+        recordedBy: 'ทพญ.ปวีณา ทองใบ', recordedAt: '6 ส.ค. 2569 · 09:40',
+      },
+    ],
+    consumables: [
+      { id: 'cs-imm-1005-1', consumableId: 'fluoride-varnish', quantity: 1, recordedBy: 'ทพญ.ปวีณา ทองใบ', recordedAt: '6 ส.ค. 2569 · 09:40' },
+    ],
+    savedBy: 'ทพญ.ปวีณา ทองใบ',
+    savedAt: '6 ส.ค. 2569 · 09:50',
+  },
+  '69-10007': {
+    chiefComplaint: 'ตรวจสุขภาพช่องปากก่อนเข้าเรียน อายุ 4 ปี ผู้ปกครองสังเกตเห็นจุดดำที่ฟันกรามน้ำนม',
+    dentalDoctorNote: 'ฟันน้ำนมครบ 20 ซี่ พบรอยผุระยะเริ่มต้นด้าน O ของ #54 และ #64 ยังไม่ถึงเนื้อฟัน หลุมร่องฟันกรามลึก',
+    treatmentNote: 'เคลือบหลุมร่องฟัน #54 #64 #74 #84 และเคลือบฟลูออไรด์ทั้งปาก แนะนำลดขนมหวานระหว่างมื้อ นัดติดตาม 6 เดือน',
+    dentition: 'primary',
+    toothMarks: {
+      permanent: {},
+      primary: {
+        54: { surfaces: ['O'], material: 'sealant', note: 'ผุระยะเริ่มต้น เคลือบหลุมร่องฟันแล้ว' },
+        64: { surfaces: ['O'], material: 'sealant', note: 'ผุระยะเริ่มต้น เคลือบหลุมร่องฟันแล้ว' },
+      },
+    },
+    otherServices: [],
+    diagnoses: [
+      {
+        code: 'K02.0', name: 'ฟันผุระยะเริ่มต้นจำกัดที่เคลือบฟัน (Caries limited to enamel)',
+        snomed: DENTAL_SNOMED_BY_ICD['K02.0'] || DENTAL_SNOMED_BY_ICD['K02.1'], type: 'principle',
+        recordedBy: 'ทพ.ศุภกร วัฒนชัย', recordedAt: '15 ส.ค. 2569 · 13:20',
+      },
+    ],
+    procedures: [
+      {
+        id: 'pr-imm-1007-1', procedureId: 'sealant', teeth: [54, 64, 74, 84], surfaces: ['O'],
+        quantity: 4, unitPrice: 0, reimbursable: true,
+        recordedBy: 'ทพ.ศุภกร วัฒนชัย', recordedAt: '15 ส.ค. 2569 · 13:35',
+      },
+      {
+        id: 'pr-imm-1007-2', procedureId: 'fluoride', teeth: [], surfaces: [],
+        quantity: 1, unitPrice: 0, reimbursable: true,
+        recordedBy: 'ทพ.ศุภกร วัฒนชัย', recordedAt: '15 ส.ค. 2569 · 13:40',
+      },
+    ],
+    consumables: [
+      { id: 'cs-imm-1007-1', consumableId: 'fluoride-varnish', quantity: 1, recordedBy: 'ทพ.ศุภกร วัฒนชัย', recordedAt: '15 ส.ค. 2569 · 13:40' },
+    ],
+    savedBy: 'ทพ.ศุภกร วัฒนชัย',
+    savedAt: '15 ส.ค. 2569 · 13:45',
+  },
 };
 
 /* ─── Re-Diagnosis source — การวินิจฉัยจาก visit ก่อนหน้า ────────────────
