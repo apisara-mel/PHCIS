@@ -69,21 +69,30 @@ const tickLabelStyle = {
   whiteSpace: 'nowrap',
 };
 
-const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo }) => {
+/* ระยะแนวตั้งของเส้นเวลา — โหมดปกติเป็นการ์ดเต็ม ส่วนโหมดย่อ (`compact`)
+   ไปอยู่แถวเดียวกับสัญญาณชีพใต้แถบขั้นตอน (มติผู้ใช้ 2 ก.ย. 69) จึงบีบทุกระยะ
+   ลงครึ่งหนึ่งและตัดคำว่า "ไตรมาส" ออก เหลือหลักไมล์ที่อ่านจากตัวเลขได้เอง */
+const SPINE = {
+  full:    { box: 56, bar: 24, barH: 8, dot: 21, dotSize: 12, tick: 40, zone: 40 },
+  compact: { box: 36, bar: 15, barH: 5, dot: 13, dotSize: 8,  tick: 22, zone: 22 },
+};
+
+const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo, compact = false }) => {
   const ga = calculateGestationalAge(form?.lmp);
   if (!ga) return null;
 
   const edc = calculateEDC(form?.lmp);
   const gestWeeks = ga.weeks + ga.days / 7;
+  const sp = compact ? SPINE.compact : SPINE.full;
+  /* ใช้กับหมุดบนเส้นเวลาเท่านั้น — ป้าย G-P-A/GA บนหัวการ์ดย้ายไปอยู่แถว
+     สัญญาณชีพใต้แถบขั้นตอนแล้ว (มติผู้ใช้ 2 ก.ย. 69) */
+  const gaLabel = `GA ${ga.weeks}${ga.days ? `+${ga.days}` : ''} สัปดาห์`;
 
   const ageYears = parseAgeYears(cardPatient?.age);
   const isMinor = ageYears !== null && ageYears < 18;
   const riskInfo = resolveAncRiskLevel(form?.riskLevel);
   const dangerActive = Object.values(form?.dangerSigns || {}).some(Boolean);
   const gdmConfirmed = !!form?.gdmConfirmed;
-
-  const gpaLabel = `G${form?.gravida || '-'} P${form?.para || '-'} A${form?.abortion || '0'}`;
-  const gaLabel = `GA ${ga.weeks}${ga.days ? `+${ga.days}` : ''} สัปดาห์`;
 
   /* Prior visits, placed on the timeline at the gestational age they
      happened. This is the legacy exam grid's job (คู่มือระบบงานฝากครรภ์
@@ -110,29 +119,31 @@ const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo }) => {
 
   return (
     <div
-      className='w-full'
-      style={{
-        background: 'var(--surface-card-100, #FFFFFF)',
-        borderRadius: 'var(--dim-radius-300, 10px)',
-        boxShadow: 'var(--shadow-card)',
-        padding: 'var(--dim-space-400, 16px) var(--dim-space-600, 24px)',
-        margin: 'var(--dim-space-400, 16px) var(--dim-space-600, 24px) 0',
-        width: 'auto',
-      }}
+      className={compact ? 'flex items-center' : 'w-full'}
+      style={compact
+        /* แคบลงอีกและดันไปชิดขวาสุดของแถว (มติผู้ใช้ 2 ก.ย. 69) */
+        ? {
+          flex: '0 0 auto',
+          width: 220,
+          minWidth: 180,
+          gap: 'var(--dim-space-300, 12px)',
+        }
+        : {
+          background: 'var(--surface-card-100, #FFFFFF)',
+          borderRadius: 'var(--dim-radius-300, 10px)',
+          boxShadow: 'var(--shadow-card)',
+          padding: 'var(--dim-space-400, 16px) var(--dim-space-600, 24px)',
+          margin: 'var(--dim-space-400, 16px) var(--dim-space-600, 24px) 0',
+          width: 'auto',
+        }}
     >
-      {/* Identity row — who and where in the pregnancy. Deliberately kept
-          neutral: alerts moved to their own strip below the spine so this
-          row never competes with them for attention. */}
-      <div
-        className='flex flex-wrap items-center'
-        style={{ gap: 'var(--dim-space-200, 8px)', marginBottom: 'var(--dim-space-500, 20px)' }}
-      >
-        <ColorfulBadge style='green' width='hug'>{gpaLabel}</ColorfulBadge>
-        <ColorfulBadge style='blue' width='hug'>{gaLabel}</ColorfulBadge>
-        {/* Labels the markers on the spine. The visit number itself is
-            already in the page title, so repeating it here would be a
-            second answer to a question the header has answered. */}
-        {priorVisits.length > 0 && (
+      {/* ป้าย G-P-A และ GA ย้ายไปอยู่แถวเดียวกับสัญญาณชีพแล้ว (มติผู้ใช้ 2 ก.ย. 69)
+          — แถวบนสุดจึงเหลือแค่คำอธิบายจุดบนเส้น และแสดงเมื่อมีจุดให้ชี้จริง */}
+      {!compact && priorVisits.length > 0 && (
+        <div
+          className='flex flex-wrap items-center'
+          style={{ gap: 'var(--dim-space-200, 8px)', marginBottom: 'var(--dim-space-500, 20px)' }}
+        >
           <span
             style={{
               fontFamily: 'var(--type-family-body)',
@@ -142,11 +153,11 @@ const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo }) => {
           >
             ฝากครรภ์มาแล้ว {priorVisits.length} ครั้ง — ชี้ที่จุดบนเส้นเพื่อดูผลตรวจครั้งนั้น
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Trimester timeline — 0 to 40 weeks, marker at current GA */}
-      <div className='relative w-full' style={{ height: 56 }}>
+      <div className='relative w-full min-w-0' style={{ height: sp.box }}>
         <div
           className='absolute flex flex-col items-center'
           style={{ left: pctOf(gestWeeks), transform: 'translateX(-50%)', top: 0 }}
@@ -167,8 +178,8 @@ const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo }) => {
         <div
           className='absolute w-full'
           style={{
-            top: 24,
-            height: 8,
+            top: sp.bar,
+            height: sp.barH,
             borderRadius: 'var(--dim-radius-full, 9999px)',
             background: 'var(--surface-neutralButton-tertiary, #F4F5F5)',
           }}
@@ -217,7 +228,7 @@ const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo }) => {
               left: pctOf(p.from),
               width: `${((Math.min(p.to, 40) - p.from) / 40) * 100}%`,
               top: 0,
-              height: 40,
+              height: sp.zone,
               cursor: 'help',
               zIndex: 1,
             }}
@@ -225,11 +236,17 @@ const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo }) => {
             <Tooltip
               position='top'
               variant='light'
-              maxWidth={280}
+              maxWidth={420}
               className='w-full h-full'
               content={
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontWeight: 'var(--type-weight-bold, 700)', marginBottom: 4 }}>
+                <div style={{
+                  textAlign: 'left',
+                  fontFamily: 'var(--type-family-body)',
+                  fontSize: 'var(--type-size-xs, 12px)',
+                  lineHeight: 1.5,
+                }}
+                >
+                  <div style={{ fontWeight: 'var(--type-weight-bold, 700)', marginBottom: 'var(--dim-space-100, 4px)' }}>
                     {p.label} — แนะนำตรวจ
                   </div>
                   {p.items.map((item) => (
@@ -253,7 +270,7 @@ const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo }) => {
               className='absolute'
               style={{
                 left: pctOf(v.weeks),
-                top: 21,
+                top: sp.dot,
                 transform: 'translateX(-50%)',
                 zIndex: 2,
               }}
@@ -264,10 +281,16 @@ const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo }) => {
               <Tooltip
                 position='bottom'
                 variant='light'
-                maxWidth={260}
+                maxWidth={380}
                 content={
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 'var(--type-weight-bold, 700)', marginBottom: 4 }}>
+                  <div style={{
+                    textAlign: 'left',
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-xs, 12px)',
+                    lineHeight: 1.5,
+                  }}
+                  >
+                    <div style={{ fontWeight: 'var(--type-weight-bold, 700)', marginBottom: 'var(--dim-space-100, 4px)' }}>
                       ครั้งที่ {v.seq} · {v.date} · {v.weeks} สัปดาห์
                     </div>
                     <div>BP {v.bp || '—'} · น้ำหนัก {v.weight ?? '—'} กก.</div>
@@ -279,8 +302,8 @@ const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo }) => {
               >
                 <div
                   style={{
-                    width: 12,
-                    height: 12,
+                    width: sp.dotSize,
+                    height: sp.dotSize,
                     borderRadius: 'var(--dim-radius-full, 9999px)',
                     background: tone?.fg || 'var(--text-content-tertiary, #858c92)',
                     border: 'var(--dim-stroke-200, 2px) solid var(--surface-card-100, #FFFFFF)',
@@ -293,12 +316,16 @@ const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo }) => {
           );
         })}
 
-        <span style={{ ...tickLabelStyle, top: 40, left: pctOf(0) }}>ไตรมาส 1</span>
-        <span style={{ ...tickLabelStyle, top: 40, left: pctOf(12), transform: 'translateX(-50%)' }}>12</span>
-        <span style={{ ...tickLabelStyle, top: 40, left: pctOf(28), transform: 'translateX(-50%)' }}>28</span>
-        <span style={{ ...tickLabelStyle, top: 40, left: pctOf(30), transform: 'translateX(-50%)' }}>ไตรมาส 3</span>
-        <span style={{ ...tickLabelStyle, top: 40, left: pctOf(40), transform: 'translateX(-100%)' }}>
-          ครบกำหนด {edc ? formatAncDate(edc) : '—'}
+        {!compact && (
+          <>
+            <span style={{ ...tickLabelStyle, top: sp.tick, left: pctOf(0) }}>ไตรมาส 1</span>
+            <span style={{ ...tickLabelStyle, top: sp.tick, left: pctOf(30), transform: 'translateX(-50%)' }}>ไตรมาส 3</span>
+            <span style={{ ...tickLabelStyle, top: sp.tick, left: pctOf(12), transform: 'translateX(-50%)' }}>12</span>
+            <span style={{ ...tickLabelStyle, top: sp.tick, left: pctOf(28), transform: 'translateX(-50%)' }}>28</span>
+          </>
+        )}
+        <span style={{ ...tickLabelStyle, top: sp.tick, left: pctOf(40), transform: 'translateX(-100%)' }}>
+          {compact ? formatAncDate(edc) || '—' : `ครบกำหนด ${edc ? formatAncDate(edc) : '—'}`}
         </span>
       </div>
 
@@ -308,16 +335,18 @@ const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo }) => {
           works if the clinician cannot scroll past it. */}
       {alerts.length > 0 && (
         <div
-          className='flex flex-wrap items-center'
-          style={{
-            gap: 'var(--dim-space-200, 8px)',
-            marginTop: 'var(--dim-space-400, 16px)',
-            paddingTop: 'var(--dim-space-400, 16px)',
-            borderTop: 'var(--dim-stroke-100, 1px) solid var(--border-neutralButton-tertiary, #E2E4E6)',
-          }}
+          className='flex flex-wrap items-center shrink-0'
+          style={compact
+            ? { gap: 'var(--dim-space-200, 8px)' }
+            : {
+              gap: 'var(--dim-space-200, 8px)',
+              marginTop: 'var(--dim-space-400, 16px)',
+              paddingTop: 'var(--dim-space-400, 16px)',
+              borderTop: 'var(--dim-stroke-100, 1px) solid var(--border-neutralButton-tertiary, #E2E4E6)',
+            }}
         >
           {alerts.map((a) => (
-            <ColorfulBadge key={a.key} style={a.tone} width='hug' showDot={a.dot}>
+            <ColorfulBadge key={a.key} style={a.tone} size={compact ? 'small' : 'medium'} hierarchy='secondary' width='hug' showDot={a.dot}>
               {a.label}
             </ColorfulBadge>
           ))}

@@ -5,7 +5,6 @@ import {
 } from '@/data/centerDistricts';
 import { useActiveCenter } from '@/pages/users/usersShared';
 import QueuePageShell from '@/templates/QueuePageShell';
-import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import { Field } from '@/components/forms/Fields';
@@ -698,12 +697,17 @@ const HomeVisitQueuePage = () => {
          (Sidebar subItems ของ "ระบบการเยี่ยมบ้าน") อยู่แล้ว
          เหลือไว้ปุ่มเดียวคือ "ติดตามสถานะ" (มติผู้ใช้ 2 ก.ย. 69) — หัวหน้าทีมเปิด
          ดูสถานะโครงการของทั้งคิวได้โดยไม่ต้องเข้าไปในบันทึกของใครคนหนึ่งก่อน */
-      leadingActions={(
-        <BrandPrimaryButton size='sm' leadingIcon='person_add' onClick={() => setAddOpen(true)}>
-          เพิ่มผู้ป่วยใหม่
-        </BrandPrimaryButton>
+      /* "เพิ่มผู้ป่วยใหม่" อยู่ขวาสุดของแถวปุ่ม และเป็น brand subdued (fill)
+         (มติผู้ใช้ 2 ก.ย. 69) — ปุ่มลงมือของหน้าอยู่ท้ายแถว ถัดจากคำขอเข้าถึง
+         ข้อมูลและติดตามสถานะ ไม่ใช่หัวแถวอย่างเดิม */
+      actions={(
+        <>
+          <FollowUpStatusMenuButton />
+          <BrandSubdueButton variant='fill' size='sm' leadingIcon='person_add' onClick={() => setAddOpen(true)}>
+            เพิ่มผู้ป่วยใหม่
+          </BrandSubdueButton>
+        </>
       )}
-      actions={<FollowUpStatusMenuButton />}
       summaryCards={summaryCards}
       /* แถบสถานะเป็น underline tab และอยู่ใต้การ์ดสรุป (มติผู้ใช้ 30 ส.ค. 69)
          — การ์ดสรุปบอกภาพรวมทั้งวัน แล้วแท็บคือตัวกรองตารางที่อยู่ถัดลงไป

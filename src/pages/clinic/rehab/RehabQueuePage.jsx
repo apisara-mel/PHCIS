@@ -421,12 +421,15 @@ const RehabQueuePage = () => {
     { key: 'course',  label: 'Course / ครั้งที่', render: renderCourse },
     { key: 'telemed', label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
     { key: 'room',    label: 'ห้อง' },
-    { key: 'therapist', label: 'นักกายภาพ / แพทย์ฟื้นฟู', flex: true, minWidth: 160 },
+    /* ชื่อผู้ให้บริการโชว์เฉพาะแท็บ "ทั้งหมด" (มติผู้ใช้ 2 ก.ย. 69 · ทำไว้ที่คิว
+       ฝากครรภ์ก่อน) — แท็บที่เป็นคิวนั้นผู้ใช้เห็นเฉพาะคิวของตัวเอง ชื่อผู้ตรวจจึง
+       ซ้ำกันทุกแถว ส่วนแท็บทั้งหมดเป็นรายชื่อข้ามผู้ให้บริการ จึงต้องบอกว่าใครดูแล */
+    ...(activeTab === 'all' ? [{ key: 'therapist', label: 'นักกายภาพ / แพทย์ฟื้นฟู', flex: true, minWidth: 160 }] : []),
     { key: 'wait',    label: 'รอนาน', render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',  label: 'สถานะ', render: renderStatus },
     { key: 'actions', label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [tick]);
+  ]), [tick, activeTab]);
 
   /* "นัดแล้วยังไม่มาติดต่อ" — different row shape (เวลานัด แทน queue/wait/
      status) + a ส่งตรวจ check-in action (ANC contract). */
@@ -438,7 +441,6 @@ const RehabQueuePage = () => {
     { key: 'service',         label: 'กลุ่มผู้รับบริการ', render: renderServiceType },
     { key: 'course',          label: 'Course / ครั้งที่', render: renderCourse },
     { key: 'clinic',          label: 'ห้อง' },
-    { key: 'therapist',       label: 'นักกายภาพ / แพทย์ฟื้นฟู', flex: true, minWidth: 160 },
     {
       key: 'source', label: 'ที่มาของนัด', sortable: false,
       render: (row) => (row.fromRecord

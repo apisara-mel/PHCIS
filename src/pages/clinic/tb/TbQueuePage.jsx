@@ -304,7 +304,6 @@ const TbQueuePage = () => {
     { key: 'rights',   label: 'สิทธิ', render: renderRights },
     { key: 'telemed',  label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
     { key: 'dot',      label: 'DOT วันนี้', align: 'center', sortable: false, render: renderDotToday },
-    { key: 'doctor',   label: 'แพทย์',            flex: true, minWidth: 150 },
     { key: 'wait',     label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',   label: 'สถานะ', render: renderStatus },
     { key: 'actions',  label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },

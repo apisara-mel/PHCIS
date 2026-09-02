@@ -427,13 +427,16 @@ const FamilyPlanningQueuePage = () => {
     { key: 'fpNumber',   label: 'เลขที่วางแผนครอบครัว', render: renderFpNumber },
     { key: 'service',    label: 'บริการที่ได้รับ', render: renderService },
     { key: 'clientType', label: 'ประเภทผู้รับบริการ', render: (r) => resolveFpClientType(r.clientType) },
-    { key: 'nurse',      label: 'ผู้ตรวจ',     flex: true, minWidth: 150 },
+    /* ชื่อผู้ให้บริการโชว์เฉพาะแท็บ "ทั้งหมด" (มติผู้ใช้ 2 ก.ย. 69 · ทำไว้ที่คิว
+       ฝากครรภ์ก่อน) — แท็บที่เป็นคิวนั้นผู้ใช้เห็นเฉพาะคิวของตัวเอง ชื่อผู้ตรวจจึง
+       ซ้ำกันทุกแถว ส่วนแท็บทั้งหมดเป็นรายชื่อข้ามผู้ให้บริการ จึงต้องบอกว่าใครดูแล */
+    ...(activeTab === 'all' ? [{ key: 'nurse',      label: 'ผู้ตรวจ',     flex: true, minWidth: 150 }] : []),
     { key: 'wait',       label: 'รอนาน',      render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'appointmentNote', label: 'การนัดหมาย', flex: true, minWidth: 160 },
     { key: 'status',     label: 'สถานะ',      render: renderStatus },
     { key: 'actions',    label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [tick, canRead]);
+  ]), [tick, canRead, activeTab]);
 
   /* แท็บ "นัดแล้วยังไม่มาติดต่อ" — คนละ row shape (เวลานัดแทนคิว/สถานะ)
      จึงมี column set ของตัวเอง + ปุ่ม ส่งตรวจ (คู่มือ p.2-1) */
@@ -446,7 +449,6 @@ const FamilyPlanningQueuePage = () => {
     { key: 'fpNumber',        label: 'เลขที่วางแผนครอบครัว', render: renderFpNumber },
     { key: 'service',         label: 'บริการที่นัด', render: renderService },
     { key: 'clinic',          label: 'ห้องตรวจ' },
-    { key: 'nurse',           label: 'ผู้ตรวจ', flex: true, minWidth: 150 },
     { key: 'appointmentNote', label: 'หมายเหตุนัด', flex: true, minWidth: 160 },
     {
       key: 'checkin', label: 'การดำเนินการ', sortable: false,

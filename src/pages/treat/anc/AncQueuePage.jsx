@@ -7,7 +7,6 @@ import useSearchHistory from '@/components/search/useSearchHistory';
 import ClearFiltersTag, { SmoothFilterResults } from '@/components/forms/ClearFiltersTag';
 import { FilterDropdown } from '@/components/forms/FilterTag';
 import useSmoothClearFilters from '@/hooks/useSmoothClearFilters';
-import FilterDateTag from '@/components/forms/FilterDateTag';
 import OverflowFlexRow from '@/components/overflow/OverflowFlexRow';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -21,6 +20,8 @@ import { getPatientByHN } from '@/data/patientProfiles';
 import {
   ANC_PATIENTS,
   calculateGestationalAge,
+  calculateEDC,
+  formatAncDate,
   formatGestationalAge,
   resolveAncRiskLevel,
   cancelAncRegistration,
@@ -55,38 +56,48 @@ const PAGE_SIZE = 20;
 /* Tab counts recomputed per-render from `rows`/`scheduledCount` (both
    session-state-dependent — checking in a scheduled appointment moves it
    from the "scheduled" tab into "waiting", same as legacy HCIS p.2-3). */
-const buildTabs = (rows, scheduledCount) => [
-  { key: 'all',       label: 'ทั้งหมด',              icon: 'group',         count: rows.length },
-  { key: 'waiting',   label: 'รอตรวจ',               icon: 'schedule',      count: rows.filter((p) => p.statusKey === 'waiting').length },
+/* แท็บเรียงตามลำดับการทำงานจริง แล้วปิดท้ายด้วย "รายชื่อผู้ป่วยทั้งหมด" ก่อน
+   แท็บ "นัดล่วงหน้า" (มติผู้ใช้ 2 ก.ย. 69) — QueuePageShell เป็นคนต่อท้ายแท็บ
+   นัดล่วงหน้าให้เอง แท็บสุดท้ายของอาเรย์นี้จึงอยู่ก่อนหน้ามันเสมอ
+
+   ชื่อแท็บกับเนื้อในตารางต้องตรงกัน (มติผู้ใช้ 2 ก.ย. 69):
+     • "คิววันนี้" = คิวของวันนี้ทั้งหมดทุกสถานะ (เดิมชื่อ "รอตรวจ" ซึ่งกรอง
+       เฉพาะคนที่ยังไม่ถูกเรียก — ชื่อใหม่กินความกว้างกว่านั้น)
+     • "รายชื่อผู้ป่วยทั้งหมด" = ทะเบียนผู้ฝากครรภ์ ไม่ใช่คิว จึงรวมคนที่นัดไว้
+       วันนี้แต่ยังไม่มาด้วย และตัดคอลัมน์ที่เป็นเรื่องของคิวออก */
+const buildTabs = (rows, scheduledCount, registryCount) => [
+  { key: 'today',     label: 'คิววันนี้',             icon: 'schedule',      count: rows.length },
   { key: 'progress',  label: 'กำลังตรวจ',            icon: 'assignment',    count: rows.filter((p) => p.statusKey === 'progress').length },
   { key: 'done',      label: 'ตรวจเสร็จแล้ว',        icon: 'check_circle',  count: rows.filter((p) => p.statusKey === 'done').length },
   { key: 'draft',     label: 'ที่ร่างไว้',            icon: 'save',          count: rows.filter((p) => p.statusKey === 'draft').length },
   { key: 'scheduled', label: 'นัดแล้วยังไม่มาติดต่อ', icon: 'event_available', count: scheduledCount },
+  { key: 'all',       label: 'รายชื่อผู้ป่วยทั้งหมด', icon: 'group',         count: registryCount },
 ];
 
 const TAB_STATUS_FILTER = {
-  waiting:  (r) => r.statusKey === 'waiting',
   progress: (r) => r.statusKey === 'progress',
   done:     (r) => r.statusKey === 'done',
   draft:    (r) => r.statusKey === 'draft',
 };
 
 const STATUS_BADGE = {
-  waiting:  { style: 'blue',   label: 'รอตรวจ'        },
-  progress: { style: 'orange', label: 'ตรวจอยู่'      },
-  done:     { style: 'teal',   label: 'ตรวจเสร็จแล้ว' },
-  draft:    { style: 'grey',   label: 'ที่ร่างไว้'    },
+  waiting:   { style: 'blue',   label: 'รอตรวจ'        },
+  progress:  { style: 'orange', label: 'ตรวจอยู่'      },
+  done:      { style: 'teal',   label: 'ตรวจเสร็จแล้ว' },
+  draft:     { style: 'grey',   label: 'ที่ร่างไว้'    },
+  /* เฉพาะแท็บทะเบียน — คนที่มีนัดวันนี้แต่ยังไม่มาติดต่อ ไม่ได้อยู่ในคิว */
+  scheduled: { style: 'purple', label: 'นัดแล้วยังไม่มา' },
 };
 
 const RISK_BADGE_STYLE = { low: 'green', intermediate: 'yellow', high: 'red' };
-const STATUS_SORT_ORDER = { waiting: 0, progress: 1, done: 2, draft: 3 };
+const STATUS_SORT_ORDER = { waiting: 0, progress: 1, done: 2, draft: 3, scheduled: 4 };
 const RISK_SORT_ORDER = { low: 0, intermediate: 1, high: 2 };
 
 /* Tag-group filter — same shell as OPD's FILTER_OPTIONS/FILTER_DEFAULTS,
    categories adapted to ANC (single department, so risk level takes the
-   department slot). Date/time are visual-placeholder chips only — the
-   underlying rows have no visit-date field yet, same as OPD's own
-   comment ("date / time are visual placeholders"). */
+   department slot). ชิป "วัน" และ "เวลา" ถูกตัดออก (มติผู้ใช้ 2 ก.ย. 69) —
+   ทั้งคู่เป็นชิปหลอกที่กรองอะไรไม่ได้จริง เพราะแถวคิวยังไม่มีฟิลด์วัน-เวลา
+   ของวิสิต และแท็บ "คิววันนี้" บอกขอบเขตวันอยู่แล้ว */
 const FILTER_OPTIONS = {
   risk: [
     { value: 'all',          label: 'ทุกระดับ' },
@@ -103,21 +114,12 @@ const FILTER_OPTIONS = {
     { value: 'first',    label: 'ฝากครรภ์ครั้งแรก' },
     { value: 'followup', label: 'ตรวจติดตาม' },
   ],
-  time: [
-    { value: 'all',       label: 'ทั้งวัน'                  },
-    { value: 'morning',   label: 'ช่วงเช้า (06:00–12:00)'  },
-    { value: 'afternoon', label: 'ช่วงบ่าย (12:00–18:00)'  },
-    { value: 'evening',   label: 'ช่วงเย็น (18:00–24:00)'  },
-  ],
 };
 const FILTER_DEFAULTS = {
   risk: 'all',
   doctor: 'all',
   visitType: 'all',
-  dateValue: { quick: 'today' },
-  time: 'all',
 };
-const DATE_CHIP_LABELS = { today: 'วันนี้', yesterday: 'เมื่อวาน' };
 
 const renderQueue = (row) => (
   <ColorfulBadge style='teal' size='small' hierarchy='secondary'>{row.queue}</ColorfulBadge>
@@ -164,7 +166,7 @@ const queueRowToSearchItem = (row) => ({
 
 const AncQueuePage = () => {
   const history = useHistory();
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('today');
   const [searchQ, setSearchQ] = useState('');
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -186,9 +188,7 @@ const AncQueuePage = () => {
   const isAllDefault =
     filters.risk === FILTER_DEFAULTS.risk &&
     filters.doctor === FILTER_DEFAULTS.doctor &&
-    filters.visitType === FILTER_DEFAULTS.visitType &&
-    filters.dateValue.quick === FILTER_DEFAULTS.dateValue.quick &&
-    filters.time === FILTER_DEFAULTS.time;
+    filters.visitType === FILTER_DEFAULTS.visitType;
   const filtersActive = !isAllDefault || searchQ.trim() !== '';
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     filtersActive,
@@ -208,12 +208,21 @@ const AncQueuePage = () => {
   const rows = useMemo(() => getAncQueueRows(), [tick]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const scheduledNotArrived = useMemo(() => getAncScheduledNotArrived(), [tick]);
-  const tabs = useMemo(() => buildTabs(rows, scheduledNotArrived.length), [rows, scheduledNotArrived]);
+  /* แท็บ "รายชื่อผู้ป่วยทั้งหมด" เป็นทะเบียน ไม่ใช่คิว — จึงรวมคนที่นัดไว้วันนี้
+     แต่ยังไม่มาติดต่อเข้ามาด้วย (คนกลุ่มนี้ยังไม่มีคิว/ห้อง/เวลารอ) */
+  const registryRows = useMemo(() => ([
+    ...rows,
+    ...scheduledNotArrived.map((r) => ({ ...r, statusKey: 'scheduled', room: r.clinic })),
+  ]), [rows, scheduledNotArrived]);
+  const tabs = useMemo(
+    () => buildTabs(rows, scheduledNotArrived.length, registryRows.length),
+    [rows, scheduledNotArrived, registryRows],
+  );
 
   const handleCheckIn = (hn) => {
     checkInAncAppointment(hn);
     setTick((t) => t + 1);
-    setActiveTab('waiting');
+    setActiveTab('today');
   };
 
   const summaryCards = useMemo(() => ([
@@ -225,14 +234,13 @@ const AncQueuePage = () => {
 
   const filtered = useMemo(() => {
     if (activeTab === 'scheduled') return [];
-    let result = rows;
+    /* แท็บทะเบียนอ่านจากรายชื่อทั้งหมด แท็บที่เหลืออ่านจากคิวของวันนี้ */
+    let result = activeTab === 'all' ? registryRows : rows;
     const tabPred = TAB_STATUS_FILTER[activeTab];
     if (tabPred) result = result.filter(tabPred);
     if (filters.risk !== 'all') result = result.filter((r) => r.riskLevel === filters.risk);
     if (filters.doctor !== 'all') result = result.filter((r) => r.doctor === filters.doctor);
     if (filters.visitType !== 'all') result = result.filter((r) => r.visitType === filters.visitType);
-    /* date / time are visual placeholders — rows have no visit-date field yet
-       (same as OPD's QueuePage.jsx). */
     if (searchQ.trim()) {
       const q = searchQ.trim().toLowerCase();
       result = result.filter((row) =>
@@ -241,7 +249,7 @@ const AncQueuePage = () => {
     }
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, filters, searchQ, tick]);
+  }, [activeTab, filters, searchQ, tick, registryRows]);
 
   const sortedRows = useMemo(() => {
     const sign = sortConfig.direction === 'desc' ? -1 : 1;
@@ -367,13 +375,14 @@ const AncQueuePage = () => {
     return <ColorfulBadge style={badge.style} size='small' hierarchy='secondary'>{badge.label}</ColorfulBadge>;
   };
 
+  /* ปุ่มในคอลัมน์การดำเนินการไม่มี leading icon (มติผู้ใช้ 2 ก.ย. 69) — ทั้งสอง
+     สถานะของปุ่มเดียวกัน จึงถอดออกทั้งคู่ให้คอลัมน์ไม่กระโดดตอนสลับสถานะ */
   const renderActions = (row) => {
     const cancellation = getAncCancellation(row.hn);
     return cancellation ? (
       <BrandSubdueButton
         variant='outline'
         size='sm'
-        leadingIcon='restart_alt'
         onClick={(e) => { e.stopPropagation(); reactivate(row); }}
       >
         เปิดใช้งานอีกครั้ง
@@ -381,7 +390,6 @@ const AncQueuePage = () => {
     ) : (
       <NeutralSubdueButton
         size='sm'
-        leadingIcon='block'
         onClick={(e) => { e.stopPropagation(); openCancelPopup(row); }}
       >
         ยกเลิกทะเบียน
@@ -389,21 +397,43 @@ const AncQueuePage = () => {
     );
   };
 
-  const columns = useMemo(() => ([
-    { key: 'queue',    label: 'คิว',  render: renderQueue },
-    { key: 'hn',       label: 'HN'  },
-    { key: 'name',     label: 'ชื่อ-นามสกุล',    flex: true, minWidth: 160, render: renderName },
-    { key: 'gp',       label: 'G-P',  render: (r) => `${r.gravida}-${r.para}` },
-    { key: 'ga',       label: 'อายุครรภ์', render: renderGestationalAge },
-    { key: 'risk',     label: 'ความเสี่ยง', render: renderRisk },
-    { key: 'telemed',  label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
-    { key: 'room',     label: 'ห้อง' },
-    { key: 'doctor',   label: 'แพทย์/พยาบาล ANC', flex: true, minWidth: 140 },
-    { key: 'wait',     label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
-    { key: 'status',   label: 'สถานะ', render: renderStatus },
-    { key: 'actions',  label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
+  /* คอลัมน์เปลี่ยนตามบริบทของแท็บ (มติผู้ใช้ 2 ก.ย. 69) — ตารางต้องตอบเรื่อง
+     ที่ชื่อแท็บถามอยู่ ไม่ใช่ชุดเดียวใช้ทุกแท็บ:
+       • คิววันนี้        — คิว · ห้อง · รอนาน · สถานะ (คละสถานะจึงต้องมีคอลัมน์สถานะ)
+       • กำลังตรวจ        — ตัด "สถานะ" ทิ้ง (ทุกแถวสถานะเดียวกัน) คงห้อง/รอนานไว้
+       • ตรวจเสร็จแล้ว     — ตัด "รอนาน" และ "สถานะ" ทิ้ง เวลารอไม่มีความหมายแล้ว
+       • ที่ร่างไว้        — ตัดคิว/ห้อง/รอนาน/สถานะ ร่างยังไม่ได้เข้าคิวจริง
+       • รายชื่อผู้ป่วยทั้งหมด — เป็นทะเบียน: ตัดคิว/ห้อง/รอนาน/Telemedicine ออก
+                            แล้วใส่กำหนดคลอดแทน คงสถานะไว้เพราะคละกันทั้งทะเบียน
+
+     คอลัมน์ "แพทย์/พยาบาล ANC" มีเฉพาะแท็บทะเบียน (มติผู้ใช้ 2 ก.ย. 69) — แท็บที่
+     เป็นคิวนั้นผู้ใช้เห็นเฉพาะคิวของตัวเองอยู่แล้ว ชื่อผู้ตรวจจึงซ้ำกันทุกแถว */
+  const columns = useMemo(() => {
+    const col = {
+      queue:   { key: 'queue',   label: 'คิว',  render: renderQueue },
+      hn:      { key: 'hn',      label: 'HN' },
+      name:    { key: 'name',    label: 'ชื่อ-นามสกุล', flex: true, minWidth: 160, render: renderName },
+      gp:      { key: 'gp',      label: 'G-P', render: (r) => `${r.gravida}-${r.para}` },
+      ga:      { key: 'ga',      label: 'อายุครรภ์', render: renderGestationalAge },
+      edc:     { key: 'edc',     label: 'กำหนดคลอด', render: (r) => formatAncDate(calculateEDC(r.lmp)) || '—' },
+      risk:    { key: 'risk',    label: 'ความเสี่ยง', render: renderRisk },
+      telemed: { key: 'telemed', label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
+      room:    { key: 'room',    label: 'ห้อง' },
+      doctor:  { key: 'doctor',  label: 'แพทย์/พยาบาล ANC', flex: true, minWidth: 140 },
+      wait:    { key: 'wait',    label: 'รอนาน', render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
+      status:  { key: 'status',  label: 'สถานะ', render: renderStatus },
+      actions: { key: 'actions', label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
+    };
+    const BY_TAB = {
+      today:    ['queue', 'hn', 'name', 'gp', 'ga', 'risk', 'telemed', 'room', 'wait', 'status', 'actions'],
+      progress: ['queue', 'hn', 'name', 'gp', 'ga', 'risk', 'telemed', 'room', 'wait', 'actions'],
+      done:     ['queue', 'hn', 'name', 'gp', 'ga', 'edc', 'risk', 'room', 'actions'],
+      draft:    ['hn', 'name', 'gp', 'ga', 'risk', 'actions'],
+      all:      ['hn', 'name', 'gp', 'ga', 'edc', 'risk', 'doctor', 'status', 'actions'],
+    };
+    return (BY_TAB[activeTab] || BY_TAB.today).map((key) => col[key]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [tick]);
+  }, [tick, activeTab]);
 
   /* "นัดแล้วยังไม่มาติดต่อ" tab (legacy HCIS p.2-3) — a different row shape
      (appointment time instead of queue/wait/status), so it gets its own
@@ -416,7 +446,6 @@ const AncQueuePage = () => {
     { key: 'ga',              label: 'อายุครรภ์', render: renderGestationalAge },
     { key: 'risk',            label: 'ความเสี่ยง', render: renderRisk },
     { key: 'clinic',          label: 'คลินิก' },
-    { key: 'doctor',          label: 'แพทย์/พยาบาล ANC', flex: true, minWidth: 140 },
     {
       key: 'checkin', label: 'การดำเนินการ', sortable: false,
       render: (row) => (
@@ -495,20 +524,12 @@ const AncQueuePage = () => {
               <FilterDropdown prefix='ความเสี่ยง:' options={FILTER_OPTIONS.risk} value={filters.risk} onChange={setFilter('risk')} />
               <FilterDropdown prefix='แพทย์:' options={withDoctorAvatars(FILTER_OPTIONS.doctor)} value={filters.doctor} onChange={setFilter('doctor')} />
               <FilterDropdown prefix='ประเภท:' options={FILTER_OPTIONS.visitType} value={filters.visitType} onChange={setFilter('visitType')} />
-              <FilterDateTag
-                prefix='วัน:'
-                value={filters.dateValue}
-                onChange={setFilter('dateValue')}
-                defaultQuick={FILTER_DEFAULTS.dateValue.quick}
-                quickLabels={DATE_CHIP_LABELS}
-              />
-              <FilterDropdown prefix='เวลา:' options={FILTER_OPTIONS.time} value={filters.time} onChange={setFilter('time')} />
               <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
             </OverflowFlexRow>
           </div>
 
           <SmoothFilterResults opaque={resultsOpaque}>
-          <SearchResultCount found={sortedRows.length} total={rows.length} />
+          <SearchResultCount found={sortedRows.length} total={activeTab === 'all' ? registryRows.length : rows.length} />
 
           {activeTab === 'scheduled' ? (
             <Table

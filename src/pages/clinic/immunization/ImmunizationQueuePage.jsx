@@ -436,13 +436,16 @@ const ImmunizationQueuePage = () => {
     { key: 'reason',    label: 'เหตุผลที่มารับบริการ', flex: true, minWidth: 220 },
     { key: 'due',       label: 'วัคซีนที่ถึงกำหนดวันนี้', sortable: false, flex: true, minWidth: 200, render: renderDueVaccines },
     { key: 'epi',       label: 'สถานะ EPI', sortable: false, render: renderEpiStatus },
-    { key: 'doctor',    label: 'แพทย์', flex: true, minWidth: 160 },
+    /* ชื่อผู้ให้บริการโชว์เฉพาะแท็บ "ทั้งหมด" (มติผู้ใช้ 2 ก.ย. 69 · ทำไว้ที่คิว
+       ฝากครรภ์ก่อน) — แท็บที่เป็นคิวนั้นผู้ใช้เห็นเฉพาะคิวของตัวเอง ชื่อผู้ตรวจจึง
+       ซ้ำกันทุกแถว ส่วนแท็บทั้งหมดเป็นรายชื่อข้ามผู้ให้บริการ จึงต้องบอกว่าใครดูแล */
+    ...(activeTab === 'all' ? [{ key: 'doctor',    label: 'แพทย์', flex: true, minWidth: 160 }] : []),
     { key: 'telemed',   label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
     { key: 'wait',      label: 'รอนาน', render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',    label: 'สถานะ', render: renderStatus },
     { key: 'actions',   label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [tick, canWrite]);
+  ]), [tick, canWrite, activeTab]);
 
   const scheduledColumns = useMemo(() => ([
     { key: 'appointmentTime', label: 'เวลานัด' },
@@ -465,7 +468,6 @@ const ImmunizationQueuePage = () => {
     { key: 'insurance',  label: 'สิทธิ', flex: true, minWidth: 180 },
     { key: 'reason',     label: 'นัดหมายเรื่อง', flex: true, minWidth: 220 },
     { key: 'due',        label: 'วัคซีนที่ถึงกำหนด', sortable: false, flex: true, minWidth: 200, render: renderDueVaccines },
-    { key: 'doctor',     label: 'แพทย์', flex: true, minWidth: 160 },
     {
       key: 'checkin', label: 'การดำเนินการ', sortable: false,
       render: (row) => (

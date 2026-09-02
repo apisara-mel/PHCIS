@@ -144,6 +144,10 @@ const TreatmentFormShell = ({
   hideMorphTitle = false,
   /** class เสริมของแถบขั้นตอน — หน้าที่วางหัวแฟ้มไว้เหนือแถบใช้เติมเงาด้านบน */
   morphBandClassName = '',
+  /** แถบของโมดูลที่ต้องอยู่ "ใต้แถบขั้นตอน แต่เหนือเนื้อหาของขั้น" — เช่นแถบ
+      อายุครรภ์ของคลินิกฝากครรภ์ (มติผู้ใช้ 2 ก.ย. 69 ให้ขั้นตอนขึ้นก่อน)
+      ผู้เรียกที่ไม่ส่งมาจะไม่มีอะไรเปลี่ยน */
+  belowBand = null,
   morphStickyTop = MORPH_STICKY_BELOW_PATIENT,
   /* ขั้นที่เนื้อหาเป็นการ์ดของตัวเองอยู่แล้ว (เช่น ตรวจร่างกาย · SOAP Note ของ
      CPOE) ส่งชุด index มาที่นี่ แล้วเปลือกจะไม่วางการ์ดขาวซ้อนให้อีก
@@ -244,6 +248,18 @@ const TreatmentFormShell = ({
     };
   }, [stepIndex]);
 
+  /* ความสูงสดของแถบขั้นตอน — `bandRef` เป็น display:contents จึงวัดลูกของมัน */
+  const [bandHeight, setBandHeight] = useState(0);
+  useEffect(() => {
+    const el = bandRef.current?.firstElementChild;
+    if (!el || typeof window === 'undefined' || !window.ResizeObserver) return undefined;
+    const ro = new window.ResizeObserver(([entry]) => {
+      setBandHeight(Math.round(entry.contentRect.height));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const stepTitle = typeof steps[stepIndex] === 'string'
     ? steps[stepIndex]
     : steps[stepIndex]?.title;
@@ -275,6 +291,7 @@ const TreatmentFormShell = ({
   return (
     <main className='flex-1 min-w-0 flex flex-col' style={{
       background: 'var(--background-screen-brand-100, #F4FBF8)',
+      '--mih-record-band-bottom': `calc(${morphStickyTop} + ${bandHeight}px)`,
     }}>
       {/* `display: contents` — ตัวห่อไว้จับ ref ของแถบ stepper เท่านั้น
          ไม่กินกล่องจริง แถบ sticky จึงยังยึดกับ <main> เหมือนเดิม */}
@@ -290,6 +307,10 @@ const TreatmentFormShell = ({
           className={morphBandClassName}
         />
       </div>
+      {/* ประกาศ "ขอบล่างของแถบขั้นตอน ณ ตอนนี้" เป็น CSS var ให้เนื้อหาใน
+          `belowBand` เอาไปทำ sticky ต่อได้ — ความสูงของแถบเปลี่ยนระหว่างเลื่อน
+          (morph) จึงวัดสดด้วย ResizeObserver แทนการฝังตัวเลขตายตัว */}
+      {belowBand}
       <div ref={bodyRef} className='flex-1 flex flex-col min-h-0' style={{
         padding: 'var(--dim-space-600)',
         gap: 'var(--dim-space-400)',

@@ -1,103 +1,2482 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '@/components/icons/Icon';
+import InputField from '@/components/forms/InputField';
+import Select from '@/components/forms/Select';
+import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
+import DatePicker from '@/components/forms/DatePicker';
+import TimePicker from '@/components/forms/TimePicker';
+import SelectableTag from '@/components/forms/SelectableTag';
+import RadioButton from '@/components/radio/RadioButton';
+import Checkbox from '@/components/checkbox/Checkbox';
+import { Field, FieldGrid } from '@/components/forms/Fields';
+import CarriedScreeningPanel from '@/components/screening/CarriedScreeningPanel';
+import CarriedDentalPanel from '@/components/dental/CarriedDentalPanel';
+import BodyDiagramPanel from '@/components/examination/BodyDiagramPanel';
+import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
+import BrandIconButton from '@/components/button/BrandIconButton';
+import BrandSubdueButton from '@/components/button/BrandSubdueButton';
+import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import ColorfulBadge from '@/components/badge/ColorfulBadge';
+import ColorfulIconBadge from '@/components/badge/ColorfulIconBadge';
+import Table from '@/components/table/Table';
+import DragAndDrop from '@/components/form-builder/DragAndDrop';
+import Popup from '@/components/popup/Popup';
+import AddMedicationPopup from '@/components/popup/AddMedicationPopup';
+import { LineChart } from '@/components/graph/Charts';
+import { useTelemedCall } from '@/components/telemed/TelemedCallProvider';
+import {
+  SCREEN_9Q_QUESTIONS,
+  SCREEN_9Q_FREQUENCY,
+  SCREEN_9Q_MAX_SCORE,
+  score9q,
+  is9qComplete,
+  has9qSuicidalRisk,
+  interpret9q,
+} from '@/data/homevisitAssessments';
+import {
+  ANC_GDM_ADVICE_MESSAGE,
+  formatAncDate,
+  calculateGestationalAge,
+  formatGestationalAge,
+  calculateEDC,
+  calcBmi,
+  evaluateWeightGain,
+  buildAncWeightSeries,
+  ANC_ILLNESS_CHECKLIST,
+  ANC_ILLNESS_HISTORY_SUGGESTIONS,
+  ANC_DELIVERY_TYPE_OPTIONS,
+  ANC_DELIVERY_OUTCOME_OPTIONS,
+  ANC_SPOUSE_SMOKING_OPTIONS,
+  ANC_STRESS_QUESTIONS,
+  ANC_STRESS_SCALE,
+  interpretAncStressScore,
+  ANC_MENTAL_HEALTH_QUESTIONS,
+  ANC_SMOKING_STATUS,
+  ANC_FAMILY_ILLNESS_HISTORY,
+  ANC_HUSBAND_LAB_FIELDS,
+  ANC_ORAL_HEALTH_QUESTIONS,
+  interpretOralHealthScreen,
+  getTetanusVaccinePlan,
+  ANC_FIRST_VISIT_RISK_GROUPS,
+  ANC_RISK_FACTORS,
+  deriveFirstVisitRiskSuggestions,
+  ANC_PERVISIT_RISK_FACTORS,
+  interpretPerVisitRisk,
+  deriveAncRiskSuggestions,
+  ANC_GDM_SCREENING_FACTORS,
+  evaluateGdmRisk,
+  ANC_DANGER_SIGNS,
+  ANC_RISK_LEVELS,
+  resolveAncRiskLevel,
+  ANC_URINE_SUGAR_OPTIONS,
+  ANC_URINE_ALBUMIN_OPTIONS,
+  ANC_FUNDUS_LEVEL_OPTIONS,
+  ANC_PRESENTATION_OPTIONS,
+  ANC_DESCENT_OPTIONS,
+  ANC_FETAL_MOVEMENT_OPTIONS,
+  ANC_NIPPLE_SIDE_OPTIONS,
+  ANC_GUM_OPTIONS,
+  ANC_BREAST_EXAM_OPTIONS,
+  ANC_SPOUSE_HEALTH_OPTIONS,
+  ANC_LAB1_ORDERS,
+  ANC_LAB1_RESULT_FIELDS,
+  ANC_LAB2_ORDERS,
+  ANC_LAB2_RESULT_FIELDS,
+  summarizeLabResults,
+  summarizeLabRiskFindings,
+  ANC_SECOND_TRIMESTER_SCREENING,
+  ANC_DOWN_SCREENING_METHODS,
+  ANC_ULTRASOUND_RESULT_FIELDS,
+  ANC_DIABETES_SCREENING,
+  ANC_VACCINES,
+  ANC_SUPPLEMENTS,
+  ANC_TERM_ASSESSMENT,
+  ANC_DISPENSE_ITEMS,
+  ANC_VACCINE_DOSES,
+  ANC_ADVICE_TOPICS,
+  getAncAdviceTopicsForGa,
+  ANC_DELIVERY_MODE_OPTIONS,
+  ANC_DIAGNOSIS_SUGGESTIONS,
+  ANC_EXTERNAL_EXAM_SUGGESTIONS,
+  ANC_ADVICE_SUGGESTIONS,
+  ANC_CURRENT_PREGNANCY_SUGGESTIONS,
+  ANC_RISK_SCREENING_SUGGESTIONS,
+  getAncVisitTier,
+  summarizeAncProcedures,
+  getNextAncAppointmentPlan,
+  getAncVisitHistoryByHn,
+  saveAncVisitRecord,
+  saveAncRegistration,
+} from '@/data/ancVisits';
 
-/* คลินิกฝากครรภ์ — โครง 7 ขั้น (เนื้อในถูกล้าง 1 ก.ย. 69 ตามมติผู้ใช้)
+/* AncSteps — เนื้อในทั้ง 7 ขั้นของบันทึกการตรวจครรภ์ เสียบเข้ากับ
+   `TreatmentFormShell` ที่ `AncFormPage` ถือไว้ (ลำดับขั้น · footer · ร่าง)
    ══════════════════════════════════════════════════════════════════════
-   ไฟล์นี้เคยมีเนื้อหาของทั้งเจ็ดขั้นราว 1,440 บรรทัด — ประวัติการรักษา (ครรภ์ที่ ·
-   LMP → EDC/อายุครรภ์ · ประวัติทางสูติกรรม · สุขภาพของสามี) · แบบประเมิน (ST-5 ·
-   2Q · ความเสี่ยงตั้งครรภ์ · สัญญาณอันตราย · การสูบบุหรี่ · สุขภาพช่องปาก) ·
-   ตรวจร่างกาย · วินิจฉัย · สั่งการรักษา (Lab ครั้งที่ 1/2 · วัคซีนบาดทะยัก) ·
-   นัดหมาย · ใบฝากครรภ์
+   ที่มาของเนื้อหา สามชั้นซ้อนกัน:
+     • TOR §1.10.7.1–.8 — ทะเบียนฝากครรภ์ · EMR/CPOE/Telemedicine ·
+       การติดตามผลตรวจครรภ์และ Lab ตามช่วงเวลา
+     • คู่มือการฝากครรภ์สำหรับบุคลากรสาธารณสุข (กรมอนามัย 2565) +
+       คู่มือระบบงานฝากครรภ์ (HCIS เดิม) — แบบประเมิน เกณฑ์ และลำดับกิจกรรม
+       ตามอายุครรภ์ ทั้งหมดอยู่ใน `ancVisits.js` ไฟล์นี้ไม่นิยาม catalog เอง
+     • มติ คทง.2 ครั้งที่ 4 (24 ก.ย. 68) และ คทง.6 ครั้งที่ 3 (25 ก.ย. 68) —
+       แบบคัดกรอง 27 ข้อเฉพาะครั้งแรก · GDM แจ้งเตือนอัตโนมัติ · Lab ครั้งแรก
+       ติ๊กส่งตรวจ/ครั้งถัดไปสรุปผล · ทันตกรรม · จ่ายยา-วัคซีนเป็น checkbox ·
+       คำแนะนำตามอายุครรภ์ · กราฟการเพิ่มขึ้นของน้ำหนัก
 
-   **ของเดิมไม่ได้หายไปไหน** — อยู่ในประวัติ git ทั้งหมด ดึงกลับได้ด้วย
-   `git show <commit-ก่อนหน้า>:src/pages/treat/anc/AncSteps.jsx`
-   (ล่าสุดก่อนล้างคือคอมมิตบน `main` ของวันที่ 1 ก.ย. 69)
+   ขั้นตอนข้ามได้อิสระ — การตรวจสอบทุกจุดในไฟล์นี้ "บอก" ไม่ "กั้น" */
 
-   ที่เหลือไว้คือ **ชื่อ export และ signature ของ props เดิมทุกตัว** เพื่อให้
-   `AncFormPage` (ลำดับขั้น · footer · การบันทึกร่าง · แถบขั้นตอน) ยังทำงานได้
-   ครบโดยไม่ต้องแก้ตาม — เขียนเนื้อในของขั้นไหนก็แทนที่ `<EmptyStepBody>`
-   ของขั้นนั้นได้เลย */
+/* ── ชิ้นส่วนที่ใช้ร่วมกันทุกขั้น ─────────────────────────────────── */
 
-const EmptyStepBody = ({ title, subtitle }) => (
-  <section
-    className='flex flex-col items-center justify-center w-full text-center'
-    style={{
-      gap: 'var(--dim-space-300)',
-      padding: 'var(--dim-space-800) var(--dim-space-600)',
-      borderRadius: 'var(--dim-radius-500)',
-      border: 'var(--dim-stroke-100) dashed var(--border-neutral-tertiary)',
-      background: 'var(--surface-card-100)',
-      minHeight: 'var(--dim-size-2600, 384px)',
-    }}
-  >
-    <Icon name='draft' size={40} color='var(--icon-neutral-quaternary, #C6CBD0)' />
-    <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-100)' }}>
-      <span style={{
-        color: 'var(--text-content-default)',
-        fontFamily: 'var(--type-family-heading-content)',
-        fontSize: 'var(--type-size-base)',
-        fontWeight: 'var(--type-weight-title, var(--type-weight-regular, 400))',
-        lineHeight: 1.5,
-      }}
-      >
-        {title}
-      </span>
-      <span style={{
-        color: 'var(--text-content-tertiary)',
-        fontFamily: 'var(--type-family-body)',
-        fontSize: 'var(--type-size-sm)',
-        lineHeight: 1.5,
-      }}
-      >
-        {subtitle}
-      </span>
+/* `small` — หัวข้อของหมวดรองที่ไม่ควรมีน้ำหนักเท่าหัวข้อหลักของขั้น
+   `tone='neutral'` — สีดำ ใช้ในการ์ดที่หัวการ์ดเป็นสีเขียวอยู่แล้ว หัวข้อย่อย
+   ข้างในจึงไม่ควรเขียวซ้ำกันทั้งใบ (มติผู้ใช้ 2 ก.ย. 69) */
+const TopicHeader = ({ icon, children, trailing, small = false, tone = 'brand' }) => {
+  const neutral = tone === 'neutral';
+  return (
+    <div className='flex items-center justify-between gap-2 w-full flex-wrap'>
+      <div className='flex items-center gap-2 min-w-0'>
+        {/* ไม่มีไอคอนนำหน้าหัวข้อแล้ว (มติผู้ใช้ 2 ก.ย. 69) — ข้อความหัวข้อ
+            บอกได้ครบอยู่แล้ว ไอคอนซ้ำ ๆ ทุกหัวข้อเป็นเสียงรบกวน */}
+        <h2
+          className={`${small ? 'text-sm' : 'text-base'} font-bold ${neutral ? '' : 'text-brand-500'}`}
+          style={neutral ? { color: 'var(--text-content-default, #363B3F)' } : undefined}
+        >
+          {children}
+        </h2>
+      </div>
+      {trailing}
     </div>
-  </section>
+  );
+};
+
+const StepCard = ({ children }) => (
+  <section className='flex flex-col' style={{ gap: 'var(--dim-space-600)' }}>{children}</section>
 );
 
-/* ── Step 1 — ประวัติการรักษา ─────────────────────────────────────── */
+/* จุดยึดของแท็บ capsule ด้านบน — ไม่มีกรอบการ์ด ใช้ระยะห่างอย่างเดียว
+   เหมือนหมวดของหน้าจุดคัดกรอง `scrollMarginTop` กันไม่ให้หัวข้อไปอยู่ใต้
+   การ์ดผู้ป่วยที่ sticky อยู่ตอนเลื่อนมาถึง */
+const SectionAnchor = React.forwardRef(({ children }, ref) => (
+  <div
+    ref={ref}
+    className='flex flex-col w-full'
+    style={{ gap: 'var(--dim-space-300)', scrollMarginTop: 110 }}
+  >
+    {children}
+  </div>
+));
+SectionAnchor.displayName = 'SectionAnchor';
+
+/** เก็บ ref ของแต่ละหมวดไว้ให้ที่อื่นเลื่อนมาหาได้ — แถวแท็บ capsule ถูกถอด
+    ออกจากทุกขั้นแล้ว (มติผู้ใช้ 2 ก.ย. 69) จึงเหลือแค่การผูก ref */
+const useSectionJump = () => {
+  const refs = useRef({});
+  const bind = (key) => (el) => { refs.current[key] = el; };
+  return { bind };
+};
+
+/* ป้ายสีเดียวกับที่ใช้ทั้งไฟล์ — คุมโทนของแบนเนอร์เตือน 3 ระดับไว้ที่เดียว */
+const NoticeLine = ({ tone = 'info', icon = 'info', children }) => {
+  const TONES = {
+    info:    { bg: 'var(--surface-brandPrimary-quaternary, #F4FBF8)', fg: 'var(--text-brandPrimary-default, #007549)' },
+    warning: { bg: 'var(--surface-warning-quaternary, #FFF9F0)',      fg: 'var(--text-warning-default, #F46928)' },
+    danger:  { bg: 'var(--surface-danger-quaternary, #FFF0F0)',       fg: 'var(--text-danger-default, #C72121)' },
+  };
+  const tint = TONES[tone] || TONES.info;
+  return (
+    <div
+      className='flex items-start gap-2 w-full'
+      style={{
+        padding: 'var(--dim-space-300) var(--dim-space-400)',
+        borderRadius: 'var(--dim-radius-200, 8px)',
+        background: tint.bg,
+        color: tint.fg,
+        fontSize: 'var(--type-size-sm)',
+      }}
+    >
+      <Icon name={icon} size={18} />
+      <span>{children}</span>
+    </div>
+  );
+};
+
+/** ช่องผลแล็บ — ค่าที่มีชุดตัวเลือกตายตัว (หมู่เลือด · Reactive/Non-reactive)
+    เป็น dropdown ส่วนค่าตัวเลขต่อเนื่อง (Hb/HCT/MCV) เป็นช่องกรอก เพื่อไม่ให้
+    ผลเดียวกันแตกเป็นหลายสะกดจนดูแนวโน้มไม่ได้ */
+const LabResultField = ({ field, value, onChange }) => (
+  field.options ? (
+    <Select
+      showLabel={false}
+      searchable={false}
+      size='lg'
+      value={value || ''}
+      onChange={onChange}
+      options={field.options}
+      placeholder={field.placeholder}
+    />
+  ) : (
+    <InputField value={value || ''} onChange={onChange} placeholder={field.placeholder} />
+  )
+);
+
+/* จำนวนครรภ์/คลอด/แท้ง/บุตรมีชีวิต เป็นจำนวนเต็มบวกค่าน้อยเสมอ — dropdown
+   ปิดโอกาสพิมพ์ทศนิยมหรือค่าติดลบ */
+const numberOptions = (max, min = 0) => Array.from({ length: max - min + 1 }, (_, i) => String(min + i));
+
+/** แถว "ใช่/ไม่ใช่" ของแบบประเมิน — ใช้ทั้ง 2Q และ MOS */
+const YesNoRow = ({ label, value, onYes, onNo }) => (
+  <div className='flex items-center justify-between gap-4 w-full flex-wrap'>
+    <span className='text-sm' style={{ color: 'var(--text-content-default, #363B3F)' }}>{label}</span>
+    <div className='flex items-center gap-2 shrink-0'>
+      <SelectableTag label='ใช่' size='md' selected={value === true} onClick={onYes} />
+      <SelectableTag label='ไม่ใช่' size='md' selected={value === false} onClick={onNo} />
+    </div>
+  </div>
+);
+
+/* แบบประเมินในป๊อปอัปอ่านยากเมื่อคำถามอยู่ซ้ายสุดแล้วตัวเลือกไปกองขวาสุด
+   (มติผู้ใช้ 2 ก.ย. 69) — จัดใหม่เป็น "คำถามหนึ่งบรรทัด ตัวเลือกอยู่ใต้คำถาม"
+   คั่นแต่ละข้อด้วยพื้นสลับสี และใช้ radio/checkbox แทนชิปที่มีเครื่องหมาย +
+   ซึ่งอ่านเหมือนปุ่ม "เพิ่ม" มากกว่าตัวเลือกของคำตอบ */
+const QuestionRow = ({ index, label, zebra = false, children }) => (
+  <div
+    className='flex flex-col w-full'
+    style={{
+      gap: 'var(--dim-space-200, 8px)',
+      padding: 'var(--dim-space-300, 12px)',
+      borderRadius: 'var(--dim-radius-200, 8px)',
+      background: zebra ? 'var(--surface-neutral-quaternary, #F9FBFB)' : 'transparent',
+    }}
+  >
+    <span style={{
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-sm)',
+      color: 'var(--text-content-default, #363B3F)',
+      lineHeight: 1.5,
+    }}
+    >
+      {index != null ? `${index}. ` : ''}{label}
+    </span>
+    <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+      {children}
+    </div>
+  </div>
+);
+
+/** ตัวเลือกคำตอบแบบเลือกได้ค่าเดียว */
+const ChoiceOptions = ({ name, options, value, onPick }) => (
+  <>
+    {options.map((o) => (
+      <RadioButton
+        key={String(o.value)}
+        name={name}
+        value={o.value}
+        checked={value === o.value}
+        onChange={() => onPick(o.value)}
+        title={o.label}
+      />
+    ))}
+  </>
+);
+
+/** รายการติ๊กหลายข้อ — สองคอลัมน์ อ่านไล่ลงได้ ไม่ใช่ชิปกองกัน */
+const CheckList = ({ items, values, onToggle }) => (
+  <FieldGrid cols={2}>
+    {items.map((item) => (
+      <Checkbox
+        key={item.key}
+        label={item.label}
+        checked={!!values?.[item.key]}
+        onChange={() => onToggle(item.key)}
+      />
+    ))}
+  </FieldGrid>
+);
+
+/** ข้อเสนอจากค่าที่บันทึกไว้แล้ว — บอกเหตุผลของทุกข้อ และต้องกดรับเอง
+    (ทั้งแบบ 27 ข้อ และภาวะเสี่ยงรายครั้งใช้กล่องเดียวกัน) */
+const RiskSuggestionBox = ({ suggestions, onAccept, onAcceptAll }) => (
+  <div
+    className='flex flex-col gap-2 w-full'
+    style={{
+      padding: 'var(--dim-space-300) var(--dim-space-400)',
+      borderRadius: 'var(--dim-radius-200, 8px)',
+      background: 'var(--surface-alert-warning, #FFF9F0)',
+    }}
+  >
+    <div className='flex items-center justify-between gap-3 flex-wrap'>
+      <span
+        className='flex items-center gap-2'
+        style={{ color: 'var(--text-warning-default, #C2410C)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)' }}
+      >
+        <Icon name='activity' size={18} />
+        ระบบตรวจพบ {suggestions.length} ข้อจากข้อมูลที่บันทึกไว้แล้ว — ตรวจสอบก่อนรับเข้าแบบประเมิน
+      </span>
+      <BrandSubdueButton variant='fill' size='sm' leadingIcon='check' onClick={onAcceptAll}>
+        เลือกทั้งหมด
+      </BrandSubdueButton>
+    </div>
+    <div className='flex flex-col gap-1'>
+      {suggestions.map((s) => (
+        <button
+          key={s.key}
+          type='button'
+          onClick={() => onAccept(s.key)}
+          className='flex items-start gap-2 text-left w-full'
+          style={{
+            background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+            color: 'var(--text-content-default, #363B3F)', fontSize: 'var(--type-size-sm)',
+          }}
+        >
+          <Icon name='plus' size={16} />
+          <span>
+            {s.label}
+            <span style={{ color: 'var(--text-content-tertiary, #858C92)' }}> — {s.reason}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
+/* ── กราฟการเพิ่มขึ้นของน้ำหนัก (มติ คทง.2) ────────────────────────
+   เปิดจากปุ่ม "ประมวลผลกราฟน้ำหนัก" ในขั้นที่ 1 — เทียบน้ำหนักก่อนตั้งครรภ์
+   กับน้ำหนักทุกครั้งที่มาตรวจ พร้อมแถบเกณฑ์ IOM 2009 ของกลุ่ม BMI นั้น
+   และข้อความสรุปสามระดับ (น้ำหนักเพิ่มน้อย / เพิ่มดี / เพิ่มมาก) */
+const WeightGainPopup = ({ open, onClose, history, form }) => {
+  const { points, band, expectedAt } = useMemo(
+    () => buildAncWeightSeries(history, form),
+    [history, form],
+  );
+  const gaWeeks = calculateGestationalAge(form.lmp)?.weeks;
+  const summary = useMemo(() => evaluateWeightGain({
+    prePregnancyWeight: form.prePregnancyWeight,
+    currentWeight: form.vitals?.weight,
+    heightCm: form.vitals?.height,
+    gaWeeks,
+  }), [form.prePregnancyWeight, form.vitals?.weight, form.vitals?.height, gaWeeks]);
+
+  const labels = points.map((p) => (p.gaWeeks != null ? `${p.gaWeeks} สัปดาห์` : p.label));
+  const expected = points.map((p) => expectedAt(p.gaWeeks));
+  const series = [
+    {
+      label: 'น้ำหนักที่ชั่งได้',
+      color: 'var(--text-colorfulbadge-green, #007549)',
+      values: points.map((p) => p.weight),
+    },
+  ];
+  if (band && expected.every(Boolean)) {
+    series.push(
+      { label: 'เกณฑ์ต่ำสุด', color: 'var(--text-colorfulbadge-blue, #2580EA)', values: expected.map((e) => Math.round(e.min * 10) / 10) },
+      { label: 'เกณฑ์สูงสุด', color: 'var(--text-colorfulbadge-orange, #F46928)', values: expected.map((e) => Math.round(e.max * 10) / 10) },
+    );
+  }
+
+  return (
+    <Popup
+      open={open}
+      onClose={onClose}
+      size='large'
+      title='กราฟการเพิ่มขึ้นของน้ำหนักในหญิงตั้งครรภ์'
+      subtitle={band ? `${band.label} · ควรเพิ่มตลอดครรภ์ ${band.totalGain[0]}–${band.totalGain[1]} กก.` : 'ระบุน้ำหนักก่อนตั้งครรภ์และส่วนสูงเพื่อคำนวณเกณฑ์'}
+      primaryAction={{ label: 'ปิด', onClick: onClose }}
+    >
+      <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+        {points.length < 2 ? (
+          <NoticeLine tone='info' icon='info'>
+            มีน้ำหนักที่บันทึกไว้เพียงจุดเดียว — ต้องมีอย่างน้อย 2 ครั้ง (รวมน้ำหนักก่อนตั้งครรภ์)
+            จึงจะวาดเป็นเส้นแนวโน้มได้
+          </NoticeLine>
+        ) : (
+          <LineChart months={labels} series={series} height={220} />
+        )}
+        {summary && (
+          <div className='flex flex-col gap-2'>
+            <div className='flex items-center gap-2 flex-wrap'>
+              <ColorfulBadge style={summary.band?.badge || 'grey'} size='small' hierarchy='secondary' width='hug' maxWidth={520}>
+                {`BMI ก่อนตั้งครรภ์ ${summary.bmi} — ${summary.band?.label || '—'}`}
+              </ColorfulBadge>
+              <ColorfulBadge style={summary.badge || 'grey'} size='small' hierarchy='secondary' width='hug' maxWidth={520}>
+                {summary.label ? `${summary.label} — เพิ่มขึ้น ${summary.gained} กก.` : `น้ำหนักเพิ่ม ${summary.gained} กก.`}
+              </ColorfulBadge>
+            </div>
+            <span style={{ color: 'var(--text-content-tertiary)', fontSize: 'var(--type-size-sm)', lineHeight: 1.5 }}>
+              {summary.message || summary.band?.advice}
+            </span>
+          </div>
+        )}
+        <Table
+          columns={[
+            { key: 'label', label: 'ครั้งที่ชั่ง', flex: true, minWidth: 160 },
+            { key: 'ga', label: 'อายุครรภ์', render: (r) => (r.gaWeeks != null ? `${r.gaWeeks} สัปดาห์` : '-') },
+            { key: 'weight', label: 'น้ำหนัก (กก.)' },
+            {
+              key: 'expected',
+              label: 'เกณฑ์ที่ควรเป็น (กก.)',
+              flex: true,
+              minWidth: 180,
+              render: (r) => {
+                const e = expectedAt(r.gaWeeks);
+                return e ? `${Math.round(e.min * 10) / 10} – ${Math.round(e.max * 10) / 10}` : '-';
+              },
+            },
+          ]}
+          rows={points.map((p, i) => ({ ...p, id: `${p.label}-${i}` }))}
+          rowKey={(r) => r.id}
+          emptyMessage='ยังไม่มีน้ำหนักที่บันทึกไว้'
+        />
+      </div>
+    </Popup>
+  );
+};
+
+/* ── ขั้นที่ 1 — ประวัติการรักษา ────────────────────────────────────
+   ทะเบียนฝากครรภ์ (TOR 1.10.7.6) + ตารางติดตามครั้งก่อนหน้า (TOR 1.10.7.8)
+   + เอกสารแนบ (TOR 1.10.7.4) ลำดับการ์ดตามมติ คทง.2: กล่อง "การตั้งครรภ์
+   ปัจจุบัน" มาก่อนส่วนประวัติสามี */
+
+/* หมวดที่ค่าถูกดึงมาจากทะเบียนของครั้งก่อน — ใช้ตั้งชื่อในแบนเนอร์ ไม่ให้
+   ขึ้นเป็นชื่อฟิลด์ดิบ */
+const CARRIED_FIELD_SECTION = {
+  illnessHistory: 'ประวัติเจ็บป่วยในอดีต', illnessChecklist: 'ประวัติเจ็บป่วยในอดีต',
+  gravida: 'ประวัติสูติกรรม', para: 'ประวัติสูติกรรม', abortion: 'ประวัติสูติกรรม',
+  livingChildren: 'ประวัติสูติกรรม', obstetricHistory: 'ประวัติสูติกรรม',
+  lmp: 'การตั้งครรภ์ปัจจุบัน', contraceptionHistory: 'การตั้งครรภ์ปัจจุบัน',
+  motherChildHealthBookGiven: 'การตั้งครรภ์ปัจจุบัน',
+  breastExamNote: 'เต้านม/สามี', spouseHealthNote: 'เต้านม/สามี', spouseInfo: 'เต้านม/สามี',
+  husbandLabResults: 'Lab สามี/คู่',
+  tetanusDoseCount: 'วัคซีน dT', tetanusLastDoseYear: 'วัคซีน dT', tetanusExempt: 'วัคซีน dT',
+  familyIllnessHistory: 'ประวัติครอบครัว', familyIllnessOtherNote: 'ประวัติครอบครัว',
+  riskFactors: 'แบบคัดกรองความเสี่ยง',
+  gdmScreeningFactors: 'คัดกรองเบาหวาน',
+  labResults: 'ผลตรวจ Lab',
+};
+
 export const AncStep1History = ({
   form, setForm, cardPatient, ancHn, visitNo = 1, isFollowUp = false, carriedFields = [],
 }) => {
-  void form; void setForm; void cardPatient; void ancHn;
-  void visitNo; void isFollowUp; void carriedFields;
-  return <EmptyStepBody title='ประวัติการรักษา' subtitle='Medical History — ยังไม่มีเนื้อหา' />;
+  const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
+  const toggleIn = (group, key) => setForm((f) => ({
+    ...f, [group]: { ...f[group], [key]: !f[group]?.[key] },
+  }));
+  const setSpouse = (key) => (value) => setForm((f) => ({
+    ...f, spouseInfo: { ...f.spouseInfo, [key]: value },
+  }));
+
+  const gestationalAge = useMemo(() => calculateGestationalAge(form.lmp), [form.lmp]);
+  const edc = useMemo(() => calculateEDC(form.lmp), [form.lmp]);
+
+  /* เข็มสุดท้ายของ dT เป็นปีที่ไม่ไกลนัก — 20 ปีย้อนหลังพอ ไม่ต้องเปิดช่องพิมพ์ */
+  const tetanusYearOptions = useMemo(() => {
+    const currentYearBE = new Date().getFullYear() + 543;
+    return Array.from({ length: 20 }, (_, i) => String(currentYearBE - i));
+  }, []);
+
+  /* `ancHn` คือ HN ที่คิวส่งมา — ไม่ใช่ `cardPatient.hn` ซึ่งจะกลายเป็นคนไข้
+     ตั้งต้นเมื่อ HN ไม่มีใน patientProfiles และจะพาประวัติของคนอื่นมาแสดง */
+  const history = useMemo(() => getAncVisitHistoryByHn(ancHn), [ancHn]);
+  const [weightOpen, setWeightOpen] = useState(false);
+
+  const addObstetricRow = () => setForm((f) => ({
+    ...f,
+    obstetricHistory: [
+      ...f.obstetricHistory,
+      {
+        id: `ob-${f.obstetricHistory.length + 1}-${Date.now()}`,
+        year: '', deliveryType: '', gaAtDelivery: '', complication: '', outcome: '', birthWeight: '',
+      },
+    ],
+  }));
+  const updateObstetricRow = (id, key, value) => setForm((f) => ({
+    ...f,
+    obstetricHistory: f.obstetricHistory.map((row) => (row.id === id ? { ...row, [key]: value } : row)),
+  }));
+  const removeObstetricRow = (id) => setForm((f) => ({
+    ...f,
+    obstetricHistory: f.obstetricHistory.filter((row) => row.id !== id),
+  }));
+
+  /* ขั้นนี้ไม่มีแถวแท็บ capsule แล้ว (มติผู้ใช้ 2 ก.ย. 69) — เหลือแต่จุดยึดของ
+     แต่ละหมวดไว้ เผื่อที่อื่นเลื่อนมาหา และเพื่อให้ระยะห่างของการ์ดเท่าเดิม */
+  const { bind } = useSectionJump();
+
+  const carriedSections = useMemo(() => {
+    const seen = [];
+    carriedFields.forEach((key) => {
+      const label = CARRIED_FIELD_SECTION[key];
+      if (label && !seen.includes(label)) seen.push(label);
+    });
+    return seen;
+  }, [carriedFields]);
+
+  return (
+    <StepCard>
+      {/* ครั้งที่ 2 ขึ้นไปเปิดมาพร้อมทะเบียนฝากครรภ์ที่กรอกไว้แล้ว — บอกให้ชัด
+          ว่าหมวดไหนเป็นค่าที่ยกมา (ยังแก้ได้ ตาม TOR 1.10.7.6 "แก้ไข")
+          ไม่ใช่คำตอบที่เพิ่งซักวันนี้ */}
+      {isFollowUp && carriedSections.length > 0 && (
+        <NoticeLine tone='info' icon='history'>
+          ตรวจครรภ์ครั้งที่ {visitNo} — ดึงข้อมูลทะเบียนฝากครรภ์จากครั้งก่อนหน้ามาให้แล้ว
+          ({carriedSections.join(', ')}) ตรวจสอบและแก้ไขได้หากมีการเปลี่ยนแปลง
+        </NoticeLine>
+      )}
+
+      {history.length > 0 && (
+        <SectionAnchor ref={bind('trend')}>
+          <TopicHeader
+            icon='history'
+            trailing={(
+              <BrandSubdueButton
+                variant='outline'
+                size='sm'
+                leadingIcon='monitoring'
+                onClick={() => setWeightOpen(true)}
+              >
+                ประมวลผลกราฟน้ำหนัก
+              </BrandSubdueButton>
+            )}
+          >
+            ประวัติการฝากครรภ์ (ครั้งก่อนหน้า)
+          </TopicHeader>
+          {/* คอลัมน์ตามตารางบันทึกการตรวจครรภ์ของคู่มือเดิม (หน้า 2-10) บวก
+              คอลัมน์ที่ TOR 1.10.7.8 เพิ่ม (น้ำหนัก · ความเสี่ยง · ผล Lab) */}
+          <Table
+            columns={[
+              { key: 'visitNo', label: 'ครั้งที่', render: (r, i) => r.visitNo ?? (i + 1) },
+              { key: 'date', label: 'วันที่' },
+              { key: 'gestWeeks', label: 'อายุครรภ์', render: (r) => `${r.gestWeeks} สัปดาห์` },
+              { key: 'fundusHeight', label: 'ยอดมดลูก' },
+              { key: 'presentation', label: 'ส่วนนำ', render: (r) => r.presentation || '-' },
+              { key: 'fetalHeartRate', label: 'FHR' },
+              { key: 'bp', label: 'BP' },
+              { key: 'weight', label: 'น้ำหนัก', render: (r) => `${r.weight} กก.` },
+              { key: 'urineResult', label: 'ปัสสาวะ', render: (r) => r.urineResult || '-' },
+              { key: 'riskLevel', label: 'ความเสี่ยง', render: (r) => resolveAncRiskLevel(r.riskLevel)?.label || '-' },
+              { key: 'labSummary', label: 'ผล Lab', render: (r) => r.labSummary || '-' },
+              { key: 'note', label: 'บันทึก', flex: true, minWidth: 200 },
+            ]}
+            rows={history}
+            rowKey={(r) => `${r.visitNo ?? ''}-${r.date}-${r.gestWeeks}`}
+            emptyMessage='ไม่มีประวัติการฝากครรภ์ครั้งก่อนหน้า'
+          />
+        </SectionAnchor>
+      )}
+
+      <SectionAnchor ref={bind('screening')}>
+        <CarriedScreeningPanel patient={{ hn: ancHn }} />
+      </SectionAnchor>
+
+      {/* มติ คทง.2 — ประวัติเจ็บป่วยเป็น checkbox แทน free text และไม่มีช่อง
+          "โรคประจำตัว" อีก (ซ้ำกับหมวดนี้ และอยู่บนการ์ดผู้ป่วยแล้ว) */}
+      <SectionAnchor ref={bind('illness')}>
+        <TopicHeader icon='file-text'>ประวัติการเจ็บป่วยในอดีต</TopicHeader>
+        <div className='flex flex-wrap gap-2'>
+          {ANC_ILLNESS_CHECKLIST.map((item) => (
+            <SelectableTag
+              key={item.key}
+              label={item.label}
+              size='lg'
+              selected={!!form.illnessChecklist?.[item.key]}
+              onClick={() => toggleIn('illnessChecklist', item.key)}
+            />
+          ))}
+        </div>
+        <SuggestibleTextarea
+          voice
+          value={form.illnessHistory}
+          onChange={(e) => set('illnessHistory')(e.target.value)}
+          suggestions={ANC_ILLNESS_HISTORY_SUGGESTIONS}
+          minChars={3}
+          placeholder='อื่นๆ (ระบุ) — เช่น เคยผ่าตัด แพ้ยา หรือโรคที่ไม่อยู่ในรายการ'
+        />
+      </SectionAnchor>
+
+      <SectionAnchor ref={bind('obstetric')}>
+        <TopicHeader icon='clipboard'>ประวัติทางสูติกรรม</TopicHeader>
+        <FieldGrid cols={4}>
+          <Field label='ครรภ์ที่ (Gravida)' required>
+            <Select showLabel={false} searchable={false} size='lg' value={form.gravida} onChange={set('gravida')} options={numberOptions(10, 1)} placeholder='เลือกครรภ์ที่' />
+          </Field>
+          <Field label='คลอดแล้ว (Para)'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.para} onChange={set('para')} options={numberOptions(10)} placeholder='0' />
+          </Field>
+          <Field label='แท้ง (Abortion)'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.abortion} onChange={set('abortion')} options={numberOptions(10)} placeholder='0' />
+          </Field>
+          <Field label='บุตรมีชีวิต (Living)'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.livingChildren} onChange={set('livingChildren')} options={numberOptions(10)} placeholder='0' />
+          </Field>
+        </FieldGrid>
+
+        {/* ตารางการตั้งครรภ์และการคลอดในอดีต — คอลัมน์ตามมติ คทง.2 */}
+        {form.obstetricHistory.length > 0 && (
+          <div className='flex flex-col gap-3'>
+            {form.obstetricHistory.map((row, idx) => (
+              <div key={row.id} className='flex items-end gap-3 w-full'>
+                <div className='flex-1 min-w-0'>
+                  <FieldGrid cols={6}>
+                    <Field label={`ครรภ์ที่ ${idx + 1} — ปีที่คลอด (พ.ศ.)`}>
+                      <InputField value={row.year} onChange={(v) => updateObstetricRow(row.id, 'year', v)} placeholder='2565' />
+                    </Field>
+                    <Field label='วิธีคลอด'>
+                      <Select showLabel={false} searchable={false} size='lg' value={row.deliveryType} onChange={(v) => updateObstetricRow(row.id, 'deliveryType', v)} options={ANC_DELIVERY_TYPE_OPTIONS} placeholder='เลือกวิธีคลอด' />
+                    </Field>
+                    <Field label='อายุครรภ์เมื่อคลอด (สัปดาห์)'>
+                      <InputField value={row.gaAtDelivery || ''} onChange={(v) => updateObstetricRow(row.id, 'gaAtDelivery', v)} type='number' placeholder='เช่น 38' />
+                    </Field>
+                    <Field label='ภาวะแทรกซ้อน'>
+                      <InputField value={row.complication} onChange={(v) => updateObstetricRow(row.id, 'complication', v)} placeholder='ไม่มี' />
+                    </Field>
+                    <Field label='ผลการคลอด'>
+                      <Select showLabel={false} searchable={false} size='lg' value={row.outcome} onChange={(v) => updateObstetricRow(row.id, 'outcome', v)} options={ANC_DELIVERY_OUTCOME_OPTIONS} placeholder='เลือกผลการคลอด' />
+                    </Field>
+                    <Field label='น้ำหนักแรกเกิด (กรัม)'>
+                      <InputField value={row.birthWeight || ''} onChange={(v) => updateObstetricRow(row.id, 'birthWeight', v)} type='number' placeholder='เช่น 3000' />
+                    </Field>
+                  </FieldGrid>
+                </div>
+                <BrandIconButton icon='close' variant='ghost' size='sm' onClick={() => removeObstetricRow(row.id)} aria-label='ลบรายการ' />
+              </div>
+            ))}
+          </div>
+        )}
+        <BrandDashedAddButton onClick={addObstetricRow}>เพิ่มประวัติการตั้งครรภ์ก่อนหน้า</BrandDashedAddButton>
+      </SectionAnchor>
+
+      {/* มติ คทง.2 — กล่องใหม่ วางไว้ก่อนส่วนประวัติสามี อ้างอิงหัวข้อใน
+          สมุดฝากครรภ์สีชมพู: LMP · EDC · ประวัติคุมกำเนิด · วัคซีนบาดทะยัก
+          (ตัววัคซีนอยู่การ์ดถัดไปเพราะมีเกณฑ์คำนวณของตัวเอง) */}
+      <SectionAnchor ref={bind('currentPregnancy')}>
+        <TopicHeader icon='activity'>การตั้งครรภ์ปัจจุบัน</TopicHeader>
+        <FieldGrid cols={3}>
+          <Field
+            label='วันแรกของประจำเดือนครั้งสุดท้าย (LMP)'
+            required
+            hint={gestationalAge
+              ? `อายุครรภ์ ${formatGestationalAge(gestationalAge)}`
+              : 'ระบุ LMP เพื่อคำนวณอายุครรภ์และกำหนดคลอดอัตโนมัติ'}
+          >
+            <DatePicker
+              value={form.lmp ? new Date(form.lmp) : null}
+              onChange={(d) => setForm((f) => ({ ...f, lmp: d ? d.toISOString().slice(0, 10) : '' }))}
+              placeholder='เลือกวันที่'
+              showLabel={false}
+              minDate={new Date(1900, 0, 1)}
+            />
+          </Field>
+          {/* EDC คำนวณจาก LMP + 280 วัน (Naegele) — อ่านอย่างเดียว ไม่ให้พิมพ์ทับ
+              เพราะเป็นค่าที่ต้องตรงกับ LMP เสมอ */}
+          <Field label='กำหนดคลอด (EDC)' hint='คำนวณอัตโนมัติจาก LMP + 280 วัน'>
+            <InputField value={edc ? formatAncDate(edc) : ''} onChange={() => {}} disabled placeholder='—' />
+          </Field>
+          <Field label='ประวัติการคุมกำเนิดก่อนตั้งครรภ์นี้'>
+            <InputField
+              value={form.contraceptionHistory}
+              onChange={set('contraceptionHistory')}
+              placeholder='เช่น ยาเม็ดคุมกำเนิด / ยาฉีด / ห่วงอนามัย / ไม่ได้คุมกำเนิด'
+            />
+          </Field>
+        </FieldGrid>
+        <SuggestibleTextarea
+          voice
+          value={form.currentPregnancyNote}
+          onChange={(e) => set('currentPregnancyNote')(e.target.value)}
+          suggestions={ANC_CURRENT_PREGNANCY_SUGGESTIONS}
+          minChars={3}
+          placeholder='อาการของการตั้งครรภ์ครั้งนี้ เช่น อาการแพ้ท้อง การเคลื่อนไหวของทารก อาการผิดปกติที่พบ'
+        />
+        <SelectableTag
+          label='แจกสมุดบันทึกสุขภาพแม่และเด็กแล้ว'
+          size='lg'
+          selected={form.motherChildHealthBookGiven}
+          onClick={() => setForm((f) => ({ ...f, motherChildHealthBookGiven: !f.motherChildHealthBookGiven }))}
+        />
+      </SectionAnchor>
+
+      <SectionAnchor ref={bind('vaccine')}>
+        <TopicHeader icon='clipboard'>ประวัติการฉีดวัคซีนป้องกันโรคคอตีบ บาดทะยัก (dT)</TopicHeader>
+        <FieldGrid cols={3}>
+          <Field label='ก่อนตั้งครรภ์นี้เคยได้รับมาแล้ว (ครั้ง)'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.tetanusDoseCount} onChange={set('tetanusDoseCount')} options={numberOptions(5)} placeholder='0' />
+          </Field>
+          <Field label='ครั้งสุดท้ายเมื่อปี พ.ศ.'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.tetanusLastDoseYear} onChange={set('tetanusLastDoseYear')} options={tetanusYearOptions} placeholder='เลือกปี พ.ศ.' />
+          </Field>
+          <Field label='ข้อยกเว้น'>
+            <SelectableTag
+              label='ไม่ต้องฉีดในครรภ์นี้ — เคยได้รับ dT ครบและไม่เกิน 10 ปี'
+              size='lg'
+              selected={form.tetanusExempt}
+              onClick={() => setForm((f) => ({ ...f, tetanusExempt: !f.tetanusExempt }))}
+            />
+          </Field>
+        </FieldGrid>
+        {form.tetanusDoseCount !== '' && (() => {
+          const currentYearBE = new Date().getFullYear() + 543;
+          const lastYear = Number(form.tetanusLastDoseYear);
+          const yearsAgo = form.tetanusLastDoseYear && Number.isFinite(lastYear) ? currentYearBE - lastYear : null;
+          const plan = getTetanusVaccinePlan(form.tetanusDoseCount, yearsAgo);
+          return (
+            <ColorfulBadge style={plan.doseCount === 0 ? 'green' : 'yellow'} size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+              คำแนะนำวัคซีน dT: {plan.label}
+            </ColorfulBadge>
+          );
+        })()}
+      </SectionAnchor>
+
+      <SectionAnchor ref={bind('familyIllness')}>
+        <TopicHeader icon='users'>ประวัติการเจ็บป่วยของครอบครัว</TopicHeader>
+        <div className='flex flex-wrap gap-2'>
+          {ANC_FAMILY_ILLNESS_HISTORY.map((item) => (
+            <SelectableTag
+              key={item.key}
+              label={item.label}
+              size='lg'
+              selected={!!form.familyIllnessHistory[item.key]}
+              onClick={() => toggleIn('familyIllnessHistory', item.key)}
+            />
+          ))}
+        </div>
+        <SuggestibleTextarea
+          voice
+          value={form.familyIllnessOtherNote}
+          onChange={(e) => set('familyIllnessOtherNote')(e.target.value)}
+          placeholder='อื่นๆ (ระบุ)'
+        />
+      </SectionAnchor>
+
+      {/* มติ คทง.2 — ประวัติสามี/คู่: ข้อมูลพื้นฐาน + โรคประจำตัว + หมู่เลือด/Rh
+          + สถานะสูบบุหรี่ (ประเมินความเสี่ยงจากบุหรี่มือสอง) */}
+      <SectionAnchor ref={bind('spouse')}>
+        <TopicHeader icon='stethoscope'>ลักษณะเต้านมและข้อมูลสามี/คู่</TopicHeader>
+        <FieldGrid cols={3}>
+          <Field label='ลักษณะเต้านม'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.breastExamNote} onChange={set('breastExamNote')} options={ANC_BREAST_EXAM_OPTIONS} placeholder='เลือกลักษณะเต้านม' />
+          </Field>
+          <Field label='สุขภาพของสามี/คู่ โดยรวม'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.spouseHealthNote} onChange={set('spouseHealthNote')} options={ANC_SPOUSE_HEALTH_OPTIONS} placeholder='เลือกสุขภาพของสามี' />
+          </Field>
+          <Field label='สถานะการสูบบุหรี่ของสามี/คู่' hint='ใช้ประเมินความเสี่ยงจากบุหรี่มือสอง'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.spouseInfo?.smokingStatus} onChange={setSpouse('smokingStatus')} options={ANC_SPOUSE_SMOKING_OPTIONS} placeholder='เลือกสถานะ' />
+          </Field>
+        </FieldGrid>
+        <FieldGrid cols={4}>
+          <Field label='ชื่อ-นามสกุลสามี/คู่'>
+            <InputField value={form.spouseInfo?.name || ''} onChange={setSpouse('name')} placeholder='ชื่อ-นามสกุล' />
+          </Field>
+          <Field label='วันเดือนปีเกิด' hint={(() => {
+            const d = form.spouseInfo?.birthDate ? new Date(form.spouseInfo.birthDate) : null;
+            if (!d || Number.isNaN(d.getTime())) return 'คำนวณอายุอัตโนมัติเมื่อระบุวันเกิด';
+            const age = Math.floor((Date.now() - d.getTime()) / (365.25 * 86400000));
+            return `อายุ ${age} ปี`;
+          })()}>
+            <DatePicker
+              value={form.spouseInfo?.birthDate ? new Date(form.spouseInfo.birthDate) : null}
+              onChange={(d) => setSpouse('birthDate')(d ? d.toISOString().slice(0, 10) : '')}
+              placeholder='เลือกวันเกิด'
+              showLabel={false}
+              minDate={new Date(1900, 0, 1)}
+            />
+          </Field>
+          <Field label='เลขบัตรประชาชน'>
+            <InputField value={form.spouseInfo?.citizenId || ''} onChange={setSpouse('citizenId')} placeholder='13 หลัก' />
+          </Field>
+          <Field label='อาชีพ'>
+            <InputField value={form.spouseInfo?.occupation || ''} onChange={setSpouse('occupation')} placeholder='อาชีพ' />
+          </Field>
+          <Field label='เบอร์โทรศัพท์'>
+            <InputField value={form.spouseInfo?.phone || ''} onChange={setSpouse('phone')} placeholder='08X-XXX-XXXX' />
+          </Field>
+          <Field label='โรคประจำตัวของสามี/คู่'>
+            <InputField value={form.spouseInfo?.illness || ''} onChange={setSpouse('illness')} placeholder='ไม่มี / ระบุ' />
+          </Field>
+          <Field label='หมู่เลือด (ABO)'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.spouseInfo?.bloodGroup} onChange={setSpouse('bloodGroup')} options={['A', 'B', 'AB', 'O']} placeholder='เลือกหมู่เลือด' />
+          </Field>
+          <Field label='Rh'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.spouseInfo?.rh} onChange={setSpouse('rh')} options={['Positive', 'Negative']} placeholder='เลือกผล Rh' />
+          </Field>
+        </FieldGrid>
+      </SectionAnchor>
+
+      <SectionAnchor ref={bind('husbandLab')}>
+        <TopicHeader icon='biotech'>ผลตรวจทางห้องปฏิบัติการของสามี/คู่</TopicHeader>
+        <FieldGrid cols={3}>
+          {ANC_HUSBAND_LAB_FIELDS.map((f) => (
+            <Field key={f.key} label={f.label}>
+              <LabResultField
+                field={f}
+                value={form.husbandLabResults[f.key]}
+                onChange={(v) => setForm((prev) => ({ ...prev, husbandLabResults: { ...prev.husbandLabResults, [f.key]: v } }))}
+              />
+            </Field>
+          ))}
+        </FieldGrid>
+      </SectionAnchor>
+
+      <SectionAnchor ref={bind('documents')}>
+        <TopicHeader icon='file'>อัปโหลดเอกสาร</TopicHeader>
+        <DragAndDrop
+          value={form.documents}
+          onChange={(files) => setForm((f) => ({ ...f, documents: files }))}
+          accept='.png,.jpg,.jpeg,.pdf'
+        />
+      </SectionAnchor>
+
+      <WeightGainPopup open={weightOpen} onClose={() => setWeightOpen(false)} history={history} form={form} />
+    </StepCard>
+  );
 };
 
-/* ── Step 2 — แบบประเมิน ──────────────────────────────────────────── */
-export const AncStep2Screening = ({ form, setForm }) => {
-  void form; void setForm;
-  return <EmptyStepBody title='แบบประเมิน' subtitle='Assessment — ยังไม่มีเนื้อหา' />;
-};
-
-/* ── Step 3 — ตรวจร่างกาย ─────────────────────────────────────────── */
-export const AncStep3Examination = ({ form, setForm, ancHn, cardPatient }) => {
-  void form; void setForm; void ancHn; void cardPatient;
-  return <EmptyStepBody title='ตรวจร่างกาย' subtitle='Physical Examination — ยังไม่มีเนื้อหา' />;
-};
-
-/* ── Step 4 — วินิจฉัย ────────────────────────────────────────────── */
-export const AncStep4Diagnosis = ({ form, setForm }) => {
-  void form; void setForm;
-  return <EmptyStepBody title='วินิจฉัย' subtitle='Diagnosis — ยังไม่มีเนื้อหา' />;
-};
-
-/* ── Step 5 — สั่งการรักษา ────────────────────────────────────────── */
-export const AncStep5Orders = ({ form, setForm }) => {
-  void form; void setForm;
-  return <EmptyStepBody title='สั่งการรักษา' subtitle='Treatment Order — ยังไม่มีเนื้อหา' />;
-};
-
-/* ── Step 6 — นัดหมาย ─────────────────────────────────────────────── */
-export const AncStep6Appointment = ({ form, setForm }) => {
-  void form; void setForm;
-  return <EmptyStepBody title='นัดหมาย' subtitle='Appointment — ยังไม่มีเนื้อหา' />;
-};
-
-/* ── Step 7 — ใบฝากครรภ์ ──────────────────────────────────────────── */
-export const AncStep7Card = ({
-  form, setForm, patient, cardPatient, ancHn, visitNo = 1,
+/* ── ขั้น "แบบประเมิน" — ทรงเดียวกับแบบฟอร์มเยี่ยมบ้าน (มติผู้ใช้ 2 ก.ย. 69) ──
+   ตารางรายชื่อแบบประเมิน + คะแนน + สถานะ แล้วกด "ทำแบบประเมิน" เพื่อเปิดป๊อปอัป
+   ของชุดนั้น — เดิมกางทั้งเจ็ดชุดต่อกันในขั้นเดียว เลื่อนหาไม่เจอว่าเหลือชุดไหน
+   ที่ยังไม่ได้ทำ · คอลัมน์คะแนน/สถานะทำหน้าที่ "แสดงผลการซักประวัติทันที"
+   ตาม TOR 1.10.7.3 แทนแถวป้ายสรุปที่เคยลอยอยู่หัวขั้น */
+export const AncStep2Screening = ({
+  form, setForm, cardPatient, ancHn, visitNo = 1, isFollowUp = false, carriedFields = [],
 }) => {
-  void form; void setForm; void patient; void cardPatient; void ancHn; void visitNo;
-  return <EmptyStepBody title='ใบฝากครรภ์' subtitle='ANC Card — ยังไม่มีเนื้อหา' />;
+  const [openTool, setOpenTool] = useState(null);
+  /* ทะเบียนฝากครรภ์เปิดเป็นป๊อปอัปจากแถวแรกของตาราง (มติผู้ใช้ 2 ก.ย. 69) —
+     เป็นข้อมูลระดับการตั้งครรภ์ที่กรอกครั้งเดียวแล้วยกไปทุกครั้ง จึงไม่ควรกิน
+     พื้นที่เป็นขั้นตอนของตัวเอง แต่ต้องเข้าถึงได้จากขั้นแรกเสมอ */
+  const [registryOpen, setRegistryOpen] = useState(false);
+
+  const setStress = (key, value) => setForm((f) => ({ ...f, stressAnswers: { ...f.stressAnswers, [key]: value } }));
+  const setMental = (key, value) => setForm((f) => ({ ...f, mentalHealthAnswers: { ...f.mentalHealthAnswers, [key]: value } }));
+  const set9Q = (key, value) => setForm((f) => {
+    const answers = { ...(f.mentalHealth9Q?.answers || {}), [key]: value };
+    return {
+      ...f,
+      mentalHealth9Q: {
+        answers,
+        total: score9q(answers),
+        completedAt: is9qComplete(answers)
+          ? new Intl.DateTimeFormat('th-TH-u-ca-buddhist', {
+            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+          }).format(new Date())
+          : '',
+      },
+    };
+  });
+  const toggleIn = (group, key) => setForm((f) => ({ ...f, [group]: { ...f[group], [key]: !f[group]?.[key] } }));
+  const acceptMany = (group, keys) => setForm((f) => {
+    const next = { ...f[group] };
+    keys.forEach((k) => { next[k] = true; });
+    return { ...f, [group]: next };
+  });
+
+  const stressTotal = ANC_STRESS_QUESTIONS.reduce((sum, q) => sum + (Number(form.stressAnswers?.[q.key]) || 0), 0);
+  const stressAnswered = Object.keys(form.stressAnswers || {}).length;
+  const stressDone = stressAnswered === ANC_STRESS_QUESTIONS.length;
+  const stressResult = interpretAncStressScore(stressTotal);
+
+  const answeredMentalCount = Object.keys(form.mentalHealthAnswers || {}).length;
+  const mentalDone = answeredMentalCount === ANC_MENTAL_HEALTH_QUESTIONS.length;
+  const anyMentalYes = Object.values(form.mentalHealthAnswers || {}).some((v) => v === true);
+  const nineQ = form.mentalHealth9Q || {};
+  const nineQDone = is9qComplete(nineQ.answers || {});
+
+  const perVisitRisk = interpretPerVisitRisk(form.perVisitRiskFactors);
+  const flaggedRiskCount = Object.values(form.riskFactors || {}).filter(Boolean).length;
+  const gdmFlagged = Object.values(form.gdmScreeningFactors || {}).filter(Boolean).length;
+  const flaggedDangerCount = Object.values(form.dangerSigns || {}).filter(Boolean).length;
+
+  const age = cardPatient?.age;
+  const gdm = useMemo(() => evaluateGdmRisk(form, { age }), [form, age]);
+
+  /* ข้อเสนอสองชุด — ของแบบ 27 ข้อ (ครั้งแรก) และของภาวะเสี่ยงรายครั้ง
+     ทั้งคู่ต้องกดรับเอง ไม่ติ๊กให้ */
+  const firstVisitSuggestions = useMemo(
+    () => deriveFirstVisitRiskSuggestions(form, { age }).filter((s) => !form.riskFactors?.[s.key]),
+    [form, age],
+  );
+  const perVisitSuggestions = useMemo(
+    () => deriveAncRiskSuggestions(form).filter((s) => !form.perVisitRiskFactors?.[s.key]),
+    [form],
+  );
+
+  const stressBadge = stressResult.level === 'none' ? 'green' : stressResult.level === 'suspect' ? 'yellow' : 'red';
+
+  const registered = String(form.gravida ?? '').trim() !== '' && String(form.lmp ?? '').trim() !== '';
+
+  const TOOLS = [
+    {
+      key: 'registry',
+      title: 'ลงทะเบียนฝากครรภ์',
+      code: 'ทะเบียนฝากครรภ์ · ประวัติสูติกรรม · สามี/คู่',
+      done: registered,
+      scoreLabel: registered
+        ? `G${form.gravida} P${form.para || 0} A${form.abortion || 0}`
+        : '—',
+      interp: registered
+        ? { badge: 'green', label: isFollowUp ? 'ลงทะเบียนแล้ว (ยกมาจากครั้งก่อน)' : 'ลงทะเบียนแล้ว' }
+        : null,
+      pendingLabel: 'ยังไม่ได้ลงทะเบียน',
+      onOpen: () => setRegistryOpen(true),
+    },
+    {
+      key: 'stress',
+      title: 'ประเมินความเครียด',
+      code: 'ST-5',
+      done: stressDone,
+      scoreLabel: stressAnswered ? `${stressTotal}/15` : '—',
+      interp: stressDone ? { badge: stressBadge, label: stressResult.label } : null,
+    },
+    {
+      key: 'mental',
+      title: 'คัดกรองภาวะซึมเศร้า',
+      code: nineQDone ? '2Q / 9Q' : '2Q',
+      done: mentalDone && (!anyMentalYes || nineQDone),
+      scoreLabel: nineQDone ? `9Q ${nineQ.total}/${SCREEN_9Q_MAX_SCORE}` : (mentalDone ? `2Q ${Object.values(form.mentalHealthAnswers).filter(Boolean).length}/2` : '—'),
+      interp: nineQDone
+        ? { badge: interpret9q(nineQ.total).badge, label: interpret9q(nineQ.total).label }
+        : (mentalDone ? { badge: anyMentalYes ? 'red' : 'green', label: anyMentalYes ? '2Q ผลบวก — ต้องประเมิน 9Q ต่อ' : '2Q ผลลบ' } : null),
+    },
+    {
+      key: 'risk',
+      title: 'คัดกรองความเสี่ยงของหญิงตั้งครรภ์',
+      code: `สมุดสีชมพู ${ANC_RISK_FACTORS.length} ข้อ`,
+      done: flaggedRiskCount > 0 || isFollowUp,
+      scoreLabel: `${flaggedRiskCount}/${ANC_RISK_FACTORS.length} ข้อ`,
+      interp: flaggedRiskCount > 0
+        ? { badge: 'yellow', label: `พบปัจจัยเสี่ยง ${flaggedRiskCount} ข้อ` }
+        : (isFollowUp ? { badge: 'green', label: 'ไม่พบปัจจัยเสี่ยงจากครั้งแรก' } : null),
+    },
+    {
+      key: 'perVisit',
+      title: 'ภาวะเสี่ยงที่ประเมินทุกครั้งที่ตรวจครรภ์',
+      code: `คู่มือ ข้อ 8–20 · ${ANC_PERVISIT_RISK_FACTORS.length} ข้อ`,
+      done: perVisitRisk.flagged.length > 0,
+      scoreLabel: `${perVisitRisk.flagged.length}/${ANC_PERVISIT_RISK_FACTORS.length} ข้อ`,
+      interp: perVisitRisk.mustRefer
+        ? { badge: 'red', label: `พบ ${perVisitRisk.flagged.length} ข้อ — ต้องส่งต่อหรือรายงานแพทย์` }
+        : null,
+    },
+    {
+      key: 'gdm',
+      title: 'คัดกรองเบาหวานขณะตั้งครรภ์',
+      code: 'GDM',
+      done: gdmFlagged > 0,
+      scoreLabel: `${gdmFlagged}/${ANC_GDM_SCREENING_FACTORS.length} ข้อ`,
+      interp: gdm.highRisk ? { badge: 'yellow', label: ANC_GDM_ADVICE_MESSAGE } : null,
+    },
+    {
+      key: 'danger',
+      title: 'สัญญาณอันตราย',
+      code: `คู่มือ หน้า 11–12 · ${ANC_DANGER_SIGNS.length} ข้อ`,
+      done: flaggedDangerCount > 0,
+      scoreLabel: `${flaggedDangerCount}/${ANC_DANGER_SIGNS.length} ข้อ`,
+      interp: flaggedDangerCount > 0
+        ? { badge: 'red', label: 'พบสัญญาณอันตราย — ส่งพบแพทย์ทันที' }
+        : null,
+    },
+    {
+      key: 'smoking',
+      title: 'คัดกรองการสูบบุหรี่',
+      code: 'Brief advice',
+      done: !!form.smokingStatus,
+      scoreLabel: form.smokingStatus
+        ? (ANC_SMOKING_STATUS.find((o) => o.value === form.smokingStatus)?.label || '—')
+        : '—',
+      interp: form.smokingStatus
+        ? { badge: form.smokingStatus === 'smoker' ? 'orange' : 'green', label: form.smokingStatus === 'smoker' ? 'สูบบุหรี่ — ให้คำแนะนำเลิกบุหรี่' : 'ไม่สูบบุหรี่' }
+        : null,
+    },
+  ];
+
+  const openTitle = TOOLS.find((t) => t.key === openTool)?.title || '';
+
+  return (
+    <StepCard>
+      <TopicHeader icon='clipboard-list'>แบบประเมิน</TopicHeader>
+      <Table
+        columns={[
+          {
+            key: 'tool',
+            label: 'หัวข้อแบบประเมิน',
+            flex: true,
+            minWidth: 260,
+            render: (t) => (
+              <span className='flex flex-col' style={{ gap: 'var(--dim-space-50, 2px)' }}>
+                <span style={{ color: 'var(--text-content-default, #363B3F)' }}>{t.title}</span>
+                <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                  {t.code}
+                </span>
+              </span>
+            ),
+          },
+          {
+            key: 'score',
+            label: 'คะแนนประเมิน',
+            minWidth: 140,
+            render: (t) => (
+              <span style={{
+                color: 'var(--text-brandPrimary-default, #007549)',
+                fontFamily: 'var(--type-family-heading-content)',
+              }}
+              >
+                {t.scoreLabel}
+              </span>
+            ),
+          },
+          {
+            key: 'status',
+            label: 'สถานะการประเมิน',
+            minWidth: 220,
+            render: (t) => (t.interp ? (
+              <ColorfulBadge style={t.interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={260}>
+                {t.interp.label}
+              </ColorfulBadge>
+            ) : (
+              <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
+                {t.pendingLabel || 'ยังไม่ได้ประเมิน'}
+              </ColorfulBadge>
+            )),
+          },
+          {
+            key: 'action',
+            label: 'ดำเนินการ',
+            minWidth: 180,
+            render: (t) => (
+              <BrandSubdueButton
+                variant='outline'
+                size='sm'
+                leadingIcon={t.done ? 'edit' : 'assignment'}
+                onClick={() => (t.onOpen ? t.onOpen() : setOpenTool(t.key))}
+              >
+                {t.done ? 'แก้ไข' : (t.key === 'registry' ? 'ลงทะเบียน' : 'ทำแบบประเมิน')}
+              </BrandSubdueButton>
+            ),
+          },
+        ]}
+        rows={TOOLS}
+        rowKey={(t) => t.key}
+      />
+
+      {/* บันทึกเพิ่มเติมของการคัดกรองอยู่นอกป๊อปอัป เพราะเป็นสรุปของทั้งขั้น
+          ไม่ใช่ของแบบประเมินชุดใดชุดหนึ่ง */}
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='file-text' small>บันทึกเพิ่มเติม</TopicHeader>
+        <SuggestibleTextarea
+          voice
+          value={form.riskScreeningNote}
+          onChange={(e) => setForm((f) => ({ ...f, riskScreeningNote: e.target.value }))}
+          suggestions={ANC_RISK_SCREENING_SUGGESTIONS}
+          minChars={3}
+          placeholder='รายละเอียดเพิ่มเติมจากการคัดกรองความเสี่ยง'
+        />
+      </div>
+
+      <Popup
+        open={registryOpen}
+        onClose={() => setRegistryOpen(false)}
+        size='extraLarge'
+        title='ลงทะเบียนฝากครรภ์'
+        subtitle='ข้อมูลระดับการตั้งครรภ์ — กรอกครั้งแรกแล้วยกไปให้การตรวจครั้งถัดไปอัตโนมัติ'
+        primaryAction={{ label: 'เสร็จสิ้น', onClick: () => setRegistryOpen(false) }}
+      >
+        <div style={{ padding: 'var(--dim-space-600, 24px)' }}>
+          <AncStep1History
+            form={form}
+            setForm={setForm}
+            cardPatient={cardPatient}
+            ancHn={ancHn}
+            visitNo={visitNo}
+            isFollowUp={isFollowUp}
+            carriedFields={carriedFields}
+          />
+        </div>
+      </Popup>
+
+      <Popup
+        open={!!openTool}
+        onClose={() => setOpenTool(null)}
+        size='extraLarge'
+        title={openTitle}
+        primaryAction={{ label: 'เสร็จสิ้น', onClick: () => setOpenTool(null) }}
+      >
+        <div
+          className='flex flex-col w-full'
+          style={{ gap: 'var(--dim-space-600, 24px)', padding: 'var(--dim-space-600, 24px)' }}
+        >
+          {openTool === 'stress' && (
+            <>
+              <div className='flex flex-col w-full'>
+                {ANC_STRESS_QUESTIONS.map((q, idx) => (
+                  <QuestionRow key={q.key} index={idx + 1} label={q.label} zebra={idx % 2 === 1}>
+                    <ChoiceOptions
+                      name={`st5-${q.key}`}
+                      options={ANC_STRESS_SCALE}
+                      value={form.stressAnswers[q.key]}
+                      onPick={(v) => setStress(q.key, v)}
+                    />
+                  </QuestionRow>
+                ))}
+              </div>
+              {stressDone && (
+                <ColorfulBadge style={stressBadge} size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+                  {`คะแนนรวม ${stressTotal}/15 — ${stressResult.label}`}
+                </ColorfulBadge>
+              )}
+            </>
+          )}
+
+          {openTool === 'mental' && (
+            <>
+              <div className='flex flex-col w-full'>
+                {ANC_MENTAL_HEALTH_QUESTIONS.map((q, idx) => (
+                  <QuestionRow key={q.key} index={idx + 1} label={q.label} zebra={idx % 2 === 1}>
+                    <ChoiceOptions
+                      name={`q2-${q.key}`}
+                      options={[{ value: true, label: 'ใช่' }, { value: false, label: 'ไม่ใช่' }]}
+                      value={form.mentalHealthAnswers[q.key]}
+                      onPick={(v) => setMental(q.key, v)}
+                    />
+                  </QuestionRow>
+                ))}
+              </div>
+              {anyMentalYes && (
+                <>
+                  <NoticeLine tone='warning' icon='activity'>
+                    2Q ได้ผลบวก — ต้องประเมินต่อด้วยแบบประเมินโรคซึมเศร้า 9 คำถาม (9Q) ให้ครบ
+                  </NoticeLine>
+                  {/* 9Q อยู่ในป๊อปอัปเดียวกัน ทรงเดียวกับงานเยี่ยมบ้าน — ชุดคำถาม
+                      มาจากคลังแบบประเมินเดียวกัน (`homevisitAssessments.js`) */}
+                  <div className='flex flex-col gap-3'>
+                    <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default, #363B3F)' }}>
+                      แบบประเมินโรคซึมเศร้า 9Q
+                    </span>
+                    {SCREEN_9Q_QUESTIONS.map((q, idx) => (
+                      <QuestionRow key={q.key} index={idx + 1} label={q.label} zebra={idx % 2 === 1}>
+                        <ChoiceOptions
+                          name={`q9-${q.key}`}
+                          options={SCREEN_9Q_FREQUENCY}
+                          value={nineQ.answers?.[q.key]}
+                          onPick={(v) => set9Q(q.key, v)}
+                        />
+                      </QuestionRow>
+                    ))}
+                    {nineQDone && (
+                      <ColorfulBadge style={interpret9q(nineQ.total).badge} size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+                        {`9Q ${nineQ.total}/${SCREEN_9Q_MAX_SCORE} — ${interpret9q(nineQ.total).label}`}
+                      </ColorfulBadge>
+                    )}
+                    {has9qSuicidalRisk(nineQ.answers || {}) && (
+                      <NoticeLine tone='danger' icon='activity'>
+                        ตอบข้อ 9 (ความคิดทำร้ายตนเอง) มากกว่า 0 — ส่งต่อคลินิกสุขภาพจิตทันที
+                        ไม่ว่าคะแนนรวมจะเท่าใด
+                      </NoticeLine>
+                    )}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {openTool === 'risk' && (
+            isFollowUp ? (
+              <FollowUpRiskSummary form={form} setForm={setForm} suggestions={firstVisitSuggestions} onAcceptAll={acceptMany} />
+            ) : (
+              <>
+                {firstVisitSuggestions.length > 0 && (
+                  <RiskSuggestionBox
+                    suggestions={firstVisitSuggestions}
+                    onAccept={(key) => toggleIn('riskFactors', key)}
+                    onAcceptAll={() => acceptMany('riskFactors', firstVisitSuggestions.map((s) => s.key))}
+                  />
+                )}
+                {ANC_FIRST_VISIT_RISK_GROUPS.map((group) => (
+                  <div key={group.key} className='flex flex-col gap-2'>
+                    <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)', color: 'var(--text-content-secondary)' }}>
+                      {group.label}
+                    </span>
+                    <CheckList
+                      items={group.items}
+                      values={form.riskFactors}
+                      onToggle={(key) => toggleIn('riskFactors', key)}
+                    />
+                  </div>
+                ))}
+              </>
+            )
+          )}
+
+          {openTool === 'perVisit' && (
+            <>
+              {perVisitSuggestions.length > 0 && (
+                <RiskSuggestionBox
+                  suggestions={perVisitSuggestions}
+                  onAccept={(key) => toggleIn('perVisitRiskFactors', key)}
+                  onAcceptAll={() => acceptMany('perVisitRiskFactors', perVisitSuggestions.map((s) => s.key))}
+                />
+              )}
+              <CheckList
+                items={ANC_PERVISIT_RISK_FACTORS}
+                values={form.perVisitRiskFactors}
+                onToggle={(key) => toggleIn('perVisitRiskFactors', key)}
+              />
+              {perVisitRisk.mustRefer && (
+                <NoticeLine tone='danger' icon='activity'>
+                  พบภาวะเสี่ยง {perVisitRisk.flagged.length} ข้อ — ต้องส่งต่อหรือรายงานแพทย์
+                  ({perVisitRisk.flagged.join(' · ')})
+                </NoticeLine>
+              )}
+            </>
+          )}
+
+          {openTool === 'gdm' && (
+            <>
+              <CheckList
+                items={ANC_GDM_SCREENING_FACTORS}
+                values={form.gdmScreeningFactors}
+                onToggle={(key) => toggleIn('gdmScreeningFactors', key)}
+              />
+              {gdm.highRisk && (
+                <NoticeLine tone='warning' icon='activity'>
+                  {gdm.message} — จากข้อมูลที่บันทึกไว้: {gdm.reasons.join(' · ')}
+                </NoticeLine>
+              )}
+            </>
+          )}
+
+          {openTool === 'danger' && (
+            <>
+              <CheckList
+                items={ANC_DANGER_SIGNS}
+                values={form.dangerSigns}
+                onToggle={(key) => toggleIn('dangerSigns', key)}
+              />
+              {flaggedDangerCount > 0 && (
+                <NoticeLine tone='danger' icon='activity'>
+                  พบสัญญาณอันตราย — ควรส่งพบแพทย์เพื่อประเมินและรักษาทันที
+                </NoticeLine>
+              )}
+            </>
+          )}
+
+          {openTool === 'smoking' && (
+            <>
+              <QuestionRow label='สถานะการสูบบุหรี่ของหญิงตั้งครรภ์'>
+                <ChoiceOptions
+                  name='anc-smoking'
+                  options={ANC_SMOKING_STATUS}
+                  value={form.smokingStatus}
+                  onPick={(v) => setForm((f) => ({ ...f, smokingStatus: v }))}
+                />
+              </QuestionRow>
+              {form.smokingStatus === 'smoker' && (
+                <QuestionRow label='การให้คำแนะนำ' zebra>
+                  <Checkbox
+                    label='ให้คำแนะนำเลิกบุหรี่แล้ว (Brief advice)'
+                    checked={form.smokingAdviceGiven}
+                    onChange={() => setForm((f) => ({ ...f, smokingAdviceGiven: !f.smokingAdviceGiven }))}
+                  />
+                </QuestionRow>
+              )}
+              {form.spouseInfo?.smokingStatus === 'smoker' && (
+                <NoticeLine tone='warning' icon='info'>
+                  สามี/คู่สูบบุหรี่ — ประเมินความเสี่ยงจากบุหรี่มือสองและให้คำแนะนำแก่ทั้งคู่
+                </NoticeLine>
+              )}
+            </>
+          )}
+        </div>
+      </Popup>
+    </StepCard>
+  );
+};
+
+/** ครั้งที่ 2 เป็นต้นไป — แบบ 27 ข้อไม่ต้องถามซ้ำ แสดงเป็นสรุปสิ่งที่ตรวจพบ
+    ตอนฝากครรภ์ครั้งแรก พร้อมปุ่มเปิดแก้ไขเมื่อมีอะไรเปลี่ยน (ทะเบียนแก้ไขได้) */
+const FollowUpRiskSummary = ({ form, setForm, suggestions, onAcceptAll }) => {
+  const [editing, setEditing] = useState(false);
+  const flagged = ANC_RISK_FACTORS.filter((rf) => form.riskFactors?.[rf.key]);
+
+  if (editing) {
+    return (
+      <div className='flex flex-col gap-3'>
+        {suggestions.length > 0 && (
+          <RiskSuggestionBox
+            suggestions={suggestions}
+            onAccept={(key) => setForm((f) => ({ ...f, riskFactors: { ...f.riskFactors, [key]: !f.riskFactors?.[key] } }))}
+            onAcceptAll={() => onAcceptAll('riskFactors', suggestions.map((s) => s.key))}
+          />
+        )}
+        {ANC_FIRST_VISIT_RISK_GROUPS.map((group) => (
+          <div key={group.key} className='flex flex-col gap-2'>
+            <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)', color: 'var(--text-content-secondary)' }}>
+              {group.label}
+            </span>
+            <div className='flex items-center gap-3 flex-wrap'>
+              {group.items.map((rf) => (
+                <SelectableTag
+                  key={rf.key}
+                  label={rf.label}
+                  size='lg'
+                  selected={!!form.riskFactors[rf.key]}
+                  onClick={() => setForm((f) => ({ ...f, riskFactors: { ...f.riskFactors, [rf.key]: !f.riskFactors?.[rf.key] } }))}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+        <NeutralSubdueButton size='sm' leadingIcon='check' onClick={() => setEditing(false)}>
+          เสร็จสิ้นการแก้ไข
+        </NeutralSubdueButton>
+      </div>
+    );
+  }
+
+  return (
+    <div className='flex flex-col gap-3'>
+      <NoticeLine tone='info' icon='history'>
+        แบบคัดกรอง 27 ข้อบันทึกไว้ตั้งแต่การฝากครรภ์ครั้งแรก — ครั้งนี้แสดงเป็นผลสรุป
+        ความเสี่ยงที่ตรวจพบ กดแก้ไขได้หากมีข้อมูลเปลี่ยนแปลง
+      </NoticeLine>
+      {flagged.length > 0 ? (
+        <div className='flex items-center gap-2 flex-wrap'>
+          {flagged.map((rf) => (
+            <ColorfulBadge key={rf.key} style='yellow' size='small' hierarchy='secondary' width='hug' maxWidth={520}>
+              {rf.label}
+            </ColorfulBadge>
+          ))}
+        </div>
+      ) : (
+        <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary, #858C92)' }}>
+          ไม่พบปัจจัยเสี่ยงจากแบบคัดกรองครั้งแรก
+        </span>
+      )}
+      <NeutralSubdueButton size='sm' leadingIcon='edit' onClick={() => setEditing(true)}>
+        แก้ไขแบบคัดกรอง 27 ข้อ
+      </NeutralSubdueButton>
+    </div>
+  );
+};
+
+/* ── ขั้นที่ 3 — ตรวจร่างกาย ────────────────────────────────────────
+   สัญญาณชีพ + BMI/น้ำหนักตามเกณฑ์ (มติ คทง.2) + บันทึกการตรวจครรภ์ของครั้งนี้
+   (คู่มือเดิมหน้า 2-10/2-11) + ทันตกรรม (คทง.6 + คทง.2) + เต้านม/หัวนม */
+
+export const AncStep3Examination = ({ form, setForm, ancHn, cardPatient }) => {
+  const setVital = (key) => (value) => setForm((f) => ({ ...f, vitals: { ...f.vitals, [key]: value } }));
+  const setField = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
+  const { bind } = useSectionJump();
+
+  const gaByLmp = useMemo(() => calculateGestationalAge(form.lmp), [form.lmp]);
+  const tier = getAncVisitTier(gaByLmp?.weeks);
+
+  /* เกิน Trace ขึ้นไปจึงนับเป็นผลบวกของภาวะเสี่ยงข้อ 10 — Trace อย่างเดียว
+     ยังไม่ใช่สิ่งที่ต้องรายงานตามคู่มือ */
+  const POSITIVE_DIPSTICK = ['1+', '2+', '3+', '4+'];
+  const abnormalUrine = POSITIVE_DIPSTICK.includes(form.urineSugar)
+    || POSITIVE_DIPSTICK.includes(form.urineAlbumin);
+
+  /* ต่างกัน ±2 สัปดาห์เป็นความคลาดเคลื่อนปกติของการวัดยอดมดลูก — 3 สัปดาห์
+     ขึ้นไปคือสิ่งที่ภาวะเสี่ยงข้อ 14 พูดถึง */
+  const gaMismatch = useMemo(() => {
+    const exam = Number(form.gaByExam);
+    if (!gaByLmp || !form.gaByExam || !Number.isFinite(exam)) return 0;
+    const diff = Math.abs(gaByLmp.weeks - exam);
+    return diff >= 3 ? diff : 0;
+  }, [gaByLmp, form.gaByExam]);
+
+  const oralResult = interpretOralHealthScreen(form.oralHealthAnswers);
+  const oralAnswered = Object.keys(form.oralHealthAnswers || {}).length === ANC_ORAL_HEALTH_QUESTIONS.length;
+  return (
+    <StepCard>
+      {/* การ์ด "สัญญาณชีพและน้ำหนัก" ถูกลบออกจากขั้นนี้ (มติผู้ใช้ 2 ก.ย. 69) —
+          ค่าที่วัดได้แสดงเป็นข้อความบนแถบใต้แถบขั้นตอนแล้ว ส่วนการแปลผล BMI/
+          เกณฑ์การเพิ่มน้ำหนักยังอยู่ในกราฟน้ำหนักของหมวดประวัติการฝากครรภ์ */}
+      {/* คู่มือเดิมหน้า 2-10 บันทึกน้ำตาลกับไข่ขาวเป็นสองช่องแยกกัน ไม่ใช่
+          ปกติ/ผิดปกติช่องเดียว — ภาวะเสี่ยงข้อ 10 อ่านจากทั้งสองค่า */}
+      <SectionAnchor ref={bind('urine')}>
+        <TopicHeader icon='biotech' small tone='neutral'>ตรวจปัสสาวะ (Urine dipstick)</TopicHeader>
+        <FieldGrid cols={3} rowGap='var(--dim-space-600, 24px)' columnGap='var(--dim-space-600, 24px)'>
+          <Field label='น้ำตาล (Sugar)'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.urineSugar} onChange={setField('urineSugar')} options={ANC_URINE_SUGAR_OPTIONS} placeholder='เลือกผลตรวจน้ำตาล' />
+          </Field>
+          <Field label='ไข่ขาว (Albumin/Protein)'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.urineAlbumin} onChange={setField('urineAlbumin')} options={ANC_URINE_ALBUMIN_OPTIONS} placeholder='เลือกผลตรวจไข่ขาว' />
+          </Field>
+        </FieldGrid>
+        {abnormalUrine && (
+          <NoticeLine tone='danger' icon='activity'>
+            พบน้ำตาลและ/หรือไข่ขาวในปัสสาวะ — เข้าเกณฑ์ภาวะเสี่ยงที่ต้องรายงานแพทย์ (ข้อ 10)
+            และให้ประเมินการติดเชื้อทางเดินปัสสาวะ
+          </NoticeLine>
+        )}
+      </SectionAnchor>
+
+      <SectionAnchor ref={bind('abdomen')}>
+        <FieldGrid cols={3} rowGap='var(--dim-space-600, 24px)' columnGap='var(--dim-space-600, 24px)'>
+          <Field label='ระดับยอดมดลูก'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.fundusLevel} onChange={setField('fundusLevel')} options={ANC_FUNDUS_LEVEL_OPTIONS} placeholder='เลือกระดับมดลูก' />
+          </Field>
+          <Field label='ความสูงมดลูก (ซม.)'>
+            <InputField value={form.fundusHeight} onChange={setField('fundusHeight')} type='number' placeholder='เช่น 20' />
+          </Field>
+          <Field label='ส่วนนำของทารก (Presentation)'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.presentation} onChange={setField('presentation')} options={ANC_PRESENTATION_OPTIONS} placeholder='เลือกส่วนนำ' />
+          </Field>
+          <Field label='การลง (Descent)'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.descent} onChange={setField('descent')} options={ANC_DESCENT_OPTIONS} placeholder='เลือกการลง' />
+          </Field>
+          <Field label='ท่าเด็ก'>
+            <InputField value={form.fetalPosition} onChange={setField('fetalPosition')} placeholder='เช่น LOA / ROA' />
+          </Field>
+          <Field label='เสียงหัวใจทารก (FHR, ครั้ง/นาที)'>
+            <InputField value={form.fetalHeartRate} onChange={setField('fetalHeartRate')} type='number' placeholder='เช่น 148' />
+          </Field>
+          <Field label='การดิ้นของทารก'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.fetalMovement} onChange={setField('fetalMovement')} options={ANC_FETAL_MOVEMENT_OPTIONS} placeholder='เลือกการดิ้นของทารก' />
+          </Field>
+        </FieldGrid>
+      </SectionAnchor>
+
+      {/* คู่มือเดิมวางอายุครรภ์สามทางไว้ข้างกันเพราะมันไม่ตรงกันเป็นปกติ และ
+          ช่องว่างระหว่าง LMP กับการตรวจครรภ์คือภาวะเสี่ยงข้อ 14 เอง */}
+      <SectionAnchor ref={bind('ga')}>
+        <TopicHeader icon='clipboard' small tone='neutral'>อายุครรภ์ (เปรียบเทียบ 3 วิธี)</TopicHeader>
+        <FieldGrid cols={3} rowGap='var(--dim-space-600, 24px)' columnGap='var(--dim-space-600, 24px)'>
+          <Field label='จากการคำนวณ LMP (สัปดาห์)' hint={gaByLmp ? formatGestationalAge(gaByLmp) : "ระบุ LMP ที่ป๊อปอัป 'ลงทะเบียนฝากครรภ์' ในขั้นแบบประเมิน"}>
+            <InputField value={gaByLmp ? String(gaByLmp.weeks) : ''} onChange={() => {}} disabled placeholder='—' />
+          </Field>
+          <Field label='จากการตรวจครรภ์ (สัปดาห์)'>
+            <InputField value={form.gaByExam} onChange={setField('gaByExam')} type='number' placeholder='เช่น 20' />
+          </Field>
+          <Field label='จากการอัลตราซาวด์ (สัปดาห์)'>
+            <InputField value={form.gaByUltrasoundWeeks} onChange={setField('gaByUltrasoundWeeks')} type='number' placeholder='เช่น 20' />
+          </Field>
+        </FieldGrid>
+        {gaMismatch > 0 && (
+          <NoticeLine tone='warning' icon='activity'>
+            อายุครรภ์จากการตรวจครรภ์ต่างจาก LMP {gaMismatch} สัปดาห์ — พิจารณาภาวะเสี่ยงข้อ 14
+            (ขนาดมดลูกไม่สัมพันธ์กับอายุครรภ์) ในขั้นแบบประเมิน
+          </NoticeLine>
+        )}
+      </SectionAnchor>
+
+      <SectionAnchor ref={bind('dental')}>
+        {/* คำถามคัดกรองช่องปากเป็นดรอปดาวน์ อยู่แถวเดียวกันทั้งสองข้อ และใช้กริด
+            3 คอลัมน์เท่ากับหมวดอื่นในการ์ด (มติผู้ใช้ 2 ก.ย. 69) — ขอบซ้ายของ
+            ทุกกล่องในการ์ดจึงตรงกันเป็นแนวเดียว */}
+        <FieldGrid cols={3} rowGap='var(--dim-space-600, 24px)' columnGap='var(--dim-space-600, 24px)'>
+          {ANC_ORAL_HEALTH_QUESTIONS.map((q) => (
+            <Field key={q.key} label={q.short || q.label}>
+              <Select
+                showLabel={false}
+                searchable={false}
+                size='lg'
+                value={form.oralHealthAnswers[q.key] === true ? 'yes' : form.oralHealthAnswers[q.key] === false ? 'no' : ''}
+                onChange={(v) => setForm((f) => ({
+                  ...f,
+                  oralHealthAnswers: { ...f.oralHealthAnswers, [q.key]: v === 'yes' },
+                }))}
+                options={(q.options || []).map((o) => ({ value: o.value ? 'yes' : 'no', label: o.label }))}
+                placeholder='เลือกคำตอบ'
+              />
+            </Field>
+          ))}
+        </FieldGrid>
+        {oralAnswered && (
+          <ColorfulBadge style={oralResult.highRisk ? 'red' : 'green'} size='small' hierarchy='secondary' width='hug' maxWidth={520}>
+            {oralResult.highRisk ? `คะแนน ${oralResult.score} — ควรส่งพบทันตแพทย์` : 'ไม่พบความเสี่ยงด้านสุขภาพช่องปาก'}
+          </ColorfulBadge>
+        )}
+        {/* มติ คทง.2 — บันทึกทันตกรรมของงานฝากครรภ์เอง (ผลตรวจฟัน/เหงือก)
+            วางเป็นกล่องก่อนส่วนการดูแลและให้คำแนะนำ */}
+        <FieldGrid cols={3} rowGap='var(--dim-space-600, 24px)' columnGap='var(--dim-space-600, 24px)'>
+          <Field label='ฟันผุ (จำนวนซี่)'>
+            <InputField value={form.dentalCariesCount} onChange={setField('dentalCariesCount')} type='number' placeholder='0' />
+          </Field>
+          <Field label='ผลการตรวจเหงือก'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.dentalGum} onChange={setField('dentalGum')} options={ANC_GUM_OPTIONS} placeholder='เลือกผลตรวจเหงือก' />
+          </Field>
+        </FieldGrid>
+      </SectionAnchor>
+
+      <SectionAnchor ref={bind('breast')}>
+        <TopicHeader icon='stethoscope' small tone='neutral'>ตรวจเต้านมและหัวนม</TopicHeader>
+        {/* แสดงแบบประเมินทันทีทุกอายุครรภ์ (มติผู้ใช้ 2 ก.ย. 69) — เดิมขึ้นเป็น
+            ข้อความอธิบายจนกว่าจะถึงไตรมาส 3 ทำให้กรอกไม่ได้ทั้งที่ตรวจไปแล้ว
+            มติ คทง.2 — บันทึกแยกซ้าย/ขวา ผลเป็น ปกติ · สั้น · บอด */}
+        <FieldGrid cols={3} rowGap='var(--dim-space-600, 24px)' columnGap='var(--dim-space-600, 24px)'>
+          <Field label='หัวนมข้างซ้าย'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.nippleLeft} onChange={setField('nippleLeft')} options={ANC_NIPPLE_SIDE_OPTIONS} placeholder='เลือกผลตรวจ' />
+          </Field>
+          <Field label='หัวนมข้างขวา'>
+            <Select showLabel={false} searchable={false} size='lg' value={form.nippleRight} onChange={setField('nippleRight')} options={ANC_NIPPLE_SIDE_OPTIONS} placeholder='เลือกผลตรวจ' />
+          </Field>
+        </FieldGrid>
+        {(form.nippleLeft === 'inverted' || form.nippleRight === 'inverted'
+          || form.nippleLeft === 'short' || form.nippleRight === 'short') && (
+          <NoticeLine tone='warning' icon='info'>
+            พบหัวนมสั้นหรือบอด — ให้คำแนะนำการเตรียมหัวนมก่อนคลอด และติดตามซ้ำในการตรวจครั้งถัดไป
+          </NoticeLine>
+        )}
+      </SectionAnchor>
+
+
+      {/* คัดกรองไตรมาส 2 และผล Ultrasound ย้ายมาอยู่ขั้นตรวจร่างกายและวินิจฉัย
+          (มติผู้ใช้ 2 ก.ย. 69) — เป็นผลการตรวจของครรภ์นี้ ไม่ใช่คำสั่งจ่าย/ส่งตรวจ */}
+      {tier === 'secondTrimesterScreening' && (
+        <SectionAnchor ref={bind('secondTrimester')}>
+          <TopicHeader icon='biotech' small tone='neutral'>คัดกรองไตรมาสที่ 2 (14-18 สัปดาห์)</TopicHeader>
+          <div className='flex items-center gap-3 flex-wrap'>
+            {ANC_SECOND_TRIMESTER_SCREENING.map((item) => (
+              <SelectableTag
+                key={item.key}
+                label={`${item.th} (${item.en})`}
+                size='lg'
+                selected={!!form.secondTrimesterScreening?.[item.key]}
+                onClick={() => setForm((f) => ({
+                  ...f,
+                  secondTrimesterScreening: {
+                    ...f.secondTrimesterScreening,
+                    [item.key]: !f.secondTrimesterScreening?.[item.key],
+                  },
+                }))}
+              />
+            ))}
+          </div>
+          {/* มติ คทง.2 — รองรับผลคัดกรองดาวน์ทั้ง Quadruple test และ NIPT */}
+          {form.secondTrimesterScreening?.downSyndrome2 && (
+            <FieldGrid cols={3} rowGap='var(--dim-space-600, 24px)' columnGap='var(--dim-space-600, 24px)'>
+              <Field label='วิธีคัดกรองกลุ่มอาการดาวน์'>
+                <Select
+                  showLabel={false} searchable={false} size='lg'
+                  value={form.downScreeningMethod}
+                  onChange={setField('downScreeningMethod')}
+                  options={ANC_DOWN_SCREENING_METHODS}
+                  placeholder='เลือกวิธีตรวจ'
+                />
+              </Field>
+            </FieldGrid>
+          )}
+        </SectionAnchor>
+      )}
+
+      {/* มติ คทง.2 — Ultrasound บันทึกว่าได้รับการตรวจอย่างน้อย 1 ครั้ง พร้อม
+          อายุครรภ์ ณ วันที่ตรวจ (ศูนย์ฯ ทำก่อน 12 สัปดาห์ได้ยาก จึงไม่ผูกกับ
+          ช่วงอายุครรภ์ใดช่วงหนึ่ง) */}
+      <SectionAnchor ref={bind('ultrasound')}>
+        <TopicHeader icon='activity' small tone='neutral'>การตรวจด้วยคลื่นเสียงความถี่สูง (Ultrasound)</TopicHeader>
+        <SelectableTag
+          label='ได้รับการตรวจ Ultrasound แล้วอย่างน้อย 1 ครั้งในครรภ์นี้'
+          size='lg'
+          selected={form.ultrasoundDone}
+          onClick={() => setForm((f) => ({ ...f, ultrasoundDone: !f.ultrasoundDone }))}
+        />
+        {form.ultrasoundDone && (
+          <>
+            <FieldGrid cols={3} rowGap='var(--dim-space-600, 24px)' columnGap='var(--dim-space-600, 24px)'>
+              <Field label='วันที่ตรวจ'>
+                <DatePicker
+                  value={form.ultrasoundDate ? new Date(form.ultrasoundDate) : null}
+                  onChange={(d) => setField('ultrasoundDate')(d ? d.toISOString().slice(0, 10) : '')}
+                  placeholder='เลือกวันที่'
+                  showLabel={false}
+                  minDate={new Date(1900, 0, 1)}
+                />
+              </Field>
+              <Field label='อายุครรภ์ ณ วันที่ตรวจ (สัปดาห์)'>
+                <InputField value={form.ultrasoundGaWeeks} onChange={setField('ultrasoundGaWeeks')} type='number' placeholder='เช่น 20' />
+              </Field>
+            </FieldGrid>
+            <FieldGrid cols={3} rowGap='var(--dim-space-600, 24px)' columnGap='var(--dim-space-600, 24px)'>
+              {ANC_ULTRASOUND_RESULT_FIELDS.map((f) => (
+                <Field key={f.key} label={f.label}>
+                  <InputField
+                    value={form.ultrasoundResults?.[f.key] || ''}
+                    onChange={(v) => setForm((prev) => ({
+                      ...prev,
+                      ultrasoundResults: { ...prev.ultrasoundResults, [f.key]: v },
+                    }))}
+                    placeholder={f.placeholder}
+                  />
+                </Field>
+              ))}
+            </FieldGrid>
+          </>
+        )}
+      </SectionAnchor>
+
+      {/* วาดและมาร์คจุดบนรูปร่างกาย (มติผู้ใช้ 2 ก.ย. 69) — ใช้แผงเดียวกับ CPOE
+          OPD ไม่สร้างกลไกใหม่ · ปุ่ม "บันทึกบนรูปภาพ" เปิด BodyRecordPopup
+          ให้วาด/มาร์ค แล้วเก็บแยกตามระบบที่ตรวจ */}
+      <SectionAnchor ref={bind('bodyDiagram')}>
+        <TopicHeader icon='activity' small tone='neutral'>บันทึกบนรูปร่างกาย</TopicHeader>
+        {/* กล่องของตัวเอง + ย่อรูปให้พอดีหน้าจอเดียว (มติผู้ใช้ 2 ก.ย. 69) —
+            ความสูงของแผงเป็นค่าคงที่ในคอมโพเนนต์กลาง (ใช้ร่วมกับ CPOE OPD)
+            จึงย่อด้วย `zoom` ที่กล่องนี้แทนการไปแก้ค่ากลาง ซึ่งจะกระทบหน้าอื่น
+            `zoom` (ไม่ใช่ `transform: scale`) เพราะมันย่อ layout จริง พิกัดที่
+            แคนวาสอ่านจาก getBoundingClientRect จึงยังตรงกับตำแหน่งที่คลิก */}
+        <div
+          className='w-full min-w-0'
+          style={{
+            padding: 'var(--dim-space-400, 16px)',
+            borderRadius: 'var(--dim-radius-400, 12px)',
+            border: 'var(--dim-stroke-100) solid var(--border-neutral-tertiary, #F4F5F5)',
+            background: 'var(--surface-card-100, #FFFFFF)',
+            zoom: 0.7,
+          }}
+        >
+        <BodyDiagramPanel
+          /* รูปร่างกายของงานฝากครรภ์ — หญิงตั้งครรภ์ (มติผู้ใช้ 2 ก.ย. 69)
+             ไฟล์อยู่ใน public/illustration/ คู่กับรูปชุดเดิมของระบบ */
+          frontSrc='/illustration/body-anatomy-anc-front.png'
+          backSrc='/illustration/body-anatomy-anc-back.png'
+          systemKey={form.examSystem}
+          viewKey={form.examView}
+          markers={(form.bodyMarkers && form.bodyMarkers[form.examSystem]) || []}
+          onMarkersChange={(next) => setForm((f) => ({
+            ...f,
+            bodyMarkers: { ...(f.bodyMarkers || {}), [f.examSystem]: next },
+          }))}
+          drawings={(form.bodyDrawings && form.bodyDrawings[form.examSystem]) || []}
+          onDrawingsChange={(next) => setForm((f) => ({
+            ...f,
+            bodyDrawings: { ...(f.bodyDrawings || {}), [f.examSystem]: next },
+          }))}
+          onSystemChange={setField('examSystem')}
+          onViewChange={setField('examView')}
+        />
+        </div>
+      </SectionAnchor>
+
+      {/* แนบรูปภาพประกอบการตรวจ (มติผู้ใช้ 2 ก.ย. 69) — เช่น ภาพผิวหนัง/บวม
+          หรือภาพผลตรวจที่ผู้รับบริการถ่ายมา เก็บไว้กับวิสิตนี้ */}
+      <SectionAnchor ref={bind('photos')}>
+        <TopicHeader icon='image' small tone='neutral'>ภาพประกอบการตรวจ</TopicHeader>
+        <DragAndDrop
+          size='sm'
+          value={form.examPhotos}
+          onChange={(files) => setForm((f) => ({ ...f, examPhotos: files }))}
+          accept='.png,.jpg,.jpeg'
+        />
+      </SectionAnchor>
+
+    </StepCard>
+  );
+};
+
+/* ── ขั้นที่ 4 — วินิจฉัย ───────────────────────────────────────────
+   ระดับความเสี่ยงเป็นตัวขับเส้นทางนัดหมายในขั้นที่ 6 + คำแนะนำที่ระบบเลือก
+   หัวข้อตามอายุครรภ์ให้ (มติ คทง.2) */
+export const AncStep4Diagnosis = ({ form, setForm }) => {
+  const gestationalAge = calculateGestationalAge(form.lmp);
+  const weeks = gestationalAge?.weeks;
+  const tier = getAncVisitTier(weeks);
+  /* ยืนยัน GDM ได้ก็ต่อเมื่อถึงช่วงที่มีผล GCT/OGTT แล้ว */
+  const showGdmToggle = tier === 'diabetesScreening' || tier === 'lab2AndVaccines';
+  /* แสดงเฉพาะหัวข้อของช่วงอายุครรภ์นี้ — ปุ่มดูหัวข้อช่วงอื่นถูกตัดออก
+     (มติผู้ใช้ 2 ก.ย. 69) */
+  const suggestedTopics = useMemo(() => getAncAdviceTopicsForGa(weeks), [weeks]);
+  const toggleTopic = (key) => setForm((f) => ({ ...f, adviceTopics: { ...f.adviceTopics, [key]: !f.adviceTopics?.[key] } }));
+
+  return (
+    <StepCard>
+      {/* ระดับความเสี่ยงเป็นดรอปดาวน์ และไม่มีหัวข้อซ้ำเหนือช่อง (มติผู้ใช้ 2 ก.ย. 69)
+          — ป้ายของช่องบอกอยู่แล้วว่าเลือกอะไร ค่านี้เป็นตัวขับเส้นทางนัดหมาย */}
+      <div className='flex flex-col gap-3'>
+        <FieldGrid cols={2}>
+          <Field label='ผลประเมินความเสี่ยง' required>
+            <Select
+              showLabel={false}
+              searchable={false}
+              size='lg'
+              value={form.riskLevel}
+              onChange={(v) => setForm((f) => ({ ...f, riskLevel: v }))}
+              options={ANC_RISK_LEVELS.map((lvl) => ({ value: lvl.value, label: `${lvl.label} (${lvl.en})` }))}
+              placeholder='เลือกระดับความเสี่ยง'
+            />
+          </Field>
+        </FieldGrid>
+        {showGdmToggle && (
+          <SelectableTag
+            label='ยืนยันเบาหวานขณะตั้งครรภ์ (GDM) จากผล OGTT'
+            size='lg'
+            selected={form.gdmConfirmed}
+            onClick={() => setForm((f) => ({ ...f, gdmConfirmed: !f.gdmConfirmed }))}
+          />
+        )}
+      </div>
+
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='file-text' small tone='neutral'>บันทึกวินิจฉัย</TopicHeader>
+        <SuggestibleTextarea
+          voice
+          value={form.diagnosisNote}
+          onChange={(e) => setForm((f) => ({ ...f, diagnosisNote: e.target.value }))}
+          suggestions={ANC_DIAGNOSIS_SUGGESTIONS}
+          minChars={3}
+          placeholder='เช่น ครรภ์แรก อายุครรภ์ 8 สัปดาห์ ไม่พบภาวะเสี่ยง'
+        />
+      </div>
+
+      {/* TOR 1.10.7.7 — ผลการตรวจครรภ์จากภายนอกที่ผู้รับบริการนำมาแสดง
+          พร้อมแนบหลักฐาน */}
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='biotech' small tone='neutral'>ผลการตรวจครรภ์จากภายนอก</TopicHeader>
+        <SuggestibleTextarea
+          voice
+          value={form.externalExamResults}
+          onChange={(e) => setForm((f) => ({ ...f, externalExamResults: e.target.value }))}
+          suggestions={ANC_EXTERNAL_EXAM_SUGGESTIONS}
+          minChars={3}
+          placeholder='เช่น ผล Ultrasound / Lab จากสถานพยาบาลอื่นที่ผู้รับบริการนำมาแสดง'
+        />
+        <DragAndDrop
+          size='sm'
+          value={form.externalExamAttachments}
+          onChange={(files) => setForm((f) => ({ ...f, externalExamAttachments: files }))}
+          accept='.png,.jpg,.jpeg,.pdf'
+        />
+      </div>
+
+      {/* มติ คทง.2 — คำแนะนำเป็น checkbox list ที่ระบบเลือกหัวข้อตามอายุครรภ์
+          ของการมาตรวจครั้งนั้นให้อัตโนมัติ ส่วนหัวข้อนอกช่วงยังเปิดดูและติ๊กได้ */}
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='clipboard' small tone='neutral'>การดูแลและให้คำแนะนำ</TopicHeader>
+        <div className='flex flex-col gap-2'>
+          {suggestedTopics.map((t) => (
+            <Checkbox
+              key={t.key}
+              label={t.label}
+              checked={!!form.adviceTopics?.[t.key]}
+              onChange={() => toggleTopic(t.key)}
+            />
+          ))}
+        </div>
+        <SuggestibleTextarea
+          voice
+          value={form.adviceNote}
+          onChange={(e) => setForm((f) => ({ ...f, adviceNote: e.target.value }))}
+          suggestions={ANC_ADVICE_SUGGESTIONS}
+          minChars={3}
+          placeholder='รายละเอียดคำแนะนำเพิ่มเติมที่ให้ในครั้งนี้'
+        />
+      </div>
+
+      {/* แผนการคลอดคุยกันเมื่อใกล้กำหนด (คู่มือหน้า 59-60) */}
+      {(weeks ?? 0) >= 28 && (
+        <div className='flex flex-col gap-3'>
+          <TopicHeader icon='clipboard-list' small tone='neutral'>แผนการคลอด</TopicHeader>
+          <div className='flex items-center gap-3 flex-wrap'>
+            {ANC_DELIVERY_MODE_OPTIONS.map((opt) => (
+              <SelectableTag
+                key={opt.value}
+                label={opt.label}
+                size='lg'
+                selected={form.plannedDeliveryMode === opt.value}
+                onClick={() => setForm((f) => ({ ...f, plannedDeliveryMode: opt.value }))}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </StepCard>
+  );
+};
+
+/* ── ตรวจร่างกาย + วินิจฉัย อยู่หน้าเดียวกัน แบ่งซ้าย-ขวา ─────────────
+   (มติผู้ใช้ 2 ก.ย. 69 · ทรงเดียวกับขั้นวินิจฉัยของ CPOE OPD) — ซ้ายคือสิ่งที่
+   ตรวจเจอวันนี้ ขวาคือข้อสรุปจากสิ่งนั้น อ่านคู่กันได้โดยไม่ต้องเลื่อนหน้ากลับไปมา
+   ต่ำกว่า xl กลับไปเรียงบนล่าง และเส้นคั่นกลางเปิดเฉพาะ xl ขึ้นไป ไม่งั้นจะกลาย
+   เป็นเส้นลอย */
+/* การ์ดของแต่ละฝั่ง — พื้นขาว เงาแบรนด์ ทรงเดียวกับการ์ดของเปลือกฟอร์ม
+   (มติผู้ใช้ 2 ก.ย. 69 ให้แยกเป็นสองการ์ด ไม่ใช่การ์ดเดียวคั่นด้วยเส้น) */
+const SPLIT_CARD_STYLE = {
+  flex: '1 1 0',
+  gap: 'var(--dim-space-500, 20px)',
+  padding: 'var(--dim-space-600, 24px)',
+  borderRadius: 'var(--dim-radius-500)',
+  background: 'var(--surface-card-100)',
+  boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+};
+
+const SplitCardTitle = ({ children }) => (
+  <h2
+    style={{
+      fontFamily: 'var(--type-family-heading-content)',
+      fontSize: 'var(--type-size-base)',
+      fontWeight: 'var(--type-weight-bold)',
+      color: 'var(--text-brandPrimary-default, #007549)',
+      lineHeight: 1.5,
+    }}
+  >
+    {children}
+  </h2>
+);
+
+export const AncStepExamDiagnosis = ({ form, setForm, ancHn, cardPatient, ...rest }) => {
+  const stepProps = { form, setForm, ancHn, cardPatient, ...rest };
+  return (
+    <div className='flex w-full flex-col min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
+      <div
+        className='flex w-full flex-col xl:flex-row items-stretch min-w-0'
+        style={{ gap: 'var(--dim-space-400)' }}
+      >
+        <div className='flex flex-col min-w-0 w-full xl:w-auto' style={SPLIT_CARD_STYLE}>
+          <SplitCardTitle>ตรวจร่างกาย</SplitCardTitle>
+          <AncStep3Examination {...stepProps} />
+        </div>
+        <div className='flex flex-col min-w-0 w-full xl:w-auto' style={SPLIT_CARD_STYLE}>
+          <SplitCardTitle>วินิจฉัย</SplitCardTitle>
+          <AncStep4Diagnosis {...stepProps} />
+        </div>
+      </div>
+
+      {/* ผลตรวจทันตกรรมเป็นการ์ดของตัวเองเต็มความกว้าง (มติผู้ใช้ 2 ก.ย. 69) —
+          เป็นข้อมูลอ้างอิงจากคลินิกทันตกรรม ไม่ใช่สิ่งที่กรอกในขั้นนี้ จึงไม่ควร
+          อยู่ปนกับช่องกรอกของการ์ดตรวจร่างกาย · ปิดกรอบของแผงเองเพื่อไม่ให้เป็น
+          กล่องซ้อนกล่อง */}
+      <div className='flex flex-col w-full min-w-0' style={{ ...SPLIT_CARD_STYLE, flex: '0 0 auto' }}>
+        <CarriedDentalPanel
+          hn={ancHn}
+          patientName={cardPatient?.name}
+          from='anc'
+          title='ผลการตรวจทันตกรรม (จากคลินิกทันตกรรม)'
+          showReadOnlyNote={false}
+          showSummaryRow={false}
+          showLastDiagnoses={false}
+          bordered={false}
+          /* ป้ายสถานะชิดหัวข้อ และไม่มีปุ่มส่งตรวจบนแผงนี้ (มติผู้ใช้ 2 ก.ย. 69)
+             — การส่งตรวจทันตกรรมของงานฝากครรภ์อยู่ที่ขั้นสั่งการรักษาแล้ว */
+          badgeNextToTitle
+          showAskButton={false}
+        />
+      </div>
+    </div>
+  );
+};
+
+/* ── ขั้นที่ 5 — สั่งการรักษา ────────────────────────────────────────
+   ชุดคำสั่งเปลี่ยนตามอายุครรภ์ของครั้งนี้ (`getAncVisitTier`) ตามแผนภูมิ
+   ฝากครรภ์คุณภาพ กรมอนามัย 2565 หน้า 4-8 · Workflow Lab ตามมติ คทง.2:
+   ครั้งแรกติ๊ก "ส่งตรวจ" ทีละรายการเพื่อให้นับจำนวนผู้ได้รับการตรวจได้
+   ครั้งถัดไปดึงผลมาสรุปเป็นตารางภาวะเสี่ยงที่ตรวจพบ */
+export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
+  const gestationalAge = useMemo(() => calculateGestationalAge(form.lmp), [form.lmp]);
+  const tier = getAncVisitTier(gestationalAge?.weeks);
+  const [medOpen, setMedOpen] = useState(false);
+  const [removeMed, setRemoveMed] = useState(null);
+
+  const toggle = (group) => (key) => setForm((f) => ({ ...f, [group]: { ...f[group], [key]: !f[group]?.[key] } }));
+  const setField = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
+  const setLabResult = (key) => (value) => setForm((f) => ({ ...f, labResults: { ...f.labResults, [key]: value } }));
+
+  const addMedication = (med) => {
+    setForm((f) => ({ ...f, medications: [...(f.medications || []), { ...med, id: `anc-med-${Date.now()}` }] }));
+    setMedOpen(false);
+  };
+  const confirmRemoveMed = () => {
+    setForm((f) => ({ ...f, medications: (f.medications || []).filter((m) => m.id !== removeMed.id) }));
+    setRemoveMed(null);
+  };
+
+  const labFindings = useMemo(() => summarizeLabRiskFindings(form.labResults), [form.labResults]);
+
+  const ChipGroup = ({ icon, title, items, values, onToggle }) => (
+    <div className='flex flex-col gap-3'>
+      <TopicHeader icon={icon}>{title}</TopicHeader>
+      <div className='flex items-center gap-3 flex-wrap'>
+        {items.map((item) => (
+          <SelectableTag
+            key={item.key}
+            label={`${item.th} (${item.en})`}
+            size='lg'
+            selected={!!values[item.key]}
+            onClick={() => onToggle(item.key)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
+  const ResultFieldsGrid = ({ fields, title = 'ผลตรวจ Lab' }) => (
+    <div className='flex flex-col gap-3'>
+      <TopicHeader icon='biotech'>{title}</TopicHeader>
+      <FieldGrid cols={4}>
+        {fields.map((f) => (
+          <Field key={f.key} label={f.label}>
+            <LabResultField field={f} value={form.labResults[f.key]} onChange={setLabResult(f.key)} />
+          </Field>
+        ))}
+      </FieldGrid>
+    </div>
+  );
+
+  return (
+    <StepCard>
+      {/* ครั้งที่ 2 เป็นต้นไปคือ "มาฟังผล" — สรุปภาวะเสี่ยงที่ตรวจพบให้เห็น
+          ภาพรวมก่อน แล้วจึงเป็นชุดคำสั่งของครั้งนี้ (มติ คทง.2) */}
+      {isFollowUp && labFindings.length > 0 && (
+        <div className='flex flex-col gap-3'>
+          <TopicHeader icon='biotech'>สรุปผลตรวจทางห้องปฏิบัติการและภาวะเสี่ยงที่ตรวจพบ</TopicHeader>
+          <Table
+            columns={[
+              { key: 'label', label: 'รายการตรวจ', flex: true, minWidth: 200 },
+              { key: 'value', label: 'ผลตรวจ' },
+              {
+                key: 'risk',
+                label: 'การแปลผล',
+                render: (r) => (
+                  <ColorfulBadge style={r.risk ? 'red' : 'green'} size='small' hierarchy='secondary'>
+                    {r.risk ? 'ผิดปกติ' : 'ปกติ'}
+                  </ColorfulBadge>
+                ),
+              },
+              { key: 'note', label: 'ข้อควรปฏิบัติ', flex: true, minWidth: 260, render: (r) => r.note || '-' },
+            ]}
+            rows={labFindings.map((r, i) => ({ ...r, id: `${r.label}-${i}` }))}
+            rowKey={(r) => r.id}
+            emptyMessage='ยังไม่มีผลตรวจจากห้องปฏิบัติการ'
+          />
+        </div>
+      )}
+
+      {tier === 'first' && (
+        <>
+          {/* มติ คทง.2 — ครั้งแรกติ๊ก "ส่งตรวจ" รายการต่อรายการ เพื่อให้กอง
+              สร้างเสริมสุขภาพนับ "จำนวนผู้ที่ได้รับการตรวจ" ได้ */}
+          <div className='flex flex-col gap-3'>
+            <TopicHeader icon='biotech'>ส่งตรวจ Lab ครั้งที่ 1</TopicHeader>
+            <FieldGrid cols={2}>
+              {ANC_LAB1_ORDERS.map((item) => (
+                <Checkbox
+                  key={item.key}
+                  label={item.th}
+                  description={item.en}
+                  checked={!!form.lab1Orders[item.key]}
+                  onChange={() => toggle('lab1Orders')(item.key)}
+                />
+              ))}
+            </FieldGrid>
+          </div>
+          <ResultFieldsGrid fields={ANC_LAB1_RESULT_FIELDS} title='ผลตรวจ Lab ครั้งที่ 1' />
+        </>
+      )}
+
+      {tier === 'diabetesScreening' && (
+        <ChipGroup
+          icon='biotech'
+          title='คัดกรองเบาหวานขณะตั้งครรภ์'
+          items={ANC_DIABETES_SCREENING}
+          values={form.diabetesScreening}
+          onToggle={toggle('diabetesScreening')}
+        />
+      )}
+
+      {tier === 'lab2AndVaccines' && (
+        <>
+          <ChipGroup icon='biotech' title='สั่งตรวจ Lab ครั้งที่ 2' items={ANC_LAB2_ORDERS} values={form.lab2Orders} onToggle={toggle('lab2Orders')} />
+          <ResultFieldsGrid fields={ANC_LAB2_RESULT_FIELDS} title='ผลตรวจ Lab ครั้งที่ 2' />
+          <ChipGroup icon='clipboard' title='ยาเสริม (กินทุกวันตลอดการตั้งครรภ์)' items={ANC_SUPPLEMENTS} values={form.supplements} onToggle={toggle('supplements')} />
+          <ChipGroup icon='activity' title='ประเมินสุขภาพทารกในครรภ์และการคลอด' items={ANC_TERM_ASSESSMENT} values={form.termAssessment} onToggle={toggle('termAssessment')} />
+        </>
+      )}
+
+      {/* มติ คทง.2 — จ่ายยาเป็น checkbox ท้ายขั้น ส่วนใบสั่งยาจริงไปทางเดียว
+          กับ OPD (AddMedicationPopup) เพื่อให้ห้องยาได้รายการชุดเดียวกัน */}
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='pill'>การจ่ายยา</TopicHeader>
+        <FieldGrid cols={2}>
+          {ANC_DISPENSE_ITEMS.map((item) => (
+            <Checkbox
+              key={item.key}
+              label={item.label}
+              checked={!!form.dispenseItems[item.key]}
+              onChange={() => toggle('dispenseItems')(item.key)}
+            />
+          ))}
+        </FieldGrid>
+        <InputField
+          value={form.dispenseOtherNote}
+          onChange={setField('dispenseOtherNote')}
+          placeholder='ยาอื่นๆ (ระบุ)'
+        />
+        <div className='flex items-center gap-3 flex-wrap'>
+          <BrandSubdueButton variant='outline' size='md' leadingIcon='plus' onClick={() => setMedOpen(true)}>
+            เพิ่มรายการยาเข้าใบสั่งยา
+          </BrandSubdueButton>
+          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+            รายการในตารางนี้คือใบสั่งยาที่ส่งถึงห้องยา
+          </span>
+        </div>
+        <Table
+          columns={[
+            { key: 'name', label: 'ชื่อยา', flex: true, minWidth: 220 },
+            { key: 'usage', label: 'วิธีใช้', flex: true, minWidth: 140 },
+            { key: 'dosePerTake', label: 'ครั้งละ' },
+            { key: 'frequency', label: 'ความถี่', flex: true, minWidth: 140 },
+            { key: 'when', label: 'เวลาใช้ยา', flex: true, minWidth: 130 },
+            { key: 'quantity', label: 'จำนวน' },
+            {
+              key: 'actions', label: 'การดำเนินการ', sortable: false,
+              render: (row) => (
+                <NeutralSubdueButton size='sm' leadingIcon='delete' onClick={() => setRemoveMed(row)}>ลบ</NeutralSubdueButton>
+              ),
+            },
+          ]}
+          rows={form.medications || []}
+          rowKey={(r) => r.id || r.name}
+          emptyMessage='ยังไม่มีรายการยา — เพิ่มได้จากปุ่มด้านบน'
+        />
+      </div>
+
+      {/* มติ คทง.2 — วัคซีนเป็น checkbox พร้อมช่องวันที่ฉีดของแต่ละเข็ม
+          จำนวนเข็ม dT ที่ควรได้มาจากประวัติในป๊อปอัป 'ลงทะเบียนฝากครรภ์' (ขั้นแบบประเมิน) */}
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='clipboard'>การให้วัคซีน</TopicHeader>
+        {form.tetanusDoseCount !== '' && (() => {
+          const currentYearBE = new Date().getFullYear() + 543;
+          const lastYear = Number(form.tetanusLastDoseYear);
+          const yearsAgo = form.tetanusLastDoseYear && Number.isFinite(lastYear) ? currentYearBE - lastYear : null;
+          const plan = getTetanusVaccinePlan(form.tetanusDoseCount, yearsAgo);
+          return (
+            <ColorfulBadge style={plan.doseCount === 0 ? 'green' : 'yellow'} size='small' hierarchy='secondary' width='hug' maxWidth={640}>
+              {`แผนวัคซีน dT จากประวัติ: ${plan.label}`}
+            </ColorfulBadge>
+          );
+        })()}
+        <div className='flex flex-col gap-3'>
+          {ANC_VACCINE_DOSES.map((v) => (
+            <div key={v.key} className='flex items-center gap-4 w-full flex-wrap'>
+              <div style={{ minWidth: 280 }}>
+                <Checkbox
+                  label={v.label}
+                  checked={!!form.vaccineDoses[v.key]}
+                  onChange={() => toggle('vaccineDoses')(v.key)}
+                />
+              </div>
+              {form.vaccineDoses[v.key] && (
+                <div style={{ minWidth: 220 }}>
+                  <DatePicker
+                    label='วันที่ฉีด'
+                    value={form.vaccineDoseDates?.[v.key] ? new Date(form.vaccineDoseDates[v.key]) : null}
+                    onChange={(d) => setForm((f) => ({
+                      ...f,
+                      vaccineDoseDates: { ...f.vaccineDoseDates, [v.key]: d ? d.toISOString().slice(0, 10) : '' },
+                    }))}
+                    placeholder='เลือกวันที่ฉีด'
+                    minDate={new Date(1900, 0, 1)}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        {tier === 'lab2AndVaccines' && (
+          <ChipGroup icon='clipboard' title='วัคซีนอื่นตามช่วงอายุครรภ์' items={ANC_VACCINES} values={form.vaccines} onToggle={toggle('vaccines')} />
+        )}
+      </div>
+
+      {/* มติ คทง.6 — ส่งตรวจทันตกรรมเป็นการสร้างคำขอ ไม่เปิด Visit ทันตกรรมใหม่
+          และตรวจในหน้านี้แล้วส่งเบิกได้โดยไม่ต้องเปิดห้องส่งเสริมทันตกรรมแยก */}
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='clipboard-list'>หัตถการทันตกรรมในครั้งนี้</TopicHeader>
+        <div className='flex items-center gap-3 flex-wrap'>
+          <SelectableTag
+            label='ส่งตรวจสุขภาพช่องปาก'
+            size='lg'
+            selected={form.dentalReferral}
+            onClick={() => setForm((f) => ({ ...f, dentalReferral: !f.dentalReferral }))}
+          />
+          <SelectableTag
+            label='ขัดทำความสะอาดฟันแล้ว'
+            size='lg'
+            selected={form.dentalCleaningDone}
+            onClick={() => setForm((f) => ({ ...f, dentalCleaningDone: !f.dentalCleaningDone }))}
+          />
+          <SelectableTag
+            label='ฝึกแปรงฟันแบบลงมือปฏิบัติแล้ว'
+            size='lg'
+            selected={form.dentalBrushingPractice}
+            onClick={() => setForm((f) => ({ ...f, dentalBrushingPractice: !f.dentalBrushingPractice }))}
+          />
+        </div>
+      </div>
+
+      <AddMedicationPopup open={medOpen} onClose={() => setMedOpen(false)} onConfirm={addMedication} />
+      <Popup
+        open={!!removeMed}
+        onClose={() => setRemoveMed(null)}
+        title='ลบรายการยา'
+        subtitle={removeMed ? removeMed.name : ''}
+        tertiaryAction={{ label: 'ยกเลิก', onClick: () => setRemoveMed(null) }}
+        primaryAction={{ label: 'ยืนยันลบ', onClick: confirmRemoveMed, tone: 'danger' }}
+      >
+        <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
+          รายการยาที่ลบแล้วไม่สามารถกู้คืนได้ ต้องการลบใช่หรือไม่?
+        </span>
+      </Popup>
+    </StepCard>
+  );
+};
+
+/* ── ขั้นที่ 6 — นัดหมาย ────────────────────────────────────────────
+   เส้นทางนัดมาจาก `getNextAncAppointmentPlan` (ความเสี่ยงปานกลาง/สูงส่ง
+   รพ.แม่ข่ายทันที · ความเสี่ยงต่ำพบแพทย์ที่ ≤12 / 20 / ≥32 สัปดาห์) และ
+   ครบสี่กริยาตาม TOR 1.10.7.5 — บันทึก · แสดง · แก้ไข · ยกเลิก */
+export const AncStep6Appointment = ({ form, setForm, cardPatient }) => {
+  const gestationalAge = useMemo(() => calculateGestationalAge(form.lmp), [form.lmp]);
+  const plan = useMemo(
+    () => getNextAncAppointmentPlan(gestationalAge?.weeks, form.riskLevel),
+    [gestationalAge, form.riskLevel],
+  );
+  const telemed = useTelemedCall();
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+
+  /* เติมสถานพยาบาลให้ครั้งแรกที่มีแผน และยังไม่มีใครเลือกเอง */
+  useEffect(() => {
+    if (plan && !form.appointment.facility) {
+      setForm((f) => ({ ...f, appointment: { ...f.appointment, facility: plan.facility } }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan]);
+
+  const setAppt = (key) => (value) => setForm((f) => ({ ...f, appointment: { ...f.appointment, [key]: value } }));
+  const appt = form.appointment;
+  const facilityLabel = appt.facility === 'pcu' ? 'หน่วยปฐมภูมิ / รพ.สต.' : appt.facility === 'hospital' ? 'โรงพยาบาล (รพ.แม่ข่าย)' : '—';
+
+  /* การ์ดสรุปหลังกดบันทึก — ฟอร์มกลับมาเมื่อกด "แก้ไขนัดหมาย" */
+  if (appt.saved && !appt.cancelled) {
+    return (
+      <StepCard>
+        <div className='flex flex-col gap-3'>
+          <TopicHeader icon='calendar'>นัดหมายครั้งถัดไป</TopicHeader>
+          <div
+            className='flex flex-col w-full'
+            style={{
+              gap: 'var(--dim-space-200)',
+              padding: 'var(--dim-space-600)',
+              borderRadius: 'var(--dim-radius-400, 12px)',
+              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+              background: 'var(--surface-card-100, #FFFFFF)',
+            }}
+          >
+            <div className='flex items-center gap-2 flex-wrap'>
+              <Icon name='calendar' size={20} />
+              <span style={{ fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-brandPrimary-default, #007549)' }}>
+                {formatAncDate(appt.date)}{appt.time ? ` · ${appt.time} น.` : ''}
+              </span>
+              {appt.mode === 'telemedicine' && (
+                <ColorfulIconBadge style='blue' size='medium' fill='default' icon='videocam' />
+              )}
+            </div>
+            <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
+              สถานที่: {facilityLabel}
+              {appt.mode === 'telemedicine' ? ' · รูปแบบ: ปรึกษาทางไกล (Telemedicine)' : ' · รูปแบบ: เข้ารับบริการที่คลินิก'}
+            </span>
+            {(appt.parentSchool || appt.kickCountEducation) && (
+              <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
+                กิจกรรม: {[appt.parentSchool && 'โรงเรียนพ่อแม่', appt.kickCountEducation && 'สอนการนับลูกดิ้น'].filter(Boolean).join(' · ')}
+              </span>
+            )}
+          </div>
+          <div className='flex items-center gap-3 flex-wrap'>
+            <BrandSubdueButton variant='outline' size='md' leadingIcon='edit' onClick={() => setAppt('saved')(false)}>
+              แก้ไขนัดหมาย
+            </BrandSubdueButton>
+            <NeutralSubdueButton size='md' leadingIcon='close' onClick={() => setCancelOpen(true)}>
+              ยกเลิกนัดหมาย
+            </NeutralSubdueButton>
+          </div>
+        </div>
+
+        <AppointmentCancelPopup
+          open={cancelOpen}
+          reason={cancelReason}
+          onReason={setCancelReason}
+          onClose={() => setCancelOpen(false)}
+          onConfirm={() => {
+            setForm((f) => ({
+              ...f,
+              appointment: { ...f.appointment, cancelled: true, cancelReason: cancelReason.trim(), saved: false },
+            }));
+            setCancelOpen(false);
+          }}
+        />
+      </StepCard>
+    );
+  }
+
+  return (
+    <StepCard>
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='calendar'>นัดหมายครั้งถัดไป</TopicHeader>
+
+        {appt.cancelled && (
+          <NoticeLine tone='warning' icon='info'>
+            นัดหมายถูกยกเลิก — เหตุผล: {appt.cancelReason || 'ไม่ระบุ'} · บันทึกนัดใหม่ได้จากฟอร์มด้านล่าง
+          </NoticeLine>
+        )}
+
+        {plan && (
+          <div
+            className='flex items-start gap-3'
+            style={{
+              padding: 'var(--dim-space-400, 16px)',
+              borderRadius: 'var(--dim-radius-200, 8px)',
+              background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
+              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+            }}
+          >
+            <Icon name='calendar' size={20} />
+            <div className='flex flex-col gap-1'>
+              <span style={{ fontWeight: 'var(--type-weight-medium)', color: 'var(--text-content-default, #363B3F)' }}>
+                {plan.facilityLabel}{plan.suggestedWeek ? ` · แนะนำอายุครรภ์ ${plan.suggestedWeek} สัปดาห์` : ''}
+              </span>
+              <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>{plan.label}</span>
+            </div>
+          </div>
+        )}
+
+        <FieldGrid cols={3}>
+          <Field label='สถานที่นัดหมาย'>
+            <div className='flex items-center gap-2 flex-wrap'>
+              <SelectableTag label='หน่วยปฐมภูมิ / รพ.สต.' size='lg' selected={appt.facility === 'pcu'} onClick={() => setAppt('facility')('pcu')} />
+              <SelectableTag label='โรงพยาบาล' size='lg' selected={appt.facility === 'hospital'} onClick={() => setAppt('facility')('hospital')} />
+            </div>
+          </Field>
+          {/* ห้ามนัดย้อนหลัง — DatePicker ตั้งพื้นเป็นวันนี้อยู่แล้วเมื่อไม่ส่ง minDate */}
+          <Field label='วันนัดหมายครั้งถัดไป' required hint='เลือกได้ตั้งแต่วันนี้เป็นต้นไป'>
+            <DatePicker
+              value={appt.date ? new Date(appt.date) : null}
+              onChange={(d) => setAppt('date')(d ? d.toISOString().slice(0, 10) : '')}
+              placeholder='เลือกวันที่'
+              showLabel={false}
+            />
+          </Field>
+          <Field label='เวลานัดหมาย'>
+            <TimePicker showLabel={false} value={appt.time} onChange={setAppt('time')} placeholder='HH:MM' minuteStep={5} />
+          </Field>
+        </FieldGrid>
+
+        <Field label='รูปแบบการนัดหมาย'>
+          <div className='flex items-center gap-2 flex-wrap'>
+            <SelectableTag
+              label='เข้ารับบริการที่คลินิก'
+              size='lg'
+              selected={appt.mode !== 'telemedicine'}
+              onClick={() => setForm((f) => ({ ...f, appointment: { ...f.appointment, mode: 'onsite', telemedStatus: 'none' } }))}
+            />
+            <SelectableTag label='ปรึกษาผ่าน Telemedicine' size='lg' selected={appt.mode === 'telemedicine'} onClick={() => setAppt('mode')('telemedicine')} />
+          </div>
+        </Field>
+
+        {/* TOR 1.10.7.7 Telemedicine — ใช้ overlay กลางจาก TelemedCallProvider
+            (Routes.jsx) ชุดเดียวกับ OPD/คลินิกอื่น ไม่สร้างกลไกใหม่ */}
+        {appt.mode === 'telemedicine' && (
+          <div className='flex items-center gap-3 flex-wrap'>
+            {appt.telemedStatus === 'completed' ? (
+              <ColorfulBadge style='green' size='small' hierarchy='secondary'>ปรึกษาทางไกลเสร็จสิ้นแล้ว</ColorfulBadge>
+            ) : appt.telemedStatus === 'started' ? (
+              <>
+                <ColorfulBadge style='blue' size='small' hierarchy='secondary'>กำลังปรึกษาทางไกล</ColorfulBadge>
+                <BrandSubdueButton variant='outline' size='md' leadingIcon='videocam' onClick={() => telemed.start(cardPatient?.hn)}>
+                  กลับเข้าห้องปรึกษา
+                </BrandSubdueButton>
+                <NeutralSubdueButton size='md' leadingIcon='call_end' onClick={() => setAppt('telemedStatus')('completed')}>
+                  บันทึกจบการปรึกษา
+                </NeutralSubdueButton>
+              </>
+            ) : (
+              <>
+                <ColorfulBadge style='grey' size='small' hierarchy='secondary'>ยังไม่เริ่มการปรึกษา</ColorfulBadge>
+                <BrandSubdueButton
+                  variant='fill'
+                  size='md'
+                  leadingIcon='videocam'
+                  onClick={() => {
+                    telemed.start(cardPatient?.hn);
+                    setAppt('telemedStatus')('started');
+                  }}
+                >
+                  เข้าห้องปรึกษาทางไกล
+                </BrandSubdueButton>
+              </>
+            )}
+          </div>
+        )}
+
+        <div className='flex items-center gap-3 flex-wrap'>
+          <SelectableTag
+            label='โรงเรียนพ่อแม่ (การเตรียมตัวคลอด / การเลี้ยงลูกด้วยนมแม่)'
+            size='lg'
+            selected={appt.parentSchool}
+            onClick={() => setAppt('parentSchool')(!appt.parentSchool)}
+          />
+          {/* ทารกดิ้นให้รู้สึกได้ราว 18-20 สัปดาห์ขึ้นไป (คู่มือหน้า 15) */}
+          {(gestationalAge?.weeks ?? 0) >= 18 && (
+            <SelectableTag
+              label='สอนการนับลูกดิ้น'
+              size='lg'
+              selected={appt.kickCountEducation}
+              onClick={() => setAppt('kickCountEducation')(!appt.kickCountEducation)}
+            />
+          )}
+        </div>
+
+        <div className='flex items-center gap-3 flex-wrap'>
+          <BrandSubdueButton
+            variant='fill'
+            size='md'
+            leadingIcon='check'
+            disabled={!appt.date}
+            onClick={() => setForm((f) => ({ ...f, appointment: { ...f.appointment, saved: true, cancelled: false } }))}
+          >
+            บันทึกนัดหมาย
+          </BrandSubdueButton>
+          {!appt.date && (
+            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+              เลือกวันนัดก่อนจึงจะบันทึกได้ — ข้ามขั้นนี้ไปก่อนได้ถ้ายังไม่นัด
+            </span>
+          )}
+        </div>
+      </div>
+    </StepCard>
+  );
+};
+
+/** ยกเลิกนัดหมายต้องมีเหตุผล — บันทึกไว้ให้ครั้งถัดไปอ่านออกว่าทำไมไม่มีนัด */
+const AppointmentCancelPopup = ({ open, reason, onReason, onClose, onConfirm }) => (
+  <Popup
+    open={open}
+    onClose={onClose}
+    title='ยกเลิกนัดหมาย'
+    subtitle='ระบุเหตุผลเพื่อให้ประวัติการนัดอ่านได้ว่าเกิดอะไรขึ้น'
+    tertiaryAction={{ label: 'ไม่ยกเลิก', onClick: onClose }}
+    primaryAction={{ label: 'ยืนยันยกเลิกนัด', onClick: onConfirm, disabled: !reason.trim(), tone: 'danger' }}
+  >
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+      <Field label='เหตุผลในการยกเลิก' required>
+        <InputField value={reason} onChange={onReason} placeholder='เช่น ผู้รับบริการขอเลื่อน / ส่งต่อ รพ.แม่ข่าย' />
+      </Field>
+    </div>
+  </Popup>
+);
+
+/* ── ขั้นที่ 7 — ใบฝากครรภ์ ─────────────────────────────────────────
+   สรุปทั้งวิสิตแบบอ่านอย่างเดียวก่อนยืนยัน (TOR 1.10.7.5/.6) — การยืนยัน
+   เป็นจุดเดียวที่เขียนวิสิตนี้ลงประวัติและอัปเดตทะเบียนฝากครรภ์ */
+export const AncStep7Card = ({ form, setForm, patient, cardPatient, ancHn, visitNo = 1 }) => {
+  const gestationalAge = useMemo(() => calculateGestationalAge(form.lmp), [form.lmp]);
+  const edc = useMemo(() => calculateEDC(form.lmp), [form.lmp]);
+  const riskLevel = resolveAncRiskLevel(form.riskLevel);
+  const adviceGiven = ANC_ADVICE_TOPICS.filter((t) => form.adviceTopics?.[t.key]);
+
+  const confirm = () => {
+    /* ปัสสาวะบันทึกเป็นสองค่าตามคู่มือ (หน้า 2-10) — ค่าเดิมช่องเดียวยังอ่านได้
+       เพื่อให้วิสิตที่บันทึกไว้ก่อนหน้ายังแสดงถูก */
+    const urineParts = [
+      form.urineSugar ? `น้ำตาล ${form.urineSugar}` : '',
+      form.urineAlbumin ? `ไข่ขาว ${form.urineAlbumin}` : '',
+    ].filter(Boolean);
+
+    saveAncVisitRecord(ancHn, {
+      visitNo,
+      date: formatAncDate(new Date()),
+      gestWeeks: gestationalAge?.weeks ?? '-',
+      fundusHeight: form.fundusHeight ? `${form.fundusHeight} ซม.` : '-',
+      presentation: ANC_PRESENTATION_OPTIONS.find((o) => o.value === form.presentation)?.label || '-',
+      fetalHeartRate: form.fetalHeartRate ? `${form.fetalHeartRate} bpm` : '-',
+      bp: form.vitals.bp,
+      weight: form.vitals.weight,
+      urineResult: urineParts.join(' · ') || form.labResults?.urineResult || '-',
+      riskLevel: form.riskLevel || '-',
+      labSummary: summarizeLabResults(form.labResults),
+      note: summarizeAncProcedures(form) || form.diagnosisNote || form.currentPregnancyNote || '-',
+    });
+
+    /* ทะเบียนฝากครรภ์ (ระดับการตั้งครรภ์) บันทึกพร้อมกัน — นี่คือสิ่งที่ทำให้
+       ครั้งที่ 2 เป็น "ครั้งถัดไป" ไม่ใช่การฝากครรภ์ครั้งแรกรอบสอง */
+    saveAncRegistration(ancHn, form);
+    setForm((f) => ({
+      ...f,
+      cardConfirmed: true,
+      cardConfirmedAt: new Intl.DateTimeFormat('th-TH-u-ca-buddhist', {
+        day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+      }).format(new Date()),
+    }));
+  };
+
+  return (
+    <StepCard>
+      <div className='flex flex-col gap-3'>
+        <TopicHeader icon='file-text'>ใบฝากครรภ์ / ใบนัดหมาย</TopicHeader>
+        <div
+          className='flex flex-col w-full'
+          style={{
+            gap: 'var(--dim-space-300, 12px)',
+            padding: 'var(--dim-space-600, 24px)',
+            borderRadius: 'var(--dim-radius-400, 12px)',
+            border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+            background: 'var(--surface-card-100, #FFFFFF)',
+          }}
+        >
+          <div className='flex items-center justify-between gap-2 flex-wrap'>
+            <span style={{ fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-brandPrimary-default, #007549)' }}>
+              บัตรฝากครรภ์ (ANC Card)
+            </span>
+            {riskLevel && (
+              <ColorfulBadge
+                style={riskLevel.value === 'low' ? 'green' : riskLevel.value === 'intermediate' ? 'yellow' : 'red'}
+                size='small' hierarchy='secondary'
+              >
+                {riskLevel.label}
+              </ColorfulBadge>
+            )}
+          </div>
+          <div className='grid grid-cols-2 gap-x-6 gap-y-2' style={{ fontSize: 'var(--type-size-sm)' }}>
+            <span>HN: {cardPatient?.hn}</span>
+            <span>ชื่อ-สกุล: {cardPatient?.fullName || patient?.name}</span>
+            <span>ตรวจครรภ์ครั้งที่: {visitNo}</span>
+            <span>ครรภ์ที่ (G-P-A-L): {form.gravida || '—'}-{form.para || 0}-{form.abortion || 0}-{form.livingChildren || 0}</span>
+            <span>LMP: {formatAncDate(form.lmp)}</span>
+            <span>กำหนดคลอด (EDC): {formatAncDate(edc)}</span>
+            <span>อายุครรภ์ปัจจุบัน: {gestationalAge ? formatGestationalAge(gestationalAge) : '—'}</span>
+            <span>น้ำหนักครั้งนี้: {form.vitals?.weight ? `${form.vitals.weight} กก.` : '—'}</span>
+            <span>ความดันโลหิต: {form.vitals?.bp || '—'}</span>
+            <span>ผล Lab: {summarizeLabResults(form.labResults)}</span>
+            <span>
+              นัดหมายครั้งถัดไป: {form.appointment.cancelled
+                ? 'ยกเลิกแล้ว'
+                : `${formatAncDate(form.appointment.date) || '—'}${form.appointment.time ? ` · ${form.appointment.time} น.` : ''}`}
+            </span>
+            <span>
+              สถานที่นัด: {form.appointment.facility === 'pcu' ? 'หน่วยปฐมภูมิ / รพ.สต.' : form.appointment.facility === 'hospital' ? 'โรงพยาบาล' : '—'}
+            </span>
+            {form.appointment.mode === 'telemedicine' && (
+              <span>
+                Telemedicine: {form.appointment.telemedStatus === 'completed' ? 'ปรึกษาเสร็จสิ้นแล้ว' : form.appointment.telemedStatus === 'started' ? 'กำลังปรึกษา' : 'ยังไม่เริ่ม'}
+              </span>
+            )}
+          </div>
+          {adviceGiven.length > 0 && (
+            <div className='flex flex-col gap-1' style={{ fontSize: 'var(--type-size-sm)' }}>
+              <span style={{ fontWeight: 'var(--type-weight-medium)' }}>คำแนะนำที่ให้ในครั้งนี้</span>
+              <ul style={{ paddingLeft: 'var(--dim-space-500)', listStyle: 'disc' }}>
+                {adviceGiven.map((t) => <li key={t.key}>{t.label}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {form.cardConfirmed ? (
+          <div className='flex items-center gap-2' style={{ color: 'var(--text-brandPrimary-default, #007549)', fontSize: 'var(--type-size-sm)' }}>
+            <Icon name='check-circle' size={18} />
+            ยืนยันและพิมพ์ใบฝากครรภ์แล้ว · {form.cardConfirmedAt}
+          </div>
+        ) : (
+          <BrandSubdueButton variant='fill' size='md' leadingIcon='check' onClick={confirm}>
+            ยืนยันและพิมพ์ใบฝากครรภ์
+          </BrandSubdueButton>
+        )}
+      </div>
+    </StepCard>
+  );
 };

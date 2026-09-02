@@ -117,20 +117,6 @@ export const ANC_SMOKING_STATUS = [
   { value: 'smoker',    label: 'สูบบุหรี่' },
 ];
 
-/** Pregnancy-risk screening checklist — Obsidian reference note "E.
-    หลักฐานอ้างอิง" (risk factors that route a case to hospital-level
-    ANC instead of PCU). */
-export const ANC_RISK_FACTORS = [
-  { key: 'ageExtreme',     label: 'อายุ < 18 ปี หรือ > 35 ปี' },
-  { key: 'heightShort',    label: 'ส่วนสูง < 145 ซม.' },
-  { key: 'bmiAbnormal',    label: 'BMI < 18.5 หรือ > 30' },
-  { key: 'priorCesarean',  label: 'เคยผ่าตัดคลอดมาก่อน' },
-  { key: 'priorLoss',      label: 'เคยแท้ง / ทารกเสียชีวิตในครรภ์' },
-  { key: 'multiplePreg',   label: 'ครรภ์แฝด' },
-  { key: 'chronicDisease', label: 'มีโรคประจำตัว (เบาหวาน / ความดัน / หัวใจ / ไทรอยด์)' },
-  { key: 'rhNegative',     label: 'หมู่เลือด Rh negative' },
-  { key: 'familyGenetic',  label: 'ครอบครัวมีประวัติโรคทางพันธุกรรม / ธาลัสซีเมีย' },
-];
 
 /** ภาวะเสี่ยงที่ประเมิน "ทุกครั้งที่มีการให้บริการตรวจครรภ์" — legacy HCIS
     ANC module (คู่มือระบบงานฝากครรภ์ p.2-13, §2.4 ภาวะเสี่ยงของหญิงมีครรภ์),
@@ -367,9 +353,30 @@ export const getTetanusVaccinePlan = (doseCountBefore, lastDoseYearsAgo) => {
     official manual. 2 questions; any "risk" answer → score ≥1 → refer to
     dentist. Replaces a plain "checked/not checked" toggle with the actual
     screening instrument the manual specifies. */
+/* `short` = ป้ายของช่องเมื่อแสดงเป็นดรอปดาวน์ · `options` = ตัวเลือกที่พูดเป็น
+   ประโยคเต็มแทน "ใช่/ไม่ใช่" (มติผู้ใช้ 2 ก.ย. 69) — คำตอบจึงอ่านออกเองโดยไม่ต้อง
+   ย้อนไปอ่านคำถาม `label` ยังเป็นข้อความคำถามฉบับเต็มสำหรับที่อื่นที่ใช้อยู่ */
 export const ANC_ORAL_HEALTH_QUESTIONS = [
-  { key: 'symptoms', label: 'มีเหงือกบวม เลือดออกที่เหงือก ปวดฟัน มีปัญหาการกินอาหาร หรือปัญหาอื่นในช่องปากหรือไม่', riskAnswer: true },
-  { key: 'notVisited', label: 'ไม่ได้ไปพบทันตแพทย์ในช่วง 1 ปีที่ผ่านมา', riskAnswer: true },
+  {
+    key: 'symptoms',
+    label: 'มีเหงือกบวม เลือดออกที่เหงือก ปวดฟัน มีปัญหาการกินอาหาร หรือปัญหาอื่นในช่องปากหรือไม่',
+    short: 'อาการผิดปกติในช่องปาก',
+    riskAnswer: true,
+    options: [
+      { value: true, label: 'มีเหงือกบวม เลือดออกที่เหงือก ปวดฟัน มีปัญหาการกินอาหาร หรือปัญหาอื่นในช่องปาก' },
+      { value: false, label: 'ไม่มีปัญหา' },
+    ],
+  },
+  {
+    key: 'notVisited',
+    label: 'ไม่ได้ไปพบทันตแพทย์ในช่วง 1 ปีที่ผ่านมา',
+    short: 'ประวัติการพบทันตแพทย์ (1 ปีที่ผ่านมา)',
+    riskAnswer: true,
+    options: [
+      { value: true, label: 'ไม่ได้ไปพบทันตแพทย์ในช่วง 1 ปีที่ผ่านมา' },
+      { value: false, label: 'ไปพบทันตแพทย์ในช่วง 1 ปีที่ผ่านมา' },
+    ],
+  },
 ];
 
 export const interpretOralHealthScreen = (answers) => {
@@ -454,17 +461,20 @@ export const evaluateWeightGain = ({ prePregnancyWeight, currentWeight, heightCm
   if (gained < lo) {
     return {
       gained, bmi, band, expected: [lo, hi], level: 'low', badge: 'orange',
+      label: 'น้ำหนักเพิ่มน้อย',
       message: `น้ำหนักเพิ่ม ${gained} กก. ต่ำกว่าเกณฑ์ที่อายุครรภ์ ${wk} สัปดาห์ (ควรอยู่ ${lo}–${hi} กก.) — ประเมินภาวะโภชนาการและการเจริญเติบโตของทารก`,
     };
   }
   if (gained > hi) {
     return {
       gained, bmi, band, expected: [lo, hi], level: 'high', badge: 'orange',
+      label: 'น้ำหนักเพิ่มมาก',
       message: `น้ำหนักเพิ่ม ${gained} กก. สูงกว่าเกณฑ์ที่อายุครรภ์ ${wk} สัปดาห์ (ควรอยู่ ${lo}–${hi} กก.) — เฝ้าระวังเบาหวานขณะตั้งครรภ์และครรภ์เป็นพิษ`,
     };
   }
   return {
     gained, bmi, band, expected: [lo, hi], level: 'ok', badge: 'green',
+    label: 'น้ำหนักเพิ่มดี',
     message: `น้ำหนักเพิ่ม ${gained} กก. อยู่ในเกณฑ์ที่ควรเป็น (${lo}–${hi} กก.) ที่อายุครรภ์ ${wk} สัปดาห์`,
   };
 };
@@ -703,10 +713,28 @@ export const summarizeAncProcedures = (form) => {
   if (form.appointment?.kickCountEducation) names.push('สอนการนับลูกดิ้น');
   if (form.motherChildHealthBookGiven) names.push('แจกสมุดบันทึกสุขภาพแม่และเด็ก');
   if (Object.values(form.ultrasoundResults || {}).some(Boolean)) names.push('บันทึกผล Ultrasound');
-  if (form.nippleAssessment) {
+  /* ตรวจหัวนมบันทึกแยกซ้าย/ขวาแล้ว (มติ คทง.2) — ค่ารวมช่องเดียวของแบบเดิม
+     ยังอ่านไว้เพื่อให้วิสิตที่บันทึกก่อนหน้าสรุปได้เหมือนเดิม */
+  const nippleSide = (v) => ANC_NIPPLE_SIDE_OPTIONS.find((o) => o.value === v)?.label;
+  if (form.nippleLeft || form.nippleRight) {
+    names.push(`ตรวจหัวนม: ซ้าย ${nippleSide(form.nippleLeft) || '-'} · ขวา ${nippleSide(form.nippleRight) || '-'}`);
+  } else if (form.nippleAssessment) {
     const opt = ANC_NIPPLE_ASSESSMENT_OPTIONS.find((o) => o.value === form.nippleAssessment);
     if (opt) names.push(`ตรวจหัวนม: ${opt.label}`);
   }
+  if (form.dentalCariesCount !== '' && form.dentalCariesCount != null) {
+    names.push(`ตรวจฟัน: ฟันผุ ${form.dentalCariesCount} ซี่`);
+  }
+  if (form.dentalGum) {
+    const gum = ANC_GUM_OPTIONS.find((o) => o.value === form.dentalGum);
+    if (gum) names.push(`เหงือก: ${gum.label}`);
+  }
+  collect(ANC_DISPENSE_ITEMS.map((i) => ({ key: i.key, th: `จ่ายยา ${i.label}` })), form.dispenseItems);
+  collect(ANC_VACCINE_DOSES.map((i) => ({ key: i.key, th: `ฉีด${i.label}` })), form.vaccineDoses);
+  if (form.ultrasoundDone) {
+    names.push(`Ultrasound${form.ultrasoundGaWeeks ? ` ที่อายุครรภ์ ${form.ultrasoundGaWeeks} สัปดาห์` : ''}`);
+  }
+  (form.medications || []).forEach((m) => { if (m?.name) names.push(`สั่งยา ${m.name}`); });
   if (form.plannedDeliveryMode) {
     const opt = ANC_DELIVERY_MODE_OPTIONS.find((o) => o.value === form.plannedDeliveryMode);
     if (opt) names.push(`แผนการคลอด: ${opt.label}`);
@@ -768,7 +796,11 @@ export const DEFAULT_ANC_APPOINTMENT = {
   date: '',
   parentSchool: false,   // "โรงเรียนพ่อแม่" education activity
   kickCountEducation: false, // สอนการนับลูกดิ้น — p.15 (~18-20wk onward, part of โรงเรียนพ่อแม่ trimester 2/3 content)
+  saved: false,          // กด "บันทึกนัดหมาย" แล้ว — การ์ดสรุปแทนฟอร์ม แก้ไขได้
+  time: '',              // เวลานัด — คู่กับ `date`, ห้ามนัดย้อนหลัง
   mode: 'onsite',        // 'onsite' | 'telemedicine' (TOR 1.10.7.7 — Telemedicine)
+  cancelled: false,      // TOR 1.10.7.5 "ยกเลิก" — เหตุผลบังคับ ผ่านป๊อปอัป
+  cancelReason: '',
   /* Real session-state workflow (not just a label) — mirrors mobile's
      `telemedDone` field on MobileTelemedPage. 'none' when mode is onsite;
      flips to 'started' when the clinician begins the consult, 'completed'
@@ -776,11 +808,351 @@ export const DEFAULT_ANC_APPOINTMENT = {
   telemedStatus: 'none', // 'none' | 'started' | 'completed'
 };
 
+/* ═══════════════════════════════════════════════════════════════════
+   มติ คทง.2 ครั้งที่ 4 (24 ก.ย. 68) — ส่วนขยายของ TOR 1.10.7.6/.7/.8
+   ที่ประชุมกำหนดรูปแบบการเก็บข้อมูลไว้ชัดเจนกว่า TOR: ประวัติเจ็บป่วยเป็น
+   checkbox แทน free text · แบบคัดกรองความเสี่ยง 27 ข้อ (สมุดสีชมพู) แสดง
+   เฉพาะการฝากครรภ์ครั้งแรก · GDM ประมวลผลจากแบบ 27 ข้อแล้วแจ้งเตือนเอง ·
+   ประวัติสามีเพิ่มหมู่เลือด/Rh/สถานะสูบบุหรี่ · ทันตกรรมและการจ่ายยา/วัคซีน
+   เป็นกล่องของตัวเอง · คำแนะนำเป็น checkbox ที่ระบบเลือกตามอายุครรภ์
+   ═══════════════════════════════════════════════════════════════════ */
+
+/** ประวัติการเจ็บป่วยในอดีตของหญิงตั้งครรภ์ — มติ คทง.2: เปลี่ยนจาก free
+    text เป็น checkbox ตามรายการที่ที่ประชุมระบุ (เบาหวาน · ความดันโลหิตสูง ·
+    หัวใจ · ไทรอยด์ · ภาวะซีด) แล้วเหลือช่อง "อื่นๆ" ไว้พิมพ์รายละเอียด
+    ที่ไม่เข้ารายการ. ชื่อหมวดใช้ "ประวัติการเจ็บป่วยในอดีต" ตามมติเดียวกัน
+    (เดิม "ประวัติการรักษา" ซ้ำกับชื่อขั้นตอน). */
+export const ANC_ILLNESS_CHECKLIST = [
+  { key: 'diabetes',     label: 'เบาหวาน' },
+  { key: 'hypertension', label: 'โรคความดันโลหิตสูง' },
+  { key: 'heartDisease', label: 'โรคหัวใจ' },
+  { key: 'thyroid',      label: 'โรคไทรอยด์' },
+  { key: 'anemia',       label: 'ภาวะซีด' },
+];
+
+/** ตารางประวัติการตั้งครรภ์และการคลอดในอดีต — คอลัมน์ตามมติ คทง.2:
+    ครรภ์ที่ · ปีที่คลอด · วิธีคลอด · อายุครรภ์เมื่อคลอด · ภาวะแทรกซ้อน ·
+    ผลการคลอด · น้ำหนักแรกเกิด. */
+export const ANC_DELIVERY_TYPE_OPTIONS = [
+  'คลอดปกติ (Normal labor)',
+  'ผ่าตัดคลอด (Cesarean section)',
+  'ใช้เครื่องดูดสุญญากาศ (Vacuum)',
+  'ใช้คีม (Forceps)',
+  'แท้ง (Abortion)',
+];
+
+export const ANC_DELIVERY_OUTCOME_OPTIONS = [
+  { value: 'liveBirth',  label: 'เกิดมีชีพ' },
+  { value: 'stillbirth', label: 'เกิดไม่มีชีพ' },
+];
+
+/** สถานะการสูบบุหรี่ของสามี/คู่ — เก็บเพื่อประเมินความเสี่ยงจากบุหรี่มือสอง
+    (มติ คทง.2), แยกจาก `smokingStatus` ซึ่งเป็นของหญิงตั้งครรภ์เอง. */
+export const ANC_SPOUSE_SMOKING_OPTIONS = [
+  { value: 'nonSmoker', label: 'ไม่สูบบุหรี่' },
+  { value: 'smoker',    label: 'สูบบุหรี่' },
+  { value: 'quit',      label: 'เคยสูบ เลิกแล้ว' },
+];
+
+/* ─── แบบคัดกรองความเสี่ยง 27 ข้อ (สมุดบันทึกสุขภาพแม่และเด็ก) ────────
+   มติ คทง.2: "Checkbox List จำนวน 27 ข้อตามสมุดสีชมพู · แสดงเฉพาะการ
+   ฝากครรภ์ครั้งแรกเท่านั้น · บางข้อ (ความดันโลหิตสูง ภาวะซีด) ดึงจากการ
+   ตรวจร่างกายและผลแล็บมาแสดงผลอัตโนมัติ".
+
+   จัดเป็น 4 หมวดตามลำดับการซักประวัติจริง และคง `key` ของรายการที่เคยอยู่
+   ในแบบเดิม (heightShort · bmiAbnormal · priorCesarean · rhNegative ·
+   familyGenetic · multiplePregnancy) ไว้ เพื่อให้ทะเบียนที่บันทึกไว้แล้ว
+   อ่านกลับได้เหมือนเดิม. `derived` บอกว่าข้อนั้นระบบคำนวณให้เป็นข้อเสนอได้
+   จากข้อมูลที่บันทึกไว้แล้ว (ดู `deriveFirstVisitRiskSuggestions`) — ยังคง
+   ต้องให้ผู้ตรวจกดรับเอง ไม่ติ๊กให้อัตโนมัติ. */
+export const ANC_FIRST_VISIT_RISK_GROUPS = [
+  {
+    key: 'obstetric',
+    label: 'ประวัติการตั้งครรภ์และการคลอดในอดีต',
+    items: [
+      { key: 'priorAbortion3',      label: 'เคยแท้งบุตรตั้งแต่ 3 ครั้งขึ้นไป' },
+      { key: 'priorLbw',            label: 'เคยคลอดบุตรน้ำหนักน้อยกว่า 2,500 กรัม' },
+      { key: 'macrosomia',          label: 'เคยคลอดบุตรน้ำหนักตั้งแต่ 4,000 กรัมขึ้นไป' },
+      { key: 'priorPreterm',        label: 'เคยคลอดก่อนกำหนด (น้อยกว่า 37 สัปดาห์)' },
+      { key: 'priorStillbirth',     label: 'เคยมีทารกเสียชีวิตในครรภ์หรือแรกคลอด' },
+      { key: 'priorCesarean',       label: 'เคยผ่าตัดคลอด' },
+      { key: 'priorUterineSurgery', label: 'เคยผ่าตัดมดลูก ปากมดลูก หรือผ่าตัดทางนรีเวชอื่น' },
+      { key: 'priorPreeclampsia',   label: 'เคยมีความดันโลหิตสูง / ครรภ์เป็นพิษขณะตั้งครรภ์' },
+      { key: 'priorGdm',            label: 'เคยเป็นเบาหวานขณะตั้งครรภ์' },
+      { key: 'priorAnomaly',        label: 'เคยคลอดบุตรที่มีความพิการแต่กำเนิด' },
+    ],
+  },
+  {
+    key: 'personal',
+    label: 'ประวัติสุขภาพและปัจจัยส่วนบุคคล',
+    items: [
+      { key: 'ageUnder17',   label: 'อายุน้อยกว่า 17 ปี', derived: true },
+      { key: 'ageOver35',    label: 'อายุ 35 ปีขึ้นไป', derived: true },
+      { key: 'heightShort',  label: 'ส่วนสูงน้อยกว่า 145 ซม.', derived: true },
+      { key: 'bmiAbnormal',  label: 'BMI ก่อนตั้งครรภ์ น้อยกว่า 18.5 หรือ ตั้งแต่ 30 ขึ้นไป', derived: true },
+      { key: 'diabetes',     label: 'เป็นเบาหวาน' },
+      { key: 'hypertension', label: 'เป็นโรคความดันโลหิตสูง', derived: true },
+      { key: 'heartDisease', label: 'เป็นโรคหัวใจ' },
+      { key: 'thyroid',      label: 'เป็นโรคไทรอยด์' },
+      { key: 'anemia',       label: 'มีภาวะซีด / โลหิตจาง', derived: true },
+    ],
+  },
+  {
+    key: 'family',
+    label: 'ประวัติครอบครัวและพฤติกรรม',
+    items: [
+      { key: 'familyDiabetes',  label: 'ครอบครัวมีประวัติเบาหวาน' },
+      { key: 'familyGenetic',   label: 'ครอบครัวมีประวัติโรคทางพันธุกรรม / ธาลัสซีเมีย' },
+      { key: 'smokingExposure', label: 'สูบบุหรี่ หรือได้รับควันบุหรี่มือสอง' },
+      { key: 'substanceUse',    label: 'ดื่มแอลกอฮอล์ หรือใช้สารเสพติด' },
+    ],
+  },
+  {
+    key: 'current',
+    label: 'การตั้งครรภ์ปัจจุบัน',
+    items: [
+      { key: 'multiplePregnancy',    label: 'ครรภ์แฝด' },
+      { key: 'rhNegative',           label: 'หมู่เลือด Rh negative', derived: true },
+      { key: 'bleedingThisPregnancy', label: 'มีเลือดออกทางช่องคลอดในครรภ์นี้' },
+      { key: 'pelvicMassOrArt',      label: 'มีก้อนในอุ้งเชิงกราน หรือตั้งครรภ์จากเทคโนโลยีช่วยการเจริญพันธุ์' },
+    ],
+  },
+];
+
+/** แบบ 27 ข้อในรูปรายการแบน — ชื่อเดิม `ANC_RISK_FACTORS` คงไว้เพื่อให้
+    โค้ด/ทะเบียนที่อ้างชื่อนี้อยู่แล้วยังทำงานได้. */
+export const ANC_RISK_FACTORS = ANC_FIRST_VISIT_RISK_GROUPS.flatMap((g) => g.items);
+
+const findFirstVisitRiskItem = (key) => ANC_RISK_FACTORS.find((i) => i.key === key);
+
+/** ข้อที่ระบบคำนวณได้เองจากสัญญาณชีพ/ผลแล็บ/อายุ — คืนเป็น "ข้อเสนอ" พร้อม
+    เหตุผล ให้ผู้ตรวจกดรับ ไม่ติ๊กให้เอง (มติ คทง.2 ระบุให้ "ดึงข้อมูลมาแสดงผล"
+    ไม่ได้ระบุให้ตัดสินใจแทน — และการติ๊กเงียบ ๆ จะกลายเป็นการอ้างว่าผู้ตรวจ
+    ประเมินแล้วทั้งที่ยังไม่ได้ดู). */
+export const deriveFirstVisitRiskSuggestions = (form, { age } = {}) => {
+  if (!form) return [];
+  const out = [];
+  const add = (key, reason) => {
+    const item = findFirstVisitRiskItem(key);
+    if (item) out.push({ key, label: item.label, reason });
+  };
+  const num = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const years = num(age);
+  if (years != null && years < 17) add('ageUnder17', `อายุ ${years} ปี`);
+  if (years != null && years >= 35) add('ageOver35', `อายุ ${years} ปี`);
+
+  const height = num(form.vitals?.height);
+  if (height != null && height > 0 && height < 145) add('heightShort', `ส่วนสูง ${height} ซม.`);
+
+  const bmi = calcBmi(form.prePregnancyWeight, form.vitals?.height);
+  if (bmi != null && (bmi < 18.5 || bmi >= 30)) add('bmiAbnormal', `BMI ก่อนตั้งครรภ์ ${bmi}`);
+
+  const bpMatch = /^\s*(\d{2,3})\s*\/\s*(\d{2,3})\s*$/.exec(String(form.vitals?.bp ?? ''));
+  if (bpMatch) {
+    const [sys, dia] = [Number(bpMatch[1]), Number(bpMatch[2])];
+    if (sys >= 140 || dia >= 90) add('hypertension', `ความดันโลหิต ${sys}/${dia} mmHg`);
+  }
+
+  const hb = num(form.labResults?.hb2) ?? num(form.labResults?.hb);
+  const hct = num(form.labResults?.hct2) ?? num(form.labResults?.hct);
+  if ((hb != null && hb < 11) || (hct != null && hct < 33)) {
+    add('anemia', `ผล Lab ${hb != null ? `Hb ${hb} g%` : ''}${hb != null && hct != null ? ' · ' : ''}${hct != null ? `Hct ${hct}%` : ''}`);
+  }
+
+  if (form.labResults?.rh === 'Negative') add('rhNegative', 'ผลตรวจหมู่เลือด Rh = Negative');
+
+  return out;
+};
+
+/** คัดกรองเบาหวานขณะตั้งครรภ์ — มติ คทง.2: "ให้ระบบใช้ข้อมูลจากแบบคัดกรอง
+    ความเสี่ยง 27 ข้อ (เช่น อายุ > 35 ปี, BMI สูง, ประวัติครอบครัว) เพื่อ
+    ประมวลผลและขึ้นข้อความแจ้งเตือนโดยอัตโนมัติ". ข้อความที่แสดงเป็นถ้อยคำ
+    ของที่ประชุมเอง. รวมแบบคัดกรองเบาหวานเดิม (legacy p.2-13) เข้าด้วย
+    เพราะทั้งสองชุดถามเรื่องเดียวกันคนละสำนวน. */
+export const ANC_GDM_ADVICE_MESSAGE = 'มีความเสี่ยงสูง ควรได้รับการตรวจ 50 gram GCT';
+
+export const evaluateGdmRisk = (form, { age } = {}) => {
+  if (!form) return { highRisk: false, reasons: [], message: '' };
+  const reasons = [];
+  const push = (label) => { if (!reasons.includes(label)) reasons.push(label); };
+
+  const years = Number(age);
+  if (Number.isFinite(years) && years >= 35) push(`อายุ ${years} ปี (ตั้งแต่ 35 ปีขึ้นไป)`);
+
+  const bmi = calcBmi(form.prePregnancyWeight, form.vitals?.height);
+  if (bmi != null && bmi >= 25) push(`BMI ก่อนตั้งครรภ์ ${bmi} (ตั้งแต่ 25 ขึ้นไป)`);
+
+  const risk = form.riskFactors || {};
+  if (risk.familyDiabetes) push('ครอบครัวมีประวัติเบาหวาน');
+  if (risk.priorGdm) push('เคยเป็นเบาหวานขณะตั้งครรภ์');
+  if (risk.macrosomia) push('เคยคลอดบุตรน้ำหนักตั้งแต่ 4,000 กรัมขึ้นไป');
+  if (risk.diabetes) push('มีประวัติเป็นเบาหวาน');
+
+  ANC_GDM_SCREENING_FACTORS.forEach((f) => {
+    if (form.gdmScreeningFactors?.[f.key]) push(f.label);
+  });
+
+  return {
+    highRisk: reasons.length > 0,
+    reasons,
+    message: reasons.length > 0 ? ANC_GDM_ADVICE_MESSAGE : '',
+  };
+};
+
+/** ตรวจเต้านมและหัวนม — มติ คทง.2 ให้บันทึกแยกซ้าย/ขวา และผลเป็น dropdown
+    (ปกติ · สั้น · บอด). แทนช่องเดียวของแบบเดิมที่บันทึกรวมทั้งสองข้าง. */
+export const ANC_NIPPLE_SIDE_OPTIONS = [
+  { value: 'normal',   label: 'ปกติ' },
+  { value: 'short',    label: 'สั้น' },
+  { value: 'inverted', label: 'บอด' },
+];
+
+/** บันทึกทันตกรรม (มติ คทง.2) — ผลตรวจฟัน: ฟันผุระบุจำนวนซี่ · ผลตรวจเหงือก
+    เป็นตัวเลือกเดียวจาก 3 ค่า. วางเป็นกล่องก่อนส่วน "การดูแลและให้คำแนะนำ". */
+export const ANC_GUM_OPTIONS = [
+  { value: 'normal',    label: 'ปกติ' },
+  { value: 'inflamed',  label: 'อักเสบ' },
+  { value: 'calculus',  label: 'มีหินน้ำลาย' },
+];
+
+/** การจ่ายยา (มติ คทง.2) — checkbox list ท้ายขั้นสั่งการรักษา. เป็นทางลัด
+    ของยาที่งานฝากครรภ์จ่ายซ้ำทุกราย ส่วนใบสั่งยาจริงยังไปทางเดียวกับ OPD
+    (AddMedicationPopup → form.medications) เพื่อให้ห้องยาได้รายการเดียวกัน. */
+export const ANC_DISPENSE_ITEMS = [
+  { key: 'triferdine', label: 'Triferdine (ไอโอดีน-เหล็ก-โฟลิก)' },
+  { key: 'folicAcid',  label: 'Folic acid' },
+  { key: 'calcium',    label: 'Calcium Carbonate' },
+  { key: 'obimin',     label: 'Obimin' },
+];
+
+/** วัคซีนที่ให้ระหว่างตั้งครรภ์ (มติ คทง.2) — ระบุเข็มที่ 1/2 ของ dT แยกกัน
+    และทุกเข็มต้องมีช่องวันที่ฉีด. */
+export const ANC_VACCINE_DOSES = [
+  { key: 'flu', label: 'วัคซีนไข้หวัดใหญ่' },
+  { key: 'dt1', label: 'บาดทะยัก-คอตีบ (dT) เข็มที่ 1' },
+  { key: 'dt2', label: 'บาดทะยัก-คอตีบ (dT) เข็มที่ 2' },
+];
+
+/** คัดกรองกลุ่มอาการดาวน์ — มติ คทง.2: "ระบบต้องรองรับการบันทึกผลทั้งวิธี
+    Quadruple test และ NIPT". */
+export const ANC_DOWN_SCREENING_METHODS = [
+  { value: 'quadruple', label: 'Quadruple test' },
+  { value: 'nipt',      label: 'NIPT' },
+];
+
+/** หัวข้อการให้คำแนะนำ (มติ คทง.2) — checkbox list ที่ระบบ "แสดงหัวข้อที่ควร
+    ให้คำแนะนำตามช่วงอายุครรภ์ของการมาตรวจครั้งนั้น ๆ โดยอัตโนมัติ". `from`/`to`
+    เป็นช่วงอายุครรภ์เป็นสัปดาห์ (to ไม่รวม); ข้อที่ไม่มีช่วงคือแนะนำทุกครั้ง. */
+export const ANC_ADVICE_TOPICS = [
+  { key: 'ironFolic',     label: 'การกินยาเสริมธาตุเหล็ก โฟลิก และไอโอดีนทุกวัน' },
+  { key: 'dangerSigns',   label: 'อาการผิดปกติที่ต้องมาพบแพทย์ก่อนนัด' },
+  { key: 'oralCare',      label: 'การดูแลสุขภาพช่องปาก แปรงฟันวันละ 2 ครั้ง' },
+  { key: 'noSmoking',     label: 'งดบุหรี่ แอลกอฮอล์ และสารเสพติด' },
+  { key: 'nausea',        label: 'การดูแลอาการแพ้ท้องและการกินอาหารไตรมาสแรก', from: 0, to: 12 },
+  { key: 'avoidTeratogen', label: 'หลีกเลี่ยงยา สารเคมี และการเอกซเรย์โดยไม่จำเป็น', from: 0, to: 14 },
+  { key: 'downScreening', label: 'การคัดกรองกลุ่มอาการดาวน์และการตรวจอัลตราซาวด์', from: 12, to: 20 },
+  { key: 'bodyChange',    label: 'การเปลี่ยนแปลงของร่างกายและการออกกำลังกายที่เหมาะสม', from: 12, to: 28 },
+  { key: 'kickCount',     label: 'การนับลูกดิ้นทุกวัน', from: 18 },
+  { key: 'parentSchool',  label: 'โรงเรียนพ่อแม่ การเตรียมตัวคลอดและการเลี้ยงลูกด้วยนมแม่', from: 20 },
+  { key: 'nutritionLate', label: 'โภชนาการและการควบคุมน้ำหนักในไตรมาสที่ 3', from: 28 },
+  { key: 'laborSigns',    label: 'อาการเจ็บครรภ์จริง-เตือน และการเตรียมของไปคลอด', from: 32 },
+  { key: 'deliveryPlan',  label: 'แผนการคลอดและสถานที่คลอด', from: 32 },
+  { key: 'postpartum',    label: 'การดูแลหลังคลอดและการคุมกำเนิด', from: 36 },
+];
+
+export const getAncAdviceTopicsForGa = (gestWeeks) => {
+  const w = Number(gestWeeks);
+  if (!Number.isFinite(w)) return ANC_ADVICE_TOPICS.filter((t) => t.from == null);
+  return ANC_ADVICE_TOPICS.filter((t) => {
+    const fromOk = t.from == null || w >= t.from;
+    const toOk = t.to == null || w < t.to;
+    return fromOk && toOk;
+  });
+};
+
+/** ตารางสรุปภาวะเสี่ยงที่ตรวจพบจากผลแล็บ — มติ คทง.2: ครั้งที่ 2 เป็นต้นไป
+    (มาฟังผล) "ระบบจะดึงผลการตรวจจากห้องปฏิบัติการมาประมวลผล และแสดงเป็น
+    ตารางสรุปภาวะเสี่ยงที่ตรวจพบ". คืนเฉพาะรายการที่มีผลแล้ว พร้อมธงว่า
+    ผิดปกติหรือไม่ เพื่อให้ตารางเรียงผลปกติ/ผิดปกติในตารางเดียวกันได้. */
+export const summarizeLabRiskFindings = (labResults = {}) => {
+  const rows = [];
+  const num = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const push = (label, value, risk, note) => {
+    if (value === undefined || value === null || value === '') return;
+    rows.push({ label, value: String(value), risk: !!risk, note: note || '' });
+  };
+
+  const hb = num(labResults.hb2) ?? num(labResults.hb);
+  const hct = num(labResults.hct2) ?? num(labResults.hct);
+  push('ความเข้มข้นเลือด (Hb)', hb != null ? `${hb} g%` : '', hb != null && hb < 11, 'เกณฑ์ภาวะซีด Hb < 11 g%');
+  push('ความเข้มข้นเลือด (Hct)', hct != null ? `${hct} %` : '', hct != null && hct < 33, 'เกณฑ์ภาวะซีด Hct < 33%');
+  push('หมู่เลือด (ABO)', labResults.bloodGroup, false);
+  push('Rh', labResults.rh, labResults.rh === 'Negative', 'Rh negative ต้องเฝ้าระวังภาวะ Rh isoimmunization');
+  push('VDRL/TPHA', labResults.vdrlResult2 || labResults.vdrlResult,
+    (labResults.vdrlResult2 || labResults.vdrlResult) === 'Reactive', 'ผลบวกต้องรักษาซิฟิลิสและตรวจคู่');
+  push('Anti-HIV', labResults.antiHivResult2 || labResults.antiHivResult,
+    (labResults.antiHivResult2 || labResults.antiHivResult) === 'Positive', 'ผลบวกส่งเข้าระบบป้องกันการถ่ายทอดเชื้อจากแม่สู่ลูก');
+  push('HBsAg', labResults.hbsAgResult, labResults.hbsAgResult === 'Positive', 'ผลบวกวางแผนให้ HBIG แก่ทารกแรกเกิด');
+  push('ผลตรวจปัสสาวะ', labResults.urineResult, labResults.urineResult === 'ผิดปกติ', 'ผิดปกติให้ประเมินการติดเชื้อทางเดินปัสสาวะ');
+  return rows;
+};
+
+/** จุดข้อมูลกราฟการเพิ่มขึ้นของน้ำหนัก (มติ คทง.2) — น้ำหนักก่อนตั้งครรภ์
+    เป็นจุดที่อายุครรภ์ 0 แล้วต่อด้วยน้ำหนักของทุกครั้งที่มาตรวจ (ประวัติ +
+    ครั้งนี้) เทียบกับแถบเกณฑ์ IOM 2009 ของกลุ่ม BMI นั้น. */
+export const buildAncWeightSeries = (history = [], form = {}) => {
+  const pre = Number(form.prePregnancyWeight);
+  const points = [];
+  if (Number.isFinite(pre) && pre > 0) points.push({ gaWeeks: 0, weight: pre, label: 'ก่อนตั้งครรภ์' });
+
+  history.forEach((h) => {
+    const w = Number(h.weight);
+    const ga = Number(h.gestWeeks);
+    if (!Number.isFinite(w) || w <= 0) return;
+    points.push({ gaWeeks: Number.isFinite(ga) ? ga : null, weight: w, label: h.date });
+  });
+
+  const currentGa = calculateGestationalAge(form.lmp)?.weeks;
+  const currentWeight = Number(form.vitals?.weight);
+  if (Number.isFinite(currentWeight) && currentWeight > 0) {
+    points.push({ gaWeeks: Number.isFinite(currentGa) ? currentGa : null, weight: currentWeight, label: 'ครั้งนี้' });
+  }
+
+  const band = interpretPrePregnancyBmi(calcBmi(pre, form.vitals?.height));
+  /* แถบเกณฑ์: ไตรมาสแรกใช้ 0.5–2 กก. แล้วบวกอัตราต่อสัปดาห์ของกลุ่ม BMI นั้น
+     — สูตรเดียวกับ `evaluateWeightGain` เพื่อให้กราฟกับข้อความสรุปตรงกัน. */
+  const expectedAt = (weeks) => {
+    if (!band || !Number.isFinite(pre) || pre <= 0 || !Number.isFinite(weeks)) return null;
+    const w = Math.max(0, weeks);
+    if (w <= 13) {
+      const ratio = w / 13;
+      return { min: pre + 0.5 * ratio, max: pre + 2 * ratio };
+    }
+    const extra = w - 13;
+    return {
+      min: pre + 0.5 + band.weeklyGain[0] * extra,
+      max: pre + 2 + band.weeklyGain[1] * extra,
+    };
+  };
+
+  return { points, band, expectedAt };
+};
+
 /* ─── Whole-visit default form state ─────────────────────────────── */
 
 export const DEFAULT_ANC_VISIT = {
   // Step 1 — ประวัติการรักษา (TOR 1.10.7.6)
   illnessHistory: '',
+  /* มติ คทง.2 — ประวัติเจ็บป่วยในอดีตเป็น checkbox (ANC_ILLNESS_CHECKLIST)
+     ส่วน `illnessHistory` เหลือไว้เป็นช่อง "อื่นๆ (ระบุ)" ของหมวดเดียวกัน */
+  illnessChecklist: {},
   gravida: '',
   para: '',
   abortion: '',
@@ -789,7 +1161,16 @@ export const DEFAULT_ANC_VISIT = {
   obstetricHistory: [],   // { id, pregnancyNo, year, deliveryType, outcome, complication }
   breastExamNote: '',
   spouseHealthNote: '',
+  /* มติ คทง.2 — ประวัติสามี/คู่: ข้อมูลพื้นฐาน + โรคประจำตัว + หมู่เลือด/Rh
+     + สถานะการสูบบุหรี่ (ประเมินความเสี่ยงจากบุหรี่มือสอง) */
+  spouseInfo: {
+    name: '', birthDate: '', citizenId: '', occupation: '', phone: '',
+    illness: '', bloodGroup: '', rh: '', smokingStatus: '',
+  },
   currentPregnancyNote: '',
+  /* ประวัติการคุมกำเนิดก่อนตั้งครรภ์นี้ — กล่อง "การตั้งครรภ์ปัจจุบัน"
+     ตามสมุดสีชมพูหน้า 9 (มติ คทง.2) */
+  contraceptionHistory: '',
   documents: [],           // uploaded File[] (TOR 1.10.7.4)
   // Tetanus (dT) vaccination HISTORY (legacy HCIS p.2-25) — how many doses
   // before THIS pregnancy + year of the last one, driving the ≤10yr
@@ -806,6 +1187,11 @@ export const DEFAULT_ANC_VISIT = {
   // Step 2 — คัดกรองและซักประวัติ (TOR 1.10.7.3/.7)
   stressAnswers: {},       // ST-5 (0-3 per item)
   mentalHealthAnswers: {},
+  /* 9Q — เปิดจากปุ่มในขั้นแบบประเมินเมื่อ 2Q ผลบวก แล้วดึงคะแนนกลับมาแสดง
+     (มติ คทง.2: "อาจทำเป็นปุ่มที่ลิงก์ไปยังหน้าแบบประเมิน แล้วดึงผลคะแนน
+     กลับมาแสดงในหน้าหลักของงานฝากครรภ์") — แบบประเมินใช้ชุดเดียวกับคลัง
+     `homevisitAssessments.js` ไม่สร้างแบบใหม่ */
+  mentalHealth9Q: { answers: {}, total: null, completedAt: '' },
   riskFactors: {},
   perVisitRiskFactors: {},  // ประเมินทุกครั้งที่ตรวจครรภ์ (legacy p.2-13, items 8-20)
   gdmScreeningFactors: {},  // แบบคัดกรองเบาหวานในหญิงมีครรภ์ (legacy p.2-13)
@@ -831,6 +1217,22 @@ export const DEFAULT_ANC_VISIT = {
   fetalPosition: '',       // ท่าเด็ก — free text, e.g. LOA / ROA
   fetalMovement: '',
   oralHealthAnswers: {},   // Maternal Oral Screening (MOS) tool, p.53 — 2Q, score ≥1 = refer dentist
+  /* มติ คทง.2 — บันทึกทันตกรรม: ฟันผุระบุจำนวนซี่ · เหงือก ปกติ/อักเสบ/มีหินน้ำลาย */
+  dentalCariesCount: '',
+  dentalGum: '',
+  /* มติ คทง.2 — ตรวจเต้านม/หัวนมแยกซ้าย-ขวา (ปกติ · สั้น · บอด) */
+  nippleLeft: '',
+  nippleRight: '',
+  /* ภาพประกอบการตรวจร่างกายของครั้งนี้ (มติผู้ใช้ 2 ก.ย. 69) — เก็บต่อครั้ง
+     ไม่ carry ไปครั้งถัดไป เพราะเป็นสิ่งที่เห็นวันนี้ */
+  examPhotos: [],
+  /* วาด/มาร์คจุดบนรูปร่างกาย — ชุดเดียวกับที่ CPOE OPD ใช้ (BodyDiagramPanel)
+     แยกเก็บตามระบบที่ตรวจ (`bodyMarkers[systemKey]`) เพื่อไม่ให้จุดของคนละระบบ
+     ทับกัน (มติผู้ใช้ 2 ก.ย. 69) */
+  examSystem: 'abdomen',
+  examView: 'both',
+  bodyMarkers: {},
+  bodyDrawings: {},
 
   // Step 4 — วินิจฉัย (TOR 1.10.7.7)
   riskLevel: '',
@@ -838,7 +1240,9 @@ export const DEFAULT_ANC_VISIT = {
   diagnosisNote: '',
   externalExamResults: '',  // ผลการตรวจครรภ์จากภายนอก
   externalExamAttachments: [], // uploaded evidence File[] for the above (TOR 1.10.7.7)
-  adviceNote: '',            // คำแนะนำ
+  adviceNote: '',            // คำแนะนำ (รายละเอียดเพิ่มเติมนอกเหนือหัวข้อที่ติ๊ก)
+  /* มติ คทง.2 — คำแนะนำเป็น checkbox list ที่ระบบเลือกหัวข้อตามอายุครรภ์ให้ */
+  adviceTopics: {},
 
   // Step 5 — สั่งการรักษา (TOR 1.10.7.5/.7)
   lab1Orders: {},
@@ -852,6 +1256,20 @@ export const DEFAULT_ANC_VISIT = {
   ultrasoundResults: {},           // structured Ultrasound findings (pp.50-52) — shared by ultrasound2/ultrasound3
   nippleAssessment: '',            // ตรวจประเมินด้านและหัวนม (pp.64-66) — 'normal' | 'flat' | 'inverted'
   plannedDeliveryMode: '',         // แผนการคลอด (pp.59-60) — 'vaginal' | 'cesarean' | 'undecided'
+  /* มติ คทง.2 — Ultrasound บันทึกว่า "ได้รับการตรวจอย่างน้อย 1 ครั้ง" พร้อม
+     อายุครรภ์ ณ วันที่ตรวจ (ศูนย์ฯ ทำก่อน 12 สัปดาห์ได้ยาก) + วิธีคัดกรอง
+     กลุ่มอาการดาวน์ (Quadruple test / NIPT) */
+  ultrasoundDone: false,
+  ultrasoundGaWeeks: '',
+  ultrasoundDate: '',
+  downScreeningMethod: '',
+  /* มติ คทง.2 — จ่ายยาและวัคซีนเป็น checkbox ท้ายขั้นสั่งการรักษา; ใบสั่งยา
+     จริงยังไปทาง `medications` ชุดเดียวกับ OPD เพื่อให้ห้องยาได้รายการเดียวกัน */
+  dispenseItems: {},
+  dispenseOtherNote: '',
+  vaccineDoses: {},
+  vaccineDoseDates: {},
+  medications: [],
   dentalReferral: false,
   dentalCleaningDone: false,     // ขัดทำความสะอาดฟันแล้ว
   dentalBrushingPractice: false, // ฝึกแปรงฟันแบบลงมือปฏิบัติ
@@ -1022,6 +1440,9 @@ export const getAncVisitHistoryByHn = (hn) => {
    today. */
 export const ANC_REGISTRATION_FIELDS = [
   'illnessHistory',
+  'illnessChecklist',
+  'spouseInfo',
+  'contraceptionHistory',
   'gravida', 'para', 'abortion', 'livingChildren', 'lmp',
   'obstetricHistory',
   'breastExamNote', 'spouseHealthNote',

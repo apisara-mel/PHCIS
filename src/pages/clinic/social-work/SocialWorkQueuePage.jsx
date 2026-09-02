@@ -455,14 +455,17 @@ const SocialWorkQueuePage = () => {
     { key: 'caseNo', label: 'เลขที่สังคมสงเคราะห์', render: (r) => r.caseNo || <span style={{ color: 'var(--text-content-tertiary, #858C92)' }}>ยังไม่ออกเลข</span> },
     { key: 'targetGroup', label: 'กลุ่มเป้าหมาย', render: (r) => resolveSwTargetGroup(r.targetGroup) },
     { key: 'primaryProblem', label: 'ปัญหาหลัก', flex: true, minWidth: 220, render: renderProblem },
-    { key: 'worker', label: 'ผู้ให้บริการ', flex: true, minWidth: 180 },
+    /* ชื่อผู้ให้บริการโชว์เฉพาะแท็บ "ทั้งหมด" (มติผู้ใช้ 2 ก.ย. 69 · ทำไว้ที่คิว
+       ฝากครรภ์ก่อน) — แท็บที่เป็นคิวนั้นผู้ใช้เห็นเฉพาะคิวของตัวเอง ชื่อผู้ตรวจจึง
+       ซ้ำกันทุกแถว ส่วนแท็บทั้งหมดเป็นรายชื่อข้ามผู้ให้บริการ จึงต้องบอกว่าใครดูแล */
+    ...(activeTab === 'all' ? [{ key: 'worker', label: 'ผู้ให้บริการ', flex: true, minWidth: 180 }] : []),
     { key: 'clinic', label: 'คลินิก', render: (r) => resolveSwClinic(r.clinic) },
     { key: 'flags', label: 'Flag', sortable: false, render: renderFlags },
     { key: 'wait', label: 'รอนาน', render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status', label: 'สถานะ', render: renderStatus },
     { key: 'actions', label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [tick, canWrite]);
+  ]), [tick, canWrite, activeTab]);
 
   const scheduledColumns = useMemo(() => ([
     { key: 'appointmentTime', label: 'เวลานัด', render: (r) => `${r.appointmentTime} น.` },
@@ -475,7 +478,6 @@ const SocialWorkQueuePage = () => {
     { key: 'insurance', label: 'สิทธิ' },
     { key: 'caseNo', label: 'เลขที่สังคมสงเคราะห์', render: (r) => r.caseNo || '—' },
     { key: 'purpose', label: 'นัดหมายเรื่อง', flex: true, minWidth: 220 },
-    { key: 'worker', label: 'ผู้ให้บริการ', flex: true, minWidth: 180 },
     { key: 'clinic', label: 'คลินิก', render: (r) => resolveSwClinic(r.clinic) },
     {
       key: 'checkin', label: 'การดำเนินการ', sortable: false,

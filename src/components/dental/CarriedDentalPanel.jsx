@@ -160,10 +160,20 @@ const CarriedDentalPanel = ({
      ค่าเริ่มต้น true อีก 5 หน้าที่เรียกใช้จึงไม่เปลี่ยน (งานเยี่ยมบ้านปิด —
      มติผู้ใช้ 30 ส.ค. 69) */
   showSummaryRow = true,
+  /* ป้าย "การวินิจฉัยทางทันตกรรมล่าสุด" — ปิดได้เช่นเดียวกับแถวสรุป
+     ค่าเริ่มต้น true หน้าที่เรียกใช้อยู่เดิมจึงไม่เปลี่ยน (คลินิกฝากครรภ์ปิด —
+     มติผู้ใช้ 2 ก.ย. 69) */
+  showLastDiagnoses = true,
   /* ป้ายสถานะข้างหัวข้อ (ตรวจฟันแล้วในรอบนี้ / เกิน 6 เดือน / …) — ปิดได้
      ค่าเริ่มต้น true อีก 5 หน้าที่เรียกใช้จึงไม่เปลี่ยน (งานเยี่ยมบ้านปิด —
      มติผู้ใช้ 30 ส.ค. 69) */
   showStatusBadge = true,
+  /* ป้ายสถานะชิดกับหัวข้อแทนที่จะไปอยู่ขวาสุด (คลินิกฝากครรภ์เปิด —
+     มติผู้ใช้ 2 ก.ย. 69) ค่าเริ่มต้นคือพฤติกรรมเดิม */
+  badgeNextToTitle = false,
+  /* ปุ่ม "ส่งตรวจทันตกรรม" บนหัวแผง — ปิดได้สำหรับหน้าที่มีทางส่งตรวจของตัวเอง
+     อยู่แล้ว (คลินิกฝากครรภ์ปิด — มติผู้ใช้ 2 ก.ย. 69) */
+  showAskButton = true,
   /* กรอบเทา + พื้นขาวของแผงเอง — ปิดเมื่อแผงถูกวางในการ์ดขาวอยู่แล้ว
      (กล่องซ้อนกล่อง) ค่าเริ่มต้น true อีก 5 หน้าที่เรียกใช้จึงไม่เปลี่ยน
      (งานเยี่ยมบ้านปิด — มติผู้ใช้ 30 ส.ค. 69) */
@@ -275,7 +285,7 @@ const CarriedDentalPanel = ({
           <Icon name='dentistry' size={20} />
         </span>
         <h2
-          className='flex-1 min-w-0'
+          className={badgeNextToTitle ? 'min-w-0' : 'flex-1 min-w-0'}
           style={{
             color: 'var(--text-brandPrimary-default, #007549)',
             fontFamily: 'var(--type-family-heading-content)',
@@ -290,9 +300,10 @@ const CarriedDentalPanel = ({
             {badge.label}
           </ColorfulBadge>
         )}
+        {badgeNextToTitle && <div className='flex-1' />}
         {/* ปุ่มส่งตรวจอยู่ขวาบนแถวหัวข้อ (มติผู้ใช้ 30 ส.ค. 69) — เดิมอยู่ใต้
             ตาราง ซึ่งอ่านเหมือนเป็นการกระทำต่อแถวสุดท้ายของตาราง ไม่ใช่ของทั้งแผง */}
-        {!summary.request && !readOnly && (
+        {showAskButton && !summary.request && !readOnly && (
           <>
             <div className='flex-1' />
             <BrandButton variant='outline' size='md' leadingIcon='dentistry' onClick={() => setAskOpen(true)}>
@@ -388,7 +399,7 @@ const CarriedDentalPanel = ({
             </div>
           )}
 
-          {summary.diagnoses.length > 0 && (
+          {showLastDiagnoses && summary.diagnoses.length > 0 && (
             <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-100)' }}>
               <Label>การวินิจฉัยทางทันตกรรมล่าสุด</Label>
               <div className='flex flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>

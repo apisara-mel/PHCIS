@@ -369,12 +369,15 @@ const HivStiQueuePage = () => {
     { key: 'visitReason', label: 'เหตุผลการมารับบริการ', flex: true, minWidth: 180 },
     { key: 'telemed',    label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
     { key: 'room',       label: 'ห้อง' },
-    { key: 'doctor',     label: 'แพทย์ผู้ตรวจ',    flex: true, minWidth: 140 },
+    /* ชื่อผู้ให้บริการโชว์เฉพาะแท็บ "ทั้งหมด" (มติผู้ใช้ 2 ก.ย. 69 · ทำไว้ที่คิว
+       ฝากครรภ์ก่อน) — แท็บที่เป็นคิวนั้นผู้ใช้เห็นเฉพาะคิวของตัวเอง ชื่อผู้ตรวจจึง
+       ซ้ำกันทุกแถว ส่วนแท็บทั้งหมดเป็นรายชื่อข้ามผู้ให้บริการ จึงต้องบอกว่าใครดูแล */
+    ...(activeTab === 'all' ? [{ key: 'doctor',     label: 'แพทย์ผู้ตรวจ',    flex: true, minWidth: 140 }] : []),
     { key: 'wait',       label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',     label: 'สถานะ', render: renderStatus },
     { key: 'actions',    label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [tick]);
+  ]), [tick, activeTab]);
 
   const scheduledColumns = useMemo(() => ([
     { key: 'appointmentTime', label: 'เวลานัด' },
@@ -383,7 +386,6 @@ const HivStiQueuePage = () => {
     { key: 'clientType',      label: 'ประเภท', render: renderClientType },
     { key: 'visitReason',     label: 'เหตุผลการนัด',    flex: true, minWidth: 180 },
     { key: 'clinic',          label: 'คลินิก' },
-    { key: 'doctor',          label: 'แพทย์ผู้ตรวจ',    flex: true, minWidth: 140 },
     {
       key: 'checkin', label: 'การดำเนินการ', sortable: false,
       render: (row) => (readOnlyRole ? null : (

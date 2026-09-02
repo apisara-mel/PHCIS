@@ -412,13 +412,16 @@ const MentalHealthQueuePage = () => {
     { key: 'mhNumber', label: 'เลขที่สุขภาพจิต', render: (r) => r.mhNumber || '—' },
     { key: 'chiefComplaint', label: 'อาการสำคัญ',  flex: true, minWidth: 200 },
     { key: 'watch',    label: 'ระดับการเฝ้าระวัง', render: renderWatchLevel },
-    { key: 'doctor',   label: 'แพทย์',            flex: true, minWidth: 150 },
+    /* ชื่อผู้ให้บริการโชว์เฉพาะแท็บ "ทั้งหมด" (มติผู้ใช้ 2 ก.ย. 69 · ทำไว้ที่คิว
+       ฝากครรภ์ก่อน) — แท็บที่เป็นคิวนั้นผู้ใช้เห็นเฉพาะคิวของตัวเอง ชื่อผู้ตรวจจึง
+       ซ้ำกันทุกแถว ส่วนแท็บทั้งหมดเป็นรายชื่อข้ามผู้ให้บริการ จึงต้องบอกว่าใครดูแล */
+    ...(activeTab === 'all' ? [{ key: 'doctor',   label: 'แพทย์',            flex: true, minWidth: 150 }] : []),
     { key: 'telemed',  label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
     { key: 'wait',     label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',   label: 'สถานะ', render: renderStatus },
     { key: 'actions',  label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [tick]);
+  ]), [tick, activeTab]);
 
   /* ผู้ป่วยนัดที่ยังไม่มาติดต่อ (manual §2.2 tab 2) — a different row shape
      (เวลานัด instead of queue/wait/status), so its own columns + ส่งตรวจ. */
@@ -443,7 +446,6 @@ const MentalHealthQueuePage = () => {
     { key: 'insurance',       label: 'สิทธิ' },
     { key: 'mhNumber',        label: 'เลขที่สุขภาพจิต', render: (r) => r.mhNumber || '—' },
     { key: 'chiefComplaint',  label: 'นัดหมายเรื่อง', flex: true, minWidth: 200 },
-    { key: 'doctor',          label: 'แพทย์',        flex: true, minWidth: 150 },
     {
       key: 'checkin', label: 'การดำเนินการ', sortable: false,
       render: (row) => (

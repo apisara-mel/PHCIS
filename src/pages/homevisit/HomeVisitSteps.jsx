@@ -124,6 +124,7 @@ import {
   getHomeVisitCareTemplates,
 } from '@/data/homevisitCareTemplates';
 import { resolveLtcGroup } from '@/data/homevisitLtcSettings';
+import { getHw02, getHw02Gate, saveHw02, isHw02Ready, isHw02Complete } from '@/data/homevisitHw02';
 import {
   MNA_ITEMS,
   MNA_MAX_SCORE,
@@ -1075,7 +1076,7 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
           จังหวะเดียวกันของการเยี่ยม แยกสองขั้นทำให้ต้องเดินกลับไปกลับมา
           หัวข้อย่อยของแต่ละแบบประเมินยังแยก section ชัดเหมือนเดิม */}
       <SectionCard>
-        <HomeVisitStep4Assessment form={form} setForm={setForm} readOnly={readOnly} />
+        <HomeVisitStep4Assessment form={form} setForm={setForm} readOnly={readOnly} visitId={visitId} hn={hn} registryEntry={registryEntry} />
       </SectionCard>
 
       {/* ความต้องการ/สิ่งที่ควรได้รับ — ชุดผ้าอ้อม/แผ่นรองซับตามแบบฟอร์มกระดาษ
@@ -1495,7 +1496,67 @@ export const HomeVisitPhotoSection = ({ form, setForm, readOnly }) => {
    ปุ่มดำเนินการ อยู่ในคอลัมน์ที่ตรงกันทุกแถว ใช้ <Table> ตัวเดียวกับที่อื่น
    ในระบบ ไม่ได้จัดแถวเอง */
 
-export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }) => {
+const Hw02Panel = ({ form, readOnly, visitId, hn, registryEntry }) => {
+  const gate = useMemo(() => getHw02Gate({ form, registryEntry }), [form, registryEntry]);
+  const [doc, setDoc] = useState(() => getHw02(hn, visitId));
+  useEffect(() => {
+    if (!gate.eligible || !hn || !visitId) return;
+    setDoc((current) => current || saveHw02(hn, visitId, {
+      eligible: true, group: gate.group, visitsPerMonth: gate.visitsPerMonth,
+      barthelTotal: gate.barthelTotal, status: 'draft', openedAt: new Date().toISOString(),
+    }));
+  }, [gate.eligible, gate.group, gate.visitsPerMonth, gate.barthelTotal, hn, visitId]);
+  const update = (key, value) => {
+    const base = { ...(doc || {}), [key]: value, eligible: true, group: gate.group, visitsPerMonth: gate.visitsPerMonth, barthelTotal: gate.barthelTotal };
+    /* แก้ค่าในแผนหลังทำเครื่องหมายเสร็จ → กลับเป็นร่าง ยกเว้นตอนกดปุ่มเอง */
+    const next = key === 'status' ? base : { ...base, status: base.status === 'complete' ? 'draft' : base.status };
+    setDoc(next); saveHw02(hn, visitId, next);
+  };
+  if (!gate.eligible) return <NoticeBand tone='neutral' icon='assignment'>{`ยังไม่เปิดแบบ HW02 · ${gate.missing.join(' · ') || 'ไม่เข้าเกณฑ์ LTC'}`}</NoticeBand>;
+  const templateOptions = getHomeVisitCareTemplates({ activeOnly: true }).map((item) => ({ value: item.id || item.value, label: item.name || item.label }));
+  return (
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400)' }}>
+      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+        <strong style={{ fontSize: 'var(--type-size-lg)', fontWeight: 'var(--type-weight-title)' }}>แบบ Long-Term Care (HW02)</strong>
+        <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug' maxWidth={320}>LTC กลุ่ม {gate.group} · เยี่ยม {gate.visitsPerMonth} ครั้ง/เดือน</ColorfulBadge>
+      </div>
+      <NoticeBand tone='info' icon='health_and_safety'>กลุ่มและความถี่คำนวณจาก HW01 และเกณฑ์แอดมิน แก้ไขเองไม่ได้</NoticeBand>
+      <div className='grid grid-cols-1 md:grid-cols-2' style={{ gap: 'var(--dim-space-400)' }}>
+        <Select label='การดูแลทางกาย' value={doc?.physicalCare || ''} onChange={(v) => update('physicalCare', v)} options={[{ value: 'independent', label: 'ดูแลได้เองบางส่วน' }, { value: 'assisted', label: 'ต้องมีผู้ช่วยดูแล' }, { value: 'tube', label: 'ให้อาหารทางสายยาง' }]} placeholder='เลือกการดูแล' disabled={readOnly} />
+        <Select label='ปัญหา / เป้าหมายจากเทมเพลต' value={doc?.problemGoal || ''} onChange={(v) => update('problemGoal', v)} options={templateOptions} placeholder='เลือกปัญหาหรือเป้าหมาย' disabled={readOnly} />
+        <InputField label='ชื่อ Care Manager' required value={doc?.careManagerName || ''} onChange={(e) => update('careManagerName', e?.target?.value ?? e)} disabled={readOnly} />
+        <Select label='ผู้ดูแลในบ้าน' value={doc?.homeCaregiver || ''} onChange={(v) => update('homeCaregiver', v)} options={[{ value: 'มี', label: 'มีผู้ดูแล' }, { value: 'ไม่มี', label: 'ไม่มีผู้ดูแล' }]} placeholder='เลือกสถานะผู้ดูแล' disabled={readOnly} />
+      </div>
+      {/* ปุ่มปลดล็อกเมื่อ "กรอกครบ" (isHw02Ready) ไม่ใช่เมื่อ "เสร็จแล้ว"
+          — เงื่อนไขเดิมทำให้กดไม่ได้ตลอดกาล · กดแล้วสลับเป็นแถบยืนยัน */}
+      {!readOnly && (isHw02Complete(doc)
+        ? <NoticeBand tone='info' icon='task_alt'>ทำเครื่องหมายแผน HW02 ว่าเสร็จแล้ว · แก้ไขค่าใดค่าหนึ่งเพื่อกลับเป็นร่าง</NoticeBand>
+        : (
+          <button
+            type='button'
+            disabled={!isHw02Ready(doc)}
+            onClick={() => update('status', 'complete')}
+            className='self-start'
+            style={{
+              padding: 'var(--dim-space-200) var(--dim-space-400)',
+              /* สถานะปิดใช้งานใช้ชุดโทเคน input-disabled ไม่ใช่ลด opacity
+                 (ไม่มีโทเคน opacity ในระบบ) */
+              border: `var(--dim-stroke-100) solid ${isHw02Ready(doc) ? 'var(--border-brandPrimary-default)' : 'var(--border-input-disabled, #E2E4E6)'}`,
+              borderRadius: 'var(--dim-radius-200)',
+              background: isHw02Ready(doc) ? 'var(--surface-brandPrimary-default)' : 'var(--surface-input-disabled, #F4F5F5)',
+              color: isHw02Ready(doc) ? 'var(--text-brandPrimary-on-brand)' : 'var(--text-input-disabled, #ADB2B7)',
+              fontWeight: 'var(--type-weight-medium)',
+              cursor: isHw02Ready(doc) ? 'pointer' : 'not-allowed',
+            }}
+          >
+            ทำเครื่องหมายแผนเสร็จ
+          </button>
+        ))}
+    </div>
+  );
+};
+
+export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg, visitId, hn, registryEntry }) => {
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
 
@@ -1606,6 +1667,7 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
           {ltcResult.eligible ? `คำนวณอัตโนมัติ: LTC กลุ่ม ${ltcResult.group} · ความถี่ ${ltcResult.visitsPerMonth} ครั้ง/เดือน · ตามมติควรเข้าสู่แบบ Long-Term Care (HW02)` : 'ผล Barthel นี้ไม่เข้าเกณฑ์ LTC หรือยังไม่มี Care Manager / Care Giver ครบตามเกณฑ์'}
         </NoticeBand>
       )}
+      <Hw02Panel form={form} readOnly={readOnly} visitId={visitId} hn={hn} registryEntry={registryEntry} />
 
       {/* ถอด "ประเมินสภาพแวดล้อมในบ้าน" ออกจากงานเยี่ยมบ้าน (มติผู้ใช้ 30 ส.ค. 69)
           — สภาพบ้าน/สุขาภิบาลเป็นหมวดของ "แบบสำรวจบ้าน" ซึ่งเป็นระบบของทีมอื่น

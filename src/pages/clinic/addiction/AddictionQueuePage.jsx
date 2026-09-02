@@ -359,12 +359,15 @@ const AddictionQueuePage = () => {
     { key: 'sessionNo', label: 'ครั้งที่บำบัด', render: (r) => `ครั้งที่ ${r.sessionNo}` },
     { key: 'telemed',   label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
     { key: 'room',      label: 'ห้อง' },
-    { key: 'therapist', label: 'ผู้บำบัด',       flex: true, minWidth: 150 },
+    /* ชื่อผู้ให้บริการโชว์เฉพาะแท็บ "ทั้งหมด" (มติผู้ใช้ 2 ก.ย. 69 · ทำไว้ที่คิว
+       ฝากครรภ์ก่อน) — แท็บที่เป็นคิวนั้นผู้ใช้เห็นเฉพาะคิวของตัวเอง ชื่อผู้ตรวจจึง
+       ซ้ำกันทุกแถว ส่วนแท็บทั้งหมดเป็นรายชื่อข้ามผู้ให้บริการ จึงต้องบอกว่าใครดูแล */
+    ...(activeTab === 'all' ? [{ key: 'therapist', label: 'ผู้บำบัด',       flex: true, minWidth: 150 }] : []),
     { key: 'wait',      label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',    label: 'สถานะ', render: renderStatus },
     { key: 'actions',   label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [tick]);
+  ]), [tick, activeTab]);
 
   /* "นัดแล้วยังไม่มาติดต่อ" — appointment-shaped rows + ส่งตรวจ check-in. */
   const scheduledColumns = useMemo(() => ([
@@ -374,7 +377,6 @@ const AddictionQueuePage = () => {
     { key: 'program',         label: 'โปรแกรมบำบัด', render: (r) => <ProgramBadge program={r.program} /> },
     { key: 'sessionNo',       label: 'ครั้งที่บำบัด', render: (r) => `ครั้งที่ ${r.sessionNo}` },
     { key: 'clinic',          label: 'คลินิก' },
-    { key: 'therapist',       label: 'ผู้บำบัด',      flex: true, minWidth: 150 },
     {
       key: 'checkin', label: 'การดำเนินการ', sortable: false,
       render: (row) => (

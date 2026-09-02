@@ -35,6 +35,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import Popup from '@/components/popup/Popup';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import Switch from '@/components/switch/Switch';
 import { getPatientByHN } from '@/data/patientProfiles';
 import {
   HOMEVISIT_GROUPS,
@@ -194,6 +195,21 @@ const REGISTRY_EXPORT_COLUMNS = [
 ];
 
 /** patientProfiles เก็บอายุเป็น "52 ปี - 6 เดือน - 2 วัน" — ทะเบียนใช้เฉพาะปี. */
+/* สไตล์ข้อความของแถวเกณฑ์ LTC — คอมมิต e7fb7e6 อ้าง `TEXT`/`SUBTEXT`
+   โดยไม่ได้นิยามไว้ แถวนี้จึงโยน ReferenceError ตอนเรนเดอร์ฟอร์ม
+   ค่าที่ใช้เทียบเท่ากับหัวข้ออื่นในฟอร์มเดียวกัน */
+const LTC_ROW_TEXT = {
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-sm)',
+  fontWeight: 'var(--type-weight-medium)',
+  color: 'var(--text-content-default, #363B3F)',
+};
+const LTC_ROW_SUBTEXT = {
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-sm)',
+  color: 'var(--text-content-secondary, #636B72)',
+};
+
 const ageYearsOf = (profile) => {
   const m = /(\d+)/.exec(profile?.age || '');
   return m ? Number(m[1]) : '';
@@ -1351,9 +1367,9 @@ const HomeVisitRegistryPage = () => {
                   </Field>
                 </div>
                 <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-                  <span style={TEXT}>เกณฑ์ LTC</span>
-                  <Switch checked={form.hasCareManager} disabled={readOnly} onChange={(value) => setField('hasCareManager')(value)} aria-label='มี Care Manager' /><span style={SUBTEXT}>มี Care Manager</span>
-                  <Switch checked={form.hasCareGiver} disabled={readOnly} onChange={(value) => setField('hasCareGiver')(value)} aria-label='มี Care Giver' /><span style={SUBTEXT}>มี Care Giver</span>
+                  <span style={LTC_ROW_TEXT}>เกณฑ์ LTC</span>
+                  <Switch checked={form.hasCareManager} disabled={readOnly} onChange={(value) => setField('hasCareManager')(value)} aria-label='มี Care Manager' /><span style={LTC_ROW_SUBTEXT}>มี Care Manager</span>
+                  <Switch checked={form.hasCareGiver} disabled={readOnly} onChange={(value) => setField('hasCareGiver')(value)} aria-label='มี Care Giver' /><span style={LTC_ROW_SUBTEXT}>มี Care Giver</span>
                   <ColorfulBadge style={ltcAssessment.eligible ? 'teal' : 'grey'} size='small' hierarchy='secondary' width='hug'>{ltcAssessment.eligible ? `LTC กลุ่ม ${ltcAssessment.group} · ${ltcAssessment.visitsPerMonth} ครั้ง/เดือน` : 'ไม่เข้าเกณฑ์ LTC'}</ColorfulBadge>
                 </div>
 

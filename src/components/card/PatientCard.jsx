@@ -79,7 +79,7 @@ const Field = ({ label, value, minWidth }) => (
    แพ้ยา — รายการสุดท้ายใช้ yellow; รายการที่มีรายละเอียด (`symptom` /
    `detail` / `note`) แสดง popover สีขาวเมื่อ hover — ใช้ได้ทั้งแพ้ยา
    และโรคประจำตัว. */
-const AlertBadgeColumn = ({ label, items, compact = false }) => {
+const AlertBadgeColumn = ({ label, items, compact = false, grow = true }) => {
   const labelEl = (
     <span
       style={{
@@ -154,7 +154,7 @@ const AlertBadgeColumn = ({ label, items, compact = false }) => {
   );
   return (
     <div
-      className='flex-1 min-w-0 flex flex-row flex-wrap items-center'
+      className={`${grow ? 'flex-1' : 'shrink-0'} min-w-0 flex flex-row flex-wrap items-center`}
       style={{ gap: compact ? 'var(--dim-space-200, 8px)' : 'var(--dim-space-150, 6px)' }}
     >
       {labelEl}
@@ -178,6 +178,13 @@ const PatientCard = ({
   onBack,
   title = 'คัดกรองและซักประวัติ',
   actions,
+  /* ── สามอย่างนี้เป็น opt-in ของหน้าที่ขอมาเอง (มติผู้ใช้ 2 ก.ย. 69) ──
+     alertRowActions   ปุ่มของหน้าที่ต้องอยู่ "ก่อน" ปุ่มข้อมูลทางการแพทย์ (EMR)
+     alertGroupsLeft   แพ้ยา/โรคประจำตัวชิดซ้ายติดกัน แทนที่จะยืดเต็มแถว
+     alertExpandable   ปุ่ม "ดูทั้งหมด" ที่กางรายการเต็มลงมาใต้แถว */
+  alertRowActions = null,
+  alertGroupsLeft = false,
+  alertExpandable = false,
   showBack = true,
   /* Optional extra badges/pills (e.g. Observation's status/VN/nurse/
      admit-time) rendered as a wrapped row below the identity fields —
@@ -270,6 +277,8 @@ const PatientCard = ({
   const showAlertRow = forceAlertRow || allergiesList.length > 0 || diseasesList.length > 0
     || (tagsInAlertRow && !!tags);
   const [historyOpen, setHistoryOpen] = useState(false);
+  /* กางรายการแพ้ยา/โรคประจำตัวฉบับเต็ม — ใช้เฉพาะหน้าที่เปิด `alertExpandable` */
+  const [alertOpen, setAlertOpen] = useState(false);
 
   /* Publish live sticky height so RecordWizardMorphBand can stick flush
      under this card (TreatmentFormPage / ScreeningPage). */
@@ -592,22 +601,110 @@ const PatientCard = ({
               {tags}
             </div>
           )}
-          <AlertBadgeColumn label='แพ้ยา' items={allergiesList} compact={compact} />
-          <AlertBadgeColumn label='โรคประจำตัว' items={diseasesList} compact={compact} />
-          {showMedicalHistory && medicalHistoryPlacement === 'alert' && (
-            /* shrink-0 + ml-auto keeps the button pinned to the end of the
-               row no matter how many badges wrap above it */
-            <div className='shrink-0 ml-auto self-center'>
-              <BrandSubdueButton
-                variant='outline'
-                size='sm'
-                leadingIcon='history'
-                onClick={() => (onMedicalHistory ? onMedicalHistory(patient) : setHistoryOpen(true))}
+          <AlertBadgeColumn label='แพ้ยา' items={allergiesList} compact={compact} grow={!alertGroupsLeft} />
+          <AlertBadgeColumn label='โรคประจำตัว' items={diseasesList} compact={compact} grow={!alertGroupsLeft} />
+          {alertExpandable && (allergiesList.length > 0 || diseasesList.length > 0) && (
+            /* ปุ่มมนเล็ก (มติผู้ใช้ 2 ก.ย. 69) — เป็นตัวสลับมุมมองของแถวนี้
+               ไม่ใช่คำสั่งของหน้า จึงไม่ควรมีน้ำหนักเท่าปุ่มจริงข้างๆ */
+            <button
+              type='button'
+              aria-expanded={alertOpen}
+              onClick={() => setAlertOpen((v) => !v)}
+              className='inline-flex items-center shrink-0'
+              style={{
+                height: 'var(--dim-size-600, 32px)',
+                paddingLeft: 'var(--dim-space-300, 12px)',
+                paddingRight: 'var(--dim-space-300, 12px)',
+                gap: 'var(--dim-space-100, 4px)',
+                borderRadius: 'var(--dim-radius-full, 9999px)',
+                border: 'var(--dim-stroke-100) solid var(--border-neutralbutton-tertiary, #E2E4E6)',
+                background: 'var(--surface-neutralbutton-quinary, #FFFFFF)',
+                color: 'var(--text-content-secondary, #636B72)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs, 12px)',
+                lineHeight: 1.5,
+                cursor: 'pointer',
+              }}
+            >
+              <span
+                className='material-symbols-outlined'
+                aria-hidden
+                style={{ fontFamily: 'Material Symbols Outlined', fontSize: 16, lineHeight: 1 }}
               >
-                ข้อมูลทางการแพทย์ (EMR)
-              </BrandSubdueButton>
+                {alertOpen ? 'expand_less' : 'expand_more'}
+              </span>
+              {alertOpen ? 'ย่อ' : 'ดูทั้งหมด'}
+            </button>
+          )}
+          {(alertRowActions || (showMedicalHistory && medicalHistoryPlacement === 'alert')) && (
+            /* shrink-0 + ml-auto keeps the buttons pinned to the end of the
+               row no matter how many badges wrap above it */
+            <div
+              className='shrink-0 ml-auto self-center flex items-center flex-wrap'
+              style={{ gap: 'var(--dim-space-200, 8px)' }}
+            >
+              {alertRowActions}
+              {showMedicalHistory && medicalHistoryPlacement === 'alert' && (
+                <BrandSubdueButton
+                  variant='outline'
+                  size='sm'
+                  leadingIcon='history'
+                  onClick={() => (onMedicalHistory ? onMedicalHistory(patient) : setHistoryOpen(true))}
+                >
+                  ข้อมูลทางการแพทย์ (EMR)
+                </BrandSubdueButton>
+              )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* รายการเต็มของแพ้ยา/โรคประจำตัว กางลงมาใต้แถว — แถวบนแสดงเป็นป้ายสั้น
+          ซึ่งตัดรายละเอียด (อาการ/ความรุนแรง) ทิ้ง ตรงนี้จึงเป็นที่ของฉบับเต็ม */}
+      {alertExpandable && alertOpen && (
+        <div
+          className='flex w-full flex-col'
+          style={{
+            gap: 'var(--dim-space-300, 12px)',
+            paddingBottom: 'var(--dim-space-300, 12px)',
+          }}
+        >
+          {[{ label: 'แพ้ยา', items: allergiesList }, { label: 'โรคประจำตัว', items: diseasesList }].map((group) => (
+            <div key={group.label} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+              <span style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-xs, 12px)',
+                fontWeight: 'var(--type-weight-medium)',
+                color: 'var(--text-content-secondary, #636B72)',
+              }}
+              >
+                {group.label} ({group.items.length})
+              </span>
+              {group.items.length === 0 ? (
+                <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-xs, 12px)', color: 'var(--text-content-tertiary, #858c92)' }}>
+                  ไม่มีข้อมูล
+                </span>
+              ) : (
+                group.items.map((item, idx) => (
+                  <span
+                    key={`${item.name}-${idx}`}
+                    style={{
+                      fontFamily: 'var(--type-family-body)',
+                      fontSize: 'var(--type-size-xs, 12px)',
+                      color: 'var(--text-content-default, #363B3F)',
+                    }}
+                  >
+                    • {item.name}
+                    {(item.symptom || item.detail || item.note || item.description) && (
+                      <span style={{ color: 'var(--text-content-tertiary, #858c92)' }}>
+                        {' '}— {item.symptom || item.detail || item.note || item.description}
+                      </span>
+                    )}
+                  </span>
+                ))
+              )}
+            </div>
+          ))}
         </div>
       )}
 
