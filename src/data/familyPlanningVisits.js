@@ -106,6 +106,16 @@ export const FP_CLIENT_TYPES = [
   { value: 'oldTransfer',    label: 'รายเก่า ย้ายมาจากสถานบริการอื่น' },
 ];
 
+/* มติ คทง.2 ครั้งที่ 5 (9 ต.ค. 68): เลือกเจตนาของวิสิตก่อนแสดงแบบบันทึก
+   แต่ละบริการเป็นอิสระ จึงเลือกพร้อมกันได้ เช่น ตรวจหลังคลอดและรับบริการ
+   วางแผนครอบครัวในครั้งเดียวกัน. */
+export const FP_PRIMARY_SERVICE_TYPES = [
+  { key: 'familyPlanning', label: 'งานวางแผนครอบครัว', icon: 'family_restroom' },
+  { key: 'postpartum', label: 'งานตรวจหลังคลอด', icon: 'child_care' },
+  { key: 'breastScreening', label: 'งานตรวจคัดกรองมะเร็งเต้านม', icon: 'breastfeeding' },
+  { key: 'cervicalScreening', label: 'งานตรวจคัดกรองมะเร็งปากมดลูก', icon: 'gynecology' },
+];
+
 export const resolveFpClientType = (v) =>
   FP_CLIENT_TYPES.find((t) => t.value === v)?.label || '—';
 
@@ -627,7 +637,6 @@ export const FP_ADVANCE_ORDERS = [
   { key: 'upt',        label: 'ตรวจปัสสาวะทดสอบการตั้งครรภ์ (UPT)' },
   { key: 'papLab',     label: 'ส่งตรวจเซลล์วิทยาปากมดลูก (Pap smear)' },
   { key: 'hb',         label: 'ตรวจความเข้มข้นเลือด (Hb/Hct)' },
-  { key: 'urineExam',  label: 'ตรวจปัสสาวะ (น้ำตาล/ไข่ขาว)' },
   { key: 'breastUs',   label: 'ส่งตรวจ Ultrasound เต้านม' },
 ];
 
@@ -674,6 +683,8 @@ export const validateFpUpload = (file) => {
 
 /* ── Whole-visit default form state ──────────────────────────────── */
 export const DEFAULT_FP_VISIT = {
+  /* บริการหลักของวิสิต (มติ คทง.2) — ต้องเลือกก่อนเดินขั้นถัดไป */
+  primaryServices: [],
   /* S1 — ประวัติการรักษา (1.10.8.3) */
   illnessHistory: '',
   vitalsOverride: false,
@@ -711,6 +722,10 @@ export const DEFAULT_FP_VISIT = {
   },
   breastMarkers: [],
   breastDrawings: [],
+  /* ข้อสรุปทางคลินิกของวิสิตนี้ ใช้กับแผงวินิจฉัยในขั้น 2 โดยไม่ปะปน
+     กับ diagnosis ของ ANC หรือผล Pap จากห้องปฏิบัติการ */
+  clinicalAssessment: '',
+  diagnosisNote: '',
   pvExamDate: '',
   pvPatientType: '',
   counselingReceived: '',
@@ -826,13 +841,15 @@ export const validateFpVisit = (form) => {
   const errs = [];
   const screen = interpretFpScreening(form?.screening);
 
-  if (!hasText(form?.serviceDate)) errs.push('ยังไม่ได้ระบุวันที่รับบริการ (ขั้นตอนที่ 3)');
-  if (!hasText(form?.clientType)) errs.push('ยังไม่ได้เลือกประเภทผู้รับบริการ (ขั้นตอนที่ 3)');
-  if ((form?.services || []).length === 0) errs.push('ยังไม่ได้เลือกบริการที่ได้รับ (ขั้นตอนที่ 3)');
+  if (!(form?.primaryServices || []).length) errs.push('ยังไม่ได้เลือกบริการหลักอย่างน้อย 1 บริการ (ขั้นตอนแบบประเมิน)');
+  const isFamilyPlanningVisit = (form?.primaryServices || []).includes('familyPlanning');
+  if (isFamilyPlanningVisit && !hasText(form?.serviceDate)) errs.push('ยังไม่ได้ระบุวันที่รับบริการ (ขั้นตอนสั่งการรักษา)');
+  if (isFamilyPlanningVisit && !hasText(form?.clientType)) errs.push('ยังไม่ได้เลือกประเภทผู้รับบริการ (ขั้นตอนสั่งการรักษา)');
+  if (isFamilyPlanningVisit && (form?.services || []).length === 0) errs.push('ยังไม่ได้เลือกบริการที่ได้รับ (ขั้นตอนสั่งการรักษา)');
   if (form?.lastMethod === 'other' && !hasText(form?.lastMethodOther)) {
     errs.push('เลือกวิธีคุมกำเนิดครั้งสุดท้ายเป็น "อื่นๆ" ต้องระบุรายละเอียด (ขั้นตอนที่ 3)');
   }
-  if (!screen.answeredAll) {
+  if (isFamilyPlanningVisit && !screen.answeredAll) {
     errs.push(`ซักประวัติคัดกรองยังไม่ครบ 11 ข้อ (ตอบแล้ว ${screen.answeredCount}/11 — ขั้นตอนที่ 2)`);
   }
   if (screen.mustReferDoctor && !form?.doctorConsulted) {

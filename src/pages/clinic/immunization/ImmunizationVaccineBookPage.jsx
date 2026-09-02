@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PatientCard from '@/components/card/PatientCard';
 import Icon from '@/components/icons/Icon';
@@ -163,7 +163,6 @@ const AuditLine = ({ children }) => (
 );
 
 const ImmunizationVaccineBookPage = () => {
-  const history = useHistory();
   const { state: navState } = useLocation();
 
   const [hn, setHn] = useState(navState?.hn || IMM_CHILDREN[0].hn);
@@ -477,8 +476,6 @@ const ImmunizationVaccineBookPage = () => {
       activeKey='treat'
       breadcrumb={breadcrumb}
       title='สมุดวัคซีน / ทะเบียนวัคซีนรายบุคคล'
-      onBack={() => history.push('/clinic/immunization')}
-      backLabel='กลับหน้าคิว'
       actions={(
         <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
           <div style={{ minWidth: 280 }}>

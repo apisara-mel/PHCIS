@@ -7,9 +7,17 @@ import Footer from '@/components/layout/Footer';
 import PatientCard from '@/components/card/PatientCard';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import Popup from '@/components/popup/Popup';
+import Popover from '@/components/popup/Popover';
 import Icon from '@/components/icons/Icon';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
-import { EmptyStepBody } from '@/pages/clinic/family-planning/FamilyPlanningSteps';
+import TreatmentFormShell from '@/templates/TreatmentFormShell';
+import {
+  FpAssessmentStep,
+  FpExaminationDiagnosisStep,
+  FpTreatmentOrderStep,
+  FpAppointmentStep,
+  FpStep7Documents,
+} from '@/pages/clinic/family-planning/FamilyPlanningSteps';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
 import {
@@ -21,6 +29,9 @@ import {
   clearFpDraft,
   saveFpVisitRecord,
   getFpVisitRecords,
+  getFpTriageVitals,
+  interpretFpScreening,
+  validateFpVisit,
   formatFpDateTime,
   todayIso,
 } from '@/data/familyPlanningVisits';
@@ -90,10 +101,14 @@ const FamilyPlanningFormPage = () => {
   }, [fpHn]);
 
   const [mode, setMode] = useState(initial.mode); /* 'new' | 'draft' | 'view' | 'edit' */
-  const [form] = useState(initial.form);
+  const [form, setForm] = useState(initial.form);
+  const [stepIndex, setStepIndex] = useState(0);
   const [saved, setSaved] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [resumeBanner, setResumeBanner] = useState(initial.mode === 'draft');
+  const [finishErrors, setFinishErrors] = useState([]);
+  const [sendExamOpen, setSendExamOpen] = useState(false);
+  const sendExamAnchorRef = useRef(null);
 
   const seedJson = useRef(JSON.stringify(initial.form));
   const locked = mode === 'view' || saved;
@@ -101,6 +116,41 @@ const FamilyPlanningFormPage = () => {
 
   const visitNo = getFpVisitRecords(fpHn).length + (mode === 'view' ? 0 : 1);
   const pageTitle = `บันทึกวางแผนครอบครัว — ครั้งที่ ${Math.max(visitNo, 1)}`;
+  const triageVitals = useMemo(() => getFpTriageVitals(fpHn), [fpHn]);
+  const shownVitals = form.vitalsOverride ? form.vitals : (triageVitals || form.vitals);
+  const bmi = useMemo(() => {
+    const weight = Number(shownVitals?.weight);
+    const height = Number(shownVitals?.height) / 100;
+    return weight > 0 && height > 0 ? (weight / (height * height)).toFixed(1) : '';
+  }, [shownVitals]);
+  const para = form.cytologyRequest || {};
+
+  const FP_STEPS = [
+    { title: 'แบบประเมิน', subtitle: 'Assessment' },
+    { title: 'ตรวจร่างกายและวินิจฉัย', subtitle: 'Examination & Diagnosis' },
+    { title: 'สั่งการรักษา', subtitle: 'Treatment Order' },
+    { title: 'นัดหมาย', subtitle: 'Appointment' },
+    { title: 'บัตรติดตาม', subtitle: 'Follow-up Card' },
+  ];
+  const STEP_COMPONENTS = [FpAssessmentStep, FpExaminationDiagnosisStep, FpTreatmentOrderStep, FpAppointmentStep, FpStep7Documents];
+  const ActiveStep = STEP_COMPONENTS[stepIndex];
+  const screening = interpretFpScreening(form.screening);
+  const completedSteps = [
+    (form.primaryServices || []).length > 0 && screening.answeredAll,
+    stepIndex > 1 || !!form.breast?.left?.result || !!form.breast?.right?.result || !!form.postpartumMother?.visitDate,
+    stepIndex > 2 || !!form.clientType || !!form.doctor,
+    !!form.appointment?.date,
+    !!form.cardPrinted,
+  ];
+
+  const handleStepChange = (nextIndex) => {
+    if (nextIndex > stepIndex && stepIndex === 0 && !(form.primaryServices || []).length) {
+      setFinishErrors(['เลือกบริการหลักอย่างน้อย 1 บริการในขั้นแบบประเมินก่อน']);
+      return;
+    }
+    setFinishErrors([]);
+    setStepIndex(nextIndex);
+  };
 
   const confirmSave = () => {
     saveFpVisitRecord(fpHn, form);
@@ -184,10 +234,36 @@ const FamilyPlanningFormPage = () => {
             actions={(
               <>
                 <CreateConsentRequestHeaderAction />
+                <span ref={sendExamAnchorRef} className='inline-flex'>
+                  <BrandSubdueButton
+                    variant='outline'
+                    leadingIcon='send'
+                    trailingIcon='expand_more'
+                    aria-haspopup='menu'
+                    aria-expanded={sendExamOpen}
+                    onClick={() => setSendExamOpen((open) => !open)}
+                  >
+                    ส่งตรวจ
+                  </BrandSubdueButton>
+                </span>
+                <Popover open={sendExamOpen} onClose={() => setSendExamOpen(false)} anchorRef={sendExamAnchorRef} style={{ zIndex: 1600 }}>
+                  <div role='menu' className='flex flex-col' style={{
+                    minWidth: 'var(--dim-size-2050, 220px)', background: 'var(--surface-card-100)',
+                    borderRadius: 'var(--dim-radius-300, 10px)', border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
+                    boxShadow: 'var(--shadow-drop-bottom-400)', paddingTop: 'var(--dim-space-100)', paddingBottom: 'var(--dim-space-100)',
+                  }}>
+                    {[{ key: 'lab', icon: 'biotech', label: 'ส่งตรวจแล็บ' }, { key: 'xray', icon: 'radiology', label: 'ส่งตรวจรังสี' }].map((item) => (
+                      <button key={item.key} type='button' role='menuitem' onClick={() => { setSendExamOpen(false); handleStepChange(2); }}
+                        className='flex items-center w-full text-left' style={{ gap: 'var(--dim-space-200)', padding: 'var(--dim-space-200) var(--dim-space-400)', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-content-default)', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)' }}>
+                        <Icon name={item.icon} size={16} />{item.label}
+                      </button>
+                    ))}
+                  </div>
+                </Popover>
                 <BrandSubdueButton
                   variant='fill'
                   leadingIcon='credit_card'
-                  onClick={goRegistry}
+                  onClick={() => handleStepChange(4)}
                 >
                   พิมพ์บัตรติดตาม
                 </BrandSubdueButton>
@@ -290,38 +366,52 @@ const FamilyPlanningFormPage = () => {
             </div>
           )}
 
-          <main
-            className='flex-1 min-w-0 flex flex-col'
-            style={{
-              padding: 'var(--dim-space-600)',
-              gap: 'var(--dim-space-400)',
+          <TreatmentFormShell
+            morphTitle='วางแผนครอบครัว'
+            hideMorphTitle
+            stepIndex={stepIndex}
+            onStepChange={handleStepChange}
+            completedSteps={completedSteps}
+            steps={FP_STEPS}
+            plainBodySteps={[1]}
+            queuePath={QUEUE_PATH}
+            hideCancelAfterFirst
+            showFinishRefer={false}
+            finishLabel='จบการบันทึก'
+            draftDirty={dirty}
+            draftStatusText={dirty ? 'มีการเปลี่ยนแปลงที่ยังไม่บันทึก' : 'บันทึกล่าสุดแล้ว'}
+            onLeave={handleBack}
+            onSaveDraft={() => { if (!locked) { saveFpDraft(fpHn, form, stepIndex); seedJson.current = JSON.stringify(form); setResumeBanner(true); } }}
+            onBeforeFinish={() => {
+              const errors = validateFpVisit(form);
+              if (!registration || registration.status === 'cancelled') errors.push('ต้องลงทะเบียนวางแผนครอบครัวให้สำเร็จก่อนจบการบันทึก');
+              setFinishErrors(errors);
+              return errors.length === 0;
             }}
+            onFinish={() => { if (!saved && !locked) confirmSave(); return true; }}
+            belowBand={(
+              <div className='flex items-center w-full flex-wrap' style={{
+                position: 'sticky', top: 'var(--mih-record-band-bottom, 0px)', zIndex: 1085,
+                gap: 'var(--dim-space-300)', padding: 'var(--dim-space-300) var(--dim-space-600)',
+                background: 'var(--surface-card-100)', boxShadow: 'var(--shadow-brand-drop-bottom-200)', fontSize: 'var(--type-size-xs)',
+              }}>
+                {[
+                  ['ความดัน', shownVitals?.bp], ['ชีพจร', shownVitals?.pulse], ['หายใจ', shownVitals?.respiration], ['อุณหภูมิ', shownVitals?.temp], ['น้ำหนัก', shownVitals?.weight], ['ส่วนสูง', shownVitals?.height], ['BMI', bmi],
+                ].map(([label, value], index) => (
+                  <span key={label} style={{ color: 'var(--text-content-secondary)' }}>{index ? '· ' : ''}{label} <span style={{ color: 'var(--text-content-default)' }}>{value || '—'}</span></span>
+                ))}
+                <span style={{ marginLeft: 'auto', color: 'var(--text-content-default)' }}>PARA {para.termBirths || 0}-{para.pretermBirths || 0}-{para.abortions || 0}-{para.livingChildren || 0}</span>
+                <span style={{ color: 'var(--text-content-default)' }}>เลขที่ วผ. {registration?.fpNumber || 'ยังไม่ลงทะเบียน'}</span>
+              </div>
+            )}
           >
-            <EmptyStepBody
-              title='บันทึกวางแผนครอบครัว'
-              subtitle='เนื้อหาและขั้นตอนถูกถอดออกแล้ว — ยังไม่มีเนื้อหา'
-            />
-          </main>
-          <Footer
-            type='with BTN'
-            sticky
-            showLegal={false}
-            showAutoSave={false}
-            showButton3
-            button3Label='ยกเลิก'
-            onButton3Click={handleBack}
-            showButton2={!locked}
-            button2Label='บันทึกร่าง'
-            button2Icon='save'
-            onButton2Click={() => { if (!locked) saveFpDraft(fpHn, form, 0); }}
-            showButton1
-            button1Label={saved ? 'กลับหน้าคิว' : 'จบการบันทึก'}
-            button1TrailingIcon='check'
-            onButton1Click={() => {
-              if (!saved && !locked) confirmSave();
-              history.push(QUEUE_PATH);
-            }}
-          />
+            {finishErrors.length > 0 && (
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)', marginBottom: 'var(--dim-space-400)', color: 'var(--text-danger-default)', fontSize: 'var(--type-size-sm)' }}>
+                {finishErrors.map((error) => <span key={error}>• {error}</span>)}
+              </div>
+            )}
+            <ActiveStep form={form} setForm={setForm} fpHn={fpHn} registration={registration} queueRow={queueRow} cardPatient={cardPatient} locked={locked} saved={saved} onGoRegistry={goRegistry} onConfirmSave={confirmSave} />
+          </TreatmentFormShell>
           <Footer />
         </div>
       </div>
