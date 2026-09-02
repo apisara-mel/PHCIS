@@ -1239,11 +1239,11 @@ export const ImmStep6GeneralExam = ({ form, setForm, immHn, child, locked, showD
           <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-medium)', color: 'var(--text-content-default, #363B3F)' }}>
             การตรวจสุขภาพทั่วไป (14 ระบบ)
           </span>
-          <SelectableTag
+          <Checkbox
             label='ปกติทุกรายการ'
-            size='lg'
-            selected={!!form.examAllNormal}
-            onClick={toggleAllNormal}
+            checked={!!form.examAllNormal}
+            disabled={locked}
+            onChange={toggleAllNormal}
           />
         </div>
 
