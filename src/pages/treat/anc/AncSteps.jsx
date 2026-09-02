@@ -1660,7 +1660,16 @@ export const AncStep3Examination = ({ form, setForm, ancHn, cardPatient }) => {
 /* ── ขั้นที่ 4 — วินิจฉัย ───────────────────────────────────────────
    ระดับความเสี่ยงเป็นตัวขับเส้นทางนัดหมายในขั้นที่ 6 + คำแนะนำที่ระบบเลือก
    หัวข้อตามอายุครรภ์ให้ (มติ คทง.2) */
-export const AncStep4Diagnosis = ({ form, setForm }) => {
+/* `externalExam*` เป็น props ทางเลือก — คลินิกอื่นที่ยืมขั้นนี้ไปใช้
+   (เช่น วางแผนครอบครัว) เปลี่ยนหัวข้อ/ตัวอย่าง/placeholder ของช่องนี้ให้เข้ากับ
+   บริบทของตัวเองได้ ค่า default คือของฝากครรภ์เดิม ไม่กระทบหน้าฝากครรภ์ */
+export const AncStep4Diagnosis = ({
+  form,
+  setForm,
+  externalExamTitle = 'ผลการตรวจครรภ์จากภายนอก',
+  externalExamSuggestions = ANC_EXTERNAL_EXAM_SUGGESTIONS,
+  externalExamPlaceholder = 'เช่น ผล Ultrasound / Lab จากสถานพยาบาลอื่นที่ผู้รับบริการนำมาแสดง',
+}) => {
   /* ตัวช่วยค้นหารหัสวินิจฉัย (มติผู้ใช้ 3 ก.ย. 69) — กดปุ่มแล้วกางแถวค้นหาใต้หัวข้อ:
      ดรอปดาวน์เลือกระบบรหัส (ICD-9 · ICD-10 · SNOMED CT) อยู่หน้ากล่องค้นหา
      เลือกรายการแล้วต่อท้าย "รหัส ชื่อโรค" ลงในช่องบันทึก แถวยังเปิดค้างให้ค้นตัวถัดไป */
@@ -1767,14 +1776,14 @@ export const AncStep4Diagnosis = ({ form, setForm }) => {
       {/* TOR 1.10.7.7 — ผลการตรวจครรภ์จากภายนอกที่ผู้รับบริการนำมาแสดง
           พร้อมแนบหลักฐาน */}
       <div className='flex flex-col gap-3'>
-        <TopicHeader icon='biotech' small tone='neutral'>ผลการตรวจครรภ์จากภายนอก</TopicHeader>
+        <TopicHeader icon='biotech' small tone='neutral'>{externalExamTitle}</TopicHeader>
         <SuggestibleTextarea
           voice
           value={form.externalExamResults}
           onChange={(e) => setForm((f) => ({ ...f, externalExamResults: e.target.value }))}
-          suggestions={ANC_EXTERNAL_EXAM_SUGGESTIONS}
+          suggestions={externalExamSuggestions}
           minChars={3}
-          placeholder='เช่น ผล Ultrasound / Lab จากสถานพยาบาลอื่นที่ผู้รับบริการนำมาแสดง'
+          placeholder={externalExamPlaceholder}
         />
         <DragAndDrop
           size='sm'
@@ -1928,7 +1937,10 @@ const ANC_ORDER_SEARCH_OPTIONS = [
    ฝากครรภ์คุณภาพ กรมอนามัย 2565 หน้า 4-8 · Workflow Lab ตามมติ คทง.2:
    ครั้งแรกติ๊ก "ส่งตรวจ" ทีละรายการเพื่อให้นับจำนวนผู้ได้รับการตรวจได้
    ครั้งถัดไปดึงผลมาสรุปเป็นตารางภาวะเสี่ยงที่ตรวจพบ */
-export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
+/* `showLab1` เป็น prop ทางเลือก — คลินิกอื่นที่ยืมขั้นนี้ไปใช้ปิดชุด
+   "ส่งตรวจ Lab ครั้งที่ 1 / ผลตรวจ Lab ครั้งที่ 1" ได้ ค่า default คือเปิด
+   เหมือนเดิม ไม่กระทบหน้าฝากครรภ์ */
+export const AncStep5Orders = ({ form, setForm, isFollowUp = false, showLab1 = true }) => {
   const gestationalAge = useMemo(() => calculateGestationalAge(form.lmp), [form.lmp]);
   const tier = getAncVisitTier(gestationalAge?.weeks);
   const [medOpen, setMedOpen] = useState(false);
@@ -2064,7 +2076,7 @@ export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
         </div>
       )}
 
-      {tier === 'first' && (
+      {showLab1 && tier === 'first' && (
         <>
           {/* มติ คทง.2 — ครั้งแรกติ๊ก "ส่งตรวจ" รายการต่อรายการ เพื่อให้กอง
               สร้างเสริมสุขภาพนับ "จำนวนผู้ที่ได้รับการตรวจ" ได้ */}

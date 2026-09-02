@@ -1,6 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
 import Icon from '@/components/icons/Icon';
-import CarriedScreeningPanel from '@/components/screening/CarriedScreeningPanel';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
@@ -89,7 +88,6 @@ import {
   resolveFpAppointmentType,
   summarizeFpServices,
   getFpVisitRecords,
-  getFpTriageVitals,
   hasFamilyPlanningRights,
   logFpPrint,
   getFpPrintLog,
@@ -332,52 +330,12 @@ const SummaryRow = ({ label, children }) => (
 );
 
 /* ══ Step 1 — ประวัติการรักษา (TOR 1.10.8.1 / 1.10.8.3) ═════════════ */
-const STEP1_SECTIONS = [
-  /* ผลจากจุดคัดกรอง (`/opd/screening`) — อ่านอย่างเดียว. คลินิกพิเศษไม่คัดกรอง
-     ซ้ำเอง เพราะทุกคนผ่านจุดคัดกรองเดียวกัน จึงดึงผลรอบล่าสุดมาแสดงหัวสุด */
-  { key: 'screening', label: 'ผลคัดกรอง' },
-  { key: 'registration', label: 'ทะเบียนวางแผนครอบครัว' },
-  { key: 'triage',       label: 'ผลการซักประวัติ' },
-  { key: 'illness',      label: 'ประวัติการเจ็บป่วย' },
-  { key: 'history',      label: 'ประวัติการรับบริการ' },
-];
+/* ป๊อปอัปทะเบียนไม่แสดงผลคัดกรอง สัญญาณชีพ และแถบแท็บลัดแล้ว
+   (มติผู้ใช้ 3 ก.ย. 69) — เนื้อหาทั้งสามส่วนเรียงลงมาตรง ๆ */
 
 export const FpStep1History = ({ form, setForm, fpHn, registration, queueRow, locked, onGoRegistry }) => {
-  const [activeSection, setActiveSection] = useState('registration');
-  const sectionRefs = useRef({});
-  const jumpTo = (key) => {
-    setActiveSection(key);
-    sectionRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
 
   const visits = useMemo(() => getFpVisitRecords(fpHn), [fpHn]);
-  const triage = useMemo(() => getFpTriageVitals(fpHn), [fpHn]);
-
-  const setVital = (key) => (value) => setForm((f) => ({ ...f, vitals: { ...f.vitals, [key]: value } }));
-  const enableOverride = () => setForm((f) => ({
-    ...f,
-    vitalsOverride: true,
-    vitals: {
-      bp: f.vitals.bp || triage?.bp || '',
-      pulse: f.vitals.pulse || String(triage?.pulse ?? ''),
-      temp: f.vitals.temp || String(triage?.temp ?? ''),
-      weight: f.vitals.weight || String(triage?.weight ?? ''),
-      height: f.vitals.height || String(triage?.height ?? ''),
-    },
-  }));
-  const cancelOverride = () => setForm((f) => ({
-    ...f,
-    vitalsOverride: false,
-    vitals: { bp: '', pulse: '', temp: '', weight: '', height: '' },
-  }));
-
-  const shown = {
-    bp: form.vitalsOverride ? form.vitals.bp : (triage?.bp ?? ''),
-    pulse: form.vitalsOverride ? form.vitals.pulse : (triage?.pulse ?? ''),
-    temp: form.vitalsOverride ? form.vitals.temp : (triage?.temp ?? ''),
-    weight: form.vitalsOverride ? form.vitals.weight : (triage?.weight ?? ''),
-    height: form.vitalsOverride ? form.vitals.height : (triage?.height ?? ''),
-  };
 
   const historyColumns = [
     { key: 'date',       label: 'วันที่รับบริการ', render: (r) => formatFpDate(r.date) },
@@ -399,25 +357,9 @@ export const FpStep1History = ({ form, setForm, fpHn, registration, queueRow, lo
 
   return (
     <StepCard>
-      <div className='flex items-center gap-2 flex-wrap'>
-        {STEP1_SECTIONS.map((s) => (
-          <TabCapsule
-            key={s.key}
-            variant='filter'
-            label={s.label}
-            selected={activeSection === s.key}
-            onClick={() => jumpTo(s.key)}
-          />
-        ))}
-      </div>
 
-      {/* ── ทะเบียนวางแผนครอบครัว (carried forward) ────────────────── */}
-      <AssessmentCard ref={(el) => { sectionRefs.current.screening = el; }}>
-        <CarriedScreeningPanel patient={{ hn: fpHn }} />
-      </AssessmentCard>
-
-      <AssessmentCard ref={(el) => { sectionRefs.current.registration = el; }}>
-        <TopicHeader icon='badge'>ทะเบียนวางแผนครอบครัว</TopicHeader>
+      <AssessmentCard>
+        <FpSubHeading>ทะเบียนวางแผนครอบครัว</FpSubHeading>
         {registration && registration.status !== 'cancelled' ? (
           <>
             <Banner tone='brand' icon='history'>
@@ -452,70 +394,9 @@ export const FpStep1History = ({ form, setForm, fpHn, registration, queueRow, lo
         )}
       </AssessmentCard>
 
-      {/* ── ผลการซักประวัติ (read-only จากห้องซักประวัติ) ────────────── */}
-      <AssessmentCard ref={(el) => { sectionRefs.current.triage = el; }}>
-        <TopicHeader
-          icon='monitor_heart'
-          trailing={!locked && (form.vitalsOverride ? (
-            <NeutralSubdueButton size='sm' leadingIcon='undo' onClick={cancelOverride}>
-              ยกเลิกการแก้ไข ใช้ค่าจากห้องซักประวัติ
-            </NeutralSubdueButton>
-          ) : (
-            <BrandSubdueButton variant='outline' size='sm' leadingIcon='edit' onClick={enableOverride} disabled={!triage}>
-              แก้ไขจากห้องตรวจ
-            </BrandSubdueButton>
-          ))}
-        >
-          ผลการซักประวัติและสัญญาณชีพ
-        </TopicHeader>
-
-        {triage ? (
-          <>
-            <Banner tone={form.vitalsOverride ? 'warning' : 'neutral'} icon={form.vitalsOverride ? 'edit' : 'lock'}>
-              {form.vitalsOverride
-                ? `กำลังแก้ไขค่าจากห้องตรวจ — ค่าเดิมจากห้องซักประวัติ: ${triage.bp} mmHg · ${triage.weight} กก. · ${triage.height} ซม.`
-                : `ความดันโลหิต / น้ำหนัก / ส่วนสูง ดึงมาจากห้องซักประวัติ (${triage.recordedBy} · ${formatFpDateTime(triage.recordedAt)}) — แก้ไขไม่ได้ เว้นแต่กด "แก้ไขจากห้องตรวจ" (คู่มือ หน้า 2-6)`}
-            </Banner>
-            <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-              <Field label='ความดันโลหิต (mmHg)'>
-                <InputField value={String(shown.bp ?? '')} onChange={setVital('bp')} disabled={!form.vitalsOverride || locked} placeholder='เช่น 120/80' />
-              </Field>
-              <Field label='ชีพจร (ครั้ง/นาที)'>
-                <InputField value={String(shown.pulse ?? '')} onChange={setVital('pulse')} disabled={!form.vitalsOverride || locked} placeholder='เช่น 78' />
-              </Field>
-              <Field label='อุณหภูมิ (°C)'>
-                <InputField value={String(shown.temp ?? '')} onChange={setVital('temp')} disabled={!form.vitalsOverride || locked} placeholder='เช่น 36.8' />
-              </Field>
-              <Field label='น้ำหนัก (กก.)'>
-                <InputField value={String(shown.weight ?? '')} onChange={setVital('weight')} disabled={!form.vitalsOverride || locked} placeholder='เช่น 54' />
-              </Field>
-              <Field label='ส่วนสูง (ซม.)'>
-                <InputField value={String(shown.height ?? '')} onChange={setVital('height')} disabled={!form.vitalsOverride || locked} placeholder='เช่น 158' />
-              </Field>
-            </div>
-          </>
-        ) : (
-          <EmptyState
-            icon='monitor_heart'
-            title='ยังไม่มีผลการซักประวัติของผู้รับบริการรายนี้'
-            subtitle='ค่าความดันโลหิต น้ำหนัก และส่วนสูงจะแสดงอัตโนมัติเมื่อห้องซักประวัติบันทึกแล้ว — ระหว่างนี้บันทึกด้วยมือได้ที่ปุ่ม "แก้ไขจากห้องตรวจ"'
-            action={(
-              <BrandSubdueButton variant='outline' size='sm' leadingIcon='edit' onClick={enableOverride} disabled={locked}>
-                บันทึกค่าจากห้องตรวจเอง
-              </BrandSubdueButton>
-            )}
-          />
-        )}
-
-        <Banner tone='neutral' icon='info'>
-          คลินิกวางแผนครอบครัวไม่บันทึกผลตรวจปัสสาวะโปรตีนและน้ำตาลในวิสิตนี้
-          ตามมติ คทง.2 — แสดงเฉพาะสัญญาณชีพที่จำเป็นต่อการประเมินบริการ
-        </Banner>
-      </AssessmentCard>
-
       {/* ── ประวัติการเจ็บป่วย ─────────────────────────────────────── */}
-      <AssessmentCard ref={(el) => { sectionRefs.current.illness = el; }}>
-        <TopicHeader icon='clipboard'>ประวัติการเจ็บป่วยและการใช้ยา</TopicHeader>
+      <AssessmentCard>
+        <FpSubHeading>ประวัติการเจ็บป่วยและการใช้ยา</FpSubHeading>
         <SuggestibleTextarea
           voice
           disabled={locked}
@@ -534,8 +415,8 @@ export const FpStep1History = ({ form, setForm, fpHn, registration, queueRow, lo
       </AssessmentCard>
 
       {/* ── ประวัติการรับบริการวางแผนครอบครัว ─────────────────────── */}
-      <AssessmentCard ref={(el) => { sectionRefs.current.history = el; }}>
-        <TopicHeader icon='history'>ประวัติการรับบริการวางแผนครอบครัว</TopicHeader>
+      <AssessmentCard>
+        <FpSubHeading>ประวัติการรับบริการวางแผนครอบครัว</FpSubHeading>
         {visits.length > 0 ? (
           <Table
             columns={historyColumns}
@@ -698,6 +579,8 @@ export const FpStep2Screening = ({ form, setForm, locked }) => {
 };
 
 /* ══ Step 3 — วางแผนครอบครัวและคำแนะนำ (TOR 1.10.8.7) ══════════════ */
+/* ทั้งก้อนย้ายไปอยู่ขั้น "ตรวจร่างกายและวินิจฉัย" แล้ว (มติผู้ใช้ 3 ก.ย. 69) —
+   ขั้นสั่งการรักษาเหลือของคลินิกฝากครรภ์ล้วน ๆ */
 export const FpStep3Plan = ({ form, setForm, locked }) => {
   const screen = interpretFpScreening(form.screening);
   const dispensingBlocked = screen.mustReferDoctor && !form.doctorConsulted;
@@ -800,11 +683,6 @@ export const FpStep3Plan = ({ form, setForm, locked }) => {
             />
           ))}
         </div>
-        {!form.clientType && (
-          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-danger-default, #B91C1C)' }}>
-            ต้องเลือกประเภทผู้รับบริการก่อนบันทึก
-          </span>
-        )}
       </div>
 
       {/* วิธีคุมกำเนิดครั้งสุดท้าย — เลือก "อื่นๆ" เปิดช่องระบุ (ข้อ 4.1) */}
@@ -861,11 +739,6 @@ export const FpStep3Plan = ({ form, setForm, locked }) => {
             );
           })}
         </div>
-        {form.services.length === 0 && (
-          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-danger-default, #B91C1C)' }}>
-            ต้องเลือกบริการที่ได้รับอย่างน้อย 1 รายการก่อนบันทึก
-          </span>
-        )}
         {/* เหตุผลที่บางบริการถูกปิด — แสดงเป็นข้อความเสมอ ไม่ผูกกับ hover
             เพื่อให้ผู้ใช้คีย์บอร์ด/แท็บเล็ตเห็นด้วย */}
         {(dispensingBlocked || pregnant) && (
@@ -955,19 +828,6 @@ export const FpStep3Plan = ({ form, setForm, locked }) => {
           </Field>
         </div>
       </div>
-
-      <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-        <TopicHeader icon='clipboard'>คำแนะนำการวางแผนครอบครัว</TopicHeader>
-        <SuggestibleTextarea
-          voice
-          disabled={locked}
-          value={form.adviceNote}
-          onChange={(e) => setForm((f) => ({ ...f, adviceNote: e.target.value }))}
-          suggestions={FP_ADVICE_SUGGESTIONS}
-          minChars={3}
-          placeholder='คำแนะนำการใช้วิธีคุมกำเนิด อาการข้างเคียงที่ต้องเฝ้าระวัง และการมาตามนัด'
-        />
-      </div>
     </StepCard>
   );
 };
@@ -1022,12 +882,6 @@ export const FpStep4WomenExam = ({ form, setForm, fpHn, locked, showBreast = tru
     papResult: value,
     papDetail: value === 'normal' ? FP_PAP_AUTO_DETAIL : (f.papDetail === FP_PAP_AUTO_DETAIL ? '' : f.papDetail),
   }));
-
-  const priorVisits = useMemo(() => getFpVisitRecords(fpHn), [fpHn]);
-  const priorBreastExams = useMemo(
-    () => priorVisits.filter((v) => v.breast?.left?.result || v.breast?.right?.result),
-    [priorVisits],
-  );
 
   if (!canRead) {
     return (
@@ -1162,25 +1016,6 @@ export const FpStep4WomenExam = ({ form, setForm, fpHn, locked, showBreast = tru
             />
           </div>
 
-          <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-            <FpSubHeading>ประวัติการตรวจเต้านมครั้งก่อน</FpSubHeading>
-            {priorBreastExams.length > 0 ? (
-              <Table
-                columns={[
-                  { key: 'date',  label: 'วันที่ตรวจ', render: (r) => formatFpDate(r.breastExamDate || r.date) },
-                  { key: 'left',  label: 'ผลข้างซ้าย', render: (r) => FP_EXAM_RESULT_OPTIONS.find((o) => o.value === r.breast?.left?.result)?.label || '—' },
-                  { key: 'right', label: 'ผลข้างขวา', render: (r) => FP_EXAM_RESULT_OPTIONS.find((o) => o.value === r.breast?.right?.result)?.label || '—' },
-                  { key: 'detail', label: 'รายละเอียด', flex: true, minWidth: 240, render: (r) => [r.breast?.left?.detail, r.breast?.right?.detail].filter(Boolean).join(' · ') || '—' },
-                  { key: 'savedBy', label: 'ผู้บันทึก', sortable: false, render: (r) => r.savedBy || '—' },
-                ]}
-                rows={[...priorBreastExams].reverse()}
-                rowKey={(r) => `breast-${r.savedAt || r.date}`}
-                emptyMessage='ยังไม่มีประวัติการตรวจเต้านม'
-              />
-            ) : (
-              <EmptyState icon='diagnosis' title='ยังไม่มีประวัติการตรวจมะเร็งเต้านม' subtitle='ผลการตรวจครั้งนี้จะถูกบันทึกเป็นครั้งแรกของผู้รับบริการ' />
-            )}
-          </div>
         </>
       )}
 
@@ -2599,7 +2434,7 @@ export const FpAssessmentStep = (props) => {
     {
       key: 'registry',
       title: 'ทะเบียนวางแผนครอบครัว',
-      code: 'ผลคัดกรอง · ทะเบียน วผ. · ประวัติการรับบริการ',
+      code: 'ทะเบียน วผ. · ประวัติการรับบริการ',
       done: registered,
       scoreLabel: registered ? registration.fpNumber : '—',
       interp: registered
@@ -2705,6 +2540,11 @@ export const FpAssessmentStep = (props) => {
           rowKey={(t) => t.key}
         />
       </div>
+
+      {/* ข้อมูลการรับบริการของวิสิตนี้อยู่ใต้ตารางแบบประเมิน (มติผู้ใช้ 3 ก.ย. 69) —
+          ข้อมูลการรับบริการ · ประเภทผู้รับบริการ · วิธีคุมกำเนิดครั้งสุดท้าย ·
+          บริการที่ได้รับ · ประวัติการคลอด/แท้ง และประจำเดือน */}
+      <FpStep3Plan {...props} />
 
       {/* กฎห้ามจ่ายยาเป็นข้อมูลความปลอดภัย ต้องเห็นบนหน้าขั้นตอน ไม่ใช่ซ่อน
           อยู่ในป๊อปอัปแบบคัดกรอง (คู่มือ หน้า 2-5) */}
@@ -2828,7 +2668,13 @@ export const FpExaminationDiagnosisStep = ({ form, setForm, locked, ...props }) 
       </section>
       <section className='flex flex-col min-w-0 w-full xl:w-auto' style={FP_SPLIT_CARD_STYLE}>
         <FpSplitCardTitle>วินิจฉัย</FpSplitCardTitle>
-        <AncStep4Diagnosis form={form} setForm={setForm} />
+        <AncStep4Diagnosis
+          form={form}
+          setForm={setForm}
+          externalExamTitle='คำแนะนำการวางแผนครอบครัว'
+          externalExamSuggestions={FP_ADVICE_SUGGESTIONS}
+          externalExamPlaceholder='คำแนะนำการใช้วิธีคุมกำเนิด อาการข้างเคียงที่ต้องเฝ้าระวัง และการมาตามนัด'
+        />
       </section>
     </div>
     <section className='flex flex-col w-full min-w-0' style={{ ...FP_SPLIT_CARD_STYLE, flex: '0 0 auto' }}>
@@ -2854,8 +2700,7 @@ export const FpTreatmentOrderStep = ({ form, setForm, fpHn, ...props }) => {
   const isFollowUp = (getFpVisitRecords(fpHn) || []).length > 0;
   return (
     <StepCard>
-      <FpStep3Plan form={form} setForm={setForm} fpHn={fpHn} {...props} />
-      <AncStep5Orders form={form} setForm={setForm} isFollowUp={isFollowUp} />
+      <AncStep5Orders form={form} setForm={setForm} isFollowUp={isFollowUp} showLab1={false} />
     </StepCard>
   );
 };
