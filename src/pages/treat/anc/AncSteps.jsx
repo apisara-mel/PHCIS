@@ -2219,6 +2219,26 @@ export const AncStep6Appointment = ({ form, setForm }) => (
 /* ── ขั้นที่ 7 — ใบฝากครรภ์ ─────────────────────────────────────────
    สรุปทั้งวิสิตแบบอ่านอย่างเดียวก่อนยืนยัน (TOR 1.10.7.5/.6) — การยืนยัน
    เป็นจุดเดียวที่เขียนวิสิตนี้ลงประวัติและอัปเดตทะเบียนฝากครรภ์ */
+/* ขั้น "ตรวจสอบ" — นำข้อมูลจากทุกขั้นก่อนหน้ามาแสดงเป็นข้อความธรรมดาเรียงลงมา
+   ทรงเดียวกับขั้นตรวจสอบข้อมูลของจุดคัดกรอง (มติผู้ใช้ 3 ก.ย. 69) ช่องว่างถูกตัดทิ้ง */
+const ReviewSection = ({ title, rows }) => {
+  const filled = rows.filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== '');
+  if (filled.length === 0) return null;
+  return (
+    <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+      <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)' }}>
+        {title}
+      </span>
+      {filled.map(([label, value]) => (
+        <div key={label} className='flex items-baseline min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+          <span style={{ flex: '0 0 240px', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>{label}</span>
+          <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)', whiteSpace: 'pre-wrap' }}>{String(value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export const AncStep7Card = ({ form, setForm, patient, cardPatient, ancHn, visitNo = 1 }) => {
   const gestationalAge = useMemo(() => calculateGestationalAge(form.lmp), [form.lmp]);
   const edc = useMemo(() => calculateEDC(form.lmp), [form.lmp]);
@@ -2262,53 +2282,72 @@ export const AncStep7Card = ({ form, setForm, patient, cardPatient, ancHn, visit
 
   return (
     <StepCard>
-      <div className='flex flex-col gap-3'>
-        <TopicHeader icon='file-text'>ใบฝากครรภ์ / ใบนัดหมาย</TopicHeader>
-        <div
-          className='flex flex-col w-full'
-          style={{
-            gap: 'var(--dim-space-300, 12px)',
-            padding: 'var(--dim-space-600, 24px)',
-            borderRadius: 'var(--dim-radius-400, 12px)',
-            border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
-            background: 'var(--surface-card-100, #FFFFFF)',
-          }}
-        >
-          <div className='flex items-center justify-between gap-2 flex-wrap'>
-            <span style={{ fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-brandPrimary-default, #007549)' }}>
-              บัตรฝากครรภ์ (ANC Card)
-            </span>
-            {riskLevel && (
-              <ColorfulBadge
-                style={riskLevel.value === 'low' ? 'green' : riskLevel.value === 'intermediate' ? 'yellow' : 'red'}
-                size='small' hierarchy='secondary'
-              >
-                {riskLevel.label}
-              </ColorfulBadge>
-            )}
-          </div>
-          <div className='grid grid-cols-2 gap-x-6 gap-y-2' style={{ fontSize: 'var(--type-size-sm)' }}>
-            <span>HN: {cardPatient?.hn}</span>
-            <span>ชื่อ-สกุล: {cardPatient?.fullName || patient?.name}</span>
-            <span>ตรวจครรภ์ครั้งที่: {visitNo}</span>
-            <span>ครรภ์ที่ (G-P-A-L): {form.gravida || '—'}-{form.para || 0}-{form.abortion || 0}-{form.livingChildren || 0}</span>
-            <span>LMP: {formatAncDate(form.lmp)}</span>
-            <span>กำหนดคลอด (EDC): {formatAncDate(edc)}</span>
-            <span>อายุครรภ์ปัจจุบัน: {gestationalAge ? formatGestationalAge(gestationalAge) : '—'}</span>
-            <span>น้ำหนักครั้งนี้: {form.vitals?.weight ? `${form.vitals.weight} กก.` : '—'}</span>
-            <span>ความดันโลหิต: {form.vitals?.bp || '—'}</span>
-            <span>ผล Lab: {summarizeLabResults(form.labResults)}</span>
-            <span>นัดหมายครั้งถัดไป: {form.appointment?.note?.trim() || formatAncDate(form.appointment?.date) || '—'}</span>
-          </div>
-          {adviceGiven.length > 0 && (
-            <div className='flex flex-col gap-1' style={{ fontSize: 'var(--type-size-sm)' }}>
-              <span style={{ fontWeight: 'var(--type-weight-medium)' }}>คำแนะนำที่ให้ในครั้งนี้</span>
-              <ul style={{ paddingLeft: 'var(--dim-space-500)', listStyle: 'disc' }}>
-                {adviceGiven.map((t) => <li key={t.key}>{t.label}</li>)}
-              </ul>
-            </div>
-          )}
-        </div>
+      <div className='flex flex-col gap-5'>
+        <TopicHeader icon='file-text'>ตรวจสอบข้อมูลก่อนบันทึก</TopicHeader>
+
+        <ReviewSection
+          title='ข้อมูลการตั้งครรภ์'
+          rows={[
+            ['HN', cardPatient?.hn],
+            ['ชื่อ-สกุล', cardPatient?.fullName || patient?.name],
+            ['ตรวจครรภ์ครั้งที่', visitNo],
+            ['ครรภ์ที่ (G-P-A-L)', `${form.gravida || '—'}-${form.para || 0}-${form.abortion || 0}-${form.livingChildren || 0}`],
+            ['LMP', formatAncDate(form.lmp)],
+            ['กำหนดคลอด (EDC)', formatAncDate(edc)],
+            ['อายุครรภ์ปัจจุบัน', gestationalAge ? formatGestationalAge(gestationalAge) : ''],
+          ]}
+        />
+
+        <ReviewSection
+          title='แบบประเมิน'
+          rows={[
+            ['ปัจจัยเสี่ยงที่พบ', [...ANC_RISK_FACTORS, ...ANC_PERVISIT_RISK_FACTORS].filter((rf) => form.riskFactors?.[rf.key] || form.perVisitRiskFactors?.[rf.key]).map((rf) => rf.label).join('\n')],
+            ['สัญญาณอันตราย', ANC_DANGER_SIGNS.filter((d) => form.dangerSigns?.[d.key]).map((d) => d.label).join('\n')],
+            ['การสูบบุหรี่', ANC_SMOKING_STATUS.find((o) => o.value === form.smokingStatus)?.label],
+            ['ประเมินสุขภาพจิต (2Q)', Object.keys(form.mentalHealthAnswers || {}).length ? `ตอบแล้ว ${Object.keys(form.mentalHealthAnswers || {}).length} ข้อ` : ''],
+            ['ประเมินความเครียด (ST-5)', Object.keys(form.stressAnswers || {}).length ? `ตอบแล้ว ${Object.keys(form.stressAnswers || {}).length} ข้อ` : ''],
+            ['เบาหวานขณะตั้งครรภ์ (GDM)', form.gdmConfirmed ? 'ยืนยันจากผล OGTT' : ''],
+          ]}
+        />
+
+        <ReviewSection
+          title='ตรวจร่างกาย'
+          rows={[
+            ['น้ำหนัก', form.vitals?.weight ? `${form.vitals.weight} กก.` : ''],
+            ['ความดันโลหิต', form.vitals?.bp],
+            ['ปัสสาวะ — น้ำตาล', form.urineSugar],
+            ['ปัสสาวะ — ไข่ขาว', form.urineAlbumin],
+            ['ระดับยอดมดลูก', ANC_FUNDUS_LEVEL_OPTIONS.find((o) => o.value === form.fundusLevel)?.label],
+            ['ความสูงมดลูก', form.fundusHeight ? `${form.fundusHeight} ซม.` : ''],
+            ['ส่วนนำของทารก', ANC_PRESENTATION_OPTIONS.find((o) => o.value === form.presentation)?.label],
+            ['เสียงหัวใจทารก', form.fetalHeartRate ? `${form.fetalHeartRate} ครั้ง/นาที` : ''],
+            ['บันทึกการตั้งครรภ์ครั้งนี้', form.currentPregnancyNote],
+          ]}
+        />
+
+        <ReviewSection
+          title='วินิจฉัย'
+          rows={[
+            ['ผลประเมินความเสี่ยง', riskLevel?.label],
+            ['บันทึกวินิจฉัย', form.diagnosisNote],
+            ['แผนการคลอด', ANC_DELIVERY_MODE_OPTIONS.find((o) => o.value === form.plannedDeliveryMode)?.label],
+            ['คำแนะนำที่ให้ในครั้งนี้', adviceGiven.map((t) => t.label).join('\n')],
+          ]}
+        />
+
+        <ReviewSection
+          title='สั่งการรักษา'
+          rows={[
+            ['ผลตรวจทางห้องปฏิบัติการ', summarizeLabResults(form.labResults)],
+            ['ยา / วัคซีน / หัตถการที่สั่ง', (form.medications || []).map((m, i) => `${i + 1}. ${m.name}`).join('\n')],
+            ['บันทึกการรักษา', summarizeAncProcedures(form)],
+          ]}
+        />
+
+        <ReviewSection
+          title='นัดหมายครั้งถัดไป'
+          rows={[['นัดหมาย', form.appointment?.note?.trim() || formatAncDate(form.appointment?.date)]]}
+        />
 
         {form.cardConfirmed ? (
           <div className='flex items-center gap-2' style={{ color: 'var(--text-brandPrimary-default, #007549)', fontSize: 'var(--type-size-sm)' }}>
