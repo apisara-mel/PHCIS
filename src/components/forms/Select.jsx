@@ -169,7 +169,7 @@ const DropdownRow = ({ label, subtext, icon, image, colorfulBadgeStyle, badge, s
   const [hover, setHover] = useState(false);
   const tinted = hover || selected;
   const hasBadge = !!colorfulBadgeStyle;
-  const hasPrefixBadge = !!(badge && badge.style && badge.label);
+  const hasPrefixBadge = !!(badge && badge.style);
   return (
     <button
       type='button'
@@ -225,8 +225,8 @@ const DropdownRow = ({ label, subtext, icon, image, colorfulBadgeStyle, badge, s
            PrimarySearch SuggestionRow (Figma 3345:2981): HN indigo pill
            + name + "เลขบัตร …" for patient pickers. */
         <>
-          <ColorfulBadge style={badge.style} size='small' hierarchy='secondary'>
-            {badge.label}
+          <ColorfulBadge style={badge.style} size='small' hierarchy='secondary' showDot={!badge.label} showText={!!badge.label} width='hug'>
+            {badge.label || undefined}
           </ColorfulBadge>
           {subtext ? (
             <span

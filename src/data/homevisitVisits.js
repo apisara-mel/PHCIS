@@ -25,6 +25,7 @@ import {
   is9qComplete,
 } from '@/data/homevisitAssessments';
 import { getGroupFollowUpDays } from '@/data/homevisitQuotaSettings';
+import { getHomeVisitFlagCatalog, resolveHomeVisitFlag } from '@/data/homevisitFlagSettings';
 
 /* ─── วันที่ / เวลา ────────────────────────────────────────────────── */
 
@@ -135,18 +136,8 @@ export const PERSISTENT_FLAG_GROUPS = ['terminal', 'special'];
 
 /* ─── ธงสถานะเพิ่มเติม (Flag) ─────────────────────────────────────── */
 
-export const HOMEVISIT_FLAGS = [
-  { value: 'bedbound',   label: 'ผู้ป่วยติดเตียง',              badge: 'orange' },
-  { value: 'fallRisk',   label: 'เสี่ยงหกล้ม',                  badge: 'yellow' },
-  { value: 'alone',      label: 'อยู่ลำพัง/ไม่มีผู้ดูแลกลางวัน', badge: 'red'    },
-  { value: 'pressureSore', label: 'มีแผลกดทับ',                 badge: 'red'    },
-  { value: 'tubeFeeding', label: 'ให้อาหารทางสายยาง',           badge: 'indigo' },
-  { value: 'oxygen',     label: 'ใช้ออกซิเจนที่บ้าน',           badge: 'blue'   },
-  { value: 'infection',  label: 'เฝ้าระวังการติดเชื้อ',          badge: 'magenta' },
-  { value: 'palliative', label: 'ดูแลแบบประคับประคอง',          badge: 'purple' },
-];
-
-export const resolveFlag = (value) => HOMEVISIT_FLAGS.find((f) => f.value === value) || null;
+export const HOMEVISIT_FLAGS = getHomeVisitFlagCatalog();
+export const resolveFlag = (value) => resolveHomeVisitFlag(value);
 
 /* ─── แหล่งรับเข้า (ประเภทรับเข้า) ────────────────────────────────────
    คู่มือระบบเดิม §2.2: เคสเยี่ยมบ้านเข้าระบบได้ 2 ทาง — "รับต่อจากระบบอื่น"

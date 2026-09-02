@@ -28,6 +28,12 @@ import {
   getHomeVisitCareTemplateAudit,
   saveHomeVisitCareCatalog,
 } from '@/data/homevisitCareTemplates';
+import {
+  getHomeVisitFlagCatalog,
+  getHomeVisitFlagAudit,
+  saveHomeVisitFlagCatalog,
+} from '@/data/homevisitFlagSettings';
+import { COLORFUL_BADGE_STYLES } from '@/components/badge/ColorfulBadge';
 import { currentUserName, isBureauAdmin } from '@/pages/users/usersShared';
 
 /* ระบบจัดการระบบ · ตั้งค่าการเยี่ยมบ้าน
@@ -38,6 +44,7 @@ const breadcrumb = ['จัดการระบบ', 'ตั้งค่าก�
 const PAGE_TABS = [
   { key: 'quota', label: 'ตั้งค่าโควตา' },
   { key: 'templates', label: 'เทมเพลตกิจกรรม/เป้าหมาย' },
+  { key: 'flags', label: 'Flag เยี่ยมบ้าน' },
   { key: 'audit', label: 'ประวัติการแก้ไข' },
 ];
 
@@ -56,6 +63,7 @@ const emptyTemplate = (sortOrder = 1) => ({
   activityIds: [],
   sortOrder,
 });
+const emptyFlag = (sortOrder = 1) => ({ value: `custom-${Date.now()}`, label: '', badge: 'teal', active: true, sortOrder, note: '' });
 
 const sameCatalog = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 
@@ -111,6 +119,14 @@ export default function HomeVisitSettingsPage() {
     templates: getHomeVisitCareTemplates(),
   }));
   const [careAuditRows, setCareAuditRows] = useState(() => getHomeVisitCareTemplateAudit());
+  const [flagCatalog, setFlagCatalog] = useState(() => getHomeVisitFlagCatalog());
+  const [savedFlagCatalog, setSavedFlagCatalog] = useState(() => getHomeVisitFlagCatalog());
+  const [flagAuditRows, setFlagAuditRows] = useState(() => getHomeVisitFlagAudit());
+  const [flagPopupOpen, setFlagPopupOpen] = useState(false);
+  const [flagDraft, setFlagDraft] = useState(null);
+  const [flagReasonPopupOpen, setFlagReasonPopupOpen] = useState(false);
+  const [flagReason, setFlagReason] = useState('');
+  const [flagErrors, setFlagErrors] = useState({});
   const [templatePopupOpen, setTemplatePopupOpen] = useState(false);
   const [templateDraft, setTemplateDraft] = useState(null);
   const [templateReasonPopupOpen, setTemplateReasonPopupOpen] = useState(false);
@@ -132,6 +148,7 @@ export default function HomeVisitSettingsPage() {
   const isAdmin = isBureauAdmin();
   const dirty = !sameRows(draftRows, settings.rows);
   const careDirty = !sameCatalog(careCatalog, savedCareCatalog);
+  const flagDirty = !sameCatalog(flagCatalog, savedFlagCatalog);
 
   const updateRow = (group, field, raw) => {
     if (!isAdmin) return;
@@ -194,6 +211,7 @@ export default function HomeVisitSettingsPage() {
       activities: savedCareCatalog.activities.map((activity) => ({ ...activity })),
       templates: savedCareCatalog.templates.map((template) => ({ ...template, activityIds: [...template.activityIds] })),
     });
+    setFlagCatalog(savedFlagCatalog.map((row) => ({ ...row })));
     setReason('');
     setErrors({});
     if (pendingTab) setActiveTab(pendingTab);
@@ -203,12 +221,48 @@ export default function HomeVisitSettingsPage() {
 
   const handleTabChange = (tab) => {
     if (tab === activeTab) return;
-    if ((activeTab === 'quota' && dirty) || (activeTab === 'templates' && careDirty)) {
+    if ((activeTab === 'quota' && dirty) || (activeTab === 'templates' && careDirty) || (activeTab === 'flags' && flagDirty)) {
       setPendingTab(tab);
       setUnsavedOpen(true);
       return;
     }
     setActiveTab(tab);
+  };
+
+  const patchFlagDraft = (field, value) => {
+    setFlagDraft((current) => ({ ...current, [field]: value }));
+    setFlagErrors((current) => ({ ...current, [field]: undefined }));
+  };
+  const flagDraftReady = useMemo(() => {
+    if (!flagDraft?.label?.trim() || !COLORFUL_BADGE_STYLES.includes(flagDraft.badge)) return false;
+    const original = flagCatalog.find((row) => row.value === flagDraft.value);
+    return !original || !sameCatalog(flagDraft, original);
+  }, [flagCatalog, flagDraft]);
+  const saveFlagDraft = () => {
+    const nextErrors = {};
+    if (!flagDraft?.label?.trim()) nextErrors.label = 'ระบุชื่อ Flag';
+    if (!COLORFUL_BADGE_STYLES.includes(flagDraft?.badge)) nextErrors.badge = 'เลือกสีป้าย';
+    const duplicate = flagCatalog.some((row) => row.value !== flagDraft?.value && row.active && row.label.trim().toLowerCase() === flagDraft?.label?.trim().toLowerCase());
+    if (duplicate) nextErrors.label = 'ชื่อ Flag ที่เปิดใช้ต้องไม่ซ้ำกัน';
+    if (Object.keys(nextErrors).length) { setFlagErrors(nextErrors); return; }
+    setFlagCatalog((rows) => rows.some((row) => row.value === flagDraft.value)
+      ? rows.map((row) => (row.value === flagDraft.value ? flagDraft : row))
+      : [...rows, flagDraft]);
+    setFlagPopupOpen(false); setFlagDraft(null);
+  };
+  const confirmFlagToggle = () => {
+    if (!statusToggle) return;
+    setFlagCatalog((rows) => rows.map((row) => (row.value === statusToggle.id ? { ...row, active: statusToggle.next } : row)));
+    setStatusToggle(null);
+  };
+  const saveFlags = () => {
+    if (!flagReason.trim()) { setFlagErrors((current) => ({ ...current, reason: 'ระบุเหตุผลการปรับแคตตาล็อก Flag' })); return; }
+    try {
+      const saved = saveHomeVisitFlagCatalog(flagCatalog, { reason: flagReason, by: currentUserName() });
+      setFlagCatalog(saved.state.catalog); setSavedFlagCatalog(saved.state.catalog); setFlagAuditRows(saved.audit);
+      setFlagReason(''); setFlagReasonPopupOpen(false); setToast(`บันทึกแคตตาล็อก Flag แล้ว · ${saved.state.savedBy}`);
+      if (pendingTab) setActiveTab(pendingTab); setPendingTab(null);
+    } catch (error) { setFlagErrors((current) => ({ ...current, reason: error.message || 'บันทึกแคตตาล็อก Flag ไม่สำเร็จ' })); }
   };
 
   const activityOptions = useMemo(() => careCatalog.activities
@@ -433,6 +487,14 @@ export default function HomeVisitSettingsPage() {
     },
   ], [careCatalog.activities, isAdmin]);
 
+  const flagColumns = useMemo(() => [
+    { key: 'label', label: 'ชื่อ Flag', render: (row) => <span style={TEXT}>{row.label}</span> },
+    { key: 'note', label: 'รายละเอียด', render: (row) => <span style={SUBTEXT}>{row.note || '—'}</span> },
+    { key: 'badge', label: 'ตัวอย่างป้าย', render: (row) => <ColorfulBadge style={row.badge} size='small' hierarchy='secondary' width='hug'>{row.label || 'ตัวอย่างป้าย'}</ColorfulBadge> },
+    { key: 'active', label: 'สถานะ', sortable: false, render: (row) => <Switch checked={row.active} disabled={!isAdmin} onChange={(active) => setStatusToggle({ kind: 'flag', id: row.value, name: row.label, next: active })} aria-label={`สถานะ ${row.label}`} /> },
+    { key: 'edit', label: '', sortable: false, render: (row) => <BrandSubdueButton variant='outline' size='sm' leadingIcon='edit' disabled={!isAdmin} onClick={() => { setFlagDraft({ ...row }); setFlagErrors({}); setFlagPopupOpen(true); }}>แก้ไข</BrandSubdueButton> },
+  ], [isAdmin]);
+
   const careAuditColumns = useMemo(() => [
     {
       key: 'entity', label: 'รายการ',
@@ -472,15 +534,23 @@ export default function HomeVisitSettingsPage() {
       at: row.at,
       reason: row.reason,
     })),
-  ].sort((left, right) => String(right.at || '').localeCompare(String(left.at || ''))), [auditRows, careAuditRows]);
+    ...flagAuditRows.map((row) => ({
+      id: `flag-${row.id}`,
+      type: 'flag',
+      item: row.after?.label || row.before?.label || row.entityId,
+      before: row.before?.label || '—',
+      after: row.after?.label || 'ปิดใช้รายการ',
+      by: row.by, at: row.at, reason: row.reason,
+    })),
+  ].sort((left, right) => String(right.at || '').localeCompare(String(left.at || ''))), [auditRows, careAuditRows, flagAuditRows]);
 
   const combinedAuditColumns = useMemo(() => [
     { key: 'at', label: 'วันเวลา', render: (row) => <span style={SUBTEXT}>{auditTime(row.at)}</span> },
     {
       key: 'type', label: 'ประเภทการแก้ไข', sortable: false,
       render: (row) => (
-        <ColorfulBadge style={row.type === 'quota' ? 'blue' : 'purple'} size='small' hierarchy='secondary' width='hug'>
-          {row.type === 'quota' ? 'โควตาและรอบติดตาม' : 'เทมเพลตกิจกรรม/เป้าหมาย'}
+        <ColorfulBadge style={row.type === 'quota' ? 'blue' : row.type === 'template' ? 'purple' : 'orange'} size='small' hierarchy='secondary' width='hug'>
+          {row.type === 'quota' ? 'โควตาและรอบติดตาม' : row.type === 'template' ? 'เทมเพลตกิจกรรม/เป้าหมาย' : 'Flag เยี่ยมบ้าน'}
         </ColorfulBadge>
       ),
     },
@@ -583,6 +653,17 @@ export default function HomeVisitSettingsPage() {
             </section>
           ) : null}
 
+          {activeTab === 'flags' ? (
+            <section className='w-full flex flex-col' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
+              <div className='flex items-start justify-between flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+                <div className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-100)' }}><h2 style={{ color: 'var(--text-content-primary)', fontFamily: 'var(--type-family-heading-content)', fontSize: 'var(--type-size-lg)', fontWeight: 'var(--type-weight-bold)' }}>Flag เยี่ยมบ้าน</h2><span style={SUBTEXT}>แคตตาล็อกชนิดธงตาม TOR §1.10.12.1 และ §1.1.3.1 · ไม่ใช่ Flag เวชระเบียน โควตา หรือป้ายกลุ่มระยะสุดท้าย/กลุ่มพิเศษ</span></div>
+                {isAdmin ? <BrandSubdueButton variant='fill' size='md' leadingIcon='add' onClick={() => { setFlagDraft(emptyFlag(flagCatalog.length + 1)); setFlagErrors({}); setFlagPopupOpen(true); }}>เพิ่ม Flag</BrandSubdueButton> : null}
+              </div>
+              {flagDirty ? <ColorfulBadge style='orange' size='small' hierarchy='secondary' width='hug'>มีการแก้ไขที่ยังไม่บันทึก</ColorfulBadge> : null}
+              <Table columns={flagColumns} rows={flagCatalog} rowKey={(row) => row.value} pagination={false} stickyColCount={1} stickyShadow emptyMessage='ยังไม่มี Flag เยี่ยมบ้าน' />
+            </section>
+          ) : null}
+
           {activeTab === 'audit' ? (
             <section className='w-full flex flex-col' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
               <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
@@ -598,6 +679,7 @@ export default function HomeVisitSettingsPage() {
                 <FilterTag value='ทั้งหมด' size='md' selected={auditTypeFilter === 'all'} onClick={() => setAuditTypeFilter('all')} />
                 <FilterTag value='โควตาและรอบติดตาม' size='md' selected={auditTypeFilter === 'quota'} onClick={() => setAuditTypeFilter('quota')} />
                 <FilterTag value='เทมเพลตกิจกรรม/เป้าหมาย' size='md' selected={auditTypeFilter === 'template'} onClick={() => setAuditTypeFilter('template')} />
+                <FilterTag value='Flag เยี่ยมบ้าน' size='md' selected={auditTypeFilter === 'flag'} onClick={() => setAuditTypeFilter('flag')} />
               </div>
               <Table
                 columns={combinedAuditColumns}
@@ -612,7 +694,7 @@ export default function HomeVisitSettingsPage() {
             </section>
           ) : null}
         </div>
-        {(activeTab === 'quota' || activeTab === 'templates') && isAdmin ? (
+        {(activeTab === 'quota' || activeTab === 'templates' || activeTab === 'flags') && isAdmin ? (
           <Footer
             type='with BTN'
             sticky
@@ -620,10 +702,10 @@ export default function HomeVisitSettingsPage() {
             showAutoSave={false}
             showButton2={false}
             showButton3={false}
-            button1Label={activeTab === 'templates' ? 'บันทึกเทมเพลตทั้งชุด' : 'บันทึกการตั้งค่าทั้งชุด'}
+            button1Label={activeTab === 'templates' ? 'บันทึกเทมเพลตทั้งชุด' : activeTab === 'flags' ? 'บันทึกแคตตาล็อก Flag ทั้งชุด' : 'บันทึกการตั้งค่าทั้งชุด'}
             button1Icon='save'
-            button1Disabled={activeTab === 'templates' ? !careDirty : !dirty}
-            onButton1Click={activeTab === 'templates' ? requestCareSave : () => requestSave(false)}
+            button1Disabled={activeTab === 'templates' ? !careDirty : activeTab === 'flags' ? !flagDirty : !dirty}
+            onButton1Click={activeTab === 'templates' ? requestCareSave : activeTab === 'flags' ? () => { setUnsavedOpen(false); setFlagReasonPopupOpen(true); } : () => requestSave(false)}
           />
         ) : null}
       </QueuePageShell>
@@ -631,10 +713,11 @@ export default function HomeVisitSettingsPage() {
       <UnsavedChangesPopup
         open={unsavedOpen}
         onClose={() => setUnsavedOpen(false)}
-        onSave={() => (activeTab === 'templates' ? requestCareSave() : requestSave(true))}
+        onSave={() => (activeTab === 'templates' ? requestCareSave() : activeTab === 'flags' ? (() => { setUnsavedOpen(false); setFlagReasonPopupOpen(true); })() : requestSave(true))}
         onDiscard={discardAndLeave}
         description={activeTab === 'templates'
           ? 'เทมเพลตหรือแคตตาล็อกกิจกรรมที่ยังไม่บันทึกจะไม่พร้อมให้ทีมเยี่ยมบ้านเลือกใช้'
+          : activeTab === 'flags' ? 'แคตตาล็อก Flag ที่ยังไม่บันทึกจะยังไม่มีผลกับทะเบียนและคิวเยี่ยมบ้าน'
           : 'การปรับเพดานหรือรอบติดตามที่ยังไม่บันทึกจะไม่มีผลกับการล็อกสิทธิในคิวเยี่ยมบ้าน'}
       />
 
@@ -665,6 +748,20 @@ export default function HomeVisitSettingsPage() {
           helperText='บังคับระบุเมื่อมีการเปลี่ยนแปลง'
           placeholder='เช่น ปรับตามประกาศโควตา สปสช. ประจำปีงบประมาณ'
         />
+      </Popup>
+
+      <Popup open={flagReasonPopupOpen} onClose={() => setFlagReasonPopupOpen(false)} title='บันทึกแคตตาล็อก Flag เยี่ยมบ้าน' subtitle='ระบุเหตุผลเพื่อบันทึก audit ค่าเดิมและค่าใหม่' primaryAction={{ label: 'บันทึกแคตตาล็อก Flag', disabled: !flagReason.trim(), onClick: saveFlags }} secondaryAction={{ label: 'ยกเลิก', onClick: () => setFlagReasonPopupOpen(false) }}>
+        <Textarea label='เหตุผลการปรับแคตตาล็อก Flag' required value={flagReason} onChange={(value) => { setFlagReason(value); setFlagErrors((current) => ({ ...current, reason: undefined })); }} error={flagErrors.reason} helperText='บังคับระบุเมื่อมีการเปลี่ยนแปลง' placeholder='เช่น เพิ่ม Flag ตามแนวทางการดูแลผู้ป่วยที่บ้าน' />
+      </Popup>
+
+      <Popup open={flagPopupOpen} onClose={() => { setFlagPopupOpen(false); setFlagDraft(null); }} size='extraLarge' title={flagDraft && flagCatalog.some((row) => row.value === flagDraft.value) ? 'แก้ไข Flag เยี่ยมบ้าน' : 'เพิ่ม Flag เยี่ยมบ้าน'} subtitle='กำหนดชนิดธงกลางสำหรับการติดธงรายบุคคลในทะเบียนเยี่ยมบ้าน' primaryAction={{ label: 'เก็บไว้ในชุดที่กำลังแก้ไข', disabled: !flagDraftReady, onClick: saveFlagDraft }} secondaryAction={{ label: 'ยกเลิก', onClick: () => { setFlagPopupOpen(false); setFlagDraft(null); } }}>
+        {flagDraft ? <div className='w-full' style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 'var(--dim-space-400)' }}>
+          <InputField label='ชื่อ Flag' required value={flagDraft.label} onChange={(value) => patchFlagDraft('label', value)} error={flagErrors.label} placeholder='เช่น มีสายสวนปัสสาวะ' />
+          <Select label='สีป้าย' required searchable={false} options={COLORFUL_BADGE_STYLES.map((value) => ({ value, label: value, badge: { style: value } }))} value={flagDraft.badge} onChange={(value) => patchFlagDraft('badge', value)} error={flagErrors.badge} />
+          <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}><span style={SUBTEXT}>ตัวอย่าง</span><ColorfulBadge style={flagDraft.badge} size='small' hierarchy='secondary' width='hug'>{flagDraft.label || 'ตัวอย่างป้าย'}</ColorfulBadge></div>
+          <div style={{ gridColumn: '1 / -1' }}><Textarea label='คำอธิบาย' value={flagDraft.note} onChange={(value) => patchFlagDraft('note', value)} placeholder='คำอธิบายสั้นสำหรับผู้ดูแลระบบ' /></div>
+          <div className='flex items-center' style={{ gridColumn: '1 / -1', gap: 'var(--dim-space-200)' }}><Switch checked={flagDraft.active} onChange={(active) => patchFlagDraft('active', active)} aria-label='เปิดใช้ Flag' /><span style={TEXT}>เปิดใช้ Flag นี้</span></div>
+        </div> : null}
       </Popup>
 
       <Popup
@@ -765,7 +862,7 @@ export default function HomeVisitSettingsPage() {
           : `“${statusToggle?.name || ''}” จะไม่เป็นตัวเลือกสำหรับการเยี่ยมบ้านครั้งใหม่ แต่ประวัติเดิมยังแสดงได้`}
         primaryAction={{
           label: statusToggle?.next ? 'ยืนยันเปิดใช้' : 'ยืนยันปิดใช้',
-          onClick: confirmStatusToggle,
+          onClick: statusToggle?.kind === 'flag' ? confirmFlagToggle : confirmStatusToggle,
         }}
         secondaryAction={{ label: 'ยกเลิก', onClick: () => setStatusToggle(null) }}
       />
