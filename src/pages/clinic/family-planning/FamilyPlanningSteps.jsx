@@ -1404,9 +1404,6 @@ export const FpStep5Postpartum = ({ form, setForm, locked }) => {
                 />
               </Field>
             </div>
-            <Banner tone='neutral' icon='lock'>
-              ชีพจร อุณหภูมิ และความดันโลหิตดึงมาจากห้องซักประวัติ (ขั้นตอนที่ 1) — แก้ไขได้ที่ขั้นตอนที่ 1
-            </Banner>
             {/* ผลตรวจมารดาเป็นดรอปดาวน์บนกริด 3 คอลัมน์ (มติผู้ใช้ 3 ก.ย. 69) */}
             <div
               className='w-full'
