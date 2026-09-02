@@ -1679,10 +1679,6 @@ export const AncStep4Diagnosis = ({ form, setForm }) => {
     setForm((f) => ({ ...f, diagnosisNote: f.diagnosisNote?.trim() ? `${f.diagnosisNote.trim()}\n${line}` : line }));
     setCodeQuery('');
   };
-  const removeCode = (value) => {
-    const line = codeLine(value);
-    setForm((f) => ({ ...f, diagnosisNote: (f.diagnosisNote || '').split('\n').filter((l) => l.trim() !== line).join('\n') }));
-  };
   const gestationalAge = calculateGestationalAge(form.lmp);
   const weeks = gestationalAge?.weeks;
   const tier = getAncVisitTier(weeks);
@@ -1744,19 +1740,13 @@ export const AncStep4Diagnosis = ({ form, setForm }) => {
               />
             </div>
             <div className='min-w-0 flex-1'>
-              {/* ทรงเดียวกับช่องค้นหายาในขั้นสั่งการรักษา: พิมพ์ค้นได้ + ปุ่ม เลือก/เพิ่มแล้ว
-                  ท้ายแต่ละแถว กดสลับเพิ่ม-เอาออกจากช่องบันทึกโดยไม่ปิดลิสต์ (มติผู้ใช้ 3 ก.ย. 69) */}
+              {/* ทรงเดียวกับช่องค้นหายาในขั้นสั่งการรักษา: พิมพ์ค้นได้ กดที่แถวเพื่อเพิ่มลงบันทึก
+                  (ไม่มีปุ่ม/กล่องกาท้ายแถว — มติผู้ใช้ 3 ก.ย. 69) */}
               <Select
                 showLabel={false} searchable size='lg'
                 value={codeQuery}
                 onChange={appendCode}
                 options={codeOptions}
-                optionAction={{
-                  label: 'เลือก',
-                  activeLabel: 'เพิ่มแล้ว',
-                  isActive: hasCode,
-                  onToggle: (val) => (hasCode(val) ? removeCode(val) : appendCode(val)),
-                }}
                 placeholder='พิมพ์รหัสหรือชื่อโรคเพื่อค้นหา'
               />
             </div>
@@ -2106,20 +2096,6 @@ export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
                   label: `${o.value} · ${ANC_ORDER_KIND_LABEL[o.kind]}`,
                   image: o.image || undefined,
                 }))}
-                /* ปุ่ม "เลือก" ท้ายแต่ละแถว (มติผู้ใช้ 3 ก.ย. 69) — กดแล้วเพิ่มลงตาราง
-                   ทันทีโดยไม่ปิดลิสต์ ปุ่มเปลี่ยนเป็น "เพิ่มแล้ว" และกดซ้ำเพื่อเอาออก */
-                optionAction={{
-                  label: 'เลือก',
-                  activeLabel: 'เพิ่มแล้ว',
-                  isActive: (val) => (form.medications || []).some((m) => m.name === val),
-                  onToggle: (val) => {
-                    if ((form.medications || []).some((m) => m.name === val)) {
-                      setForm((f) => ({ ...f, medications: (f.medications || []).filter((m) => m.name !== val) }));
-                    } else {
-                      addFromRegistry(val);
-                    }
-                  },
-                }}
                 placeholder='พิมพ์ชื่อยา วัคซีน หรือหัตถการเพื่อค้นหา'
               />
             </Field>

@@ -169,33 +169,20 @@ const dropdownRowLabelStyle = {
 /* `action` (opt-in) — ปุ่มเล็กท้ายแถว เช่น "เลือก" / "เพิ่มแล้ว" สำหรับลิสต์ที่ใช้
    เพิ่มรายการลงตารางโดยไม่ปิดดรอปดาวน์ (คลิกปุ่มไม่นับเป็นการเลือกแถว) */
 const RowActionButton = ({ action }) => (
-  <button
-    type='button'
+  /* เป็นกล่องกาเปล่า ๆ ไม่มีป้าย/ปุ่ม (มติผู้ใช้ 3 ก.ย. 69) — ติ๊กแล้วเพิ่มลงตารางทันที
+     ติ๊กซ้ำเอาออก โดยไม่ปิดลิสต์ */
+  <span
+    role='checkbox'
+    aria-checked={action.active}
+    aria-label={action.active ? action.activeLabel : action.label}
+    tabIndex={0}
     onClick={(e) => { e.stopPropagation(); action.onToggle(); }}
-    aria-pressed={action.active}
-    className='shrink-0 inline-flex items-center'
-    style={{
-      gap: 'var(--dim-space-100)',
-      height: 'var(--dim-size-700, 28px)',
-      paddingLeft: 'var(--dim-space-300)',
-      paddingRight: 'var(--dim-space-300)',
-      borderRadius: 'var(--dim-radius-full, 9999px)',
-      border: action.active
-        ? 'var(--dim-stroke-100) solid var(--border-brandPrimary-default, #007549)'
-        : 'var(--dim-stroke-100) solid var(--border-neutralbutton-tertiary, #E2E4E6)',
-      background: action.active ? 'var(--surface-brandPrimary-quaternary, #F4FBF8)' : 'var(--surface-card-100, #FFFFFF)',
-      color: action.active ? 'var(--text-brandPrimary-default, #007549)' : 'var(--text-content-secondary, #636B72)',
-      fontFamily: 'var(--type-family-body)',
-      fontSize: 'var(--type-size-xs)',
-      fontWeight: 'var(--type-weight-medium)',
-      cursor: 'pointer',
-      whiteSpace: 'nowrap',
-    }}
+    onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); action.onToggle(); } }}
+    className='shrink-0 inline-flex items-center justify-center'
+    style={{ cursor: 'pointer', padding: 'var(--dim-space-100)' }}
   >
-    {/* เลือกแล้ว = กล่องกาทึบ (FILL 1) ให้ต่างจากตอนยังไม่เลือกชัดเจน (มติผู้ใช้ 3 ก.ย. 69) */}
-    <Icon name={action.active ? 'check_box' : 'check_box_outline_blank'} size={16} fill={action.active ? 1 : 0} />
-    {action.active ? action.activeLabel : action.label}
-  </button>
+    <CheckboxBox checked={action.active} />
+  </span>
 );
 
 const DropdownRow = ({ label, subtext, icon, image, colorfulBadgeStyle, badge, selected, onClick, action }) => {
