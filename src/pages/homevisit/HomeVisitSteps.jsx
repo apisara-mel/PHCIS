@@ -597,6 +597,11 @@ export const HomeVisitTelemedSection = ({ form, setForm, readOnly, visitId, hn, 
 };
 
 export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, appointment, registryEntry, blockedMsg }) => {
+  /* ภาวะโภชนาการในการ์ดอาการป่วยแปลผลจาก MNA-SF ที่ประเมินในขั้นเดียวกัน
+     (มติผู้ใช้ 2 ก.ย. 69 — ย้ายสามช่องนี้เข้ามาจากหมวด "คัดกรองสุขภาพรายบุคคล") */
+  const mnaTotalHistory = useMemo(() => scoreMna(form.mna), [form.mna]);
+  const mnaDone = isMnaComplete(form.mna);
+  const mnaInterp = useMemo(() => interpretMna(mnaTotalHistory), [mnaTotalHistory]);
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
   const addMedication = () => setForm((f) => ({
@@ -657,6 +662,83 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
             />
           </Field>
         </FieldGrid>
+
+        {/* ผู้ดูแลหลัก · ภาวะโภชนาการ · แผลกดทับ ย้ายมาอยู่ในการ์ดอาการป่วย
+            (มติผู้ใช้ 2 ก.ย. 69) — เป็นบริบทที่ทีมอ่านคู่กับอาการที่พบ ไม่ใช่
+            หมวดของตัวเอง · หัวข้อ "คัดกรองสุขภาพรายบุคคล" ถูกถอดออกด้วย */}
+        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+          <Field label='ผู้ดูแลหลัก'>
+            <Select
+              showLabel={false} showHelperText={false} searchable={false} size='lg'
+              value={form.caregiver} onChange={set('caregiver')} disabled={readOnly}
+              options={CAREGIVER_OPTIONS}
+              placeholder='เลือกลักษณะผู้ดูแล'
+            />
+          </Field>
+          <Field
+            label='ภาวะโภชนาการ'
+            hint='ระบบแปลผลจากคะแนน MNA-SF ด้านล่างให้อัตโนมัติ — ไม่ต้องเลือกเอง'
+          >
+            <div
+              className='flex items-center'
+              style={{
+                minHeight: 'var(--dim-size-1000, 48px)',
+                gap: 'var(--dim-space-200, 8px)',
+                paddingLeft: 'var(--dim-space-300, 12px)',
+                paddingRight: 'var(--dim-space-300, 12px)',
+                borderRadius: 'var(--dim-radius-200, 8px)',
+                border: 'var(--dim-stroke-100, 1px) solid var(--border-input-default, #DFE1E3)',
+                background: 'var(--surface-neutral-quaternary, #F9FBFB)',
+              }}
+            >
+              {mnaDone ? (
+                <ColorfulBadge style={mnaInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={320}>
+                  {NUTRITION_OPTIONS.find((o) => o.value === mnaInterp.nutrition)?.label || mnaInterp.label}
+                </ColorfulBadge>
+              ) : (
+                <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                  ยังประเมิน MNA-SF ไม่ครบ
+                </span>
+              )}
+            </div>
+          </Field>
+          <Field label='แผลกดทับ'>
+            <Select
+              showLabel={false} showHelperText={false} searchable={false} size='lg'
+              value={form.pressureSore} onChange={set('pressureSore')} disabled={readOnly}
+              options={PRESSURE_SORE_OPTIONS}
+              placeholder='เลือกระยะแผลกดทับ'
+            />
+          </Field>
+        </div>
+
+        {form.caregiver === 'none' && (
+          <NoticeBand tone='warning' icon='person_alert'>
+            ผู้รับบริการไม่มีผู้ดูแล — ควรประสานงานสังคมสงเคราะห์และ อสส. ในชุมชนก่อนปิดการเยี่ยม
+          </NoticeBand>
+        )}
+
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+          <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+            ระดับความปวด (0 = ไม่ปวด · 10 = ปวดมากที่สุด)
+          </span>
+          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+            {PAIN_SCALE.map((n) => (
+              <SelectableTag
+                key={n}
+                label={String(n)}
+                size='md'
+                selected={form.painScore === n}
+                onClick={readOnly ? undefined : () => set('painScore')(n)}
+              />
+            ))}
+          </div>
+          {Number.isFinite(form.painScore) && form.painScore >= 7 && (
+            <NoticeBand tone='danger' icon='priority_high'>
+              ความปวดระดับรุนแรง ({form.painScore}/10) — ควรทบทวนแผนจัดการความปวดและพิจารณาปรึกษาแพทย์ทางไกล
+            </NoticeBand>
+          )}
+        </div>
 
       </StepSection>
       </SectionCard>
@@ -1360,91 +1442,12 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
       {/* "ความเสี่ยงด้านสุขภาพ 15 ข้อ" ย้ายไปขั้น "พฤติกรรมสุขภาพ" แล้ว
           (มติผู้ใช้ 30 ส.ค. 69) — เป็นเรื่องพฤติกรรม ไม่ใช่ผลการประเมิน */}
 
-      {/* DTX คู่กับสถานะการอดอาหาร — ค่าน้ำตาลอ่านไม่ได้ถ้าไม่รู้ว่าอดอาหารมาหรือไม่ */}
-      <StepSection>
-        <TopicHeader icon='bloodtype'>น้ำตาลปลายนิ้ว (DTX)</TopicHeader>
-        <DtxFields
-          value={form.homeScreening}
-          onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
-          readOnly={readOnly}
-        />
-      </StepSection>
+      {/* "น้ำตาลปลายนิ้ว (DTX)" ย้ายไปขั้น "คัดกรอง" แล้ว (มติผู้ใช้ 2 ก.ย. 69)
+          — เจาะ DTX พร้อมวัดสัญญาณชีพตอนเพิ่งถึงบ้าน และเจาะเฉพาะรายที่เป็น
+          เบาหวาน · คีย์ `dtx` / `dtxFasting` ยังอยู่ที่ `form.homeScreening` เดิม */}
 
       <StepSection>
-        <TopicHeader icon='health_metrics'>คัดกรองสุขภาพรายบุคคล</TopicHeader>
-        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-          <Field label='ผู้ดูแลหลัก'>
-            <Select
-              showLabel={false} showHelperText={false} searchable={false} size='lg'
-              value={form.caregiver} onChange={set('caregiver')} disabled={readOnly}
-              options={CAREGIVER_OPTIONS}
-              placeholder='เลือกลักษณะผู้ดูแล'
-            />
-          </Field>
-          <Field
-            label='ภาวะโภชนาการ'
-            hint='ระบบแปลผลจากคะแนน MNA-SF ด้านล่างให้อัตโนมัติ — ไม่ต้องเลือกเอง'
-          >
-            <div
-              className='flex items-center'
-              style={{
-                minHeight: 'var(--dim-size-1000, 48px)',
-                gap: 'var(--dim-space-200, 8px)',
-                paddingLeft: 'var(--dim-space-300, 12px)',
-                paddingRight: 'var(--dim-space-300, 12px)',
-                borderRadius: 'var(--dim-radius-200, 8px)',
-                border: 'var(--dim-stroke-100, 1px) solid var(--border-input-default, #DFE1E3)',
-                background: 'var(--surface-neutral-quaternary, #F9FBFB)',
-              }}
-            >
-              {mnaDone ? (
-                <ColorfulBadge style={mnaInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={320}>
-                  {NUTRITION_OPTIONS.find((o) => o.value === mnaInterp.nutrition)?.label || mnaInterp.label}
-                </ColorfulBadge>
-              ) : (
-                <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary, #858C92)' }}>
-                  ยังประเมิน MNA-SF ไม่ครบ
-                </span>
-              )}
-            </div>
-          </Field>
-          <Field label='แผลกดทับ'>
-            <Select
-              showLabel={false} showHelperText={false} searchable={false} size='lg'
-              value={form.pressureSore} onChange={set('pressureSore')} disabled={readOnly}
-              options={PRESSURE_SORE_OPTIONS}
-              placeholder='เลือกระยะแผลกดทับ'
-            />
-          </Field>
-        </div>
 
-        {form.caregiver === 'none' && (
-          <NoticeBand tone='warning' icon='person_alert'>
-            ผู้รับบริการไม่มีผู้ดูแล — ควรประสานงานสังคมสงเคราะห์และ อสส. ในชุมชนก่อนปิดการเยี่ยม
-          </NoticeBand>
-        )}
-
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
-          <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-            ระดับความปวด (0 = ไม่ปวด · 10 = ปวดมากที่สุด)
-          </span>
-          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-            {PAIN_SCALE.map((n) => (
-              <SelectableTag
-                key={n}
-                label={String(n)}
-                size='md'
-                selected={form.painScore === n}
-                onClick={readOnly ? undefined : () => set('painScore')(n)}
-              />
-            ))}
-          </div>
-          {Number.isFinite(form.painScore) && form.painScore >= 7 && (
-            <NoticeBand tone='danger' icon='priority_high'>
-              ความปวดระดับรุนแรง ({form.painScore}/10) — ควรทบทวนแผนจัดการความปวดและพิจารณาปรึกษาแพทย์ทางไกล
-            </NoticeBand>
-          )}
-        </div>
 
         {/* แบบประเมินมาตรฐาน 4 ชุดเป็น "การ์ด" ทรงเดียวกับใบยินยอมของหน้า
             เวชระเบียน (มติผู้ใช้ 30 ส.ค. 69) — เดิมกางเป็นฟอร์มยาวเรียงกันสี่ชุด
@@ -2207,6 +2210,43 @@ export const HomeVisitStep7Family = ({
    สองขั้นนี้คือ "สิ่งที่ทีมทำทันทีที่ถึงบ้าน ก่อนเริ่มซักอาการ" จึงยุบเป็นขั้นเดียว
    (มติผู้ใช้ 2 ก.ย. 69) — คอมโพเนนต์เดิมทั้งสองตัวยังอยู่ครบ ขั้นนี้แค่วางต่อกัน
    ไม่ได้คัดลอกเนื้อหามาเขียนใหม่ */
+/* น้ำตาลปลายนิ้ว (DTX) ในขั้นคัดกรอง — ถามก่อนว่าเป็นเบาหวานหรือไม่
+   (มติผู้ใช้ 2 ก.ย. 69) ทีมเยี่ยมบ้านเจาะ DTX เฉพาะรายที่เป็นเบาหวาน
+   ช่องกรอกจึงไม่ควรค้างอยู่บนจอของทุกคน · ธง `dtxDiabetic` เก็บใน
+   `form.homeScreening` ก้อนเดียวกับค่าที่เจาะได้ */
+export const HomeVisitDtxCard = ({ form, setForm, readOnly }) => {
+  const screening = form.homeScreening || {};
+  const setScreening = (next) => setForm((f) => ({ ...f, homeScreening: next }));
+  /* ร่างเก่าที่กรอก DTX ไว้ก่อนมีธงนี้ ต้องเปิดการ์ดค้างไว้ให้เห็นค่าที่บันทึกแล้ว */
+  const diabetic = screening.dtxDiabetic ?? !!String(screening.dtx || '').trim();
+
+  return (
+    <SectionCard icon='bloodtype' title='น้ำตาลปลายนิ้ว (DTX)'>
+      <StepSection gap='var(--dim-space-400, 16px)'>
+        <Checkbox
+          label='เป็นเบาหวาน'
+          description='ติ๊กเมื่อผู้รับบริการเป็นเบาหวาน แล้วจึงบันทึกค่าน้ำตาลปลายนิ้วที่เจาะได้'
+          checked={diabetic}
+          onChange={(checked) => setScreening({
+            ...screening,
+            dtxDiabetic: checked,
+            /* ยกเลิกการติ๊กแล้วค่าที่กรอกค้างไว้ต้องไม่ถูกส่งต่อไปใบสรุป */
+            ...(checked ? null : { dtx: '', dtxFasting: '' }),
+          })}
+          disabled={readOnly}
+        />
+        {diabetic && (
+          <DtxFields
+            value={screening}
+            onChange={setScreening}
+            readOnly={readOnly}
+          />
+        )}
+      </StepSection>
+    </SectionCard>
+  );
+};
+
 export const HomeVisitStepScreening = ({ blockedMsg, ...props }) => (
   <StepCard>
     {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
@@ -2228,6 +2268,10 @@ export const HomeVisitStepScreening = ({ blockedMsg, ...props }) => (
     </div>
 
     <HomeVisitStepAllergy {...props} blockedMsg='' />
+
+    {/* น้ำตาลปลายนิ้ว — เจาะเฉพาะรายที่เป็นเบาหวาน (มติผู้ใช้ 2 ก.ย. 69)
+        ติ๊ก "เป็นเบาหวาน" ก่อน ช่องกรอกจึงจะขึ้น */}
+    <HomeVisitDtxCard {...props} />
 
     {/* พฤติกรรมสุขภาพย้ายมารวมในขั้นคัดกรอง (มติผู้ใช้ 2 ก.ย. 69) — สูบบุหรี่/
         ดื่มสุรา/ออกกำลังกาย เป็นชุดคำถามคัดกรองชุดเดียวกับที่จุดคัดกรอง OPD
