@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Icon from '@/components/icons/Icon';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
@@ -26,14 +26,19 @@ import { GroupBadge, EmptyHint, NoticeBand } from '@/pages/homevisit/homevisitSh
    Component นี้อยู่ในโฟลเดอร์ของโมดูล (ไม่ใช่ design system) และรายงานไว้
    ใน manifest `newComponents` ตาม playbook §2 ข้อ 8. */
 
-const StopCard = ({ stop, index, selected, onSelect }) => {
+const StopCard = ({ stop, index, selected, onSelect, onOpenRecord }) => {
   const status = resolveVisitStatus(stop.statusKey);
   const dist = stop.home?.lat ? distanceMeters(HOMEVISIT_CENTER_LOCATION, stop.home) : null;
+  /* การ์ดต้องตอบสนองการชี้เมาส์ (มติผู้ใช้ 2 ก.ย. 69) — การ์ดที่ไม่ขยับตอนชี้
+     อ่านเหมือนป้ายข้อความ คนใช้จะไม่รู้ว่ากดเลือกจุดได้ */
+  const [hovered, setHovered] = useState(false);
   return (
-    <button
-      type='button'
-      onClick={() => onSelect(stop.id)}
-      className='w-full flex items-start text-left transition-colors'
+    /* กรอบนอกเป็น <div> เพราะมีปุ่ม "เปิดบันทึกการเยี่ยม" อยู่ข้างใน —
+       HTML ห้ามปุ่มซ้อนปุ่ม (มติผู้ใช้ 2 ก.ย. 69) พื้นที่กดเลือกจุดคือปุ่มด้านซ้าย */
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className='w-full flex items-start transition-colors'
       style={{
         gap: 'var(--dim-space-300, 12px)',
         paddingTop: 'var(--dim-space-300, 12px)',
@@ -43,14 +48,32 @@ const StopCard = ({ stop, index, selected, onSelect }) => {
         borderRadius: 'var(--dim-radius-300, 10px)',
         border: selected
           ? 'var(--dim-stroke-200) solid var(--border-brandPrimary-default)'
-          : 'var(--dim-stroke-100) solid var(--border-card-default, #E2E4E6)',
-        background: selected
+          : `var(--dim-stroke-100) solid ${hovered
+            ? 'var(--border-brandPrimaryButton-tertiary, #C5EDDA)'
+            : 'var(--border-card-default, #E2E4E6)'}`,
+        background: selected || hovered
           ? 'var(--surface-brandPrimary-quaternary, #F4FBF8)'
           : 'var(--surface-card-100, #FFFFFF)',
+        boxShadow: !selected && hovered ? 'var(--shadow-brand-drop-bottom-200)' : 'none',
         cursor: 'pointer',
+        transition: 'background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease',
       }}
-      aria-pressed={selected}
     >
+      <button
+        type='button'
+        onClick={() => onSelect(stop.id)}
+        onFocus={() => setHovered(true)}
+        onBlur={() => setHovered(false)}
+        aria-pressed={selected}
+        className='flex-1 min-w-0 flex items-start text-left'
+        style={{
+          gap: 'var(--dim-space-300, 12px)',
+          padding: 0,
+          border: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
+        }}
+      >
       <span
         className='shrink-0 inline-flex items-center justify-center'
         style={{
@@ -88,7 +111,18 @@ const StopCard = ({ stop, index, selected, onSelect }) => {
             : 'ยังไม่ได้ปักหมุดตำแหน่งบ้าน — ต้องปักหมุดที่ทะเบียนก่อนวางแผนเส้นทาง'}
         </span>
       </span>
-    </button>
+      </button>
+
+      {/* ปุ่มเปิดบันทึกการเยี่ยมอยู่ในแถวเลย (มติผู้ใช้ 2 ก.ย. 69) — เดิมอยู่ใต้
+          แผนที่ ต้องเลือกจุดก่อนถึงจะเห็น */}
+      {onOpenRecord && (
+        <span className='shrink-0'>
+          <NeutralSubdueButton size='sm' leadingIcon='assignment' onClick={() => onOpenRecord(stop)}>
+            เปิดบันทึกการเยี่ยม
+          </NeutralSubdueButton>
+        </span>
+      )}
+    </div>
   );
 };
 
@@ -221,11 +255,7 @@ const HomeVisitRouteMapPanel = ({
 
   return (
     <div className='w-full flex flex-col' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-      <NoticeBand tone='neutral' icon='info'>
-        แผนที่ในระบบนี้เป็นแผนที่จำลอง (mock) — ระบบสารสนเทศภูมิศาสตร์ (GIS) จริงอยู่ในขอบเขตของ TOR §2.3
-        จึงแสดงหมุดของจุดที่เลือกทีละจุด และใช้รายการลำดับด้านล่างเป็นแผนเส้นทางของวัน
-        ({pinned.length} จุดที่ปักหมุดแล้ว{unpinned.length > 0 ? ` · ${unpinned.length} จุดยังไม่ได้ปักหมุด` : ''})
-      </NoticeBand>
+      {/* แบนเนอร์ "แผนที่จำลอง (mock)" ถูกถอดออก (มติผู้ใช้ 2 ก.ย. 69) */}
 
       <div className='w-full flex items-start flex-wrap' style={{ gap: 'var(--dim-space-600, 24px)' }}>
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)', flex: '1 1 380px', minWidth: 320 }}>
@@ -247,20 +277,20 @@ const HomeVisitRouteMapPanel = ({
                 index={i}
                 selected={selected?.id === stop.id}
                 onSelect={onSelect}
+                onOpenRecord={onOpenRecord}
               />
             ))}
           </div>
         </div>
 
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)', flex: '1 1 420px', minWidth: 320 }}>
-          <ServiceAreaMap stops={stops} selectedId={selected?.id} onSelect={onSelect} />
-          {outside.length > 0 && (
-            <NoticeBand tone='danger' icon='wrong_location'>
-              มี {outside.length} จุดอยู่นอก{SERVICE_AREA.label} — ตรวจสอบที่อยู่
-              หรือส่งต่อให้ศูนย์บริการสาธารณสุขที่รับผิดชอบพื้นที่นั้น
-              ({outside.map((s) => (s.confidential ? `HN ${s.hn}` : s.name)).join(' · ')})
-            </NoticeBand>
-          )}
+        {/* แผนที่พื้นที่รับผิดชอบกับแผนที่บ้านของจุดที่เลือกอยู่ "ข้างกัน"
+            (มติผู้ใช้ 2 ก.ย. 69) — กดเลขบนแผนที่แล้วเห็นตำแหน่งบ้านทันที
+            โดยไม่ต้องเลื่อนลงไปดูใต้แผนที่ · จอแคบจะยุบลงมาเรียงกันเอง */}
+        <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)', flex: '2 1 640px', minWidth: 320 }}>
+          <div className='flex flex-col' style={{ flex: '1 1 320px', minWidth: 280 }}>
+            <ServiceAreaMap stops={stops} selectedId={selected?.id} onSelect={onSelect} />
+          </div>
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)', flex: '1 1 320px', minWidth: 280 }}>
           {selected?.home?.pinSaved ? (
             <>
               <AddressMapBlock
@@ -286,6 +316,7 @@ const HomeVisitRouteMapPanel = ({
               จึงจะแสดงบนแผนที่และคำนวณระยะทางได้
             </EmptyHint>
           )}
+          </div>
         </div>
       </div>
     </div>

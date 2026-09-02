@@ -720,6 +720,9 @@ const HomeVisitQueuePage = () => {
       <Popup
         open={addOpen}
         onClose={() => setAddOpen(false)}
+        /* กว้างพอให้ห้าช่องอยู่แถวเดียว/สองแถว ไม่ใช่คอลัมน์เดียวยาว ๆ
+           (มติผู้ใช้ 2 ก.ย. 69) */
+        size='large'
         title='เพิ่มผู้ป่วยใหม่เข้าคิวเยี่ยมบ้าน'
         subtitle='บันทึกแล้วแถวจะขึ้นในตารางคิวทันที'
         tertiaryAction={{ label: 'ยกเลิก', onClick: () => setAddOpen(false) }}
