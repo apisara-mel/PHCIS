@@ -8,6 +8,7 @@ import SelectableTag from '@/components/forms/SelectableTag';
 import RadioButton from '@/components/radio/RadioButton';
 import Checkbox from '@/components/checkbox/Checkbox';
 import { SNOMED_CONCEPTS } from '@/data/treatmentSnomed';
+import PrimarySearch from '@/components/search/PrimarySearch';
 import { DEFAULT_ICD_SUGGESTIONS } from '@/data/treatmentVisits';
 import { ICD9_PROCEDURES } from '@/pages/treat/panels/ProcedureOrderPanel';
 import { Field, FieldGrid } from '@/components/forms/Fields';
@@ -1664,16 +1665,30 @@ export const AncStep4Diagnosis = ({ form, setForm }) => {
      เลือกรายการแล้วต่อท้าย "รหัส ชื่อโรค" ลงในช่องบันทึก แถวยังเปิดค้างให้ค้นตัวถัดไป */
   const [icdOpen, setIcdOpen] = useState(false);
   const [codeSystem, setCodeSystem] = useState('icd10');
+  const [codeQuery, setCodeQuery] = useState('');
   const codeOptions = useMemo(() => {
     if (codeSystem === 'icd9') return ICD9_PROCEDURES.map((p) => ({ value: p.code, label: `${p.code} · ${p.nameTh}`, badge: { style: 'orange', label: 'ICD-9' } }));
     if (codeSystem === 'snomed') return SNOMED_CONCEPTS.map((c) => ({ value: c.code, label: `${c.code} · ${c.termTh} (${c.term})`, badge: { style: 'purple', label: 'SNOMED' } }));
     return DEFAULT_ICD_SUGGESTIONS.map((d) => ({ value: d.code, label: `${d.code} · ${d.name}`, badge: { style: 'blue', label: 'ICD-10' } }));
   }, [codeSystem]);
+  /* กล่องค้นหาพิมพ์ได้ทันที (มติผู้ใช้ 3 ก.ย. 69) — กรองจากรหัส/ชื่อโรค แสดง 12 รายการแรก */
+  const codeSuggestions = useMemo(() => {
+    const q = codeQuery.trim().toLowerCase();
+    const hits = q ? codeOptions.filter((o) => o.label.toLowerCase().includes(q)) : codeOptions;
+    return hits.slice(0, 12).map((o) => ({
+      id: o.value,
+      label: o.label.split(' · ').slice(1).join(' · '),
+      sublabel: o.badge.label,
+      value: o.label,
+      badges: [{ label: o.value, tone: o.badge.style }],
+    }));
+  }, [codeOptions, codeQuery]);
   const appendCode = (value) => {
     const opt = codeOptions.find((o) => o.value === value);
     if (!opt) return;
     const line = opt.label.replace(' · ', ' ');
     setForm((f) => ({ ...f, diagnosisNote: f.diagnosisNote?.trim() ? `${f.diagnosisNote.trim()}\n${line}` : line }));
+    setCodeQuery('');
   };
   const gestationalAge = calculateGestationalAge(form.lmp);
   const weeks = gestationalAge?.weeks;
@@ -1736,12 +1751,17 @@ export const AncStep4Diagnosis = ({ form, setForm }) => {
               />
             </div>
             <div className='min-w-0 flex-1'>
-              <Select
-                showLabel={false} searchable size='lg'
-                value=''
-                onChange={appendCode}
-                options={codeOptions}
+              <PrimarySearch
+                value={codeQuery}
+                onChange={setCodeQuery}
+                onSubmit={(label, item) => {
+                  const id = item?.id || codeSuggestions[0]?.id;
+                  if (id) appendCode(id);
+                }}
+                suggestions={codeSuggestions}
+                history={[]}
                 placeholder='พิมพ์รหัสหรือชื่อโรคเพื่อค้นหา แล้วเลือกเพื่อเพิ่มลงบันทึก'
+                width='100%'
               />
             </div>
           </div>
