@@ -143,8 +143,9 @@ export const DtxFields = ({ value, onChange, readOnly }) => {
   return (
     /* ค่าน้ำตาลอ่านไม่ได้ถ้าไม่รู้ว่าอดอาหารมาหรือเปล่า จึงเป็นคู่กันเสมอ —
        และอยู่บรรทัดเดียวกัน (มติผู้ใช้ 2 ก.ย. 69) ช่องตัวเลขสั้น ๆ ไม่ควรกิน
-       ทั้งบรรทัดแล้วดันสถานะการอดอาหารลงไปอีกแถว */
-    <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+       ทั้งบรรทัดแล้วดันสถานะการอดอาหารลงไปอีกแถว · ระยะห่างระหว่างสองกลุ่ม
+       = 24px (--dim-space-600) */
+    <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-600, 24px)' }}>
       <div className='flex flex-col' style={{ flex: '0 0 240px', minWidth: 160 }}>
         <Field label='DTX (mg%)'>
           <InputField

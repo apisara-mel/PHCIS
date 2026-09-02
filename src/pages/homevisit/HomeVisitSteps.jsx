@@ -5,6 +5,8 @@ import Select from '@/components/forms/Select';
 import DatePicker from '@/components/forms/DatePicker';
 import TimePicker from '@/components/forms/TimePicker';
 import SelectableTag from '@/components/forms/SelectableTag';
+import SelectableCardButton from '@/components/button/SelectableCardButton';
+import PainScaleCards from '@/components/forms/PainScaleCards';
 import { FieldGrid } from '@/components/forms/Fields';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import VoiceTextarea from '@/components/forms/VoiceTextarea';
@@ -23,7 +25,6 @@ import { MEDICATION_NAME_OPTIONS } from '@/data/medicationCatalog';
 import {
   NATIONALITY_OPTIONS,
   ETHNICITY_OPTIONS,
-  RELIGION_OPTIONS,
 } from '@/data/homeScreeningForm';
 /* ยกชุดคำ/ระดับของขั้น "อาการป่วย" ที่จุดคัดกรอง OPD มาใช้ตรง ๆ
    (มติผู้ใช้ 30 ส.ค. 69) — ถ้าประกาศใหม่ที่นี่ คำที่พยาบาลเลือกจะไม่ตรงกัน
@@ -234,7 +235,7 @@ export const HomeVisitStep0Consent = ({ form, setForm, hn, blockedMsg }) => {
      2. ข้อมูลการเยี่ยมครั้งนี้ (กลุ่มผู้รับบริการ · ที่มาของเคส · ประเภทการเยี่ยม)
      3. รูปถ่ายระหว่างการเยี่ยม
    ที่อยู่/แผนที่/บันทึกการเดินทางอยู่ขั้นที่ 2 */
-export const HomeVisitStep1Service = ({ form, setForm, readOnly, hn, blockedMsg }) => {
+export const HomeVisitStep1Service = ({ form, setForm, readOnly, hn, blockedMsg, ...props }) => {
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
   /* ผู้รับบริการในทะเบียนกลาง — `Step1Personal` ใช้เป็นค่าสำรองของ HN
      และรูปบัตร ค่าฟิลด์จริงถูกเติมไว้ตั้งแต่ `createEmptyHomeVisitForm` แล้ว */
@@ -333,14 +334,14 @@ export const HomeVisitStep1Service = ({ form, setForm, readOnly, hn, blockedMsg 
           form={form}
           setForm={setForm}
           patient={mrPatient}
-          /* ศาสนา · เชื้อชาติ · สัญชาติ วางเหนือแถวเลขบัตรประชาชน
-             (มติผู้ใช้ 30 ส.ค. 69) — ฟอร์มกระดาษ ศบส. เก็บสามอย่างนี้ไว้ใน
-             ส่วนข้อมูลประชากร ระบบนี้ย้ายมาอยู่กับข้อมูลส่วนตัว เก็บที่คีย์เดิม
-             ของแบบคัดกรอง (`homeScreening.*`) จึงไม่มีข้อมูลซ้ำสองชุด */
+          /* เชื้อชาติ · สัญชาติ วางเหนือแถวเลขบัตรประชาชน (มติผู้ใช้ 30 ส.ค. 69)
+             — ฟอร์มกระดาษ ศบส. เก็บไว้ในส่วนข้อมูลประชากร ระบบนี้ย้ายมาอยู่กับ
+             ข้อมูลส่วนตัว เก็บที่คีย์เดิมของแบบคัดกรอง (`homeScreening.*`)
+             · "ศาสนา" ถูกถอดออก (มติผู้ใช้ 2 ก.ย. 69) เพราะซ้ำกับช่องศาสนาของ
+             การ์ด "ข้อมูลส่วนตัว" ที่อยู่ในขั้นเดียวกัน (`form.religion`) */
           beforeIdRow={(
             <FieldGrid cols={3} rowGap='var(--dim-space-600)' columnGap='var(--dim-space-600)'>
               {[
-                { key: 'religion', other: 'religionOther', label: 'ศาสนา', options: RELIGION_OPTIONS, placeholder: 'เช่น ซิกข์ · ฮินดู · ไม่นับถือศาสนา' },
                 { key: 'ethnicity', other: 'ethnicityOther', label: 'เชื้อชาติ', options: ETHNICITY_OPTIONS, placeholder: 'เช่น จีน · มอญ · กะเหรี่ยง' },
                 { key: 'nationality', other: 'nationalityOther', label: 'สัญชาติ', options: NATIONALITY_OPTIONS, placeholder: 'เช่น เมียนมา · กัมพูชา · ลาว' },
               ].map((f) => (
@@ -384,6 +385,11 @@ export const HomeVisitStep1Service = ({ form, setForm, readOnly, hn, blockedMsg 
         />
       </SectionCard>
 
+
+      {/* Family Folder ย้ายมาอยู่ในขั้นนี้ (มติผู้ใช้ 2 ก.ย. 69) — แฟ้มครอบครัว
+          เป็นข้อมูลระดับครัวเรือนที่อ่านคู่กับข้อมูลตัวผู้รับบริการ ไม่ใช่ขั้นตอน
+          ท้ายสุดของการเยี่ยม · คอมโพเนนต์เดิมยกมาทั้งก้อน ไม่ได้เขียนใหม่ */}
+      <HomeVisitStep7Family {...props} form={form} setForm={setForm} readOnly={readOnly} hn={hn} blockedMsg='' />
     </StepCard>
   );
 };
@@ -666,7 +672,8 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
         {/* ผู้ดูแลหลัก · ภาวะโภชนาการ · แผลกดทับ ย้ายมาอยู่ในการ์ดอาการป่วย
             (มติผู้ใช้ 2 ก.ย. 69) — เป็นบริบทที่ทีมอ่านคู่กับอาการที่พบ ไม่ใช่
             หมวดของตัวเอง · หัวข้อ "คัดกรองสุขภาพรายบุคคล" ถูกถอดออกด้วย */}
-        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+        {/* ระยะระหว่างช่อง 24px เท่ากับแถวอื่นในการ์ดนี้ (มติผู้ใช้ 2 ก.ย. 69) */}
+        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-600, 24px)' }}>
           <Field label='ผู้ดูแลหลัก'>
             <Select
               showLabel={false} showHelperText={false} searchable={false} size='lg'
@@ -682,7 +689,9 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
             <div
               className='flex items-center'
               style={{
-                minHeight: 'var(--dim-size-1000, 48px)',
+                /* สูงเท่ากับ <Select size='lg'> ที่อยู่ข้าง ๆ (มติผู้ใช้ 2 ก.ย. 69)
+                   — `--dim-size-800` คือความสูงของช่องกรอกไซซ์ lg */
+                height: 'var(--dim-size-800, 40px)',
                 gap: 'var(--dim-space-200, 8px)',
                 paddingLeft: 'var(--dim-space-300, 12px)',
                 paddingRight: 'var(--dim-space-300, 12px)',
@@ -720,19 +729,15 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
 
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
           <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-            ระดับความปวด (0 = ไม่ปวด · 10 = ปวดมากที่สุด)
+            ระดับความปวด (1 = ปวดน้อยที่สุด · 10 = ปวดมากที่สุด)
           </span>
-          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-            {PAIN_SCALE.map((n) => (
-              <SelectableTag
-                key={n}
-                label={String(n)}
-                size='md'
-                selected={form.painScore === n}
-                onClick={readOnly ? undefined : () => set('painScore')(n)}
-              />
-            ))}
-          </div>
+          {/* ปุ่มชุดเดียวกับจุดคัดกรอง — ไอคอนหน้าคนนำหน้าตัวเลข 10 ระดับ
+              (มติผู้ใช้ 2 ก.ย. 69) */}
+          <PainScaleCards
+            value={form.painScore}
+            onChange={(n) => set('painScore')(n)}
+            disabled={readOnly}
+          />
           {Number.isFinite(form.painScore) && form.painScore >= 7 && (
             <NoticeBand tone='danger' icon='priority_high'>
               ความปวดระดับรุนแรง ({form.painScore}/10) — ควรทบทวนแผนจัดการความปวดและพิจารณาปรึกษาแพทย์ทางไกล
@@ -1010,27 +1015,37 @@ export const HomeVisitStepBehaviour = ({ form, setForm, readOnly, hn, blockedMsg
   <StepCard>
     {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
     <SectionCard>
-      <ScreeningStep4 patient={{ hn }} padded={false} />
-      <HealthRiskFields
-        value={form.homeScreening}
-        onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
-        readOnly={readOnly}
-      />
+      {/* ช่อง "รายละเอียดพฤติกรรมเพิ่มเติม" ต้องอยู่ล่างสุดของการ์ด (มติผู้ใช้
+          2 ก.ย. 69) — ส่งความเสี่ยง/การปฏิบัติตัวเข้าไปเป็น slot ก่อนช่องนั้น
+          แทนการวางต่อท้าย `ScreeningStep4` (state ของช่องอยู่ในคอมโพเนนต์นั้น) */}
+      <ScreeningStep4
+        patient={{ hn }}
+        padded={false}
+        beforeDetailSlot={(
+          <>
+            <HealthRiskFields
+              value={form.homeScreening}
+              onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
+              readOnly={readOnly}
+            />
 
-      <StepSection gap='var(--dim-space-200)'>
-        <span style={{
-          color: 'var(--text-content-secondary, #636B72)',
-          fontFamily: 'var(--type-family-body)',
-          fontSize: 'var(--type-size-sm)',
-        }}>
-          การปฏิบัติตัวเมื่อเจ็บป่วยเล็กน้อย (เลือกได้หลายข้อ)
-        </span>
-        <MinorIllnessFields
-          value={form.homeScreening}
-          onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
-          readOnly={readOnly}
-        />
-      </StepSection>
+            <StepSection gap='var(--dim-space-200)'>
+              <span style={{
+                color: 'var(--text-content-secondary, #636B72)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm)',
+              }}>
+                การปฏิบัติตัวเมื่อเจ็บป่วยเล็กน้อย (เลือกได้หลายข้อ)
+              </span>
+              <MinorIllnessFields
+                value={form.homeScreening}
+                onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
+                readOnly={readOnly}
+              />
+            </StepSection>
+          </>
+        )}
+      />
     </SectionCard>
   </StepCard>
 );
@@ -1311,7 +1326,10 @@ const AssessmentToolCard = ({ code, title, done, scoreLabel, interp, readOnly, o
       <BrandSubdueButton
         variant='outline'
         size='sm'
-        leadingIcon={done ? 'edit' : 'clipboard-list'}
+        /* ปุ่มของ DS เรนเดอร์ไอคอนเป็น Material Symbols (ligature) — ชื่อที่ไม่มี
+           ในฟอนต์อย่าง `clipboard-list` จะโผล่เป็นตัวอักษร "CLIPBOARD-" บนปุ่ม
+           (บั๊กที่ผู้ใช้เจอ 2 ก.ย. 69) */
+        leadingIcon={done ? 'edit' : 'assignment'}
         onClick={onOpen}
       >
         {readOnly ? 'ดูผลประเมิน' : (done ? 'แก้ไข' : 'ทำแบบประเมิน')}
@@ -1447,7 +1465,9 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
           เบาหวาน · คีย์ `dtx` / `dtxFasting` ยังอยู่ที่ `form.homeScreening` เดิม */}
 
       <StepSection>
-
+        {/* แถวการ์ดต้องมีหัวข้อของตัวเอง (มติผู้ใช้ 2 ก.ย. 69) — เดิมลอยอยู่
+            ใต้ช่องอื่นจนอ่านไม่ออกว่าสี่ใบนี้เป็นชุดเดียวกัน */}
+        <TopicHeader icon='checklist'>แบบประเมิน</TopicHeader>
 
         {/* แบบประเมินมาตรฐาน 4 ชุดเป็น "การ์ด" ทรงเดียวกับใบยินยอมของหน้า
             เวชระเบียน (มติผู้ใช้ 30 ส.ค. 69) — เดิมกางเป็นฟอร์มยาวเรียงกันสี่ชุด
@@ -2028,6 +2048,34 @@ export const HomeVisitStep7Family = ({
      เปล่าทุกราย (มติผู้ใช้ 30 ส.ค. 69) กดแก้ไขแล้วบันทึกจึงกลายเป็นข้อมูลจริง */
   const familyRows = form.familyMembers.length > 0 ? form.familyMembers : getFamilyMembers(hn);
 
+  /* ป๊อปอัปข้อมูลรายบุคคล — กดจากแถวในตารางหรือการ์ดในผังก็เปิดตัวเดียวกัน
+     (มติผู้ใช้ 2 ก.ย. 69) */
+  const [personDetail, setPersonDetail] = useState(null);
+
+  /* ชื่อที่จะขึ้นบนการ์ด "ผู้รับบริการ" ของผังเครือญาติ */
+  const mrPatientOfVisit = useMemo(() => (hn ? findMrPatientByHn(hn) : null), [hn]);
+  const patientDisplayName = registryEntry?.name
+    || appointment?.name
+    || (mrPatientOfVisit
+      ? `${mrPatientOfVisit.firstNameTh || ''} ${mrPatientOfVisit.lastNameTh || ''}`.trim()
+      : '')
+    || 'ผู้รับบริการ';
+
+  /* ตารางต้องมีตัวผู้รับบริการอยู่ด้วย (มติผู้ใช้ 2 ก.ย. 69) — แฟ้มครอบครัวคือ
+     "ทั้งครัวเรือน" ไม่ใช่เฉพาะคนอื่นในบ้าน · แถวนี้ไม่ถูกเขียนกลับทะเบียน
+     (ไม่ได้อยู่ใน `form.familyMembers`) */
+  const selfRow = {
+    id: '__self__',
+    name: patientDisplayName,
+    relation: 'ผู้รับบริการ',
+    age: mrPatientOfVisit?.age || '',
+    health: '',
+    hn,
+    avatarUrl: registryEntry?.avatarUrl || appointment?.avatarUrl || mrPatientOfVisit?.avatarUrl,
+    self: true,
+  };
+  const tableRows = [selfRow, ...familyRows];
+
   /* เปิดป๊อปอัปครั้งแรกบนครัวเรือนที่ยังใช้ชุด mock — ย้ายเข้าฟอร์มก่อน
      เพื่อให้แก้ไข/ลบทีละแถวทำงานกับ state จริง */
   const openFamilyEdit = () => {
@@ -2043,21 +2091,13 @@ export const HomeVisitStep7Family = ({
     onDataChanged?.();
   };
 
-  /* ครัวเรือนที่ยังไม่อยู่ในทะเบียนได้ชุด mock ตั้งต้น (มติผู้ใช้ 2 ก.ย. 69) —
-     เดิมทั้งแถวขึ้น "—" จนอ่านไม่ออกว่าแฟ้มครอบครัวเก็บอะไรบ้าง */
-  const household = getHouseholdProfile(hn, registryEntry || appointment);
-  const householdRows = [
-    { label: 'ที่อยู่ครัวเรือน', value: household.address },
-    { label: 'ชุมชน', value: household.community },
-    { label: 'เขต', value: household.district },
-    { label: 'ผู้ติดต่อหลัก', value: household.contactName },
-    { label: 'เบอร์ผู้ติดต่อ', value: household.contactPhone },
-  ];
-
   return (
     <StepCard>
       {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
 
+      {/* การ์ดของตัวเอง — ตั้งแต่ย้ายมาอยู่ในขั้น "ข้อมูลส่วนตัว" (มติผู้ใช้
+          2 ก.ย. 69) เนื้อหาของขั้นนั้นเป็นการ์ดขาวของตัวเองทุกก้อน */}
+      <SectionCard>
       <StepSection gap='var(--dim-space-600)'>
         <TopicHeader
           icon='family_restroom'
@@ -2072,29 +2112,10 @@ export const HomeVisitStep7Family = ({
         >
           Family Folder — แฟ้มครอบครัว
         </TopicHeader>
-        {/* หัวแฟ้มอยู่แถวเดียวจบ (มติผู้ใช้ 2 ก.ย. 69) — เดิมเป็น flex-wrap ที่ให้
-            ที่อยู่กินความกว้างตามข้อความ "เบอร์ผู้ติดต่อ" จึงตกไปขึ้นบรรทัดใหม่
-            กริดแบ่งสัดส่วนคงที่ ช่องที่อยู่ยาวจะตัดบรรทัดอยู่ในช่องตัวเอง */}
-        <div
-          className='w-full'
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1.8fr 1fr 0.8fr 1.2fr 1fr',
-            gap: 'var(--dim-space-600, 24px)',
-            alignItems: 'start',
-          }}
-        >
-          {householdRows.map((r) => (
-            <div key={r.label} className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-                {r.label}
-              </span>
-              <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-                {r.value}
-              </span>
-            </div>
-          ))}
-        </div>
+        {/* แถวหัวแฟ้ม (ที่อยู่ครัวเรือน · ชุมชน · เขต · ผู้ติดต่อ) ถูกถอดออก
+            (มติผู้ใช้ 2 ก.ย. 69) — ข้อมูลชุดนี้อยู่ที่ขั้น "ที่อยู่และการติดต่อ"
+            อยู่แล้ว แฟ้มครอบครัวจึงเหลือเฉพาะสมาชิกในครัวเรือน
+            (`getHouseholdProfile` ยังใช้ที่ใบสรุปพิมพ์) */}
 
         {/* สลับมุมมองอยู่เหนือผัง/ตารางที่มันควบคุม (มติผู้ใช้ 2 ก.ย. 69) —
             บนหัวข้อมันปนกับปุ่มแก้ไขจนอ่านไม่ออกว่าคุมอะไร */}
@@ -2110,9 +2131,14 @@ export const HomeVisitStep7Family = ({
         {familyView === 'map' ? (
           <FamilyGenogram
             members={familyRows}
-            patientName={registryEntry?.name || appointment?.name}
+            /* ชื่อผู้รับบริการต้องขึ้นในผังเสมอ (มติผู้ใช้ 2 ก.ย. 69) — เคสที่เปิด
+               บันทึกแบบ ad-hoc ไม่มี registryEntry/appointment จึงตกไปอ่านจาก
+               ทะเบียนกลางด้วย HN */
+            patientName={patientDisplayName}
             patientHn={hn}
-            patientAvatarUrl={registryEntry?.avatarUrl || appointment?.avatarUrl}
+            patientAvatarUrl={registryEntry?.avatarUrl || appointment?.avatarUrl || mrPatientOfVisit?.avatarUrl}
+            onSelect={(person) => setPersonDetail(person)}
+            selfRow={selfRow}
           />
         ) : (
         <Table
@@ -2125,7 +2151,7 @@ export const HomeVisitStep7Family = ({
               /* รูปประจำตัวคู่ชื่อเหมือนตารางคิวอื่นในระบบ (มติผู้ใช้ 2 ก.ย. 69) */
               render: (r) => (
                 <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                  <QueuePatientAvatar name={r.name} avatarUrl={familyMemberAvatar(r)} size={32} />
+                  <QueuePatientAvatar name={r.name} avatarUrl={r.self ? r.avatarUrl : familyMemberAvatar(r)} size={32} />
                   <span>{r.name || '—'}</span>
                 </span>
               ),
@@ -2142,13 +2168,50 @@ export const HomeVisitStep7Family = ({
               render: (r) => FAMILY_HEALTH_OPTIONS.find((o) => o.value === r.health)?.label || r.health || '—',
             },
           ]}
-          rows={familyRows}
+          rows={tableRows}
           rowKey={(r) => r.id}
+          onRowClick={(r) => setPersonDetail(r)}
           emptyMessage='ยังไม่มีข้อมูลสมาชิกในครอบครัวในทะเบียนของครัวเรือนนี้'
         />
         )}
 
       </StepSection>
+      </SectionCard>
+
+      {/* ข้อมูลรายบุคคลของสมาชิกในครัวเรือน — เปิดจากแถวในตารางหรือการ์ดในผัง */}
+      <Popup
+        open={!!personDetail}
+        onClose={() => setPersonDetail(null)}
+        size='small'
+        title={personDetail?.name || 'ข้อมูลสมาชิกในครอบครัว'}
+        subtitle={personDetail?.self ? 'ผู้รับบริการของการเยี่ยมครั้งนี้' : 'สมาชิกในครัวเรือนเดียวกัน'}
+        primaryAction={{ label: 'ปิด', onClick: () => setPersonDetail(null) }}
+      >
+        <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+          <QueuePatientAvatar
+            name={personDetail?.name}
+            avatarUrl={personDetail?.self ? personDetail?.avatarUrl : (personDetail ? familyMemberAvatar(personDetail) : undefined)}
+            size={56}
+          />
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            {[
+              ['ความสัมพันธ์', personDetail?.relation],
+              ['อายุ', personDetail?.age ? `${personDetail.age} ปี` : ''],
+              ['ภาวะสุขภาพ', FAMILY_HEALTH_OPTIONS.find((o) => o.value === personDetail?.health)?.label || personDetail?.health],
+              ['HN', personDetail?.hn],
+            ].filter(([, value]) => String(value || '').trim()).map(([label, value]) => (
+              <div key={label} className='flex items-baseline' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)', minWidth: 96 }}>
+                  {label}
+                </span>
+                <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+                  {value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Popup>
 
       {/* แก้ไขในป๊อปอัป — บันทึกแล้วเขียนกลับทะเบียนระดับครัวเรือนทันที
           ครั้งถัดไปที่เยี่ยมบ้านหลังนี้จึงเห็นรายชื่อชุดใหม่ */}
@@ -2267,11 +2330,12 @@ export const HomeVisitStepScreening = ({ blockedMsg, ...props }) => (
       <HomeVisitStep3Vitals {...props} blockedMsg='' />
     </div>
 
-    <HomeVisitStepAllergy {...props} blockedMsg='' />
-
-    {/* น้ำตาลปลายนิ้ว — เจาะเฉพาะรายที่เป็นเบาหวาน (มติผู้ใช้ 2 ก.ย. 69)
+    {/* น้ำตาลปลายนิ้ว — ต่อจากสัญญาณชีพ ก่อนประวัติการแพ้ (มติผู้ใช้ 2 ก.ย. 69)
+        เป็นค่าที่เจาะพร้อมรอบวัดสัญญาณชีพ · เจาะเฉพาะรายที่เป็นเบาหวาน
         ติ๊ก "เป็นเบาหวาน" ก่อน ช่องกรอกจึงจะขึ้น */}
     <HomeVisitDtxCard {...props} />
+
+    <HomeVisitStepAllergy {...props} blockedMsg='' />
 
     {/* พฤติกรรมสุขภาพย้ายมารวมในขั้นคัดกรอง (มติผู้ใช้ 2 ก.ย. 69) — สูบบุหรี่/
         ดื่มสุรา/ออกกำลังกาย เป็นชุดคำถามคัดกรองชุดเดียวกับที่จุดคัดกรอง OPD
@@ -2289,6 +2353,9 @@ export const HOMEVISIT_STEP_RENDERERS = [
      ขั้นเดียว (มติผู้ใช้ 2 ก.ย. 69) */
   HomeVisitStepScreening,
   HomeVisitStep2History,
+  /* ขั้น "Family Folder" ถูกยุบเข้าไปในขั้น "ข้อมูลส่วนตัว" แล้ว
+     (มติผู้ใช้ 2 ก.ย. 69) — แฟ้มครอบครัวเป็นข้อมูลระดับครัวเรือนที่อ่านคู่กับ
+     ข้อมูลตัวผู้รับบริการ ไม่ใช่ขั้นตอนท้ายสุดของการเยี่ยม */
   /* ขั้น "ประเมิน" ถูกยุบเข้าไปในขั้น "ประเมินอาการป่วย" แล้ว
      (มติผู้ใช้ 30 ส.ค. 69) — `HomeVisitStep4Assessment` ยัง export อยู่และถูก
      เรียกจากขั้นนั้นโดยตรง */
@@ -2296,7 +2363,6 @@ export const HOMEVISIT_STEP_RENDERERS = [
      คีย์ `form.activities` ยังอยู่ในโมเดลและในใบสรุป/บันทึกเก่า */
   /* ขั้น "สั่งการรักษา" (CPOE) ถูกถอดออกจากโฟลว์ (มติผู้ใช้ 30 ส.ค. 69) —
      `HomeVisitStep6Orders` กับสะพาน `homevisitCpoe.js` ยังอยู่ครบ รอที่ทางใหม่ */
-  HomeVisitStep7Family,
 ];
 
 export default HOMEVISIT_STEP_RENDERERS;

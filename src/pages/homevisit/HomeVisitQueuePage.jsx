@@ -5,6 +5,7 @@ import {
 } from '@/data/centerDistricts';
 import { useActiveCenter } from '@/pages/users/usersShared';
 import QueuePageShell from '@/templates/QueuePageShell';
+import FollowUpStatusMenuButton from '@/components/homevisit/FollowUpStatusMenuButton';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
 import useSearchHistory from '@/components/search/useSearchHistory';
@@ -652,7 +653,10 @@ const HomeVisitQueuePage = () => {
       breadcrumb={breadcrumb}
       title='เยี่ยมบ้าน (Home Visit)'
       /* แถบปุ่มบนหัวหน้าถูกลบออก — ทะเบียน/ติดตามเข้าถึงได้จากเมนูซ้าย
-         (Sidebar subItems ของ "ระบบการเยี่ยมบ้าน") อยู่แล้ว */
+         (Sidebar subItems ของ "ระบบการเยี่ยมบ้าน") อยู่แล้ว
+         เหลือไว้ปุ่มเดียวคือ "ติดตามสถานะ" (มติผู้ใช้ 2 ก.ย. 69) — หัวหน้าทีมเปิด
+         ดูสถานะโครงการของทั้งคิวได้โดยไม่ต้องเข้าไปในบันทึกของใครคนหนึ่งก่อน */
+      actions={<FollowUpStatusMenuButton />}
       summaryCards={summaryCards}
       /* แถบสถานะเป็น underline tab และอยู่ใต้การ์ดสรุป (มติผู้ใช้ 30 ส.ค. 69)
          — การ์ดสรุปบอกภาพรวมทั้งวัน แล้วแท็บคือตัวกรองตารางที่อยู่ถัดลงไป

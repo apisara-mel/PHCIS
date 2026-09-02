@@ -95,7 +95,13 @@ const struck = { color: 'var(--text-content-tertiary, #858C92)', textDecoration:
 const SocialWorkRequesterRegistryPage = () => {
   const history = useHistory();
   const [tick, setTick] = useState(0);
-  const [search, setSearch] = useState('');
+  /* เปิดจากปุ่ม "ติดตามโครงการผ้าอ้อม" ของงานเยี่ยมบ้านจะมาพร้อม `?hn=` —
+     เติมลงช่องค้นหาให้เลย จะได้เห็นคำขอของรายนั้นทันทีที่แท็บใหม่เปิดขึ้น
+     (มติผู้ใช้ 2 ก.ย. 69) */
+  const [search, setSearch] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('hn') || '';
+  });
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [, setRightsTick] = useState(0);

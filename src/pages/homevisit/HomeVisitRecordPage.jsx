@@ -68,8 +68,8 @@ const HOMEVISIT_STEPS = [
      และถามพฤติกรรมสุขภาพเป็นชุดเดียวกัน ก่อนเริ่มซักอาการโดยมีค่าที่วัดได้
      อยู่ตรงหน้า */
   { title: 'คัดกรอง',                    subtitle: 'Screening' },
+  /* Family Folder ยุบเข้าไปในขั้น "ข้อมูลส่วนตัว" แล้ว (มติผู้ใช้ 2 ก.ย. 69) */
   { title: 'ประเมินอาการป่วย',            subtitle: 'Chief Complaint & History' },
-  { title: 'Family Folder',              subtitle: 'Family Folder & Submit' },
 ];
 
 const HomeVisitRecordPage = () => {

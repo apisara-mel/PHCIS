@@ -2154,48 +2154,25 @@ const RightsPhotoThumb = ({ previewUrl, name, onRemove }) => (
    เป็นข้อมูลของสิทธิใบเดียวกัน วางคนละบรรทัดแล้วอ่านเหมือนคนละเรื่อง และกิน
    ความสูงเป็นสองเท่าเมื่อมีหลายสิทธิ · flex-wrap ไว้ให้จอแคบตกบรรทัดเองแทน
    ที่จะบีบข้อความ */
+/* ลำดับความต้องการใช้สิทธิ — จัดลำดับด้วยปุ่มขึ้น/ลง (มติผู้ใช้ 2 ก.ย. 69)
+   เดิมเป็นลากวาง ซึ่งกดพลาดง่ายบนจอสัมผัสของจุดบริการ และมองไม่ออกว่าจะตกไป
+   อยู่ลำดับไหนจนกว่าจะปล่อยมือ · ปุ่มขึ้น/ลงย้ายทีละหนึ่งลำดับและบอกสถานะได้ตรง ๆ
+   (ปุ่มบนสุด/ล่างสุดถูกปิดการใช้งาน) */
 const RightsEntitlementDetails = ({ items = [], onReorder }) => {
-  const [dragIndex, setDragIndex] = useState(null);
-  const [overIndex, setOverIndex] = useState(null);
-
-  const finishDrag = () => {
-    setDragIndex(null);
-    setOverIndex(null);
-  };
-
-  const handleDrop = (toIndex) => {
-    if (dragIndex == null || dragIndex === toIndex) {
-      finishDrag();
-      return;
-    }
-    onReorder?.(reorderList(items, dragIndex, toIndex));
-    finishDrag();
-  };
-
   if (!items.length) return null;
-  const draggable = typeof onReorder === 'function' && items.length > 1;
+  const sortable = typeof onReorder === 'function' && items.length > 1;
+
+  const move = (from, to) => {
+    if (!sortable || to < 0 || to >= items.length) return;
+    onReorder(reorderList(items, from, to));
+  };
+
   return (
-    /* คั่นแต่ละสิทธิด้วยเส้นบาง ๆ แทนช่องว่าง — ลำดับอ่านง่ายขึ้นเวลาลากสลับ */
+    /* คั่นแต่ละสิทธิด้วยเส้นบาง ๆ แทนช่องว่าง — ลำดับอ่านง่ายขึ้นเวลาสลับ */
     <div className='flex flex-col w-full'>
       {items.map((item, index) => (
         <div
           key={item.id}
-          draggable={draggable}
-          onDragStart={draggable ? (e) => {
-            setDragIndex(index);
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', String(index));
-          } : undefined}
-          onDragEnd={draggable ? finishDrag : undefined}
-          onDragOver={draggable ? (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            setOverIndex(index);
-          } : undefined}
-          onDrop={draggable ? (e) => {
-            e.preventDefault();
-            handleDrop(index);
-          } : undefined}
           className='flex items-center w-full flex-wrap'
           style={{
             gap: 'var(--dim-space-200) var(--dim-space-300)',
@@ -2204,18 +2181,33 @@ const RightsEntitlementDetails = ({ items = [], onReorder }) => {
             borderTop: index === 0
               ? undefined
               : 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
-            cursor: draggable ? (dragIndex === index ? 'grabbing' : 'grab') : undefined,
-            opacity: dragIndex === index ? 0.45 : 1,
-            boxShadow: overIndex === index && dragIndex !== index
-              ? '0 0 0 var(--dim-stroke-200) var(--border-brandPrimary-default, #007549)'
-              : undefined,
-            transition: 'opacity 120ms ease, box-shadow 120ms ease',
           }}
         >
           <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
-            {draggable && (
-              <Sym name='drag_indicator' size={20} color='var(--brand-p500)' />
+            {sortable && (
+              <div className='flex items-center' style={{ gap: 'var(--dim-space-50, 2px)' }}>
+                <NeutralIconButton
+                  variant='ghost'
+                  size='sm'
+                  icon='keyboard_arrow_up'
+                  aria-label={`เลื่อน ${item.label} ขึ้นหนึ่งลำดับ`}
+                  disabled={index === 0}
+                  onClick={() => move(index, index - 1)}
+                />
+                <NeutralIconButton
+                  variant='ghost'
+                  size='sm'
+                  icon='keyboard_arrow_down'
+                  aria-label={`เลื่อน ${item.label} ลงหนึ่งลำดับ`}
+                  disabled={index === items.length - 1}
+                  onClick={() => move(index, index + 1)}
+                />
+              </div>
             )}
+            {/* ป้ายลำดับ — บอกผลของการกดปุ่มขึ้น/ลงทันทีโดยไม่ต้องนับแถวเอง */}
+            <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug'>
+              {`ลำดับ ${index + 1}`}
+            </ColorfulBadge>
             <Sym name='check_circle' size={18} color='var(--icon-positive-success, var(--text-brandPrimary-default))' />
             <span style={{
               color: 'var(--text-content-default)',
@@ -2314,7 +2306,7 @@ const RightsGroupCard = ({
             fontSize: 'var(--type-size-xs)',
             lineHeight: 1.5,
           }}>
-            เลือกลำดับความต้องการใช้สิทธิ เพียงลากแล้ววาง โดยระบบจะตัดสิทธิ์จากลำดับแรกก่อน
+            จัดลำดับความต้องการใช้สิทธิด้วยปุ่มขึ้น/ลง โดยระบบจะตัดสิทธิ์จากลำดับแรกก่อน
           </span>
         </div>
         <ColorfulBadge style='green' size='small' width='hug'>

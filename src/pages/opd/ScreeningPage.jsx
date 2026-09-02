@@ -22,7 +22,8 @@ import { UNASSIGNED_DOCTOR, addToUnassignedPool, TREAT_CLINICS } from '@/data/un
 import Textarea from '@/components/forms/Textarea';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import Icon from '@/components/icons/Icon';
-import { PAIN_LEVELS, TRIAGE_LEVELS } from '@/data/opdScreeningCatalog';
+import { TRIAGE_LEVELS, painLevelByKey } from '@/data/opdScreeningCatalog';
+import PainScaleCards from '@/components/forms/PainScaleCards';
 import Footer from '@/components/layout/Footer';
 import ObservationAdmitPopup from '@/components/observation/ObservationAdmitPopup';
 import InternalReferPopup from '@/components/popup/InternalReferPopup';
@@ -116,6 +117,10 @@ const SymptomField = ({ label, required, children }) => (
      • colorfulbadge-yellow → yellow (#FEF9C3 / #A16207)
      • alert-warning → orange (#FFF9F0 / #C2410C)
      • danger       → red     (#FFF0F0 / #B91C1C)                       */
+/* ค่าที่หน้าจอนี้เก็บคือ key — แปลงเป็นคะแนน 1–10 ให้ `PainScaleCards`
+   (ค่าชุดเก่าอย่าง 'mild' ไม่มีคะแนน จึงคืน null = ยังไม่ได้เลือก) */
+const painScoreOfKey = (key) => painLevelByKey(key)?.score ?? null;
+
 const PAIN_TONE_TOKENS = {
   green:  {
     bg: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
@@ -507,37 +512,16 @@ const SymptomStep = ({ onValidityChange, patient = {} }) => {
           `sentiment_*` icon) with a Thai label. Selected variant flips
           to 2px brand-tertiary border; only one is selected at a time
           (radio-style). */}
+      {/* 10 ระดับ ใช้คอมโพเนนต์เดียวกับงานเยี่ยมบ้าน (มติผู้ใช้ 2 ก.ย. 69) —
+          เดิมเป็น 5 ระดับ (ไม่ปวด/เล็กน้อย/ปานกลาง/มาก/ทรมาน) ซึ่งเทียบกับ
+          คะแนน 0–10 ที่ทีมเยี่ยมบ้านบันทึกไม่ได้ · ค่าที่เก็บยังเป็น key
+          (`p1`–`p10`) ฝั่งอ่านจึงใช้ `painLevelByKey` ได้เหมือนเดิม */}
       <div className='flex flex-col gap-3'>
         <TopicHeader icon='frown'>ระดับความเจ็บปวด</TopicHeader>
-        <div className='flex items-center gap-3 flex-wrap'>
-          {PAIN_LEVELS.map((p) => {
-            const active = pain === p.key;
-            const tone = PAIN_TONE_TOKENS[p.tone];
-            return (
-              <SelectableCardButton
-                key={p.key}
-                selected={active}
-                onClick={() => setPain(p.key)}
-                ariaLabel={p.label}
-              >
-                <span
-                  aria-hidden
-                  className='inline-flex items-center justify-center shrink-0'
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 'var(--dim-radius-full, 9999px)',
-                    background: tone.bg,
-                    color: tone.fg,
-                  }}
-                >
-                  <Sym name={p.icon} size={20} />
-                </span>
-                {p.label}
-              </SelectableCardButton>
-            );
-          })}
-        </div>
+        <PainScaleCards
+          value={painScoreOfKey(pain)}
+          onChange={(n) => setPain(`p${n}`)}
+        />
       </div>
 
       {/* Triage (ความเร่งด่วน) — Figma "Level N" card. Two-line layout:

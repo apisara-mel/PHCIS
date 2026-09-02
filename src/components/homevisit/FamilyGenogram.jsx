@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import { familyMemberAvatar } from '@/data/homevisitRegistry';
@@ -35,10 +35,32 @@ const healthTone = (value) => {
 
 const CONNECTOR = 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-tertiary, #C5EDDA)';
 
-const PersonCard = ({ name, relation, age, health, avatarUrl, primary = false }) => (
+/* การ์ดสมาชิก — ชี้เมาส์ค้างแล้วขึ้นรายละเอียดรายคน (มติผู้ใช้ 2 ก.ย. 69)
+   ผังบอกโครงสร้างครัวเรือนได้เร็ว แต่พื้นที่ในการ์ดจำกัด รายละเอียดที่เหลือ
+   (ภาวะสุขภาพเต็มข้อความ · HN ของผู้รับบริการ) จึงอยู่ในทูลทิป */
+const PersonCard = ({ name, relation, age, health, avatarUrl, hn, primary = false, onClick }) => {
+  const [hovered, setHovered] = useState(false);
+  const details = [
+    ['ชื่อ-สกุล', name],
+    ['ความสัมพันธ์', primary ? 'ผู้รับบริการ' : relation],
+    ['อายุ', age ? `${age} ปี` : ''],
+    ['ภาวะสุขภาพ', healthLabel(health)],
+    ['HN', hn],
+  ].filter(([, value]) => String(value || '').trim());
+
+  return (
   <div
     className='flex items-center'
+    onMouseEnter={() => setHovered(true)}
+    onMouseLeave={() => setHovered(false)}
+    onFocus={() => setHovered(true)}
+    onBlur={() => setHovered(false)}
+    onClick={onClick}
+    onKeyDown={(e) => { if (onClick && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onClick(); } }}
+    role={onClick ? 'button' : undefined}
+    tabIndex={0}
     style={{
+      position: 'relative',
       gap: 'var(--dim-space-300, 12px)',
       padding: 'var(--dim-space-300, 12px) var(--dim-space-400, 16px)',
       minWidth: 232,
@@ -50,6 +72,7 @@ const PersonCard = ({ name, relation, age, health, avatarUrl, primary = false })
         ? 'var(--dim-stroke-200, 2px) solid var(--border-brandPrimary-default, #007549)'
         : 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
       boxShadow: 'var(--shadow-drop-bottom-200)',
+      cursor: onClick ? 'pointer' : 'default',
     }}
   >
     <QueuePatientAvatar name={name} avatarUrl={avatarUrl} size={40} />
@@ -77,8 +100,49 @@ const PersonCard = ({ name, relation, age, health, avatarUrl, primary = false })
         </ColorfulBadge>
       )}
     </div>
+
+    {hovered && details.length > 0 && (
+      <div
+        role='tooltip'
+        className='flex flex-col'
+        style={{
+          position: 'absolute',
+          top: 'calc(100% + var(--dim-space-200, 8px))',
+          left: 0,
+          zIndex: 'var(--sm-z-tooltip, 1500)',
+          minWidth: 232,
+          gap: 'var(--dim-space-100, 4px)',
+          padding: 'var(--dim-space-300, 12px) var(--dim-space-400, 16px)',
+          borderRadius: 'var(--dim-radius-300, 10px)',
+          background: 'var(--surface-card-100, #FFFFFF)',
+          border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
+          boxShadow: 'var(--shadow-dropdown)',
+        }}
+      >
+        {details.map(([label, value]) => (
+          <div key={label} className='flex items-baseline' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            <span style={{
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+              color: 'var(--text-content-tertiary, #858C92)',
+              minWidth: 84,
+            }}>
+              {label}
+            </span>
+            <span style={{
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+              color: 'var(--text-content-default, #363B3F)',
+            }}>
+              {value}
+            </span>
+          </div>
+        ))}
+      </div>
+    )}
   </div>
-);
+  );
+};
 
 const GenerationRow = ({ label, children }) => (
   <div className='flex flex-col items-center w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
@@ -100,7 +164,7 @@ const Connector = () => (
   <div style={{ height: 24, borderLeft: CONNECTOR }} aria-hidden />
 );
 
-const FamilyGenogram = ({ members = [], patientName, patientHn, patientAvatarUrl }) => {
+const FamilyGenogram = ({ members = [], patientName, patientHn, patientAvatarUrl, onSelect, selfRow }) => {
   const inGroup = (m, group) => group.some((g) => String(m.relation || '').includes(g));
   const upper = members.filter((m) => inGroup(m, UPPER));
   const same = members.filter((m) => inGroup(m, SAME));
@@ -110,11 +174,10 @@ const FamilyGenogram = ({ members = [], patientName, patientHn, patientAvatarUrl
   return (
     <div
       className='flex flex-col items-center w-full'
+      /* ไม่มีกรอบ/พื้นหลังรองอีกชั้น (มติผู้ใช้ 2 ก.ย. 69) — ผังอยู่ในการ์ดขาว
+         ของ Family Folder อยู่แล้ว พื้นสีเทารองทำให้เป็นกล่องซ้อนกล่อง */
       style={{
         gap: 'var(--dim-space-200, 8px)',
-        padding: 'var(--dim-space-600, 24px)',
-        borderRadius: 'var(--dim-radius-400, 12px)',
-        background: 'var(--surface-neutral-quaternary, #F9FBFB)',
         overflowX: 'auto',
       }}
     >
@@ -122,7 +185,7 @@ const FamilyGenogram = ({ members = [], patientName, patientHn, patientAvatarUrl
         <>
           <GenerationRow label='รุ่นก่อน'>
             {upper.map((m) => (
-              <PersonCard key={m.id} {...m} avatarUrl={familyMemberAvatar(m)} />
+              <PersonCard key={m.id} {...m} avatarUrl={familyMemberAvatar(m)} onClick={onSelect ? () => onSelect(m) : undefined} />
             ))}
           </GenerationRow>
           <Connector />
@@ -134,7 +197,9 @@ const FamilyGenogram = ({ members = [], patientName, patientHn, patientAvatarUrl
           primary
           name={patientName || 'ผู้รับบริการ'}
           relation={patientHn ? `ผู้รับบริการ · HN ${patientHn}` : 'ผู้รับบริการ'}
+          hn={patientHn}
           avatarUrl={patientAvatarUrl}
+          onClick={onSelect && selfRow ? () => onSelect(selfRow) : undefined}
         />
         {same.map((m) => (
           <PersonCard key={m.id} {...m} avatarUrl={familyMemberAvatar(m)} />
@@ -146,7 +211,7 @@ const FamilyGenogram = ({ members = [], patientName, patientHn, patientAvatarUrl
           <Connector />
           <GenerationRow label='รุ่นถัดไป'>
             {lower.map((m) => (
-              <PersonCard key={m.id} {...m} avatarUrl={familyMemberAvatar(m)} />
+              <PersonCard key={m.id} {...m} avatarUrl={familyMemberAvatar(m)} onClick={onSelect ? () => onSelect(m) : undefined} />
             ))}
           </GenerationRow>
         </>
@@ -157,7 +222,7 @@ const FamilyGenogram = ({ members = [], patientName, patientHn, patientAvatarUrl
           <Connector />
           <GenerationRow label='สมาชิกอื่นในครัวเรือน'>
             {others.map((m) => (
-              <PersonCard key={m.id} {...m} avatarUrl={familyMemberAvatar(m)} />
+              <PersonCard key={m.id} {...m} avatarUrl={familyMemberAvatar(m)} onClick={onSelect ? () => onSelect(m) : undefined} />
             ))}
           </GenerationRow>
         </>
