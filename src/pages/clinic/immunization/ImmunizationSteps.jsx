@@ -14,7 +14,8 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Table from '@/components/table/Table';
 import Popup from '@/components/popup/Popup';
-import GrowthPercentileChart from '@/pages/clinic/immunization/GrowthPercentileChart';
+import { GrowthChart } from '@/pages/treat/panels/VaccineGrowthPanel';
+import { growthBandsFor } from '@/data/treatmentVaccines';
 import EpiScheduleMatrix from '@/pages/clinic/immunization/EpiScheduleMatrix';
 import CarriedDentalPanel from '@/components/dental/CarriedDentalPanel';
 import {
@@ -516,62 +517,50 @@ const useImmGrowthRecords = (immHn, form) => useMemo(() => {
     return base;
   }, [immHn, form.growth]);
 
-/* กราฟการเจริญเติบโต (percentile) — แยกออกมาให้แถบ vital signs ของหน้าบันทึก
-   เปิดดูในป๊อปอัปได้ด้วย (มติผู้ใช้ 3 ก.ย. 69) */
-export const ImmGrowthCharts = ({ form, immHn, child, showTitle = true, chartHeight, legendAlign, showHistory = false }) => {
-  const [chartKey, setChartKey] = useState(GROWTH_CHART_DEFS[0].key);
-  /* ป๊อปอัปสลับมุมมอง กราฟ ↔ ตาราง (มติผู้ใช้ 3 ก.ย. 69) — ไม่โชว์สองอย่างซ้อนกัน */
+/* ป๊อปอัป "ดูการเจริญเติบโต" จากแถบ vital signs (มติผู้ใช้ 3 ก.ย. 69) — กราฟ 5 โซน
+   ของกรมอนามัยสองใบ (น้ำหนัก/ส่วนสูงตามเกณฑ์อายุ) ชุดเดียวกับ GrowthStatusCard
+   วางซ้าย-ขวา พร้อม toggle สลับเป็นตารางบันทึกย้อนหลัง */
+const IMM_GROWTH_METRICS = [
+  { key: 'weight', label: 'น้ำหนักตามเกณฑ์อายุ', unit: 'กก.' },
+  { key: 'height', label: 'ส่วนสูงตามเกณฑ์อายุ', unit: 'ซม.' },
+];
+
+export const ImmGrowthCharts = ({ form, immHn, child, showHistory = false }) => {
   const [view, setView] = useState('chart');
-  const showChart = !showHistory || view === 'chart';
   const records = useImmGrowthRecords(immHn, form);
-  const months = ageInMonths(child?.birthDate);
-  const availableCharts = GROWTH_CHART_DEFS.filter((d) => {
-    if (months == null) return true;
-    if (d.maxX != null && d.minX == null && months > d.maxX + 6) return false;
-    if (d.minX != null && months < d.minX) return false;
-    return true;
-  });
-  const activeDef = availableCharts.find((d) => d.key === chartKey) || availableCharts[0] || GROWTH_CHART_DEFS[0];
-  const reference = GROWTH_REFERENCE[activeDef.referenceKey]?.[child?.sex] || [];
-  const points = buildGrowthPoints(activeDef, records, child?.birthDate);
-  const lastPoint = points[points.length - 1];
-  const evaluation = lastPoint ? evaluatePercentile(reference, lastPoint.x, lastPoint.y) : null;
+  const pointsFor = (metric) => records
+    .filter((r) => Number.isFinite(Number(r[metric])) && r[metric] != null)
+    .map((r) => ({
+      ageYears: Math.round((ageInMonths(child?.birthDate, r.date) / 12) * 100) / 100,
+      value: Number(r[metric]),
+      date: r.draft ? 'วันนี้ (กำลังกรอก)' : formatImmDate(r.date),
+    }));
 
   return (
     <div className='flex flex-col gap-3'>
-      {showTitle && <TopicHeader icon='show_chart'>กราฟการเจริญเติบโต</TopicHeader>}
       {showHistory && (
         <div className='flex items-center gap-2'>
           <TabCapsule variant='filter' label='กราฟ' selected={view === 'chart'} onClick={() => setView('chart')} />
           <TabCapsule variant='filter' label='ตาราง' selected={view === 'table'} onClick={() => setView('table')} />
         </div>
       )}
-      {showChart && (
-        <>
-        {/* เลือกกราฟด้วยดรอปดาวน์แทนชิป (มติผู้ใช้ 3 ก.ย. 69) */}
-        <div style={{ maxWidth: 420 }}>
-          <Select
-            showLabel={false} searchable={false} size='lg'
-            value={activeDef.key}
-            onChange={(v) => setChartKey(v)}
-            options={availableCharts.map((d) => ({ value: d.key, label: d.title }))}
-            placeholder='เลือกกราฟ'
-          />
+      {(!showHistory || view === 'chart') && (
+        <div className='grid w-full grid-cols-1 lg:grid-cols-2' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+          {IMM_GROWTH_METRICS.map((m) => (
+            <section key={m.key} className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+              <h3 className='text-sm font-bold text-ink'>{m.label}</h3>
+              <GrowthChart
+                bands={growthBandsFor(child?.sex, m.key)}
+                points={pointsFor(m.key)}
+                metric={m.key}
+                unit={m.unit}
+                xMode='years'
+              />
+            </section>
+          ))}
         </div>
-        <GrowthPercentileChart
-          height={chartHeight}
-          legendAlign={legendAlign}
-          title={activeDef.title}
-          unit={activeDef.unit}
-          axisLabel={activeDef.axisLabel}
-          reference={reference}
-          points={points}
-          latestEvaluation={evaluation}
-          emptyMessage='ยังไม่มีข้อมูลการเจริญเติบโตของเด็กในช่วงอายุนี้ — กรอกน้ำหนัก/ส่วนสูงด้านบนเพื่อลงจุดแรก'
-        />
-        </>
       )}
-        {showHistory && view === 'table' && (
+      {showHistory && view === 'table' && (
         <div className='flex flex-col gap-3'>
           <TopicHeader icon='table_chart'>ตารางบันทึกการเจริญเติบโตย้อนหลัง</TopicHeader>
           <Table
