@@ -2080,7 +2080,7 @@ export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
       {/* มติ คทง.2 — จ่ายยาเป็น checkbox ท้ายขั้น ส่วนใบสั่งยาจริงไปทางเดียว
           กับ OPD (AddMedicationPopup) เพื่อให้ห้องยาได้รายการชุดเดียวกัน */}
       <div className='flex flex-col gap-3'>
-        <TopicHeader icon='pill'>การจ่ายยา</TopicHeader>
+        <TopicHeader icon='pill'>สั่งการรักษา</TopicHeader>
         {/* ค้นจากทะเบียนยา แล้วกด "เพิ่ม" เพื่อส่งลงตารางด้านล่างทันที */}
         <div className='flex items-end gap-3 w-full flex-wrap'>
           <div style={{ flex: '1 1 320px', minWidth: 240 }}>

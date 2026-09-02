@@ -367,8 +367,9 @@ const VisitTimelineEntry = ({ entry, isLast }) => (
         <div
           className='grid w-full'
           style={{
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: 'var(--dim-space-300)',
+            /* เรียงลงมาเป็นคอลัมน์เดียวตามรายการ ไม่กางเป็นตาราง (มติผู้ใช้ 3 ก.ย. 69) */
+            gridTemplateColumns: '1fr',
+            gap: 'var(--dim-space-200)',
             padding: 'var(--dim-space-400)',
             borderRadius: 'var(--dim-radius-400)',
             border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
@@ -1105,6 +1106,57 @@ const HISTORY_VIEW_MODES = [
   { key: 'date', label: 'ดูตามวันที่รับบริการ' },
 ];
 
+/* โหมด "ดูตามวันที่รับบริการ" — ไม่แยกแท็บย่อย แต่ไล่ทุกหมวดของครั้งนั้นลงมา
+   เป็นข้อความธรรมดาคอลัมน์เดียว ตั้งแต่คัดกรอง → ตรวจร่างกาย → แล็บ/รังสี →
+   วินิจฉัย → สั่งยา/การรักษา → นัดติดตาม (มติผู้ใช้ 3 ก.ย. 69) ช่องว่างถูกตัดทิ้ง */
+const PLAIN_RECORD_SECTIONS = [
+  { title: 'คัดกรองและซักประวัติ', fields: (v) => [
+    ['อาการสำคัญ (CC)', v.cc], ['ระยะเวลาที่มีอาการ', v.duration], ['ระดับความเจ็บปวด', v.painLabel],
+    ['ความเร่งด่วน (Triage)', v.triage], ['อุณหภูมิ', v.temp], ['ความดันโลหิต', v.bp], ['ชีพจร', v.pulse],
+    ['น้ำหนัก', v.weightText], ['ห้องตรวจ', v.room], ['สิทธิการรักษา', v.rights],
+  ] },
+  { title: 'ตรวจร่างกาย', fields: (v) => [
+    ['บันทึกการตรวจร่างกาย', v.note], ['แพทย์ผู้ตรวจ', v.doctor], ['แผนก/คลินิก', v.dept],
+  ] },
+  { title: 'ผลตรวจทางห้องปฏิบัติการและรังสี', fields: (v) => [
+    ['ผลตรวจทางห้องปฏิบัติการ', v.labs], ['ผลตรวจทางรังสีวิทยา', v.imaging],
+  ] },
+  { title: 'การวินิจฉัย', fields: (v) => [['การวินิจฉัย', v.dx]] },
+  { title: 'การรักษาและสั่งยา', fields: (v) => [
+    ['การรักษา/ยาที่สั่ง', v.rx],
+    ...(v.meds || []).map((m, i) => [`ยารายการที่ ${i + 1}`, [m.name, m.sig, m.qty ? `จำนวน ${m.qty}` : ''].filter(Boolean).join(' · ')]),
+  ] },
+  { title: 'นัดติดตาม', fields: (v) => [['การนัดติดตาม', v.followUp]] },
+];
+
+const VisitPlainTextColumn = ({ visit }) => {
+  if (!visit) return <ValueText>ยังไม่มีประวัติการรับบริการ</ValueText>;
+  const sections = PLAIN_RECORD_SECTIONS
+    .map((sec) => ({ title: sec.title, rows: sec.fields(visit).filter(([, value]) => value) }))
+    .filter((sec) => sec.rows.length > 0);
+  if (sections.length === 0) return <ValueText>ไม่มีข้อมูลที่บันทึกไว้ในครั้งนี้</ValueText>;
+  return (
+    <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-500)' }}>
+      <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
+        {visit.date}{visit.center ? ` · ${visit.center}` : ''}
+      </span>
+      {sections.map((sec) => (
+        <div key={sec.title} className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+          <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)' }}>
+            {sec.title}
+          </span>
+          {sec.rows.map(([label, value]) => (
+            <div key={label} className='flex items-baseline min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+              <span style={{ flex: '0 0 220px', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>{label}</span>
+              <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)', whiteSpace: 'pre-wrap' }}>{String(value)}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export const MedicalHistoryReadOnlyLayout = ({
   patient, hideSectionTitle = false, independentScroll = false,
   /** แสดงตัวสลับแกน (ป๊อปอัปประวัติการรักษาใช้ · ขั้นในหน้าคลินิกไม่ใช้) */
@@ -1255,6 +1307,9 @@ export const MedicalHistoryReadOnlyLayout = ({
           <SectionTitle icon='description'>ประวัติการรักษา (Medical History)</SectionTitle>
         )}
 
+        {/* โหมดดูตามวันที่ไม่มีแท็บย่อย — ทุกหมวดเรียงลงมาในคอลัมน์เดียว (มติผู้ใช้ 3 ก.ย. 69) */}
+        {(byOrder || !viewModes) && (
+        <>
         {/* แถบหัวข้อ sticky ที่ขอบบนของแผงที่เลื่อน — ไล่อ่านไทม์ไลน์ยาวแล้วยังสลับ
             หัวข้อได้โดยไม่ต้องเลื่อนกลับขึ้นไป พื้นทึบกันเนื้อหาลอดใต้แถบ */}
         <div
@@ -1282,10 +1337,14 @@ export const MedicalHistoryReadOnlyLayout = ({
           ))}
         </ChipScroller>
         </div>
+        </>
+        )}
 
 
 
-        {byOrder && activeTabLabel === HISTORY_TAB_PHARMACY ? (
+        {viewModes && !byOrder ? (
+          <VisitPlainTextColumn visit={selected} />
+        ) : byOrder && activeTabLabel === HISTORY_TAB_PHARMACY ? (
           <MedicationTimeline visits={visits} />
         ) : byOrder && activeTabLabel === HISTORY_TAB_CONSULT ? (
           <ConsultTimeline patient={patient} />
