@@ -26,6 +26,7 @@ import {
 } from '@/data/homevisitAssessments';
 import { getGroupFollowUpDays } from '@/data/homevisitQuotaSettings';
 import { getHomeVisitFlagCatalog, resolveHomeVisitFlag } from '@/data/homevisitFlagSettings';
+import { getHomeVisitSupplySets, describeSupplyNeed as describeSupplyNeedFromSettings } from '@/data/homevisitClaimSettings';
 
 /* ─── วันที่ / เวลา ────────────────────────────────────────────────── */
 
@@ -847,27 +848,13 @@ export const SCREEN_2Q_QUESTIONS = [
 /* ความต้องการ/สิ่งที่ควรได้รับ — ชุดผ้าอ้อมผู้ใหญ่/แผ่นรองซับตามแบบฟอร์มกระดาษ
    ของ ศบส. (มติผู้ใช้ 2 ก.ย. 69) ราคาเป็นค่าต่อชุดต่อวันตามที่ระบุในแบบฟอร์ม —
    เลือกได้ชุดเดียว เพราะเป็นสิทธิที่เบิกได้วันละหนึ่งชุด */
-export const HOMEVISIT_SUPPLY_SETS = [
-  { value: 'A', label: 'ชุด A', detail: 'ผ้าอ้อมผู้ใหญ่ 3 ชิ้น', price: '28.50 บาท/ชุด/วัน' },
-  { value: 'B', label: 'ชุด B', detail: 'แผ่นรองซับการขับถ่าย 5 ชิ้น', price: '30 บาท/ชุด/วัน' },
-  { value: 'C', label: 'ชุด C', detail: 'ผ้าอ้อมผู้ใหญ่ 1 ชิ้น + แผ่นรองซับการขับถ่าย 3 ชิ้น', price: '27.50 บาท/ชุด/วัน' },
-  { value: 'D', label: 'ชุด D', detail: 'ผ้าอ้อมผู้ใหญ่ 1 ชิ้น + แผ่นเสริมซึมซับ 4 ชิ้น', price: '28.30 บาท/ชุด/วัน' },
-  { value: 'E', label: 'ชุด E', detail: 'ผ้าอ้อมผู้ใหญ่ 2 ชิ้น + แผ่นเสริมซึมซับ 2 ชิ้น', price: '28.40 บาท/ชุด/วัน' },
-  { value: 'other', label: 'อื่น ๆ', detail: 'ระบุความต้องการเอง', price: '' },
-];
+export const HOMEVISIT_SUPPLY_SETS = getHomeVisitSupplySets();
 
 /** ไซซ์ผ้าอ้อมผู้ใหญ่ตามแบบฟอร์ม */
 export const DIAPER_SIZES = ['S', 'M', 'L', 'XL'];
 
 /** ข้อความสรุปชุดที่เลือก — ใช้ทั้งหน้าตรวจสอบข้อมูลและใบสรุปพิมพ์ */
-export const describeSupplyNeed = (form) => {
-  if (!form?.supplyNeedSet) return '';
-  if (form.supplyNeedSet === 'other') return form.supplyNeedOther || 'อื่น ๆ';
-  const set = HOMEVISIT_SUPPLY_SETS.find((o) => o.value === form.supplyNeedSet);
-  if (!set) return form.supplyNeedSet;
-  const size = form.diaperSize ? ` · ไซซ์ ${form.diaperSize}` : '';
-  return `${set.label} — ${set.detail} (${set.price})${size}`;
-};
+export const describeSupplyNeed = describeSupplyNeedFromSettings;
 
 export const PAIN_SCALE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 

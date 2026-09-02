@@ -36,6 +36,7 @@ import { COLORFUL_BADGE_STYLES } from '@/components/badge/ColorfulBadge';
 import { currentUserName, isBureauAdmin } from '@/pages/users/usersShared';
 import { getHomeVisitLtcSettings, getHomeVisitLtcAudit, saveHomeVisitLtcSettings } from '@/data/homevisitLtcSettings';
 import { getHomeVisitVolunteerSettings, getHomeVisitVolunteerAudit, saveHomeVisitVolunteerSettings, countVolunteerHouseholds } from '@/data/homevisitVolunteerSettings';
+import { getHomeVisitClaimSettings, getHomeVisitClaimAudit, saveHomeVisitClaimSettings } from '@/data/homevisitClaimSettings';
 
 /* ระบบจัดการระบบ · ตั้งค่าการเยี่ยมบ้าน
    มาสเตอร์เพดาน สปสช. ระดับสำนักอนามัยตามมติ คทง.4 ครั้งที่ 6 ต่อ TOR §1.18.1.
@@ -141,6 +142,10 @@ export default function HomeVisitSettingsPage() {
   const [volunteerAuditRows, setVolunteerAuditRows] = useState(() => getHomeVisitVolunteerAudit());
   const [volunteerReason, setVolunteerReason] = useState('');
   const [volunteerReasonOpen, setVolunteerReasonOpen] = useState(false);
+  const [claimSettings, setClaimSettings] = useState(() => getHomeVisitClaimSettings());
+  const [savedClaimSettings, setSavedClaimSettings] = useState(() => getHomeVisitClaimSettings());
+  const [claimReason, setClaimReason] = useState('');
+  const [claimReasonOpen, setClaimReasonOpen] = useState(false);
   const [templatePopupOpen, setTemplatePopupOpen] = useState(false);
   const [templateDraft, setTemplateDraft] = useState(null);
   const [templateReasonPopupOpen, setTemplateReasonPopupOpen] = useState(false);
@@ -165,6 +170,7 @@ export default function HomeVisitSettingsPage() {
   const flagDirty = !sameCatalog(flagCatalog, savedFlagCatalog);
   const ltcDirty = !sameCatalog(ltcSettings, savedLtcSettings);
   const volunteerDirty = !sameCatalog(volunteerSettings, savedVolunteerSettings);
+  const claimDirty = !sameCatalog(claimSettings, savedClaimSettings);
 
   const updateRow = (group, field, raw) => {
     if (!isAdmin) return;
@@ -230,6 +236,7 @@ export default function HomeVisitSettingsPage() {
     setFlagCatalog(savedFlagCatalog.map((row) => ({ ...row })));
     setLtcSettings(JSON.parse(JSON.stringify(savedLtcSettings)));
     setVolunteerSettings(JSON.parse(JSON.stringify(savedVolunteerSettings)));
+    setClaimSettings(JSON.parse(JSON.stringify(savedClaimSettings)));
     setReason('');
     setErrors({});
     if (pendingTab) setActiveTab(pendingTab);
@@ -239,7 +246,7 @@ export default function HomeVisitSettingsPage() {
 
   const handleTabChange = (tab) => {
     if (tab === activeTab) return;
-    if ((activeTab === 'quota' && dirty) || (activeTab === 'templates' && careDirty) || (activeTab === 'flags' && flagDirty) || (activeTab === 'ltc' && ltcDirty) || (activeTab === 'volunteer' && volunteerDirty)) {
+    if ((activeTab === 'quota' && dirty) || (activeTab === 'templates' && careDirty) || (activeTab === 'flags' && flagDirty) || (activeTab === 'ltc' && ltcDirty) || (activeTab === 'volunteer' && volunteerDirty) || (activeTab === 'claim' && claimDirty)) {
       setPendingTab(tab);
       setUnsavedOpen(true);
       return;
@@ -254,6 +261,7 @@ export default function HomeVisitSettingsPage() {
     try { const saved = saveHomeVisitLtcSettings(ltcSettings, { reason: ltcReason, by: currentUserName() }); setLtcSettings(saved.state.settings); setSavedLtcSettings(saved.state.settings); setLtcAuditRows(saved.audit); setLtcReason(''); setLtcReasonOpen(false); setToast(`บันทึกเกณฑ์ LTC แล้ว · ${saved.state.savedBy}`); if (pendingTab) setActiveTab(pendingTab); setPendingTab(null); } catch (error) { setLtcErrors({ reason: error.message || 'บันทึกเกณฑ์ LTC ไม่สำเร็จ' }); }
   };
   const saveVolunteer = () => { if (!volunteerReason.trim()) return; try { const saved = saveHomeVisitVolunteerSettings(volunteerSettings, { reason: volunteerReason, by: currentUserName() }); setVolunteerSettings(saved.state.settings); setSavedVolunteerSettings(saved.state.settings); setVolunteerAuditRows(saved.audit); setVolunteerReason(''); setVolunteerReasonOpen(false); setToast(`บันทึกกฎจ่ายงาน อสส. แล้ว · ${saved.state.savedBy}`); } catch (error) { setToast(error.message); } };
+  const saveClaim = () => { if (!claimReason.trim()) return; try { const saved = saveHomeVisitClaimSettings(claimSettings, { reason: claimReason, by: currentUserName() }); setClaimSettings(saved.state); setSavedClaimSettings(saved.state); setClaimReason(''); setClaimReasonOpen(false); setToast('บันทึกชุดส่ง สปสช. และวัสดุเบิกแล้ว'); } catch (error) { setToast(error.message); } };
 
   const patchFlagDraft = (field, value) => {
     setFlagDraft((current) => ({ ...current, [field]: value }));
@@ -721,6 +729,14 @@ export default function HomeVisitSettingsPage() {
             </section>
           ) : null}
 
+          {activeTab === 'claim' ? (
+            <section className='w-full flex flex-col' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}><h2 style={{ color: 'var(--text-content-primary)', fontFamily: 'var(--type-family-heading-content)', fontSize: 'var(--type-size-lg)', fontWeight: 'var(--type-weight-bold)' }}>ชุดส่ง สปสช. และชุดวัสดุเบิก</h2><span style={SUBTEXT}>กำหนดฟิลด์ที่จำเป็นก่อนส่งเคลม และรายการวัสดุที่พยาบาลเลือกใช้ โดยไม่แก้ราคาในหน้าบันทึกเยี่ยม</span></div>
+              <Table columns={[{ key: 'label', label: 'ฟิลด์ส่งเคลม', render: (row) => <span style={TEXT}>{row.label}</span> }, { key: 'source', label: 'แหล่งข้อมูล', render: (row) => <span style={SUBTEXT}>{row.source}</span> }, { key: 'required', label: 'จำเป็น', render: (row) => <Switch checked={row.required} disabled={!isAdmin} onChange={(value) => setClaimSettings((s) => ({ ...s, fields: s.fields.map((f) => f.key === row.key ? { ...f, required: value } : f) }))} /> }, { key: 'active', label: 'เปิดใช้', render: (row) => <Switch checked={row.active} disabled={!isAdmin} onChange={(value) => setClaimSettings((s) => ({ ...s, fields: s.fields.map((f) => f.key === row.key ? { ...f, active: value } : f) }))} /> }]} rows={claimSettings.fields} rowKey={(row) => row.key} pagination={false} />
+              <Table columns={[{ key: 'value', label: 'รหัส', render: (row) => <span style={TEXT}>{row.value}</span> }, { key: 'label', label: 'ชุดวัสดุ', render: (row) => <span style={TEXT}>{row.label}</span> }, { key: 'detail', label: 'ส่วนประกอบ', render: (row) => <span style={SUBTEXT}>{row.detail}</span> }, { key: 'priceBaht', label: 'ราคา/ชุด/วัน', render: (row) => <span style={TEXT}>{row.priceBaht == null ? '—' : `${row.priceBaht} บาท`}</span> }, { key: 'active', label: 'เปิดใช้', render: (row) => <Switch checked={row.active} disabled={!isAdmin || row.isOther} onChange={(value) => setClaimSettings((s) => ({ ...s, supplySets: s.supplySets.map((item) => item.value === row.value ? { ...item, active: value } : item) }))} /> }]} rows={claimSettings.supplySets} rowKey={(row) => row.value} pagination={false} />
+            </section>
+          ) : null}
+
           {activeTab === 'audit' ? (
             <section className='w-full flex flex-col' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
               <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
@@ -752,7 +768,7 @@ export default function HomeVisitSettingsPage() {
             </section>
           ) : null}
         </div>
-        {(activeTab === 'quota' || activeTab === 'templates' || activeTab === 'flags' || activeTab === 'ltc' || activeTab === 'volunteer') && isAdmin ? (
+        {(activeTab === 'quota' || activeTab === 'templates' || activeTab === 'flags' || activeTab === 'ltc' || activeTab === 'volunteer' || activeTab === 'claim') && isAdmin ? (
           <Footer
             type='with BTN'
             sticky
@@ -760,10 +776,10 @@ export default function HomeVisitSettingsPage() {
             showAutoSave={false}
             showButton2={false}
             showButton3={false}
-            button1Label={activeTab === 'templates' ? 'บันทึกเทมเพลตทั้งชุด' : activeTab === 'flags' ? 'บันทึกแคตตาล็อก Flag ทั้งชุด' : activeTab === 'ltc' ? 'บันทึกเกณฑ์ LTC ทั้งชุด' : activeTab === 'volunteer' ? 'บันทึกกฎจ่ายงาน อสส.' : 'บันทึกการตั้งค่าทั้งชุด'}
+            button1Label={activeTab === 'templates' ? 'บันทึกเทมเพลตทั้งชุด' : activeTab === 'flags' ? 'บันทึกแคตตาล็อก Flag ทั้งชุด' : activeTab === 'ltc' ? 'บันทึกเกณฑ์ LTC ทั้งชุด' : activeTab === 'volunteer' ? 'บันทึกกฎจ่ายงาน อสส.' : activeTab === 'claim' ? 'บันทึกชุดส่งและวัสดุเบิก' : 'บันทึกการตั้งค่าทั้งชุด'}
             button1Icon='save'
-            button1Disabled={activeTab === 'templates' ? !careDirty : activeTab === 'flags' ? !flagDirty : activeTab === 'ltc' ? !ltcDirty : activeTab === 'volunteer' ? !volunteerDirty : !dirty}
-            onButton1Click={activeTab === 'templates' ? requestCareSave : activeTab === 'flags' ? () => { setUnsavedOpen(false); setFlagReasonPopupOpen(true); } : activeTab === 'ltc' ? () => { setUnsavedOpen(false); setLtcReasonOpen(true); } : activeTab === 'volunteer' ? () => { setUnsavedOpen(false); setVolunteerReasonOpen(true); } : () => requestSave(false)}
+            button1Disabled={activeTab === 'templates' ? !careDirty : activeTab === 'flags' ? !flagDirty : activeTab === 'ltc' ? !ltcDirty : activeTab === 'volunteer' ? !volunteerDirty : activeTab === 'claim' ? !claimDirty : !dirty}
+            onButton1Click={activeTab === 'templates' ? requestCareSave : activeTab === 'flags' ? () => { setUnsavedOpen(false); setFlagReasonPopupOpen(true); } : activeTab === 'ltc' ? () => { setUnsavedOpen(false); setLtcReasonOpen(true); } : activeTab === 'volunteer' ? () => { setUnsavedOpen(false); setVolunteerReasonOpen(true); } : activeTab === 'claim' ? () => { setUnsavedOpen(false); setClaimReasonOpen(true); } : () => requestSave(false)}
           />
         ) : null}
       </QueuePageShell>
@@ -818,6 +834,9 @@ export default function HomeVisitSettingsPage() {
       </Popup>
       <Popup open={volunteerReasonOpen} onClose={() => setVolunteerReasonOpen(false)} title='บันทึกกฎจ่ายงานและเพดาน อสส.' subtitle='ระบุเหตุผลเพื่อบันทึก audit ค่าเดิมและค่าใหม่' primaryAction={{ label: 'บันทึกกฎจ่ายงาน อสส.', disabled: !volunteerReason.trim(), onClick: saveVolunteer }} secondaryAction={{ label: 'ยกเลิก', onClick: () => setVolunteerReasonOpen(false) }}>
         <Textarea label='เหตุผลการปรับกฎจ่ายงานหรือเพดาน อสส.' required value={volunteerReason} onChange={setVolunteerReason} placeholder='เช่น ปรับจำนวนครัวเรือนตามแนวทางสำนักอนามัย' />
+      </Popup>
+      <Popup open={claimReasonOpen} onClose={() => setClaimReasonOpen(false)} title='บันทึกชุดส่ง สปสช. และวัสดุเบิก' subtitle='ระบุเหตุผลเพื่อบันทึก audit ค่าเดิมและค่าใหม่' primaryAction={{ label: 'บันทึกชุดส่งและวัสดุเบิก', disabled: !claimReason.trim(), onClick: saveClaim }} secondaryAction={{ label: 'ยกเลิก', onClick: () => setClaimReasonOpen(false) }}>
+        <Textarea label='เหตุผลการปรับชุดส่งหรือชุดวัสดุ' required value={claimReason} onChange={setClaimReason} placeholder='เช่น ปรับรายการตามแบบฟอร์ม ศบส.' />
       </Popup>
 
       <Popup open={flagPopupOpen} onClose={() => { setFlagPopupOpen(false); setFlagDraft(null); }} size='extraLarge' title={flagDraft && flagCatalog.some((row) => row.value === flagDraft.value) ? 'แก้ไข Flag เยี่ยมบ้าน' : 'เพิ่ม Flag เยี่ยมบ้าน'} subtitle='กำหนดชนิดธงกลางสำหรับการติดธงรายบุคคลในทะเบียนเยี่ยมบ้าน' primaryAction={{ label: 'เก็บไว้ในชุดที่กำลังแก้ไข', disabled: !flagDraftReady, onClick: saveFlagDraft }} secondaryAction={{ label: 'ยกเลิก', onClick: () => { setFlagPopupOpen(false); setFlagDraft(null); } }}>

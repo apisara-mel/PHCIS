@@ -118,6 +118,7 @@ import {
   resolveSource,
   HOMEVISIT_SOURCES,
 } from '@/data/homevisitVisits';
+import { getHomeVisitSupplySets, supplySetNeedsDiaperSize } from '@/data/homevisitClaimSettings';
 import {
   getHomeVisitCareActivities,
   getHomeVisitCareTemplates,
@@ -1089,9 +1090,9 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
               value={form.supplyNeedSet}
               onChange={set('supplyNeedSet')}
               disabled={readOnly}
-              options={HOMEVISIT_SUPPLY_SETS.map((opt) => ({
+              options={getHomeVisitSupplySets({ activeOnly: true }).map((opt) => ({
                 value: opt.value,
-                label: [opt.label, opt.detail, opt.price].filter(Boolean).join(' — '),
+                label: [opt.label, opt.detail, opt.priceBaht == null ? '' : `${opt.priceBaht} ${opt.unitLabel}`].filter(Boolean).join(' — '),
               }))}
               placeholder='เลือกชุดที่ควรได้รับ'
             />
@@ -1110,7 +1111,7 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
           )}
 
           {/* ไซซ์ถามเฉพาะชุดที่มีผ้าอ้อมผู้ใหญ่ */}
-          {['A', 'C', 'D', 'E'].includes(form.supplyNeedSet) && (
+          {supplySetNeedsDiaperSize(form.supplyNeedSet) && (
             <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
               <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
                 ไซซ์ผ้าอ้อมผู้ใหญ่
