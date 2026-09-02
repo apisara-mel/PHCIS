@@ -10,7 +10,7 @@ import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import TreatmentFormShell from '@/templates/TreatmentFormShell';
 import {
   AncStep2Screening, AncStepExamDiagnosis,
-  AncStep5Orders, AncStep6Appointment, AncStep7Card,
+  AncStep5Orders, AncStep7Card,
 } from '@/pages/treat/anc/AncSteps';
 import AncPregnancyProgress from '@/pages/treat/anc/AncPregnancyProgress';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
@@ -47,20 +47,20 @@ const ANC_STEPS = [
   { title: 'แบบประเมิน', subtitle: 'Assessment' },
   /* ตรวจร่างกายกับวินิจฉัยรวมเป็นขั้นเดียว แบ่งซ้าย-ขวา (มติผู้ใช้ 2 ก.ย. 69) */
   { title: 'ตรวจร่างกายและวินิจฉัย', subtitle: 'Examination & Diagnosis' },
+  /* นัดหมายรวมอยู่ใต้ตารางสั่งการรักษาแล้ว (มติผู้ใช้ 3 ก.ย. 69) */
   { title: 'สั่งการรักษา', subtitle: 'Treatment Order' },
-  { title: 'นัดหมาย', subtitle: 'Appointment' },
   { title: 'ตรวจสอบ', subtitle: 'Review' },
 ];
 
 const STEP_RENDERERS = [
   AncStep2Screening, AncStepExamDiagnosis,
-  AncStep5Orders, AncStep6Appointment, AncStep7Card,
+  AncStep5Orders, AncStep7Card,
 ];
 
 /* ลำดับขั้นที่เหลือเทียบกับลำดับเดิม 7 ขั้นของ `getAncCompletedSteps` —
    ใช้แปลง index ปัจจุบันกลับไปเป็นฐานเดิม และรวมธง "ตรวจร่างกาย"+"วินิจฉัย"
    เป็นธงเดียวของขั้นที่รวมกันแล้ว */
-const STEP_BASE_INDEX = [1, 3, 4, 5, 6];
+const STEP_BASE_INDEX = [1, 3, 4, 6];
 
 /* แถบสัญญาณชีพใต้แถบขั้นตอน (มติผู้ใช้ 2 ก.ย. 69) — ข้อความล้วนเรียงแนวนอน
    ไม่ใช่การ์ด/ป้ายสี เพราะเป็นค่าอ้างอิงที่ต้องเห็นตลอดทุกขั้น ไม่ใช่สิ่งที่ต้อง
@@ -265,7 +265,8 @@ const AncFormPage = () => {
      5 ขั้นที่เหลือ (ขั้นที่รวมกันจะติ๊กเมื่อครบทั้งสองฝั่ง) */
   const completedSteps = useMemo(() => {
     const base = getAncCompletedSteps(form, STEP_BASE_INDEX[stepIndex] ?? stepIndex);
-    return [base[1], base[2] && base[3], base[4], base[5], base[6]];
+    /* 4 ขั้น: แบบประเมิน · ตรวจร่างกาย+วินิจฉัย · สั่งการรักษา(+นัด) · ตรวจสอบ */
+    return [base[1], base[2] && base[3], base[4] || base[5], base[6]];
   }, [form, stepIndex]);
 
   return (

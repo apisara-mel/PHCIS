@@ -2148,6 +2148,9 @@ export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
         />
       </div>
 
+      {/* นัดหมายครั้งถัดไปอยู่ใต้ตารางสั่งการรักษา (มติผู้ใช้ 3 ก.ย. 69) */}
+      <AncNextAppointmentBox form={form} setForm={setForm} />
+
       <Popup
         open={!!removeMed}
         onClose={() => setRemoveMed(null)}
@@ -2168,7 +2171,9 @@ export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
    เหลือช่องบันทึกข้อความช่องเดียว (มติผู้ใช้ 2 ก.ย. 69) — แผนนัดตามอายุครรภ์/
    ความเสี่ยง สถานที่ รูปแบบ และ Telemedicine ถูกถอดออกจากขั้นนี้ทั้งหมด
    โค้ดเดิมอยู่ในประวัติ git ถ้าจะเอากลับ */
-export const AncStep6Appointment = ({ form, setForm }) => {
+/* กล่องนัดหมายครั้งถัดไป — อยู่ใต้ตารางสั่งการรักษา (มติผู้ใช้ 3 ก.ย. 69) ไม่แยกเป็นขั้น
+   ของตัวเองแล้ว ยังคง export ขั้นเดิมไว้ให้ผู้เรียกอื่นใช้ได้ */
+export const AncNextAppointmentBox = ({ form, setForm }) => {
   const ga = calculateGestationalAge(form.lmp);
   /* placeholder เป็นแนวทางให้แพทย์กรอก (มติผู้ใช้ 2 ก.ย. 69) — ประกอบจากแผน
      นัดตามอายุครรภ์และระดับความเสี่ยงของผู้รับบริการรายนี้ (แผนภูมิฝากครรภ์
@@ -2193,7 +2198,6 @@ export const AncStep6Appointment = ({ form, setForm }) => {
   ].filter(Boolean);
 
   return (
-    <StepCard>
       <div className='flex flex-col gap-3'>
         <TopicHeader icon='calendar' small tone='neutral'>นัดหมายครั้งถัดไป</TopicHeader>
         <SuggestibleTextarea
@@ -2205,9 +2209,12 @@ export const AncStep6Appointment = ({ form, setForm }) => {
           placeholder={guideline}
         />
       </div>
-    </StepCard>
   );
 };
+
+export const AncStep6Appointment = ({ form, setForm }) => (
+  <StepCard><AncNextAppointmentBox form={form} setForm={setForm} /></StepCard>
+);
 
 /* ── ขั้นที่ 7 — ใบฝากครรภ์ ─────────────────────────────────────────
    สรุปทั้งวิสิตแบบอ่านอย่างเดียวก่อนยืนยัน (TOR 1.10.7.5/.6) — การยืนยัน
