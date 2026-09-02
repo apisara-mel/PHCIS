@@ -7,6 +7,8 @@ import Footer from '@/components/layout/Footer';
 import PatientCard from '@/components/card/PatientCard';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import Popup from '@/components/popup/Popup';
+import Table from '@/components/table/Table';
+import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Popover from '@/components/popup/Popover';
 import Icon from '@/components/icons/Icon';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
@@ -20,6 +22,8 @@ import {
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
 import {
+  FP_PAP_RESULT_OPTIONS,
+  FP_EXAM_RESULT_OPTIONS,
   DEFAULT_FP_VISIT,
   getFpRegistrationByHn,
   getFpQueueRowByHn,
@@ -49,6 +53,101 @@ const cloneDefaultVisit = () => ({
   ...JSON.parse(JSON.stringify(DEFAULT_FP_VISIT)),
   serviceDate: todayIso(),
 });
+
+/* ป๊อปอัปผลตรวจบนแถวแจ้งเตือนของการ์ดผู้ป่วย — ทรงเดียวกับคลินิกฝากครรภ์
+   (มติผู้ใช้ 3 ก.ย. 69) ชันสูตร = ผลเซลล์วิทยา/แล็บของวิสิตนี้ · รังสี = ผลภาพถ่าย */
+const FpResultPopups = ({ form, open, onClose }) => {
+  const labRows = [
+    form.papResult && {
+      id: 'pap',
+      label: 'ผลตรวจมะเร็งปากมดลูก (Pap/HPV)',
+      value: FP_PAP_RESULT_OPTIONS.find((o) => o.value === form.papResult)?.label || form.papResult,
+      risk: form.papResult === 'abnormal',
+      note: form.papDetail || '',
+    },
+    form.breast?.left?.result && {
+      id: 'breast-left',
+      label: 'ตรวจเต้านมข้างซ้าย',
+      value: FP_EXAM_RESULT_OPTIONS.find((o) => o.value === form.breast.left.result)?.label || form.breast.left.result,
+      risk: form.breast.left.result === 'abnormal',
+      note: form.breast.left.detail || '',
+    },
+    form.breast?.right?.result && {
+      id: 'breast-right',
+      label: 'ตรวจเต้านมข้างขวา',
+      value: FP_EXAM_RESULT_OPTIONS.find((o) => o.value === form.breast.right.result)?.label || form.breast.right.result,
+      risk: form.breast.right.result === 'abnormal',
+      note: form.breast.right.detail || '',
+    },
+    form.pregnancyTest && {
+      id: 'upt',
+      label: 'ผลทดสอบการตั้งครรภ์ (UPT)',
+      value: form.pregnancyTest === 'positive' ? 'ตั้งครรภ์' : form.pregnancyTest === 'negative' ? 'ไม่ตั้งครรภ์' : 'ไม่ได้ตรวจ',
+      risk: form.pregnancyTest === 'positive',
+      note: form.pregnancyTest === 'positive' ? 'ผลบวก — งดจ่ายยาคุมกำเนิดชนิดฮอร์โมน' : '',
+    },
+  ].filter(Boolean);
+
+  const imagingRows = (form.imagingResults || []).map((r, i) => ({ id: `img-${i}`, label: r.label, value: r.value }));
+
+  return (
+    <>
+      <Popup
+        open={open === 'lab'}
+        onClose={onClose}
+        size='extraLarge'
+        height='auto'
+        title='ผลตรวจชันสูตร'
+        subtitle='ผลจากห้องปฏิบัติการที่บันทึกไว้ในการรับบริการครั้งนี้'
+        primaryAction={{ label: 'ปิด', onClick: onClose }}
+      >
+        <div style={{ padding: 'var(--dim-space-600, 24px)' }}>
+          <Table
+            columns={[
+              { key: 'label', label: 'รายการตรวจ', flex: true, minWidth: 220 },
+              { key: 'value', label: 'ผลตรวจ', flex: true, minWidth: 200 },
+              {
+                key: 'risk',
+                label: 'การแปลผล',
+                render: (r) => (
+                  <ColorfulBadge style={r.risk ? 'red' : 'green'} size='small' hierarchy='secondary'>
+                    {r.risk ? 'ผิดปกติ' : 'ปกติ'}
+                  </ColorfulBadge>
+                ),
+              },
+              { key: 'note', label: 'ข้อควรปฏิบัติ', flex: true, minWidth: 240, render: (r) => r.note || '-' },
+            ]}
+            rows={labRows}
+            rowKey={(r) => r.id}
+            emptyMessage='ยังไม่มีผลตรวจจากห้องปฏิบัติการในการรับบริการครั้งนี้'
+          />
+        </div>
+      </Popup>
+
+      <Popup
+        open={open === 'imaging'}
+        onClose={onClose}
+        size='extraLarge'
+        height='auto'
+        title='ผลตรวจรังสี'
+        subtitle='ผลตรวจทางรังสีที่บันทึกไว้ในการรับบริการครั้งนี้'
+        primaryAction={{ label: 'ปิด', onClick: onClose }}
+      >
+        <div style={{ padding: 'var(--dim-space-600, 24px)' }}>
+          <Table
+            columns={[
+              { key: 'label', label: 'รายการ', flex: true, minWidth: 220 },
+              { key: 'value', label: 'ผลตรวจ', flex: true, minWidth: 220 },
+            ]}
+            rows={imagingRows}
+            rowKey={(r) => r.id}
+            emptyMessage='ยังไม่มีผลตรวจทางรังสีในการรับบริการครั้งนี้'
+          />
+        </div>
+      </Popup>
+    </>
+  );
+};
 
 const FamilyPlanningFormPage = () => {
   const history = useHistory();
@@ -107,6 +206,8 @@ const FamilyPlanningFormPage = () => {
   const [resumeBanner, setResumeBanner] = useState(initial.mode === 'draft');
   const [finishErrors, setFinishErrors] = useState([]);
   const [sendExamOpen, setSendExamOpen] = useState(false);
+  /* ป๊อปอัปผลตรวจชันสูตร/รังสี — ชุดเดียวกับคลินิกฝากครรภ์ (มติผู้ใช้ 3 ก.ย. 69) */
+  const [resultPopup, setResultPopup] = useState(null);
   const sendExamAnchorRef = useRef(null);
 
   const seedJson = useRef(JSON.stringify(initial.form));
@@ -230,6 +331,19 @@ const FamilyPlanningFormPage = () => {
             patient={cardPatient}
             alertGroupsLeft
             alertExpandable
+            /* แถวแพ้ยา/โรคประจำตัว + ปุ่มผลตรวจสองใบหน้าปุ่ม EMR — ชุดเดียวกับคลินิกฝากครรภ์
+               (มติผู้ใช้ 3 ก.ย. 69) */
+            forceAlertRow
+            alertRowActions={(
+              <>
+                <BrandSubdueButton variant='outline' size='sm' leadingIcon='biotech' onClick={() => setResultPopup('lab')}>
+                  ผลตรวจชันสูตร
+                </BrandSubdueButton>
+                <BrandSubdueButton variant='outline' size='sm' leadingIcon='radiology' onClick={() => setResultPopup('imaging')}>
+                  ผลตรวจรังสี
+                </BrandSubdueButton>
+              </>
+            )}
             title={pageTitle}
             drugAllergies={mrPatient.drugAllergies}
             chronicDiseases={mrPatient.chronicDiseases}
@@ -263,6 +377,13 @@ const FamilyPlanningFormPage = () => {
                   </div>
                 </Popover>
                 <BrandSubdueButton
+                  variant='outline'
+                  leadingIcon='medication'
+                  onClick={() => handleStepChange(2)}
+                >
+                  พิมพ์ใบสั่งยา
+                </BrandSubdueButton>
+                <BrandSubdueButton
                   variant='fill'
                   leadingIcon='credit_card'
                   onClick={() => handleStepChange(3)}
@@ -272,6 +393,7 @@ const FamilyPlanningFormPage = () => {
               </>
             )}
           />
+          <FpResultPopups form={form} open={resultPopup} onClose={() => setResultPopup(null)} />
 
           {/* ยังไม่มีทะเบียน — คู่มือ p.2-1 "ไม่พบข้อมูล กรุณาลงทะเบียน" */}
           {(!registration || registration.status === 'cancelled') && (

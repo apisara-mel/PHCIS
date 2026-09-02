@@ -25,6 +25,18 @@ import { BodyDiagramCard } from '@/components/examination/BodyDrawingCanvas';
 import { AncStep4Diagnosis } from '@/pages/treat/anc/AncSteps';
 import DrawingCanvasPopup from '@/components/popup/DrawingCanvasPopup';
 import { AncStep5Orders } from '@/pages/treat/anc/AncSteps';
+import {
+  ANC_ULTRASOUND_RESULT_FIELDS,
+  ANC_SECOND_TRIMESTER_SCREENING,
+  ANC_DOWN_SCREENING_METHODS,
+  ANC_DIABETES_SCREENING,
+  ANC_TERM_ASSESSMENT,
+  ANC_VACCINE_DOSES,
+  ANC_DISPENSE_ITEMS,
+  summarizeLabResults,
+  summarizeAncProcedures,
+  formatAncDate,
+} from '@/data/ancVisits';
 import FamilyPlanningFollowUpCard, { printFpFollowUpCard } from '@/pages/clinic/family-planning/FamilyPlanningFollowUpCard';
 import {
   FP_CURRENT_USER,
@@ -2912,7 +2924,6 @@ export const FpReviewStep = ({ form, registration, cardPatient, ...props }) => {
   const pv = form.pv || {};
   const mother = form.postpartumMother || {};
   const child = form.postpartumChild || {};
-  const appointment = form.appointment || {};
 
   return (
     <StepCard>
@@ -2999,35 +3010,31 @@ export const FpReviewStep = ({ form, registration, cardPatient, ...props }) => {
           ]}
         />
 
+        {/* ขั้นสั่งการรักษาของคลินิกนี้เรียก `AncStep5Orders` ทั้งก้อน ค่าจึงอยู่
+            ในคีย์ชุดของฝากครรภ์ — บล็อกสรุปตรงนี้จึงคัดชุดแถวของ `AncStep7Card`
+            มาทั้งก้อน ลำดับ ชื่อแถว และสูตรประกอบค่าเหมือนกันเป๊ะ
+            (มติผู้ใช้ 3 ก.ย. 69) */}
         <FpReviewSection
           title='สั่งการรักษา'
           rows={[
-            ['แพทย์ผู้สั่งการรักษา', form.doctor],
-            ['บริการที่ได้รับ', summarizeFpServices(form.services)],
-            ['การถอด (ห่วง/ยาฝัง)', FP_REMOVAL_OPTIONS.filter((o) => (form.removals || []).includes(o.value ?? o.key)).map((o) => o.label).join('\n')],
-            ['วิธีคุมกำเนิดครั้งสุดท้าย', form.lastMethod === 'other' ? form.lastMethodOther : pickLabel(FP_LAST_METHODS, form.lastMethod)],
-            ['ยาและเวชภัณฑ์ (ชุดมาตรฐาน)', FP_MED_ORDERS.filter((m) => form.medOrders?.[m.key]).map((m) => m.label).join('\n')],
-            ['รายการยาที่สั่ง', (form.medications || []).map((m) => [m.name, m.dosePerTake, m.frequency, m.when, m.quantity].filter(Boolean).join(' · ')).join('\n')],
-            ['คำสั่งตรวจ/หัตถการ', FP_ADVANCE_ORDERS.filter((o) => form.advanceOrders?.[o.key]).map((o) => o.label).join('\n')],
-            ['ส่งปรึกษาภายใน', form.internalReferEnabled
-              ? [pickLabel(FP_INTERNAL_REFER_UNITS, form.internalReferUnit) || form.internalReferUnit, form.internalReferReason].filter(Boolean).join(' — ')
-              : ''],
-            ['ส่งต่อภายนอก', form.externalReferEnabled
-              ? [pickLabel(FP_EXTERNAL_REFER_HOSPITALS, form.externalReferHospital) || form.externalReferHospital, formatFpDate(form.externalReferDate), form.externalReferReason].filter(Boolean).join(' — ')
-              : ''],
-            ['คำแนะนำที่ให้', form.adviceNote],
+            ['ผลตรวจทางห้องปฏิบัติการ', summarizeLabResults(form.labResults)],
+            ['ผลตรวจ Ultrasound', ANC_ULTRASOUND_RESULT_FIELDS.filter((f) => form.ultrasoundResults?.[f.key]).map((f) => `${f.label}: ${form.ultrasoundResults[f.key]}`).join('\n')],
+            ['คัดกรองไตรมาส 2', ANC_SECOND_TRIMESTER_SCREENING.filter((o) => form.secondTrimesterScreening?.[o.key]).map((o) => o.th).join('\n')],
+            ['วิธีคัดกรองกลุ่มอาการดาวน์', ANC_DOWN_SCREENING_METHODS.find((o) => o.value === form.downScreeningMethod)?.label],
+            ['คัดกรองเบาหวาน', ANC_DIABETES_SCREENING.filter((o) => form.diabetesScreening?.[o.key]).map((o) => o.th).join('\n')],
+            ['การประเมินใกล้คลอด', ANC_TERM_ASSESSMENT.filter((o) => form.termAssessment?.[o.key]).map((o) => o.th).join('\n')],
+            ['วัคซีนที่ให้', ANC_VACCINE_DOSES.filter((o) => form.vaccineDoses?.[o.key]).map((o) => `${o.label}${form.vaccineDoseDates?.[o.key] ? ` (${formatAncDate(form.vaccineDoseDates[o.key])})` : ''}`).join('\n')],
+            ['ยาเสริม/เวชภัณฑ์ที่จ่าย', ANC_DISPENSE_ITEMS.filter((o) => form.dispenseItems?.[o.key]).map((o) => o.label).join('\n')],
+            ['เวชภัณฑ์อื่น ๆ', form.dispenseOtherNote],
+            ['ยา / วัคซีน / หัตถการที่สั่ง', (form.medications || []).map((m, i) => `${i + 1}. ${m.name}`).join('\n')],
+            ['งานทันตกรรม', [form.dentalReferral ? 'ส่งตรวจสุขภาพช่องปาก' : '', form.dentalCleaningDone ? 'ขัดทำความสะอาดฟันแล้ว' : '', form.dentalBrushingPractice ? 'ฝึกแปรงฟันแบบลงมือปฏิบัติแล้ว' : ''].filter(Boolean).join(' · ')],
+            ['บันทึกการรักษา', summarizeAncProcedures(form)],
           ]}
         />
 
         <FpReviewSection
           title='นัดหมายครั้งถัดไป'
-          rows={[
-            ['ประเภทนัดหมาย', resolveFpAppointmentType(appointment.type)],
-            ['วันนัดหมาย', formatFpDate(appointment.date)],
-            ['เวลานัด', appointment.time],
-            ['สถานะ', appointment.cancelled ? 'ยกเลิกนัดแล้ว' : ''],
-            ['หมายเหตุ', appointment.note],
-          ]}
+          rows={[['นัดหมาย', form.appointment?.note?.trim() || formatAncDate(form.appointment?.date)]]}
         />
       </div>
 
