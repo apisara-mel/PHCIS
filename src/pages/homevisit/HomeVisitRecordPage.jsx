@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
+import FollowUpStatusMenuButton from '@/components/homevisit/FollowUpStatusMenuButton';
 import { useTelemedCall } from '@/components/telemed/TelemedCallProvider';
 import Header, { SubHeader } from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -62,12 +63,10 @@ const HOMEVISIT_STEPS = [
      "ข้อมูลการติดต่อ") */
   { title: 'ที่อยู่และการติดต่อ',        subtitle: 'Address & Contact' },
   { title: 'สิทธิการรักษา',              subtitle: 'Healthcare Rights' },
-  /* สัญญาณชีพมาก่อนอาการป่วย (มติผู้ใช้ 30 ส.ค. 69) — ถึงบ้านแล้ววัดสัญญาณชีพ
-     เป็นอย่างแรก แล้วค่อยซักอาการโดยมีค่าที่วัดได้อยู่ตรงหน้า */
-  { title: 'สัญญาณชีพ',                  subtitle: 'Vital Signs' },
-  /* ประวัติการแพ้/โรคประจำตัวเป็นขั้นของตัวเองต่อจากสัญญาณชีพ
-     (มติผู้ใช้ 30 ส.ค. 69) */
-  { title: 'ประวัติการแพ้ / โรคประจำตัว', subtitle: 'Allergies & Chronic Conditions' },
+  /* คัดกรอง = สัญญาณชีพ + ประวัติการแพ้/โรคประจำตัว (มติผู้ใช้ 2 ก.ย. 69) —
+     ถึงบ้านแล้ววัดสัญญาณชีพและทวนประวัติแพ้/โรคประจำตัวเป็นชุดเดียวกัน
+     ก่อนเริ่มซักอาการโดยมีค่าที่วัดได้อยู่ตรงหน้า */
+  { title: 'คัดกรอง',                    subtitle: 'Screening' },
   { title: 'ประเมินอาการป่วย',            subtitle: 'Chief Complaint & History' },
   /* ลำดับเดียวกับจุดคัดกรอง OPD: อาการป่วย → พฤติกรรมสุขภาพ → ประเมิน
      (มติผู้ใช้ 30 ส.ค. 69) */
@@ -275,6 +274,10 @@ const HomeVisitRecordPage = () => {
             >
               ปรึกษาแพทย์ทางไกล
             </BrandSubdueButton>
+            {/* ติดตามสถานะโครงการที่ผู้รับบริการเข้าร่วม — ตอนนี้มีโครงการผ้าอ้อม
+                (มติผู้ใช้ 2 ก.ย. 69) ที่บ้านมักถามเรื่องรอบการรับของ ทีมจึงต้อง
+                ตอบได้โดยไม่ต้องออกจากบันทึกการเยี่ยม */}
+            <FollowUpStatusMenuButton hn={hn} />
             <BrandSubdueButton
               variant='outline'
               size='sm'
@@ -449,7 +452,7 @@ const HomeVisitRecordPage = () => {
                  เลื่อนมาจาก index 3 ตอนสลับกับสัญญาณชีพ */
               /* ขั้นที่เนื้อหาเป็นการ์ดของตัวเอง: ยินยอม · ข้อมูลส่วนตัว · ที่อยู่ ·
                  ติดต่อ · สิทธิ · อาการป่วย */
-              plainBodySteps={[0, 1, 2, 3, 5, 6, 7]}
+              plainBodySteps={[0, 1, 2, 3, 4, 5, 6]}
               stepIndex={stepIndex}
               onStepChange={setStepIndex}
               completedSteps={completedSteps}

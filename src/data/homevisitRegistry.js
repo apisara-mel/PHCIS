@@ -481,6 +481,11 @@ export const appendVisitHistory = (hn, record) => {
        ในไฟล์ส่งออกจึงว่างเปล่าเสมอ และหน้าติดตามวาดแนวโน้มไม่ได้. */
     toolScores: record.toolScores || {},
     tools: record.tools || formatToolScores(record.toolScores || {}),
+    /* สำเนาแบบบันทึกทั้งใบของการเยี่ยมครั้งนั้น (มติผู้ใช้ 2 ก.ย. 69) — ป๊อปอัป
+       "ประวัติการเยี่ยมบ้าน" ต้องแสดง *ทุกอย่างที่บันทึกไว้* ไม่ใช่เฉพาะสัญญาณชีพ
+       กับสรุป · ครั้งเก่าที่บันทึกก่อนมีคีย์นี้จะไม่มี `form` ป๊อปอัปจึงแสดง
+       เท่าที่มีเหมือนเดิม */
+    form: record.form || null,
     at: formatHomeVisitDateTime(),
   };
   writeJson(VISIT_HISTORY_OVERLAY_KEY, { ...overlay, [hn]: [...(overlay[hn] || []), entry] });

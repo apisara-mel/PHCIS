@@ -524,6 +524,34 @@ export const HomeVisitStepAllergy = ({ form, setForm, readOnly, blockedMsg }) =>
   );
 };
 
+/* ── Step 5 — คัดกรอง (สัญญาณชีพ + ประวัติการแพ้/โรคประจำตัว) ─────
+   สองขั้นนี้คือ "สิ่งที่ทีมทำทันทีที่ถึงบ้าน ก่อนเริ่มซักอาการ" จึงยุบเป็นขั้นเดียว
+   (มติผู้ใช้ 2 ก.ย. 69) — คอมโพเนนต์เดิมทั้งสองตัวยังอยู่ครบ ขั้นนี้แค่วางต่อกัน
+   ไม่ได้คัดลอกเนื้อหามาเขียนใหม่ */
+export const HomeVisitStepScreening = ({ blockedMsg, ...props }) => (
+  <StepCard>
+    {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+
+    {/* สัญญาณชีพกับประวัติการแพ้เป็นคนละการ์ด (มติผู้ใช้ 2 ก.ย. 69) — `VitalsForm`
+        เป็นการ์ดที่มนเฉพาะมุมล่าง (เดิมวางต่อจากหัวการ์ดของ shell) จึงต้องห่อ
+        ให้มนครบสี่มุมเมื่อยืนเป็นการ์ดของตัวเอง */}
+    <div
+      className='w-full'
+      style={{
+        background: 'var(--surface-card-100, #FFFFFF)',
+        borderRadius: 'var(--dim-radius-500, 16px)',
+        border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+        boxShadow: 'var(--shadow-card-strong)',
+        overflow: 'hidden',
+      }}
+    >
+      <HomeVisitStep3Vitals {...props} blockedMsg='' />
+    </div>
+
+    <HomeVisitStepAllergy {...props} blockedMsg='' />
+  </StepCard>
+);
+
 /* ── ปรึกษาแพทย์ทางไกล (Telemedicine · TOR 1.18.10) ────────────────
    ย้ายมาอยู่ในขั้น "ประเมินอาการป่วย" (มติผู้ใช้ 30 ส.ค. 69) — ทีมตัดสินใจว่า
    ต้องปรึกษาแพทย์ตอนที่กำลังประเมินอาการอยู่ ไม่ใช่ตอนพิมพ์บันทึกตามบทบาท
@@ -536,8 +564,9 @@ export const HomeVisitTelemedSection = ({ form, setForm, readOnly, visitId, hn, 
     /* เปิด "ห้องตรวจรักษาออนไลน์" เป็นป๊อปอัปทับหน้าเดิม (มติผู้ใช้ 2 ก.ย. 69) —
        เดิม push ไป /telemed/worklist ซึ่ง unmount หน้าเยี่ยมบ้านทิ้ง จึงยัง
        บันทึกร่างไว้ก่อนเปิดสายเหมือนเดิม (ผู้ใช้ปิดสายแล้วกลับมาทำต่อได้ทันที)
-       stepIndex 6 = ขั้น "ประเมินอาการป่วย" ซึ่งเป็นที่อยู่ของปุ่มนี้ */
-    saveHomeVisitDraft(visitId, { ...form, telemedRequested: true }, 6);
+       stepIndex 5 = ขั้น "ประเมินอาการป่วย" ซึ่งเป็นที่อยู่ของปุ่มนี้
+       (เลื่อนมาจาก 6 ตอนยุบสัญญาณชีพ+ประวัติการแพ้เป็นขั้น "คัดกรอง") */
+    saveHomeVisitDraft(visitId, { ...form, telemedRequested: true }, 5);
     setForm((f) => ({ ...f, telemedRequested: true }));
     setTelemedOpen(false);
     startTelemedCall({ visitId });
@@ -1961,6 +1990,9 @@ export const HomeVisitStep7Family = ({
       /* ส่งเป็น "คะแนนดิบรายเครื่องมือ" ไม่ใช่ข้อความสรุป — หน้าติดตามต้อง
          เอาไปวาดกราฟแนวโน้มตาม TOR ๑.๑๐.๑๒.๔ ซึ่งทำจากสตริงไม่ได้ */
       toolScores: toolScoresFromSummary(summarizeStandardTools(form)),
+      /* เก็บแบบบันทึกทั้งใบไว้กับประวัติ เพื่อให้เปิดย้อนดูได้ครบทุกช่อง
+         (มติผู้ใช้ 2 ก.ย. 69) */
+      form: { ...form },
     });
     /* แฟ้มครอบครัวกลับเข้าทะเบียนระดับครัวเรือน — ครั้งถัดไปเปิดมาเจอรายชื่อเดิม */
     saveFamilyMembers(hn, form.familyMembers);
@@ -2176,8 +2208,9 @@ export const HOMEVISIT_STEP_RENDERERS = [
   HomeVisitStep1Service,
   HomeVisitStep2Address,
   HomeVisitStepRights,
-  HomeVisitStep3Vitals,
-  HomeVisitStepAllergy,
+  /* สัญญาณชีพ + ประวัติการแพ้/โรคประจำตัว = ขั้น "คัดกรอง" ขั้นเดียว
+     (มติผู้ใช้ 2 ก.ย. 69) */
+  HomeVisitStepScreening,
   HomeVisitStep2History,
   HomeVisitStepBehaviour,
   /* ขั้น "ประเมิน" ถูกยุบเข้าไปในขั้น "ประเมินอาการป่วย" แล้ว

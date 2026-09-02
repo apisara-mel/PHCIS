@@ -120,6 +120,101 @@ const RoundRailButton = ({ round, active, onClick }) => {
   );
 };
 
+
+/* ══════════════ แบบบันทึกทั้งใบของการเยี่ยมครั้งนั้น ══════════════
+   ตั้งแต่ 2 ก.ย. 69 การกด "ส่งข้อมูลเข้าศูนย์ฯ" เก็บสำเนา `form` ไว้กับประวัติ
+   ป๊อปอัปนี้จึงกางได้ทุกช่องที่ทีมกรอกจริง ไม่ใช่แค่สัญญาณชีพ/ADL/สรุป
+   (ครั้งเก่าที่ไม่มี `form` จะไม่มีหมวดเหล่านี้ขึ้นมา — ไม่ได้หายไปไหน) */
+
+const VISIT_TYPE_LABEL = { first: 'เยี่ยมครั้งแรก (แรกรับ)', followup: 'เยี่ยมติดตาม' };
+
+const text = (v) => String(v ?? '').trim();
+
+const yesNo = (v) => (v ? 'มี' : '');
+
+const addressLine = (a) => {
+  if (!a) return '';
+  const parts = [a.houseNo, a.moo && `หมู่ ${a.moo}`, a.road, a.subdistrict, a.district, a.province, a.zip];
+  return parts.filter((x) => text(x)).join(' ');
+};
+
+const listOf = (rows, render) => (rows || []).map(render).filter((v) => text(v)).join('\n');
+
+/** หมวด/แถวทั้งหมดของแบบบันทึก — ตัดแถวที่ว่างทิ้ง แล้วตัดหมวดที่ไม่เหลือแถวทิ้ง */
+const buildFormSections = (form) => {
+  if (!form) return [];
+  const sections = [
+    {
+      key: 'service', icon: 'event_available', title: 'ข้อมูลการให้บริการ',
+      rows: [
+        ['ประเภทการเยี่ยม', VISIT_TYPE_LABEL[form.visitType] || form.visitType],
+        ['วันที่ให้บริการ', form.serviceDate ? formatHomeVisitDate(form.serviceDate) : ''],
+        ['เวลาที่ถึงบ้าน', form.arrivalTime],
+        ['ทีมผู้เยี่ยม', Array.isArray(form.team) ? form.team.join(' · ') : form.team],
+      ],
+    },
+    {
+      key: 'address', icon: 'map-pin', title: 'ที่อยู่และการเดินทาง',
+      rows: [
+        ['ที่อยู่ตามทะเบียนบ้าน', addressLine(form.addressRegistered)],
+        ['ที่อยู่ปัจจุบัน', addressLine(form.addressCurrent)],
+        ['บันทึกการเดินทาง', form.travelNote],
+      ],
+    },
+    {
+      key: 'contact', icon: 'call', title: 'ข้อมูลการติดต่อ',
+      rows: [
+        ['เบอร์โทรศัพท์', form.phone],
+        ['อีเมล', form.email],
+        ['ผู้ติดต่อฉุกเฉิน', listOf(form.emergency, (e) => [e.name, e.last, e.relation, e.phone].filter(Boolean).join(' '))],
+      ],
+    },
+    {
+      key: 'allergy', icon: 'flag', title: 'ประวัติการแพ้ · โรคประจำตัว',
+      rows: [
+        ['มีประวัติการแพ้', yesNo(form.flags?.allergyDrug)],
+        ['รายละเอียดการแพ้', form.allergyFreeText],
+        ['มีโรคประจำตัว', yesNo(form.flags?.chronic)],
+        ['รายละเอียดโรคประจำตัว', form.chronicFreeText],
+        ['หมายเหตุเพิ่มเติม', form.allergyNote],
+      ],
+    },
+    {
+      key: 'illness', icon: 'stethoscope', title: 'ประเมินอาการป่วย',
+      rows: [
+        ['อาการสำคัญ (CC)', form.chiefComplaint],
+        ['ระยะเวลาที่มีอาการ', form.duration],
+        ['ประวัติการเจ็บป่วยปัจจุบัน', form.illnessHistory],
+        ['บันทึกสัญญาณชีพเพิ่มเติม', form.vitalsNote],
+      ],
+    },
+    {
+      key: 'assessment', icon: 'clipboard-list', title: 'ประเมินและคัดกรอง',
+      rows: [
+        ['ผู้ดูแลหลัก', form.caregiver],
+        ['ภาวะโภชนาการ', form.nutrition],
+        ['แผลกดทับ', form.pressureSore],
+        ['ระดับความปวด', form.painScore === null || form.painScore === undefined ? '' : `${form.painScore}/10`],
+        ['PPS', form.pps ? `${form.pps}%` : ''],
+        ['สรุปการประเมิน', form.assessmentNote],
+      ],
+    },
+    {
+      key: 'plan', icon: 'family_restroom', title: 'Family Folder และแผนการดูแล',
+      rows: [
+        ['สมาชิกในครอบครัว', listOf(form.familyMembers, (m) => [m.name, m.relation, m.age && `${m.age} ปี`].filter(Boolean).join(' · '))],
+        ['บันทึก Family Folder', form.familyNote],
+        ['นัดเยี่ยมครั้งถัดไป', form.nextVisitDate ? formatHomeVisitDate(form.nextVisitDate) : ''],
+        ['แผนการดูแลต่อเนื่อง', form.planNote],
+      ],
+    },
+  ];
+
+  return sections
+    .map((sec) => ({ ...sec, rows: sec.rows.filter(([, value]) => text(value)) }))
+    .filter((sec) => sec.rows.length > 0);
+};
+
 const HomeVisitHistoryPopup = ({ open, onClose, hn, patientName }) => {
   /* ครั้งล่าสุดขึ้นก่อน — คนเปิดดูมักถามว่า "ครั้งที่แล้วเจออะไร" */
   const rounds = useMemo(() => (hn ? getVisitHistory(hn).slice().reverse() : []), [hn]);
@@ -128,6 +223,7 @@ const HomeVisitHistoryPopup = ({ open, onClose, hn, patientName }) => {
   const adl = round && round.adl !== null && round.adl !== undefined ? round.adl : null;
   const adlInterp = adl === null ? null : interpretBarthel(adl);
   const toolScores = round ? describeToolScores(round.toolScores) : [];
+  const formSections = useMemo(() => buildFormSections(round?.form), [round]);
 
   return (
     <Popup
@@ -244,6 +340,22 @@ const HomeVisitHistoryPopup = ({ open, onClose, hn, patientName }) => {
               <Row label='สรุปการเยี่ยม' value={round.summary} />
               <Row label='คำสั่งการรักษา' value={round.orders} />
             </div>
+
+            {/* ทุกช่องที่ทีมกรอกไว้ในแบบบันทึกของครั้งนั้น (มติผู้ใช้ 2 ก.ย. 69) */}
+            {formSections.map((sec) => (
+              <div key={sec.key} className='flex flex-col' style={{ gap: 'var(--dim-space-200)' }}>
+                <SectionTitle icon={sec.icon}>{sec.title}</SectionTitle>
+                {sec.rows.map(([label, value]) => (
+                  <Row key={label} label={label} value={value} />
+                ))}
+              </div>
+            ))}
+
+            {!round.form && (
+              <span style={{ ...valueStyle, fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                การเยี่ยมครั้งนี้บันทึกไว้ก่อนระบบเก็บแบบบันทึกทั้งใบ — แสดงได้เท่าที่มีในประวัติ
+              </span>
+            )}
           </div>
         </div>
       )}
