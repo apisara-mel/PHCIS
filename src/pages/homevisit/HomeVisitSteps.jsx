@@ -770,6 +770,21 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
     ...f,
     medications: f.medications.map((m) => (m.id === id ? { ...m, [key]: value } : m)),
   }));
+  /* เปิดตัวเลือกไฟล์/กล้องของแถวยา — สร้าง input ชั่วคราวแทนการถือ ref ราย
+     แถว (มติผู้ใช้ 2 ก.ย. 69) */
+  const pickMedicationPhoto = (id) => {
+    if (typeof document === 'undefined') return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (file) readAsDataUrl(file, (url) => updateMedication(id, 'photoUrl', url));
+    };
+    input.click();
+  };
+
   const removeMedication = (id) => setForm((f) => ({
     ...f,
     medications: f.medications.filter((m) => m.id !== id),
@@ -982,19 +997,16 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
                       )}
                     </div>
                   ) : (
-                    <PhotoUploadField
-                      icon='photo_camera'
-                      capture='environment'
+                    /* ปุ่มเล็กแทนกล่องอัปโหลด (มติผู้ใช้ 2 ก.ย. 69) — แถวยาแคบ
+                       กล่อง 96×72 ดันความสูงของทั้งแถว */
+                    <NeutralSubdueButton
+                      size='sm'
+                      leadingIcon='photo_camera'
                       disabled={readOnly}
-                      style={{ width: 96, height: 72, padding: 'var(--dim-space-200, 8px)' }}
-                      aria-label='ถ่ายรูปยา'
-                      label='ถ่ายรูปยา'
-                      onFiles={(files) => {
-                        const file = files[0];
-                        if (!file) return;
-                        readAsDataUrl(file, (url) => updateMedication(m.id, 'photoUrl', url));
-                      }}
-                    />
+                      onClick={() => pickMedicationPhoto(m.id)}
+                    >
+                      เพิ่มรูปยา
+                    </NeutralSubdueButton>
                   )}
                 </Field>
 
@@ -1043,27 +1055,21 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
           ของ ศบส. (มติผู้ใช้ 2 ก.ย. 69) เลือกได้ชุดเดียวเพราะเบิกได้วันละหนึ่งชุด */}
       <SectionCard icon='clipboard-list' title='มีความต้องการ / ควรได้รับ'>
         <StepSection gap='var(--dim-space-400, 16px)'>
-          <div className='flex items-start flex-wrap w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-            {HOMEVISIT_SUPPLY_SETS.map((opt) => (
-              <SelectableCardButton
-                key={opt.value}
-                selected={form.supplyNeedSet === opt.value}
-                onClick={readOnly ? undefined : () => set('supplyNeedSet')(
-                  form.supplyNeedSet === opt.value ? '' : opt.value,
-                )}
-                ariaLabel={`${opt.label} ${opt.detail}`}
-                minHeight={64}
-                padX='var(--dim-space-400, 16px)'
-              >
-                <span className='flex flex-col items-start' style={{ gap: 'var(--dim-space-50, 2px)' }}>
-                  <span style={{ fontWeight: 'var(--type-weight-medium)' }}>{opt.label}</span>
-                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-                    {[opt.detail, opt.price].filter(Boolean).join(' · ')}
-                  </span>
-                </span>
-              </SelectableCardButton>
-            ))}
-          </div>
+          {/* ดรอปดาวน์แทนแถวการ์ด (มติผู้ใช้ 2 ก.ย. 69) — หกตัวเลือกที่ข้อความยาว
+              กินพื้นที่สองแถวเต็มโดยที่เลือกได้ชุดเดียวอยู่ดี */}
+          <Field label='ชุดที่ควรได้รับ'>
+            <Select
+              showLabel={false} showHelperText={false} searchable={false} size='lg'
+              value={form.supplyNeedSet}
+              onChange={set('supplyNeedSet')}
+              disabled={readOnly}
+              options={HOMEVISIT_SUPPLY_SETS.map((opt) => ({
+                value: opt.value,
+                label: [opt.label, opt.detail, opt.price].filter(Boolean).join(' — '),
+              }))}
+              placeholder='เลือกชุดที่ควรได้รับ'
+            />
+          </Field>
 
           {form.supplyNeedSet === 'other' && (
             <Field label='ระบุความต้องการ'>
