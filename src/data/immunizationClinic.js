@@ -348,6 +348,7 @@ const decorateQueueRow = (row) => {
     ...row,
     /* รูปหน้าเด็กจากทะเบียน (IMM_CHILDREN) — คิวต้องโชว์รูปคน ไม่ใช่วงกลมอักษรย่อ */
     avatarUrl: child.avatarUrl,
+    vn: child.vn || '—',
     name: child.fullName || '—',
     shortName: child.shortName || '—',
     sex: child.sex || '—',
@@ -1488,49 +1489,58 @@ export const ANC_PLACE_SUGGESTIONS = [
 /* ── ผลการซักประวัติพยาบาลที่จุดคัดกรอง (read-only, TOR 1.10.9.3) ──── */
 export const IMM_INTAKE_BY_HN = {
   '69-10001': {
-    vitals: { temp: 36.8, hr: 130, rr: 40, spo2: 99, weight: 4.6, height: 55.2 },
+    vitals: { temp: 36.8, hr: 130, rr: 40, spo2: 99, weight: 4.6, height: 55.2, headCirc: 40.5 },
+    nutritionStatus: 'normal',
     nurseNote: 'ผู้ปกครองพามาตามนัดรับวัคซีนอายุ 2 เดือน เด็กสบายดี ไม่มีไข้ ดูดนมได้ดี',
     drugAllergies: ['ไม่มีประวัติแพ้ยา'], chronicDiseases: ['ไม่มีโรคประจำตัว'],
   },
   '69-10002': {
-    vitals: { temp: 36.6, hr: 124, rr: 34, spo2: 99, weight: 6.6, height: 62.4 },
+    vitals: { temp: 36.6, hr: 124, rr: 34, spo2: 99, weight: 6.6, height: 62.4, headCirc: 43.0 },
+    nutritionStatus: 'normal',
     nurseNote: 'มาตามนัดวัคซีนอายุ 6 เดือน ครั้งก่อนมีไข้ต่ำหลังฉีด หายเองใน 1 วัน',
     drugAllergies: ['ไม่มีประวัติแพ้ยา'], chronicDiseases: ['ไม่มีโรคประจำตัว'],
   },
   '69-10003': {
-    vitals: { temp: 37.0, hr: 118, rr: 32, spo2: 98, weight: 7.8, height: 67.0 },
+    vitals: { temp: 37.0, hr: 118, rr: 32, spo2: 98, weight: 7.8, height: 67.0, headCirc: 45.0 },
+    nutritionStatus: 'normal',
     nurseNote: 'มีน้ำมูกใสเล็กน้อย ไม่มีไข้ ให้วัคซีนได้ตามปกติ',
     drugAllergies: ['ไม่มีประวัติแพ้ยา'], chronicDiseases: ['ไม่มีโรคประจำตัว'],
   },
   '69-10004': {
-    vitals: { temp: 36.7, hr: 116, rr: 30, spo2: 99, weight: 7.6, height: 69.2 },
+    vitals: { temp: 36.7, hr: 116, rr: 30, spo2: 99, weight: 7.6, height: 69.2, headCirc: 46.0 },
+    nutritionStatus: 'underweight',
     nurseNote: 'มาประเมินพัฒนาการ 12 เดือน ผู้ปกครองกังวลเรื่องเด็กยังไม่พูดคำที่มีความหมาย',
     drugAllergies: ['ไม่มีประวัติแพ้ยา'], chronicDiseases: ['ไม่มีโรคประจำตัว'],
   },
   '69-10005': {
-    vitals: { temp: 36.5, hr: 108, rr: 26, spo2: 99, weight: 11.2, height: 82.5 },
+    vitals: { temp: 36.5, hr: 108, rr: 26, spo2: 99, weight: 11.2, height: 82.5, headCirc: 48.5 },
+    nutritionStatus: 'normal',
     nurseNote: 'มาตามนัดวัคซีนอายุ 1 ปี 6 เดือน เด็กแข็งแรงดี',
     drugAllergies: ['ไม่มีประวัติแพ้ยา'], chronicDiseases: ['ไม่มีโรคประจำตัว'],
   },
   '69-10006': {
-    vitals: { temp: 36.9, hr: 104, rr: 24, spo2: 98, weight: 10.1, height: 85.0 },
+    vitals: { temp: 36.9, hr: 104, rr: 24, spo2: 98, weight: 10.1, height: 85.0, headCirc: 48.0 },
+    nutritionStatus: 'risk',
     nurseNote: 'ตามเด็กค้างเข็มจากรายชื่อขาดนัด ยายเป็นผู้ดูแลหลัก แจ้งว่าลืมวันนัด',
     drugAllergies: ['ไม่มีประวัติแพ้ยา'], chronicDiseases: ['น้ำหนักน้อยกว่าเกณฑ์ ติดตามต่อเนื่อง'],
   },
   '69-10007': {
-    vitals: { temp: 36.6, hr: 96, rr: 22, spo2: 99, weight: 15.4, height: 101.0 },
+    vitals: { temp: 36.6, hr: 96, rr: 22, spo2: 99, weight: 15.4, height: 101.0, headCirc: 50.0 },
+    nutritionStatus: 'overweight',
     nurseNote: 'มาตรวจสุขภาพก่อนเข้าเรียนและรับวัคซีนอายุ 4 ปี',
     drugAllergies: ['แพ้ Amoxicillin — ผื่นลมพิษ'], chronicDiseases: ['ไม่มีโรคประจำตัว'],
   },
   '69-10008': {
-    vitals: { temp: 36.8, hr: 138, rr: 44, spo2: 99, weight: 2.7, height: 49.0 },
+    vitals: { temp: 36.8, hr: 138, rr: 44, spo2: 99, weight: 2.7, height: 49.0, headCirc: 34.5 },
+    nutritionStatus: 'normal',
     nurseNote: 'ทารกแรกเกิด 7 วัน มาตรวจครั้งแรก ยังไม่ได้รับวัคซีน BCG/HBV ที่โรงพยาบาล',
     drugAllergies: ['ไม่มีประวัติแพ้ยา'], chronicDiseases: ['ไม่มีโรคประจำตัว'],
   },
 };
 
 export const DEFAULT_IMM_INTAKE = {
-  vitals: { temp: 36.7, hr: 120, rr: 30, spo2: 99, weight: null, height: null },
+  vitals: { temp: 36.7, hr: 120, rr: 30, spo2: 99, weight: null, height: null, headCirc: null },
+  nutritionStatus: '',
   nurseNote: 'ซักประวัติเบื้องต้นที่จุดคัดกรอง แล้วส่งต่อคลินิกสุขภาพเด็กดี',
   drugAllergies: ['ไม่มีประวัติแพ้ยา'],
   chronicDiseases: ['ไม่มีโรคประจำตัว'],
@@ -1561,6 +1571,7 @@ export const DEFAULT_IMM_VISIT = {
   todayDoses: [],
   /* ตรวจร่างกายและวินิจฉัย — ตรวจสุขภาพทั่วไป */
   exam: {}, examAllNormal: false, examNote: '', illnessHistory: '', allergyNote: '',
+  examResult: '', diagnosisNote: '',
   /* step 6 — สุขภาพช่องปากเด็กดี (มติ คทง.6 ครั้งที่ 3 · blueprint หน้า 9)
      "ลงข้อมูลแปรงสีฟันซี่แรก (คลินิกเด็กดี)" — เป็นงานส่งเสริมสุขภาพของ
      WBC ไม่ใช่หัตถการทันตกรรม จึงลงที่นี่ได้ ส่วนผลตรวจฟันจริงยังมาจาก

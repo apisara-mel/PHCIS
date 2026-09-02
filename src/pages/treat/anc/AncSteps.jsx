@@ -1541,18 +1541,6 @@ export const AncStep3Examination = ({ form, setForm, ancHn, cardPatient }) => {
               />
             </Field>
           ))}
-          <Field label='การตรวจ Ultrasound ในครรภ์นี้'>
-            <Select
-              showLabel={false} searchable={false} size='lg'
-              value={form.ultrasoundDone ? 'done' : ''}
-              onChange={(v) => setForm((f) => ({ ...f, ultrasoundDone: v === 'done' }))}
-              options={[
-                { value: 'done', label: 'ได้รับการตรวจแล้วอย่างน้อย 1 ครั้ง' },
-                { value: 'pending', label: 'ยังไม่ได้ตรวจ' },
-              ]}
-              placeholder='เลือกสถานะ'
-            />
-          </Field>
         </FieldGrid>
 
         {/* มติ คทง.2 — รองรับผลคัดกรองดาวน์ทั้ง Quadruple test และ NIPT */}
@@ -2050,6 +2038,20 @@ export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
                   label: `${o.value} · ${ANC_ORDER_KIND_LABEL[o.kind]}`,
                   image: o.image || undefined,
                 }))}
+                /* ปุ่ม "เลือก" ท้ายแต่ละแถว (มติผู้ใช้ 3 ก.ย. 69) — กดแล้วเพิ่มลงตาราง
+                   ทันทีโดยไม่ปิดลิสต์ ปุ่มเปลี่ยนเป็น "เพิ่มแล้ว" และกดซ้ำเพื่อเอาออก */
+                optionAction={{
+                  label: 'เลือก',
+                  activeLabel: 'เพิ่มแล้ว',
+                  isActive: (val) => (form.medications || []).some((m) => m.name === val),
+                  onToggle: (val) => {
+                    if ((form.medications || []).some((m) => m.name === val)) {
+                      setForm((f) => ({ ...f, medications: (f.medications || []).filter((m) => m.name !== val) }));
+                    } else {
+                      addFromRegistry(val);
+                    }
+                  },
+                }}
                 placeholder='พิมพ์ชื่อยา วัคซีน หรือหัตถการเพื่อค้นหา'
               />
             </Field>

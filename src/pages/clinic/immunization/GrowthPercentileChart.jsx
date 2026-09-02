@@ -134,12 +134,21 @@ const GrowthPercentileChart = ({
         )}
       </div>
 
-      <div className='w-full' style={{ overflowX: 'auto' }}>
+      <div className='w-full' style={{ overflowX: 'auto', position: 'relative' }}>
         <svg
           role='img'
           aria-label={`${title} — แถบเกณฑ์ P3 ถึง P97 พร้อมค่าของเด็ก ${points.length} จุด`}
           viewBox={`0 0 ${geom.width} ${height}`}
-          style={{ width: '100%', minWidth: 420, height }}
+          style={{ width: '100%', minWidth: 420, height, cursor: 'crosshair' }}
+          /* hover ได้ทุกที่บนกราฟ — หาจุดของเด็กที่ใกล้ตำแหน่งเมาส์ที่สุดตามแกนอายุ */
+          onMouseMove={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const mx = ((e.clientX - rect.left) / rect.width) * geom.width;
+            let best = null; let bestD = Infinity;
+            points.forEach((pt, i) => { const d = Math.abs(geom.sx(pt.x) - mx); if (d < bestD) { bestD = d; best = i; } });
+            setHoverIdx(best);
+          }}
+          onMouseLeave={() => setHoverIdx(null)}
         >
           {/* แถบเกณฑ์ P3–P97 */}
           <path d={geom.bandPath} fill={BAND_FILL} stroke='none' />
@@ -181,6 +190,12 @@ const GrowthPercentileChart = ({
 
           {/* เส้น/จุดของเด็ก — จุดเดียวไม่ลากเส้น */}
           {patientPath && <path d={patientPath} fill='none' stroke={POINT_COLOR} strokeWidth='2' />}
+          {hovered && (
+            <line
+              x1={geom.sx(hovered.x)} x2={geom.sx(hovered.x)} y1={0} y2={height}
+              stroke={POINT_COLOR} strokeWidth='1' strokeDasharray='3 3' opacity='0.6'
+            />
+          )}
           {points.map((p, i) => (
             <circle
               key={`${p.date}-${p.x}`}
@@ -189,11 +204,32 @@ const GrowthPercentileChart = ({
               fill={POINT_COLOR}
               stroke='var(--surface-card-100, #FFFFFF)'
               strokeWidth='1.5'
-              onMouseEnter={() => setHoverIdx(i)}
-              onMouseLeave={() => setHoverIdx(null)}
             />
           ))}
         </svg>
+        {/* ป้ายค่าที่จุดที่ hover — วางตามสัดส่วนของ viewBox จึงตามจุดได้ทุกขนาดจอ */}
+        {hovered && (
+          <div
+            style={{
+              position: 'absolute',
+              left: `${(geom.sx(hovered.x) / geom.width) * 100}%`,
+              top: `${(geom.sy(hovered.y) / height) * 100}%`,
+              transform: `translate(${geom.sx(hovered.x) > geom.width * 0.7 ? '-110%' : '12px'}, -120%)`,
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap',
+              padding: 'var(--dim-space-100) var(--dim-space-300)',
+              borderRadius: 'var(--dim-radius-200, 8px)',
+              background: 'var(--surface-card-100, #FFFFFF)',
+              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+              boxShadow: 'var(--shadow-card)',
+              fontSize: 'var(--type-size-xs)',
+              color: 'var(--text-content-default, #363B3F)',
+            }}
+          >
+            <span style={{ fontWeight: 'var(--type-weight-medium)' }}>{round1(hovered.y)} {unit}</span>
+            <span style={{ color: 'var(--text-content-tertiary, #858C92)' }}> · {axisLabel} {round1(hovered.x)} · {formatImmDate(hovered.date)}</span>
+          </div>
+        )}
       </div>
 
       <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
@@ -212,11 +248,6 @@ const GrowthPercentileChart = ({
         {points.length === 1 && <span>มีข้อมูลเพียง 1 ครั้ง — แสดงเป็นจุด ยังไม่ลากเส้นแนวโน้ม</span>}
       </div>
 
-      {hovered && (
-        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-secondary, #636B72)' }}>
-          {formatImmDate(hovered.date)} · {round1(hovered.y)} {unit} ({axisLabel} {round1(hovered.x)})
-        </span>
-      )}
     </div>
   );
 };

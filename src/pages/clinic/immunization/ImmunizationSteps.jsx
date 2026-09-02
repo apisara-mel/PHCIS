@@ -498,14 +498,9 @@ export const ImmStep2BirthNutrition = ({ form, setForm, child, locked }) => {
 };
 
 /* ── Step 3 — การเจริญเติบโต + กราฟ percentile (1.10.9.7) ──────────── */
-export const ImmStep3Growth = ({ form, setForm, immHn, child, locked }) => {
-  const [chartKey, setChartKey] = useState(GROWTH_CHART_DEFS[0].key);
-  const setGrowth = (key) => (value) => {
-    if (locked) return;
-    setForm((f) => ({ ...f, growth: { ...f.growth, [key]: value } }));
-  };
-
-  const records = useMemo(() => {
+/* บันทึกการเจริญเติบโตของเด็ก + ค่าที่กำลังกรอกวันนี้ (ถ้ามี) — ใช้ร่วมกันระหว่าง
+   กราฟกับตารางย้อนหลัง */
+const useImmGrowthRecords = (immHn, form) => useMemo(() => {
     const base = getGrowthRecords(immHn);
     /* ค่าที่กำลังกรอกในวันนี้ถูกวางบนกราฟทันที เพื่อให้เห็น percentile สด ๆ */
     if (form.growth?.weight || form.growth?.height || form.growth?.headCirc) {
@@ -521,6 +516,11 @@ export const ImmStep3Growth = ({ form, setForm, immHn, child, locked }) => {
     return base;
   }, [immHn, form.growth]);
 
+/* กราฟการเจริญเติบโต (percentile) — แยกออกมาให้แถบ vital signs ของหน้าบันทึก
+   เปิดดูในป๊อปอัปได้ด้วย (มติผู้ใช้ 3 ก.ย. 69) */
+export const ImmGrowthCharts = ({ form, immHn, child, showTitle = true }) => {
+  const [chartKey, setChartKey] = useState(GROWTH_CHART_DEFS[0].key);
+  const records = useImmGrowthRecords(immHn, form);
   const months = ageInMonths(child?.birthDate);
   const availableCharts = GROWTH_CHART_DEFS.filter((d) => {
     if (months == null) return true;
@@ -535,43 +535,58 @@ export const ImmStep3Growth = ({ form, setForm, immHn, child, locked }) => {
   const evaluation = lastPoint ? evaluatePercentile(reference, lastPoint.x, lastPoint.y) : null;
 
   return (
+    <div className='flex flex-col gap-3'>
+      {showTitle && <TopicHeader icon='show_chart'>กราฟการเจริญเติบโต</TopicHeader>}
+        {/* เลือกกราฟด้วยดรอปดาวน์แทนชิป (มติผู้ใช้ 3 ก.ย. 69) */}
+        <div style={{ maxWidth: 420 }}>
+          <Select
+            showLabel={false} searchable={false} size='lg'
+            value={activeDef.key}
+            onChange={(v) => setChartKey(v)}
+            options={availableCharts.map((d) => ({ value: d.key, label: d.title }))}
+            placeholder='เลือกกราฟ'
+          />
+        </div>
+        <GrowthPercentileChart
+          title={activeDef.title}
+          unit={activeDef.unit}
+          axisLabel={activeDef.axisLabel}
+          reference={reference}
+          points={points}
+          latestEvaluation={evaluation}
+          emptyMessage='ยังไม่มีข้อมูลการเจริญเติบโตของเด็กในช่วงอายุนี้ — กรอกน้ำหนัก/ส่วนสูงด้านบนเพื่อลงจุดแรก'
+        />
+      </div>
+  );
+};
+
+/* กระหม่อมเป็นดรอปดาวน์ (มติผู้ใช้ 3 ก.ย. 69) — ไม่ต้องพิมพ์บรรยายเอง */
+const FONTANELLE_ANTERIOR_OPTIONS = [
+  { value: 'open-normal',   label: 'เปิด — ขนาดปกติ' },
+  { value: 'open-wide',     label: 'เปิด — กว้างผิดปกติ' },
+  { value: 'sunken',        label: 'บุ๋ม' },
+  { value: 'bulging',       label: 'โป่งตึง' },
+  { value: 'closed',        label: 'ปิดแล้ว' },
+];
+const FONTANELLE_POSTERIOR_OPTIONS = [
+  { value: 'closed',        label: 'ปิดแล้ว' },
+  { value: 'open-normal',   label: 'เปิด — ขนาดปกติ' },
+  { value: 'open-wide',     label: 'เปิด — กว้างผิดปกติ' },
+];
+
+export const ImmStep3Growth = ({ form, setForm, immHn, child, locked }) => {
+  const records = useImmGrowthRecords(immHn, form);
+  const setGrowth = (key) => (value) => {
+    if (locked) return;
+    setForm((f) => ({ ...f, growth: { ...f.growth, [key]: value } }));
+  };
+
+  return (
     <StepCard>
+      {/* น้ำหนัก/ส่วนสูง/เส้นรอบศีรษะ มาจากจุดคัดกรองแล้ว (อยู่บนแถบ vital signs)
+          เหลือเฉพาะที่ตรวจเพิ่มในห้องตรวจ — อยู่แถวเดียวกันทั้งสามช่อง */}
       <div className='flex flex-col gap-3'>
-        <TopicHeader icon='monitor_weight'>การเจริญเติบโตวันนี้</TopicHeader>
         <div className='flex items-start gap-4 w-full flex-wrap'>
-          <Field
-            label='น้ำหนัก (กก.)'
-            required
-          >
-            <InputField
-              showLabel={false} showHelperText={false} showLeadingIcon={false}
-              disabled={locked}
-              value={form.growth?.weight}
-              onChange={(v) => setGrowth('weight')(v)}
-              placeholder='เช่น 7.8'
-              type='number'
-            />
-          </Field>
-          <Field label='ส่วนสูง / ความยาว (ซม.)'>
-            <InputField
-              showLabel={false} showHelperText={false} showLeadingIcon={false}
-              disabled={locked}
-              value={form.growth?.height}
-              onChange={(v) => setGrowth('height')(v)}
-              placeholder='เช่น 67.0'
-              type='number'
-            />
-          </Field>
-          <Field label='เส้นรอบศีรษะ (ซม.)'>
-            <InputField
-              showLabel={false} showHelperText={false} showLeadingIcon={false}
-              disabled={locked}
-              value={form.growth?.headCirc}
-              onChange={(v) => setGrowth('headCirc')(v)}
-              placeholder='เช่น 43.0'
-              type='number'
-            />
-          </Field>
           <Field label='เส้นรอบอก (ซม.)'>
             <InputField
               showLabel={false} showHelperText={false} showLeadingIcon={false}
@@ -582,37 +597,27 @@ export const ImmStep3Growth = ({ form, setForm, immHn, child, locked }) => {
               type='number'
             />
           </Field>
-        </div>
-        <div className='flex items-start gap-4 w-full flex-wrap'>
           <Field label='กระหม่อมหน้า'>
-            <InputField
-              showLabel={false} showHelperText={false} showLeadingIcon={false}
+            <Select
+              showLabel={false} searchable={false} size='lg'
               disabled={locked}
               value={form.growth?.fontanelleAnterior}
               onChange={(v) => setGrowth('fontanelleAnterior')(v)}
-              placeholder='เช่น 1.5x1.5 ซม. ปกติ / ปิดแล้ว'
+              options={FONTANELLE_ANTERIOR_OPTIONS}
+              placeholder='เลือกลักษณะ'
             />
           </Field>
           <Field label='กระหม่อมหลัง'>
-            <InputField
-              showLabel={false} showHelperText={false} showLeadingIcon={false}
+            <Select
+              showLabel={false} searchable={false} size='lg'
               disabled={locked}
               value={form.growth?.fontanellePosterior}
               onChange={(v) => setGrowth('fontanellePosterior')(v)}
-              placeholder='เช่น ปิดแล้ว'
+              options={FONTANELLE_POSTERIOR_OPTIONS}
+              placeholder='เลือกลักษณะ'
             />
           </Field>
         </div>
-
-        {evaluation && (
-          <div className='flex items-center gap-3 flex-wrap'>
-            <ColorfulBadge style={evaluation.style} size='small' hierarchy='secondary'>
-              แปลผลอัตโนมัติ: {evaluation.label} · percentile ที่ {evaluation.percentile} (z = {evaluation.z})
-            </ColorfulBadge>
-            <AuditLine>เทียบเกณฑ์ {activeDef.title} เพศ{child?.sex}</AuditLine>
-          </div>
-        )}
-
         <SuggestibleTextarea
           voice
           disabled={locked}
@@ -624,33 +629,7 @@ export const ImmStep3Growth = ({ form, setForm, immHn, child, locked }) => {
         />
       </div>
 
-      <div className='flex flex-col gap-3'>
-        <TopicHeader icon='show_chart'>กราฟการเจริญเติบโต</TopicHeader>
-        <div className='flex items-center gap-2 flex-wrap'>
-          {availableCharts.map((d) => (
-            <TabCapsule
-              key={d.key}
-              variant='filter'
-              label={d.title}
-              selected={activeDef.key === d.key}
-              onClick={() => setChartKey(d.key)}
-            />
-          ))}
-        </div>
-        <GrowthPercentileChart
-          title={activeDef.title}
-          unit={activeDef.unit}
-          axisLabel={activeDef.axisLabel}
-          reference={reference}
-          points={points}
-          latestEvaluation={evaluation}
-          emptyMessage='ยังไม่มีข้อมูลการเจริญเติบโตของเด็กในช่วงอายุนี้ — กรอกน้ำหนัก/ส่วนสูงด้านบนเพื่อลงจุดแรก'
-        />
-        <AuditLine>
-          เกณฑ์อ้างอิงเป็นชุดย่อสำหรับต้นแบบ (P3 / P50 / P97) — ตาราง LMS ฉบับเต็มของกรมอนามัยรอเชื่อมกับ backend
-        </AuditLine>
-      </div>
-
+      <ImmGrowthCharts form={form} immHn={immHn} child={child} />
       <div className='flex flex-col gap-3'>
         <TopicHeader icon='table_chart'>ตารางบันทึกการเจริญเติบโตย้อนหลัง</TopicHeader>
         <Table
@@ -1236,7 +1215,7 @@ export const ImmStep5Vaccine = ({ form, setForm, immHn, child, locked }) => {
 };
 
 /* ── Step 6 — ตรวจสุขภาพทั่วไป 14 ระบบ (1.10.9.7) ──────────────────── */
-export const ImmStep6GeneralExam = ({ form, setForm, immHn, child, locked }) => {
+export const ImmStep6GeneralExam = ({ form, setForm, immHn, child, locked, showDentalPanel = true }) => {
   const setExam = (key, value) => {
     if (locked) return;
     setForm((f) => ({ ...f, exam: { ...f.exam, [key]: value }, examAllNormal: false }));
@@ -1353,13 +1332,17 @@ export const ImmStep6GeneralExam = ({ form, setForm, immHn, child, locked }) => 
           selected={!!form.oralCareAdvice}
           onClick={() => { if (!locked) setForm((f) => ({ ...f, oralCareAdvice: !f.oralCareAdvice })); }}
         />
-        <CarriedDentalPanel
-          hn={immHn}
-          patientName={child?.fullName || child?.shortName}
-          from='wbc'
-          readOnly={locked}
-          title='ผลการตรวจทันตกรรม (จากคลินิกทันตกรรม)'
-        />
+        {/* หน้าบันทึกเด็กดีวางแผงทันตกรรมไว้เต็มความกว้างใต้การ์ดซ้าย/ขวาเอง
+            (ทรงเดียวกับฝากครรภ์ · มติผู้ใช้ 3 ก.ย. 69) จึงปิดตรงนี้ได้ */}
+        {showDentalPanel && (
+          <CarriedDentalPanel
+            hn={immHn}
+            patientName={child?.fullName || child?.shortName}
+            from='wbc'
+            readOnly={locked}
+            title='ผลการตรวจทันตกรรม (จากคลินิกทันตกรรม)'
+          />
+        )}
       </div>
 
       <div className='flex flex-col gap-3'>
@@ -1388,6 +1371,53 @@ export const ImmStep6GeneralExam = ({ form, setForm, immHn, child, locked }) => 
     </StepCard>
   );
 };
+
+/* ── วินิจฉัย — การ์ดขวาของขั้น "ตรวจร่างกายและวินิจฉัย" ───────────────
+   ทรงเดียวกับขั้นวินิจฉัยของฝากครรภ์ (มติผู้ใช้ 3 ก.ย. 69): ผลประเมินเป็น
+   ดรอปดาวน์ตัวเดียว + ช่องบันทึกวินิจฉัย ค่าผลประเมินเป็นตัวขับการนัด/ส่งต่อ */
+export const IMM_EXAM_RESULT_OPTIONS = [
+  { value: 'normal',   label: 'ปกติตามวัย' },
+  { value: 'monitor',  label: 'เฝ้าระวัง / นัดติดตาม' },
+  { value: 'abnormal', label: 'ผิดปกติ — ส่งต่อแพทย์/โรงพยาบาล' },
+];
+
+const IMM_DIAGNOSIS_SUGGESTIONS = [
+  'เด็กสุขภาพดี เจริญเติบโตและพัฒนาการสมวัย',
+  'น้ำหนักน้อยกว่าเกณฑ์ — ให้คำแนะนำโภชนาการ นัดชั่งน้ำหนักซ้ำ 1 เดือน',
+  'พัฒนาการสงสัยล่าช้าด้านภาษา — นัดประเมินซ้ำ 1 เดือน',
+  'ค้างเข็มวัคซีน — ให้วัคซีนแบบเร่งรัด (catch-up)',
+  'ฟันน้ำนมผุระยะเริ่มต้น — ส่งต่อคลินิกทันตกรรม',
+];
+
+export const ImmStepDiagnosis = ({ form, setForm, locked }) => (
+  <StepCard>
+    <div className='flex flex-col gap-3'>
+      <Select
+        label='ผลการประเมินสุขภาพ'
+        required
+        searchable={false}
+        size='lg'
+        disabled={locked}
+        value={form.examResult}
+        onChange={(v) => { if (!locked) setForm((f) => ({ ...f, examResult: v })); }}
+        options={IMM_EXAM_RESULT_OPTIONS}
+        placeholder='เลือกผลการประเมิน'
+      />
+    </div>
+    <div className='flex flex-col gap-3'>
+      <SuggestibleTextarea
+        voice
+        label='บันทึกวินิจฉัย'
+        disabled={locked}
+        value={form.diagnosisNote}
+        onChange={(e) => setForm((f) => ({ ...f, diagnosisNote: e.target.value }))}
+        suggestions={IMM_DIAGNOSIS_SUGGESTIONS}
+        minChars={3}
+        placeholder='เช่น เด็กสุขภาพดี เจริญเติบโตและพัฒนาการสมวัย'
+      />
+    </div>
+  </StepCard>
+);
 
 /* ── Step 7 — EMR / CPOE + Telemedicine (1.10.9.7) ─────────────────── */
 export const ImmStep7Orders = ({ form, setForm, locked, immHn, child }) => {

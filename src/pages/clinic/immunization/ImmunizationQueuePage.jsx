@@ -436,6 +436,7 @@ const ImmunizationQueuePage = () => {
     { key: 'arrivedAt', label: 'วัน-เวลามาตรวจ', render: (r) => formatImmDateTime(r.arrivedAt) },
     { key: 'queue',     label: 'ลำดับคิว', render: renderQueue },
     { key: 'hn',        label: 'HN' },
+    { key: 'vn',        label: 'VN' },
     { key: 'name',      label: 'ชื่อ-นามสกุล', flex: true, minWidth: 180, render: renderName },
     { key: 'sex',       label: 'เพศ' },
     { key: 'age',       label: 'อายุ (ป-ด-ว)' },
@@ -595,7 +596,7 @@ const ImmunizationQueuePage = () => {
                 sortConfig={sortConfig}
                 onSort={handleSort}
                 onRowClick={handleRowClick}
-                stickyColCount={4}
+                stickyColCount={5}
                 stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
                 emptyMessage={searchQ.trim() || !isAllDefault
                   ? 'ไม่พบรายการที่ตรงกับการค้นหา / ตัวกรอง'

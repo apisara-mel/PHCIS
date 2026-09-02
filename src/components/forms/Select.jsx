@@ -166,7 +166,38 @@ const dropdownRowLabelStyle = {
    "[category-pill] · [item label]". Separate from `colorfulBadgeStyle`
    which keeps the older "entire-label-as-badge" treatment for severity
    pills etc. */
-const DropdownRow = ({ label, subtext, icon, image, colorfulBadgeStyle, badge, selected, onClick }) => {
+/* `action` (opt-in) — ปุ่มเล็กท้ายแถว เช่น "เลือก" / "เพิ่มแล้ว" สำหรับลิสต์ที่ใช้
+   เพิ่มรายการลงตารางโดยไม่ปิดดรอปดาวน์ (คลิกปุ่มไม่นับเป็นการเลือกแถว) */
+const RowActionButton = ({ action }) => (
+  <button
+    type='button'
+    onClick={(e) => { e.stopPropagation(); action.onToggle(); }}
+    aria-pressed={action.active}
+    className='shrink-0 inline-flex items-center'
+    style={{
+      gap: 'var(--dim-space-100)',
+      height: 'var(--dim-size-700, 28px)',
+      paddingLeft: 'var(--dim-space-300)',
+      paddingRight: 'var(--dim-space-300)',
+      borderRadius: 'var(--dim-radius-full, 9999px)',
+      border: action.active
+        ? 'var(--dim-stroke-100) solid var(--border-brandPrimary-default, #007549)'
+        : 'var(--dim-stroke-100) solid var(--border-neutralbutton-tertiary, #E2E4E6)',
+      background: action.active ? 'var(--surface-brandPrimary-quaternary, #F4FBF8)' : 'var(--surface-card-100, #FFFFFF)',
+      color: action.active ? 'var(--text-brandPrimary-default, #007549)' : 'var(--text-content-secondary, #636B72)',
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-xs)',
+      fontWeight: 'var(--type-weight-medium)',
+      cursor: 'pointer',
+      whiteSpace: 'nowrap',
+    }}
+  >
+    <Icon name={action.active ? 'check_box' : 'check_box_outline_blank'} size={16} />
+    {action.active ? action.activeLabel : action.label}
+  </button>
+);
+
+const DropdownRow = ({ label, subtext, icon, image, colorfulBadgeStyle, badge, selected, onClick, action }) => {
   const [hover, setHover] = useState(false);
   const tinted = hover || selected;
   const hasBadge = !!colorfulBadgeStyle;
@@ -336,6 +367,7 @@ const DropdownRow = ({ label, subtext, icon, image, colorfulBadgeStyle, badge, s
           ) : (
             <span style={dropdownRowLabelStyle}>{label}</span>
           )}
+          {action && <RowActionButton action={action} />}
           {/* Selected-state tick — mirrors the badge branch's check icon
               so plain (image/icon/text-only) options also show a visual
               confirmation in the listbox after the doctor picks one
@@ -445,6 +477,9 @@ const Select = React.forwardRef(function Select(
     leadingIcon,
     /** ขนาดรูปในช่องเลือก (opt-in) — ค่าเริ่มต้นวงกลม 32px เท่ากับใน dropdown */
     imageSize = 'var(--dim-size-600, 32px)',
+    /** ปุ่มท้ายแถวใน dropdown (opt-in): { label, activeLabel, isActive(value), onToggle(value) }
+        กดแล้วไม่ปิดลิสต์ — ใช้กับช่องค้นหาที่เพิ่มรายการลงตารางทีละตัว */
+    optionAction,
     badge,
     /* Show/hide flags — match Figma Property panel exactly. */
     showFieldName = true,
@@ -891,8 +926,10 @@ const Select = React.forwardRef(function Select(
                used by Selects whose option rows carry richer content
                (icon + label + subtext, Figma 29:4788) and need to
                break out of a narrow trigger. */
-            width:    dropdownWidth ?? triggerWidth ?? undefined,
-            maxWidth: dropdownWidth ?? triggerWidth ?? undefined,
+            /* ไม่ล็อกความกว้างเท่ากล่อง — ลิสต์ยืดตามข้อความที่ยาวที่สุด (สูงสุด 560px
+               หรือเท่าที่จอเหลือ) ส่วนกล่องช่องเลือกยังกว้างเท่าเดิม (มติผู้ใช้ 3 ก.ย. 69) */
+            width:    dropdownWidth ?? 'max-content',
+            maxWidth: dropdownWidth ?? 'min(560px, calc(100vw - var(--dim-space-600, 24px) * 2))',
             minWidth: dropdownWidth ?? triggerWidth ?? 200,
             /* Cap dropdown height — Figma "Select / Open" spec + Treatment
                Order popup constraint. Bounded by an absolute 480 px and
@@ -987,6 +1024,12 @@ const Select = React.forwardRef(function Select(
                     badge={opt.badge}
                     selected={isSel}
                     onClick={() => choose(val)}
+                    action={optionAction ? {
+                      label: optionAction.label,
+                      activeLabel: optionAction.activeLabel,
+                      active: !!optionAction.isActive?.(val),
+                      onToggle: () => optionAction.onToggle?.(val),
+                    } : undefined}
                   />
                 );
               })

@@ -370,7 +370,7 @@ export const ANC_ORAL_HEALTH_QUESTIONS = [
   {
     key: 'notVisited',
     label: 'ไม่ได้ไปพบทันตแพทย์ในช่วง 1 ปีที่ผ่านมา',
-    short: 'ประวัติการพบทันตแพทย์ (1 ปีที่ผ่านมา)',
+    short: 'ประวัติการพบทันตแพทย์',
     riskAnswer: true,
     options: [
       { value: true, label: 'ไม่ได้ไปพบทันตแพทย์ในช่วง 1 ปีที่ผ่านมา' },
@@ -588,8 +588,8 @@ export const ANC_LAB1_ORDERS = [
    20-27 GCT diabetes screen (24-28wk) (p.5) · 28+ Lab #2 + vaccines
    (27-32wk) + OGTT confirm + 3rd ultrasound/NST + supplements (pp.5-8). */
 export const ANC_SECOND_TRIMESTER_SCREENING = [
-  { key: 'downSyndrome2', th: 'คัดกรองกลุ่มอาการดาวน์ (14-18 สัปดาห์)', en: 'Down syndrome screening' },
-  { key: 'ultrasound2',   th: 'ตรวจ Ultrasound ครั้งที่ 2 (20 สัปดาห์)', en: '2nd ultrasound — confirm GA + fetal anomaly' },
+  { key: 'downSyndrome2', th: 'คัดกรองกลุ่มอาการดาวน์', en: 'Down syndrome screening' },
+  { key: 'ultrasound2',   th: 'ตรวจ Ultrasound', en: '2nd ultrasound — confirm GA + fetal anomaly' },
 ];
 
 /** Structured Ultrasound finding fields — pp.50-52 of the official manual
@@ -764,7 +764,7 @@ export const getNextAncAppointmentPlan = (gestWeeks, riskLevel) => {
       facility: 'hospital',
       facilityLabel: 'โรงพยาบาล (รพ.แม่ข่าย)',
       suggestedWeek: 20,
-      label: 'นัด Ultrasound ครั้งที่ 2 + คัดกรองกลุ่มอาการดาวน์ (14-18 สัปดาห์)',
+      label: 'นัดตรวจ Ultrasound + คัดกรองกลุ่มอาการดาวน์',
     };
   }
   if (w < 20) {

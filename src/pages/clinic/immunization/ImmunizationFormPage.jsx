@@ -12,6 +12,7 @@ import Icon from '@/components/icons/Icon';
 import Table from '@/components/table/Table';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import TreatmentFormShell from '@/templates/TreatmentFormShell';
+import CarriedDentalPanel from '@/components/dental/CarriedDentalPanel';
 import {
   ImmStep1General,
   ImmStep2BirthNutrition,
@@ -19,10 +20,13 @@ import {
   ImmStep4Development,
   ImmStep5Vaccine,
   ImmStep6GeneralExam,
+  ImmStepDiagnosis,
+  ImmGrowthCharts,
   ImmStep7Orders,
   ImmStep8Summary,
 } from '@/pages/clinic/immunization/ImmunizationSteps';
 import {
+  NUTRITION_STATUS_OPTIONS,
   DEFAULT_IMM_VISIT,
   getImmChild,
   getImmPatientCard,
@@ -151,11 +155,62 @@ const ImmStepAssessment = (props) => {
   );
 };
 
+/* ขั้น "ตรวจร่างกายและวินิจฉัย" ใช้ layout เดียวกับฝากครรภ์ (มติผู้ใช้ 3 ก.ย. 69):
+   การ์ดซ้าย = ตรวจร่างกาย (การเจริญเติบโต + ตรวจสุขภาพทั่วไป) · การ์ดขวา =
+   วินิจฉัย · แผงผลตรวจทันตกรรมเป็นการ์ดเต็มความกว้างอยู่ใต้ทั้งสอง */
+const SPLIT_CARD_STYLE = {
+  flex: '1 1 0',
+  gap: 'var(--dim-space-500, 20px)',
+  padding: 'var(--dim-space-600, 24px)',
+  borderRadius: 'var(--dim-radius-500)',
+  background: 'var(--surface-card-100)',
+  boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+};
+
+const SplitCardTitle = ({ children }) => (
+  <h2
+    style={{
+      fontFamily: 'var(--type-family-heading-content)',
+      fontSize: 'var(--type-size-base)',
+      fontWeight: 'var(--type-weight-bold)',
+      color: 'var(--text-brandPrimary-default, #007549)',
+      lineHeight: 1.5,
+    }}
+  >
+    {children}
+  </h2>
+);
+
 const ImmStepExamDiagnosis = (props) => (
-  <>
-    <ImmStep3Growth {...props} />
-    <ImmStep6GeneralExam {...props} />
-  </>
+  <div className='flex w-full flex-col min-w-0' style={{ gap: 'var(--dim-space-400)' }}>
+    <div
+      className='flex w-full flex-col xl:flex-row items-stretch min-w-0'
+      style={{ gap: 'var(--dim-space-400)' }}
+    >
+      <div className='flex flex-col min-w-0 w-full xl:w-auto' style={SPLIT_CARD_STYLE}>
+        <SplitCardTitle>ตรวจร่างกาย</SplitCardTitle>
+        <ImmStep3Growth {...props} />
+        <ImmStep6GeneralExam {...props} showDentalPanel={false} />
+      </div>
+      <div className='flex flex-col min-w-0 w-full xl:w-auto' style={SPLIT_CARD_STYLE}>
+        <SplitCardTitle>วินิจฉัย</SplitCardTitle>
+        <ImmStepDiagnosis {...props} />
+      </div>
+    </div>
+
+    <div className='flex flex-col w-full min-w-0' style={{ ...SPLIT_CARD_STYLE, flex: '0 0 auto' }}>
+      <CarriedDentalPanel
+        hn={props.immHn}
+        patientName={props.child?.fullName || props.child?.shortName}
+        from='wbc'
+        readOnly={props.locked}
+        title='ผลการตรวจทันตกรรม (จากคลินิกทันตกรรม)'
+        bordered={false}
+        badgeNextToTitle
+        showAskButton={false}
+      />
+    </div>
+  </div>
 );
 
 const ImmStepTreatmentOrder = (props) => (
@@ -195,8 +250,11 @@ const clampStepIndex = (value) => Math.max(0, Math.min(IMM_STEPS.length - 1, Num
 
 /* แถบอ้างอิงใต้ stepper แบบ ANC: ค่าใน intake อ่านอย่างเดียว ส่วนช่องกรอกจริง
    อยู่ในขั้นตรวจร่างกายเพียงจุดเดียว จึงไม่เกิดข้อมูลสองชุด. */
-const ImmVitalsTextRow = ({ form, intake }) => {
+const ImmVitalsTextRow = ({ form, intake, immHn, child }) => {
   const vitals = intake?.vitals || {};
+  const [chartOpen, setChartOpen] = useState(false);
+  /* โภชนาการมาจากหน้าคัดกรอง (แบบประเมินประวัติมารดา/โภชนาการ) */
+  const nutrition = NUTRITION_STATUS_OPTIONS.find((o) => o.value === (form.nutritionStatus || intake?.nutritionStatus))?.label;
   const items = [
     ['อุณหภูมิ', vitals.temp ? `${vitals.temp} °C` : '—'],
     ['ชีพจร', vitals.hr ? `${vitals.hr} ครั้ง/นาที` : '—'],
@@ -204,6 +262,8 @@ const ImmVitalsTextRow = ({ form, intake }) => {
     ['SpO₂', vitals.spo2 ? `${vitals.spo2} %` : '—'],
     ['น้ำหนัก', form.growth?.weight ? `${form.growth.weight} กก.` : (vitals.weight ? `${vitals.weight} กก.` : '—')],
     ['ส่วนสูง', form.growth?.height ? `${form.growth.height} ซม.` : (vitals.height ? `${vitals.height} ซม.` : '—')],
+    ['เส้นรอบศีรษะ', form.growth?.headCirc ? `${form.growth.headCirc} ซม.` : (vitals.headCirc ? `${vitals.headCirc} ซม.` : '—')],
+    ['โภชนาการ', nutrition || '—'],
   ];
 
   return (
@@ -228,6 +288,23 @@ const ImmVitalsTextRow = ({ form, intake }) => {
           <span style={{ color: 'var(--text-content-default, #363B3F)', fontWeight: 'var(--type-weight-medium)' }}>{value}</span>
         </span>
       ))}
+      <div className='flex-1' />
+      <BrandSubdueButton variant='outline' size='sm' leadingIcon='show_chart' onClick={() => setChartOpen(true)}>
+        ดูกราฟการเจริญเติบโต
+      </BrandSubdueButton>
+      <Popup
+        open={chartOpen}
+        onClose={() => setChartOpen(false)}
+        title='กราฟการเจริญเติบโต'
+        subtitle={child ? `${child.fullName} · HN ${immHn}` : ''}
+        size='extraLarge'
+        height='auto'
+        primaryAction={{ label: 'ปิด', onClick: () => setChartOpen(false) }}
+      >
+        <div style={{ padding: 'var(--dim-space-600, 24px)' }}>
+          <ImmGrowthCharts form={form} immHn={immHn} child={child} showTitle={false} />
+        </div>
+      </Popup>
     </div>
   );
 };
@@ -510,10 +587,12 @@ const ImmunizationFormPage = () => {
             onStepChange={handleStepChange}
             completedSteps={completedSteps}
             steps={IMM_STEPS}
+            /* ขั้นตรวจร่างกายและวินิจฉัยวางการ์ดซ้าย/ขวาเอง — ไม่ให้ shell ห่อการ์ดซ้อน (ทรงเดียวกับฝากครรภ์) */
+            plainBodySteps={[1]}
             queuePath={QUEUE_PATH}
             step0FlushLeft={false}
             onLeave={handleBack}
-            belowBand={<ImmVitalsTextRow form={form} intake={intake} />}
+            belowBand={<ImmVitalsTextRow form={form} intake={intake} immHn={immHn} child={child} />}
             fromDepartment='คลินิกสุขภาพเด็กดี'
             onSaveDraft={() => { if (!locked) saveImmDraft(immHn, form, stepIndex); }}
             finishLabel='จบการบันทึก'
