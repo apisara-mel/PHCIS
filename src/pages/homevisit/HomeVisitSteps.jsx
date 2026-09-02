@@ -29,7 +29,6 @@ import {
    (มติผู้ใช้ 30 ส.ค. 69) — ถ้าประกาศใหม่ที่นี่ คำที่พยาบาลเลือกจะไม่ตรงกัน
    ระหว่างจุดคัดกรองกับที่บ้าน แล้วเอามาเทียบ/รวมรายงานไม่ได้ */
 import {
-  CHIEF_COMPLAINT_SUGGESTIONS,
   DURATION_SUGGESTIONS,
   PRESENT_ILLNESS_SUGGESTIONS,
 } from '@/pages/opd/ScreeningPage';
@@ -629,34 +628,12 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
       <SectionCard>
       <StepSection gap='var(--dim-space-600)'>
         <TopicHeader icon='stethoscope'>อาการป่วยที่พบในการเยี่ยมครั้งนี้</TopicHeader>
-        {/* สามช่องอยู่แถวเดียวกัน (มติผู้ใช้ 2 ก.ย. 69) — กริด 2 คอลัมน์เดิม
-            ดันประวัติปัจจุบันลงไปแถวสอง เหลือช่องว่างข้างระยะเวลาทั้งช่อง */}
-        <FieldGrid cols={3} rowGap='var(--dim-space-600)' columnGap='var(--dim-space-600)'>
-          <Field label='อาการสำคัญ (Chief Complaint)' required>
-            <SuggestibleTextarea
-              showLabel={false}
-              value={form.chiefComplaint}
-              onChange={(e) => set('chiefComplaint')(e?.target ? e.target.value : e)}
-              suggestions={CHIEF_COMPLAINT_SUGGESTIONS}
-              minChars={2}
-              rows={3}
-              voice
-              disabled={readOnly}
-              placeholder='อาการที่ผู้รับบริการหรือผู้ดูแลแจ้งในการเยี่ยมครั้งนี้'
-            />
-          </Field>
-          {/* ระยะเวลาเป็นดรอปดาวน์ (มติผู้ใช้ 30 ส.ค. 69) — ใช้ชุดคำเดียวกับ
-              จุดคัดกรอง ข้อความอิสระอย่าง "3 วัน" กับ "สามวัน" นับรวมกันไม่ได้ */}
-          <Field label='ระยะเวลาที่มีอาการ'>
-            <Select
-              showLabel={false} showHelperText={false} searchable size='lg'
-              value={form.symptomDuration} onChange={set('symptomDuration')} disabled={readOnly}
-              options={HOMEVISIT_DURATION_OPTIONS}
-              placeholder='เลือกระยะเวลาที่มีอาการ'
-            />
-          </Field>
-
-          <Field label='ประวัติปัจจุบัน (Present Illness)'>
+        {/* ถอดช่อง "อาการสำคัญ (Chief Complaint)" ออก แล้วให้ "ประวัติปัจจุบัน"
+            ขึ้นเป็นช่องแรก (มติผู้ใช้ 2 ก.ย. 69) — ที่บ้านผู้รับบริการเล่าเป็น
+            ลำดับเหตุการณ์ต่อเนื่อง ไม่ได้แยกเป็นประโยคอาการสำคัญเหมือนที่ห้องตรวจ
+            · คีย์ `chiefComplaint` ยังอยู่ในโมเดลและในบันทึกเก่า/ใบสรุป */}
+        <FieldGrid cols={2} rowGap='var(--dim-space-600)' columnGap='var(--dim-space-600)'>
+          <Field label='ประวัติปัจจุบัน (Present Illness)' required>
             <SuggestibleTextarea
               showLabel={false}
               value={form.presentIllness}
@@ -667,6 +644,16 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
               voice
               disabled={readOnly}
               placeholder='ลำดับอาการ สิ่งที่ทำมาแล้ว และการตอบสนองต่อการรักษาที่บ้าน'
+            />
+          </Field>
+          {/* ระยะเวลาเป็นดรอปดาวน์ (มติผู้ใช้ 30 ส.ค. 69) — ใช้ชุดคำเดียวกับ
+              จุดคัดกรอง ข้อความอิสระอย่าง "3 วัน" กับ "สามวัน" นับรวมกันไม่ได้ */}
+          <Field label='ระยะเวลาที่มีอาการ'>
+            <Select
+              showLabel={false} showHelperText={false} searchable size='lg'
+              value={form.symptomDuration} onChange={set('symptomDuration')} disabled={readOnly}
+              options={HOMEVISIT_DURATION_OPTIONS}
+              placeholder='เลือกระยะเวลาที่มีอาการ'
             />
           </Field>
         </FieldGrid>

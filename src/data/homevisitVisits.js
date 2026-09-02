@@ -1417,8 +1417,12 @@ export const getHomeVisitCompletedSteps = (form, stepIndex = 0) => ([
      โรคประจำตัวแล้ว (ติดธงอย่างน้อยหนึ่งใบ) */
   (summarizeVitals(form.vitals).filled > 0 && summarizeVitals(form.vitals).invalid.length === 0)
     || Object.values(form.flags || {}).some(Boolean),
-  /* ขั้น "ประเมินอาการป่วย" — ครบเมื่อมีอาการสำคัญหรือประวัติเจ็บป่วย */
-  !!(String(form.chiefComplaint || '').trim() || String(form.illnessHistory || '').trim()),
+  /* ขั้น "ประเมินอาการป่วย" — ครบเมื่อมีประวัติปัจจุบันหรือประวัติเจ็บป่วย
+     (ช่อง "อาการสำคัญ" ถูกถอดออกจากหน้าจอแล้ว มติผู้ใช้ 2 ก.ย. 69 — ยังเช็ก
+     คีย์เดิมไว้เผื่อร่างที่บันทึกก่อนหน้านั้น) */
+  !!(String(form.presentIllness || '').trim()
+    || String(form.illnessHistory || '').trim()
+    || String(form.chiefComplaint || '').trim()),
   !!form.nextVisitDate,
 ]);
 
