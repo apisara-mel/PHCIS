@@ -72,10 +72,35 @@ export const RESULT_CLASS_META = {
   unclear: { label: 'ไม่ชัดเจน', style: 'neutral' },
 };
 
+/* ผู้รับบริการที่ยังไม่มีผลรังสีของตัวเอง ใช้ชุด mock กลางนี้ (มติผู้ใช้ 3 ก.ย. 69) —
+   ต้นแบบต้องมีเนื้อหาให้เห็นทุกคลินิก ไม่ใช่ตารางว่าง */
+const FALLBACK_STUDIES = [
+  {
+    id: 'img-fallback-1', reportedOn: '26 สิงหาคม 2569', reportedAt: '10:15',
+    xn: 'XN X69-1180', modality: 'อัลตราซาวด์', bodyPart: 'อัลตราซาวด์ครรภ์ (Obstetric US)',
+    orderedBy: 'นพ.สมชาย ใจดี', radiologist: 'พญ.พรทิพย์ ศรีวัฒนา', center: 'ศูนย์ 4 ดินแดง',
+    resultClass: 'normal',
+    findings: 'ทารกในครรภ์ 1 คน ท่า Vertex · หัวใจเต้น 152 ครั้ง/นาที · รกเกาะด้านหน้าส่วนบน '
+      + '· ปริมาณน้ำคร่ำปกติ (AFI 12 ซม.) · ไม่พบความผิดปกติของโครงสร้างทารก',
+    impression: 'ครรภ์เดี่ยว อายุครรภ์ 13 สัปดาห์ 2 วัน ทารกมีชีวิต เจริญเติบโตตามเกณฑ์',
+    films: [{ key: 'kub', label: 'Obstetric US' }],
+  },
+  {
+    id: 'img-fallback-2', reportedOn: '12 มิถุนายน 2569', reportedAt: '09:20',
+    xn: 'XN X69-0894', modality: 'X-ray', bodyPart: 'ทรวงอก (PA)',
+    orderedBy: 'พญ.สมหญิง รักษ์ดี', radiologist: 'นพ.ธนากร อินทรา', center: 'ศูนย์ 4 ดินแดง',
+    resultClass: 'normal',
+    findings: 'ปอดทั้งสองข้างโปร่งดี ไม่พบ infiltration หรือ effusion · หัวใจขนาดปกติ (CTR < 0.5)',
+    impression: 'ไม่พบความผิดปกติของทรวงอก',
+    films: [{ key: 'cxr', label: 'Chest PA' }],
+  },
+];
+
 export const imagingHistoryForPatient = (hn) => {
   const key = String(hn || '').trim();
   if (!key) return [];
-  return STUDIES.filter((s) => s.hn === key).map((s) => ({ ...s }));
+  const own = STUDIES.filter((s) => s.hn === key).map((s) => ({ ...s }));
+  return own.length ? own : FALLBACK_STUDIES.map((s) => ({ ...s, hn: key }));
 };
 
 export default STUDIES;

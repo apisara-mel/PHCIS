@@ -2284,6 +2284,7 @@ export const AncStep7Card = ({ form, setForm, patient, cardPatient, ancHn, visit
     <StepCard>
       {/* ไม่มีหัวข้อซ้ำ — ชื่อขั้น "ตรวจสอบ" บนแถบขั้นตอนบอกอยู่แล้ว (มติผู้ใช้ 3 ก.ย. 69) */}
       <div className='flex flex-col gap-5'>
+        {/* ทุก field ที่กรอกในขั้นก่อนหน้า (มติผู้ใช้ 3 ก.ย. 69) — ช่องว่างถูกตัดทิ้ง */}
         <ReviewSection
           title='ข้อมูลการตั้งครรภ์'
           rows={[
@@ -2294,18 +2295,30 @@ export const AncStep7Card = ({ form, setForm, patient, cardPatient, ancHn, visit
             ['LMP', formatAncDate(form.lmp)],
             ['กำหนดคลอด (EDC)', formatAncDate(edc)],
             ['อายุครรภ์ปัจจุบัน', gestationalAge ? formatGestationalAge(gestationalAge) : ''],
+            ['น้ำหนักก่อนตั้งครรภ์', form.prePregnancyWeight ? `${form.prePregnancyWeight} กก.` : ''],
+            ['สมุดบันทึกสุขภาพแม่และเด็ก', form.motherChildHealthBookGiven ? 'มอบให้แล้ว' : ''],
+            ['บันทึกการตั้งครรภ์ครั้งนี้', form.currentPregnancyNote],
+            ['ประวัติการตั้งครรภ์/การคลอดในอดีต', (form.obstetricHistory || []).map((o, i) => `ครั้งที่ ${i + 1}: ${[o.year, o.deliveryType, o.outcome, o.note].filter(Boolean).join(' · ')}`).join('\n')],
+            ['ข้อมูลสามี/คู่', form.spouseInfo ? Object.entries(form.spouseInfo).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(' · ') : ''],
+            ['ผลแล็บสามี/คู่', ANC_HUSBAND_LAB_FIELDS.filter((f) => form.husbandLabResults?.[f.key]).map((f) => `${f.label}: ${form.husbandLabResults[f.key]}`).join('\n')],
+            ['ประวัติโรคในครอบครัว', ANC_FAMILY_ILLNESS_HISTORY.filter((f) => form.familyIllnessHistory?.[f.key]).map((f) => f.label).join('\n')],
+            ['หมายเหตุประวัติครอบครัว', form.familyIllnessOtherNote],
           ]}
         />
 
         <ReviewSection
           title='แบบประเมิน'
           rows={[
-            ['ปัจจัยเสี่ยงที่พบ', [...ANC_RISK_FACTORS, ...ANC_PERVISIT_RISK_FACTORS].filter((rf) => form.riskFactors?.[rf.key] || form.perVisitRiskFactors?.[rf.key]).map((rf) => rf.label).join('\n')],
+            ['ปัจจัยเสี่ยงจากประวัติ', ANC_RISK_FACTORS.filter((rf) => form.riskFactors?.[rf.key]).map((rf) => rf.label).join('\n')],
+            ['ปัจจัยเสี่ยงที่พบครั้งนี้', ANC_PERVISIT_RISK_FACTORS.filter((rf) => form.perVisitRiskFactors?.[rf.key]).map((rf) => rf.label).join('\n')],
+            ['ปัจจัยเสี่ยงเบาหวาน (GDM)', ANC_GDM_SCREENING_FACTORS.filter((f) => form.gdmScreeningFactors?.[f.key]).map((f) => f.label).join('\n')],
             ['สัญญาณอันตราย', ANC_DANGER_SIGNS.filter((d) => form.dangerSigns?.[d.key]).map((d) => d.label).join('\n')],
+            ['ประเมินความเครียด (ST-5)', ANC_STRESS_QUESTIONS.filter((q) => form.stressAnswers?.[q.key] !== undefined).map((q) => `${q.label}: ${ANC_STRESS_SCALE.find((o) => String(o.value) === String(form.stressAnswers[q.key]))?.label ?? form.stressAnswers[q.key]}`).join('\n')],
+            ['ประเมินสุขภาพจิต (2Q)', ANC_MENTAL_HEALTH_QUESTIONS.filter((q) => form.mentalHealthAnswers?.[q.key] !== undefined).map((q) => `${q.label}: ${form.mentalHealthAnswers[q.key] ? 'ใช่' : 'ไม่ใช่'}`).join('\n')],
             ['การสูบบุหรี่', ANC_SMOKING_STATUS.find((o) => o.value === form.smokingStatus)?.label],
-            ['ประเมินสุขภาพจิต (2Q)', Object.keys(form.mentalHealthAnswers || {}).length ? `ตอบแล้ว ${Object.keys(form.mentalHealthAnswers || {}).length} ข้อ` : ''],
-            ['ประเมินความเครียด (ST-5)', Object.keys(form.stressAnswers || {}).length ? `ตอบแล้ว ${Object.keys(form.stressAnswers || {}).length} ข้อ` : ''],
-            ['เบาหวานขณะตั้งครรภ์ (GDM)', form.gdmConfirmed ? 'ยืนยันจากผล OGTT' : ''],
+            ['ให้คำแนะนำเรื่องบุหรี่แล้ว', form.smokingAdviceGiven ? 'ให้แล้ว' : ''],
+            ['วัคซีนบาดทะยัก', [form.tetanusDoseCount ? `เคยได้รับ ${form.tetanusDoseCount} เข็ม` : '', form.tetanusLastDoseYear ? `เข็มล่าสุดปี ${form.tetanusLastDoseYear}` : '', form.tetanusExempt ? 'ได้รับการยกเว้น' : ''].filter(Boolean).join(' · ')],
+            ['บันทึกการคัดกรองความเสี่ยง', form.riskScreeningNote],
           ]}
         />
 
@@ -2313,14 +2326,33 @@ export const AncStep7Card = ({ form, setForm, patient, cardPatient, ancHn, visit
           title='ตรวจร่างกาย'
           rows={[
             ['น้ำหนัก', form.vitals?.weight ? `${form.vitals.weight} กก.` : ''],
+            ['ส่วนสูง', form.vitals?.height ? `${form.vitals.height} ซม.` : ''],
             ['ความดันโลหิต', form.vitals?.bp],
+            ['ชีพจร', form.vitals?.hr ? `${form.vitals.hr} ครั้ง/นาที` : ''],
+            ['อุณหภูมิ', form.vitals?.temp ? `${form.vitals.temp} °C` : ''],
             ['ปัสสาวะ — น้ำตาล', form.urineSugar],
             ['ปัสสาวะ — ไข่ขาว', form.urineAlbumin],
+            ['อายุครรภ์จากการตรวจ', form.gaByExam ? `${form.gaByExam} สัปดาห์` : ''],
+            ['อายุครรภ์จาก Ultrasound', form.gaByUltrasoundWeeks ? `${form.gaByUltrasoundWeeks} สัปดาห์` : ''],
             ['ระดับยอดมดลูก', ANC_FUNDUS_LEVEL_OPTIONS.find((o) => o.value === form.fundusLevel)?.label],
             ['ความสูงมดลูก', form.fundusHeight ? `${form.fundusHeight} ซม.` : ''],
             ['ส่วนนำของทารก', ANC_PRESENTATION_OPTIONS.find((o) => o.value === form.presentation)?.label],
+            ['ระดับส่วนนำ (Descent)', ANC_DESCENT_OPTIONS.find((o) => o.value === form.descent)?.label],
+            ['ท่าของทารก', form.fetalPosition],
+            ['การดิ้นของทารก', ANC_FETAL_MOVEMENT_OPTIONS.find((o) => o.value === form.fetalMovement)?.label],
             ['เสียงหัวใจทารก', form.fetalHeartRate ? `${form.fetalHeartRate} ครั้ง/นาที` : ''],
-            ['บันทึกการตั้งครรภ์ครั้งนี้', form.currentPregnancyNote],
+            ['ตรวจเต้านม/หัวนม', [form.nippleLeft ? `ซ้าย: ${ANC_NIPPLE_SIDE_OPTIONS.find((o) => o.value === form.nippleLeft)?.label || form.nippleLeft}` : '', form.nippleRight ? `ขวา: ${ANC_NIPPLE_SIDE_OPTIONS.find((o) => o.value === form.nippleRight)?.label || form.nippleRight}` : ''].filter(Boolean).join(' · ')],
+            ['สุขภาพช่องปาก', ANC_ORAL_HEALTH_QUESTIONS
+              .filter((q) => form.oralHealthAnswers?.[q.key] !== undefined)
+              .map((q) => {
+                const raw = form.oralHealthAnswers[q.key];
+                const opt = (q.options || []).find((o) => o.value === raw);
+                return `${q.short || q.label}: ${opt?.label ?? (raw === true ? 'ใช่' : raw === false ? 'ไม่ใช่' : raw)}`;
+              })
+              .join('\n')],
+            ['จำนวนฟันผุ', form.dentalCariesCount],
+            ['สภาพเหงือก', ANC_GUM_OPTIONS.find((o) => o.value === form.dentalGum)?.label],
+            ['ผลตรวจครรภ์จากภายนอก', form.externalExamResults],
           ]}
         />
 
@@ -2328,9 +2360,11 @@ export const AncStep7Card = ({ form, setForm, patient, cardPatient, ancHn, visit
           title='วินิจฉัย'
           rows={[
             ['ผลประเมินความเสี่ยง', riskLevel?.label],
+            ['เบาหวานขณะตั้งครรภ์ (GDM)', form.gdmConfirmed ? 'ยืนยันจากผล OGTT' : ''],
             ['บันทึกวินิจฉัย', form.diagnosisNote],
             ['แผนการคลอด', ANC_DELIVERY_MODE_OPTIONS.find((o) => o.value === form.plannedDeliveryMode)?.label],
             ['คำแนะนำที่ให้ในครั้งนี้', adviceGiven.map((t) => t.label).join('\n')],
+            ['คำแนะนำเพิ่มเติม', form.adviceNote],
           ]}
         />
 
@@ -2338,7 +2372,16 @@ export const AncStep7Card = ({ form, setForm, patient, cardPatient, ancHn, visit
           title='สั่งการรักษา'
           rows={[
             ['ผลตรวจทางห้องปฏิบัติการ', summarizeLabResults(form.labResults)],
+            ['ผลตรวจ Ultrasound', ANC_ULTRASOUND_RESULT_FIELDS.filter((f) => form.ultrasoundResults?.[f.key]).map((f) => `${f.label}: ${form.ultrasoundResults[f.key]}`).join('\n')],
+            ['คัดกรองไตรมาส 2', ANC_SECOND_TRIMESTER_SCREENING.filter((o) => form.secondTrimesterScreening?.[o.key]).map((o) => o.th).join('\n')],
+            ['วิธีคัดกรองกลุ่มอาการดาวน์', ANC_DOWN_SCREENING_METHODS.find((o) => o.value === form.downScreeningMethod)?.label],
+            ['คัดกรองเบาหวาน', ANC_DIABETES_SCREENING.filter((o) => form.diabetesScreening?.[o.key]).map((o) => o.th).join('\n')],
+            ['การประเมินใกล้คลอด', ANC_TERM_ASSESSMENT.filter((o) => form.termAssessment?.[o.key]).map((o) => o.th).join('\n')],
+            ['วัคซีนที่ให้', ANC_VACCINE_DOSES.filter((o) => form.vaccineDoses?.[o.key]).map((o) => `${o.label}${form.vaccineDoseDates?.[o.key] ? ` (${formatAncDate(form.vaccineDoseDates[o.key])})` : ''}`).join('\n')],
+            ['ยาเสริม/เวชภัณฑ์ที่จ่าย', ANC_DISPENSE_ITEMS.filter((o) => form.dispenseItems?.[o.key]).map((o) => o.label).join('\n')],
+            ['เวชภัณฑ์อื่น ๆ', form.dispenseOtherNote],
             ['ยา / วัคซีน / หัตถการที่สั่ง', (form.medications || []).map((m, i) => `${i + 1}. ${m.name}`).join('\n')],
+            ['งานทันตกรรม', [form.dentalReferral ? 'ส่งตรวจสุขภาพช่องปาก' : '', form.dentalCleaningDone ? 'ขัดทำความสะอาดฟันแล้ว' : '', form.dentalBrushingPractice ? 'ฝึกแปรงฟันแบบลงมือปฏิบัติแล้ว' : ''].filter(Boolean).join(' · ')],
             ['บันทึกการรักษา', summarizeAncProcedures(form)],
           ]}
         />

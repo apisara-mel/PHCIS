@@ -392,23 +392,87 @@ const VisitTimelineEntry = ({ entry, isLast }) => (
    อ่านย้อนหลัง ไม่ใช่หน้าอ่านทีละใบ · แต่ละหมวดอ่านคนละช่องของบันทึก จึง
    ประกาศ TIMELINE_FIELDS_BY_TAB ไว้ที่เดียว (มติผู้ใช้ 28 ส.ค. 69) */
 const RecordTimeline = ({ entries, emptyText }) => {
-  if (!entries.length) return <ValueText>{emptyText}</ValueText>;
+  /* ทุกแท็บแสดงเป็นตารางเดียว (มติผู้ใช้ 3 ก.ย. 69) — แถว = ครั้งที่มารับบริการ ·
+     คอลัมน์ = หัวข้อของแท็บนั้น (รวมทุกหัวข้อที่พบในทุกแถว ตัดคอลัมน์ที่ว่างทั้งหมดทิ้ง) */
+  const { columns, rows } = useMemo(() => {
+    const labels = [];
+    (entries || []).forEach((e) => (e.fields || []).forEach(([label]) => {
+      if (!labels.includes(label)) labels.push(label);
+    }));
+    const tableRows = (entries || []).map((e, i) => {
+      const row = { id: e.key || `${e.date}-${i}`, __date: e.date, __subtitle: e.subtitle };
+      (e.fields || []).forEach(([label, value]) => { row[label] = value; });
+      return row;
+    });
+    const used = labels.filter((label) => tableRows.some((r) => r[label]));
+    const hasFilms = (entries || []).some((e) => (e.films || []).length > 0);
+    (entries || []).forEach((e, i) => { tableRows[i].__films = e.films || []; });
+    return {
+      rows: tableRows,
+      columns: [
+        {
+          key: '__date',
+          label: 'วันที่รับบริการ',
+          flex: true,
+          minWidth: 150,
+          render: (r) => (
+            <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+              <span style={{ fontWeight: 'var(--type-weight-medium)' }}>{r.__date}</span>
+              {r.__subtitle && (
+                <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>{r.__subtitle}</span>
+              )}
+            </div>
+          ),
+        },
+        ...used.map((label) => ({
+          key: label,
+          label,
+          flex: true,
+          minWidth: 160,
+          render: (r) => r[label] || '—',
+        })),
+        /* ฟิล์มกำกับผลรังสี (มติผู้ใช้ 3 ก.ย. 69) — ภาพแทน stylized ใน public/images/films/ */
+        ...(hasFilms ? [{
+          key: '__films',
+          label: 'ฟิล์ม',
+          sortable: false,
+          minWidth: 200,
+          render: (r) => ((r.__films || []).length === 0 ? '—' : (
+            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+              {r.__films.map((film, i) => (
+                <figure key={`${film.label}-${i}`} className='flex flex-col items-center' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+                  <img
+                    src={film.src}
+                    alt={film.label}
+                    style={{
+                      width: 72, height: 72, objectFit: 'cover',
+                      borderRadius: 'var(--dim-radius-200, 8px)',
+                      border: 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
+                      background: 'var(--surface-neutral-quaternary)',
+                    }}
+                  />
+                  <figcaption style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>{film.label}</figcaption>
+                </figure>
+              ))}
+            </div>
+          )),
+        }] : []),
+      ],
+    };
+  }, [entries]);
+
+  if (!rows.length) return <ValueText>{emptyText}</ValueText>;
   return (
-    <ol className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-600)' }}>
-      {entries.map((entry, i) => (
-        <VisitTimelineEntry
-          key={entry.key}
-          entry={entry}
-          isLast={i === entries.length - 1}
-        />
-      ))}
-    </ol>
+    <Table
+      columns={columns}
+      rows={rows}
+      rowKey={(r) => r.id}
+      stickyColCount={1}
+      emptyMessage={emptyText}
+    />
   );
 };
 
-/* ทะเบียนวัคซีนอ่านเป็นไทม์ไลน์เข็มต่อเข็ม — ดูอย่างเดียว ไม่มีปุ่มบันทึก/ยกเลิก
-   เพราะป๊อปอัปประวัติเป็นหน้าอ่าน การบันทึกเข็มอยู่ที่คลินิกสร้างเสริมภูมิคุ้มกันโรค
-   (มติผู้ใช้ 28 ส.ค. 69) */
 const VaccineDoseTimeline = ({ patient, form }) => {
   const doses = useMemo(() => vaccinesForPatient(patient?.hn || ''), [patient?.hn]);
   const entries = useMemo(() => doses.map((v, i) => ({

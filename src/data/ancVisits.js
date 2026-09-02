@@ -1180,53 +1180,55 @@ export const DEFAULT_ANC_VISIT = {
   // before THIS pregnancy + year of the last one, driving the ≤10yr
   // exemption rule. Distinct from Step 5's `vaccines` (administering a
   // dose THIS visit).
-  tetanusDoseCount: '',
-  tetanusLastDoseYear: '',
+  /* ค่าตั้งต้นเป็นชุด mock ของครรภ์นี้ (มติผู้ใช้ 3 ก.ย. 69) — ขั้น "ตรวจสอบ" ต้องมี
+     ข้อมูลทุกฟิลด์ให้ทวนก่อนบันทึก ไม่ใช่ฟอร์มว่าง */
+  tetanusDoseCount: '2',
+  tetanusLastDoseYear: '2562',
   tetanusExempt: false,    // ไม่ต้องฉีดในครรภ์นี้ — เคยได้รับ dT/dT3 มาไม่เกิน 10 ปี
-  familyIllnessHistory: {}, // ประวัติการเจ็บป่วยของครอบครัว
-  familyIllnessOtherNote: '',
-  husbandLabResults: {},    // ตรวจทางห้องปฏิบัติการของสามี/คู่ — นโยบายฝากครรภ์คุณภาพ 2565 (p.72)
-  motherChildHealthBookGiven: false, // แจกสมุดบันทึกสุขภาพแม่และเด็ก (legacy p.2-25, p.72)
+  familyIllnessHistory: { twins: true }, // ประวัติการเจ็บป่วยของครอบครัว
+  familyIllnessOtherNote: 'ยายเป็นเบาหวานชนิดที่ 2',
+  husbandLabResults: { bloodGroup: 'B', rh: 'Positive', vdrlResult: 'Non-reactive', antiHivResult: 'Negative', hbsAgResult: 'Negative' },
+  motherChildHealthBookGiven: true, // แจกสมุดบันทึกสุขภาพแม่และเด็ก (legacy p.2-25, p.72)
 
   // Step 2 — คัดกรองและซักประวัติ (TOR 1.10.7.3/.7)
-  stressAnswers: {},       // ST-5 (0-3 per item)
-  mentalHealthAnswers: {},
+  stressAnswers: { sleep: 1, concentration: 0, irritable: 1, bored: 0, avoidPeople: 0 },       // ST-5 (0-3 per item)
+  mentalHealthAnswers: { q1: false, q2: false },
   /* 9Q — เปิดจากปุ่มในขั้นแบบประเมินเมื่อ 2Q ผลบวก แล้วดึงคะแนนกลับมาแสดง
      (มติ คทง.2: "อาจทำเป็นปุ่มที่ลิงก์ไปยังหน้าแบบประเมิน แล้วดึงผลคะแนน
      กลับมาแสดงในหน้าหลักของงานฝากครรภ์") — แบบประเมินใช้ชุดเดียวกับคลัง
      `homevisitAssessments.js` ไม่สร้างแบบใหม่ */
   mentalHealth9Q: { answers: {}, total: null, completedAt: '' },
-  riskFactors: {},
+  riskFactors: { priorCesarean: true },
   perVisitRiskFactors: {},  // ประเมินทุกครั้งที่ตรวจครรภ์ (legacy p.2-13, items 8-20)
-  gdmScreeningFactors: {},  // แบบคัดกรองเบาหวานในหญิงมีครรภ์ (legacy p.2-13)
+  gdmScreeningFactors: { familyDm: true },  // แบบคัดกรองเบาหวานในหญิงมีครรภ์ (legacy p.2-13)
   dangerSigns: {},
-  smokingStatus: '',       // 'nonSmoker' | 'smoker'
-  smokingAdviceGiven: false,
-  riskScreeningNote: '',
+  smokingStatus: 'nonSmoker',       // 'nonSmoker' | 'smoker'
+  smokingAdviceGiven: true,
+  riskScreeningNote: 'ไม่พบสัญญาณอันตราย ประเมินความเสี่ยงจากประวัติผ่าตัดคลอดครั้งก่อน',
 
   // Step 3 — ตรวจร่างกาย (TOR 1.10.7.7)
   vitals: { ...ANC_DEFAULT_VITALS },
   /* มติ คทง.2 — ฐานคำนวณ BMI ก่อนตั้งครรภ์และเกณฑ์การเพิ่มน้ำหนัก (IOM 2009) */
-  prePregnancyWeight: '',
-  fundusHeight: '',
-  fetalHeartRate: '',
+  prePregnancyWeight: '55',
+  fundusHeight: '13',
+  fetalHeartRate: '152',
   // Per-visit exam findings — legacy "บันทึกการตรวจครรภ์" (p.2-10/2-11)
-  urineSugar: '',
-  urineAlbumin: '',
-  gaByExam: '',            // อายุครรภ์จากการตรวจครรภ์ (สัปดาห์)
-  gaByUltrasoundWeeks: '', // อายุครรภ์จากการอัลตราซาวด์ (สัปดาห์)
-  fundusLevel: '',
-  presentation: '',
-  descent: '',
-  fetalPosition: '',       // ท่าเด็ก — free text, e.g. LOA / ROA
-  fetalMovement: '',
-  oralHealthAnswers: {},   // Maternal Oral Screening (MOS) tool, p.53 — 2Q, score ≥1 = refer dentist
+  urineSugar: 'Negative',
+  urineAlbumin: 'Negative',
+  gaByExam: '13',            // อายุครรภ์จากการตรวจครรภ์ (สัปดาห์)
+  gaByUltrasoundWeeks: '13', // อายุครรภ์จากการอัลตราซาวด์ (สัปดาห์)
+  fundusLevel: 'symphysis',
+  presentation: 'vertex',
+  descent: 'floating',
+  fetalPosition: 'LOA',       // ท่าเด็ก — free text, e.g. LOA / ROA
+  fetalMovement: 'normal',
+  oralHealthAnswers: { symptoms: false, notVisited: true },   // Maternal Oral Screening (MOS) tool, p.53 — 2Q, score ≥1 = refer dentist
   /* มติ คทง.2 — บันทึกทันตกรรม: ฟันผุระบุจำนวนซี่ · เหงือก ปกติ/อักเสบ/มีหินน้ำลาย */
-  dentalCariesCount: '',
-  dentalGum: '',
+  dentalCariesCount: '2',
+  dentalGum: 'normal',
   /* มติ คทง.2 — ตรวจเต้านม/หัวนมแยกซ้าย-ขวา (ปกติ · สั้น · บอด) */
-  nippleLeft: '',
-  nippleRight: '',
+  nippleLeft: 'normal',
+  nippleRight: 'normal',
   /* ภาพประกอบการตรวจร่างกายของครั้งนี้ (มติผู้ใช้ 2 ก.ย. 69) — เก็บต่อครั้ง
      ไม่ carry ไปครั้งถัดไป เพราะเป็นสิ่งที่เห็นวันนี้ */
   examPhotos: [],
@@ -1239,14 +1241,14 @@ export const DEFAULT_ANC_VISIT = {
   bodyDrawings: {},
 
   // Step 4 — วินิจฉัย (TOR 1.10.7.7)
-  riskLevel: '',
+  riskLevel: 'low',
   gdmConfirmed: false,   // เบาหวานขณะตั้งครรภ์ (GDM) ยืนยันจากผล OGTT — pp.5-8
-  diagnosisNote: '',
+  diagnosisNote: 'ครรภ์แรก อายุครรภ์ 13 สัปดาห์ ทารกในครรภ์เจริญเติบโตปกติ ไม่พบภาวะเสี่ยง',
   externalExamResults: '',  // ผลการตรวจครรภ์จากภายนอก
   externalExamAttachments: [], // uploaded evidence File[] for the above (TOR 1.10.7.7)
-  adviceNote: '',            // คำแนะนำ (รายละเอียดเพิ่มเติมนอกเหนือหัวข้อที่ติ๊ก)
+  adviceNote: 'แนะนำการกินอาหารครบ 5 หมู่ พักผ่อนให้เพียงพอ และมาตามนัดทุกครั้ง',            // คำแนะนำ (รายละเอียดเพิ่มเติมนอกเหนือหัวข้อที่ติ๊ก)
   /* มติ คทง.2 — คำแนะนำเป็น checkbox list ที่ระบบเลือกหัวข้อตามอายุครรภ์ให้ */
-  adviceTopics: {},
+  adviceTopics: { ironFolic: true, dangerSigns: true, oralCare: true, noSmoking: true },
 
   // Step 5 — สั่งการรักษา (TOR 1.10.7.5/.7)
   lab1Orders: {},
@@ -1258,11 +1260,11 @@ export const DEFAULT_ANC_VISIT = {
     antiHivResult: 'Negative', hbsAgResult: 'Negative',
     hb2: '11.2', hct2: '34', vdrlResult2: 'Non-reactive', antiHivResult2: 'Negative',
   },
-  secondTrimesterScreening: {}, // swimlane C — Down syndrome + 2nd ultrasound
-  diabetesScreening: {},        // swimlane D — GCT/OGTT
+  secondTrimesterScreening: { downSyndrome2: true }, // swimlane C — Down syndrome + 2nd ultrasound
+  diabetesScreening: { gct: true },        // swimlane D — GCT/OGTT
   lab2Orders: {},                // swimlane E — 2nd Lab panel
   vaccines: {},                  // swimlane E — dT/Tdap/flu/Covid
-  supplements: {},                // swimlane E — iron/folic acid/iodine/calcium
+  supplements: { iron: true, folicAcid: true, iodine: true },                // swimlane E — iron/folic acid/iodine/calcium
   termAssessment: {},             // swimlane E — 3rd ultrasound/NST/delivery plan
   ultrasoundResults: {
     numberOfFetus: '1',
@@ -1273,28 +1275,31 @@ export const DEFAULT_ANC_VISIT = {
     amnioticFluid: 'Normal (AFI 12 ซม.)',
     anomalies: 'ไม่พบความผิดปกติของโครงสร้างทารก',
   },           // structured Ultrasound findings (pp.50-52) — shared by ultrasound2/ultrasound3
-  nippleAssessment: '',            // ตรวจประเมินด้านและหัวนม (pp.64-66) — 'normal' | 'flat' | 'inverted'
-  plannedDeliveryMode: '',         // แผนการคลอด (pp.59-60) — 'vaginal' | 'cesarean' | 'undecided'
+  nippleAssessment: 'normal',            // ตรวจประเมินด้านและหัวนม (pp.64-66) — 'normal' | 'flat' | 'inverted'
+  plannedDeliveryMode: 'vaginal',         // แผนการคลอด (pp.59-60) — 'vaginal' | 'cesarean' | 'undecided'
   /* มติ คทง.2 — Ultrasound บันทึกว่า "ได้รับการตรวจอย่างน้อย 1 ครั้ง" พร้อม
      อายุครรภ์ ณ วันที่ตรวจ (ศูนย์ฯ ทำก่อน 12 สัปดาห์ได้ยาก) + วิธีคัดกรอง
      กลุ่มอาการดาวน์ (Quadruple test / NIPT) */
   ultrasoundDone: true,
   ultrasoundGaWeeks: '13',
   ultrasoundDate: '2026-08-26',
-  downScreeningMethod: '',
+  downScreeningMethod: 'quadruple',
   /* มติ คทง.2 — จ่ายยาและวัคซีนเป็น checkbox ท้ายขั้นสั่งการรักษา; ใบสั่งยา
      จริงยังไปทาง `medications` ชุดเดียวกับ OPD เพื่อให้ห้องยาได้รายการเดียวกัน */
-  dispenseItems: {},
+  dispenseItems: { triferdine: true },
   dispenseOtherNote: '',
-  vaccineDoses: {},
-  vaccineDoseDates: {},
+  vaccineDoses: { dt1: true },
+  vaccineDoseDates: { dt1: '2026-08-26' },
   medications: [],
-  dentalReferral: false,
-  dentalCleaningDone: false,     // ขัดทำความสะอาดฟันแล้ว
-  dentalBrushingPractice: false, // ฝึกแปรงฟันแบบลงมือปฏิบัติ
+  dentalReferral: true,
+  dentalCleaningDone: true,     // ขัดทำความสะอาดฟันแล้ว
+  dentalBrushingPractice: true, // ฝึกแปรงฟันแบบลงมือปฏิบัติ
 
   // Step 6 — นัดหมาย (TOR 1.10.7.5/.7 Telemedicine)
-  appointment: { ...DEFAULT_ANC_APPOINTMENT },
+  appointment: {
+    ...DEFAULT_ANC_APPOINTMENT,
+    note: 'นัดตรวจครรภ์ครั้งถัดไปที่อายุครรภ์ 17 สัปดาห์ · ฟังผลตรวจคัดกรองกลุ่มอาการดาวน์ · งดน้ำงดอาหารก่อนเจาะเลือด 8 ชั่วโมง',
+  },
 
   // Step 7 — ใบฝากครรภ์ (TOR 1.10.7.5/.6)
   cardConfirmed: false,
@@ -1520,9 +1525,9 @@ export const buildAncVisitForm = (hn, ancPatient) => {
     form.gravida = String(ancPatient.gravida ?? '');
     form.para = String(ancPatient.para ?? '');
     form.lmp = ancPatient.lmp || '';
-    /* Risk level is a per-visit judgement (Step 4) — only a patient the
-       roster already flags as a follow-up carries one in. */
-    form.riskLevel = ancPatient.visitType === 'followup' ? (ancPatient.riskLevel || '') : '';
+    /* ผลประเมินความเสี่ยงติดมาจากทะเบียนเสมอ (มติผู้ใช้ 3 ก.ย. 69) — ขั้นตรวจสอบ
+       ต้องมีค่าให้ทวน ผู้ตรวจแก้ได้ที่ขั้นวินิจฉัย */
+    form.riskLevel = ancPatient.riskLevel || form.riskLevel;
   }
 
   const registration = getAncRegistration(hn);
