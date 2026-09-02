@@ -866,6 +866,10 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
           )}
         </div>
 
+        {/* รูปถ่ายอยู่ในการ์ดอาการป่วย (มติผู้ใช้ 2 ก.ย. 69) — รูปแผล/สภาพแวดล้อม
+            เป็นหลักฐานของสิ่งที่บันทึกในการ์ดนี้ ไม่ใช่การ์ดแยกท้ายขั้น */}
+        <HomeVisitPhotoSection form={form} setForm={setForm} readOnly={readOnly} />
+
       </StepSection>
       </SectionCard>
 
@@ -984,11 +988,7 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
         <HomeVisitStep4Assessment form={form} setForm={setForm} readOnly={readOnly} />
       </SectionCard>
 
-      {/* รูปถ่ายระหว่างการเยี่ยมเป็นการ์ดของตัวเอง (มติผู้ใช้ 2 ก.ย. 69) —
-          เป็นหลักฐานประกอบคนละชนิดกับแบบประเมิน ไม่ควรอยู่ท้ายการ์ดเดียวกัน */}
-      <SectionCard>
-        <HomeVisitPhotoSection form={form} setForm={setForm} readOnly={readOnly} />
-      </SectionCard>
+
 
       {/* การ์ด "ปรึกษาแพทย์ทางไกล" ถูกถอดออก (มติผู้ใช้ 30 ส.ค. 69) — ปุ่มเดียวกัน
           อยู่บนหัวหน้าจอแล้ว (SubHeader) ซึ่งกดได้จากทุกขั้น */}

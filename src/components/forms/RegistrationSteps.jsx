@@ -1935,11 +1935,13 @@ const RightsLookupPanel = ({ form, setForm, onVerified }) => {
 
   return (
     <div style={RIGHTS_LOOKUP_PANEL_STYLE}>
+      {/* ภาพประกอบสูงเท่าบล็อกข้อความข้าง ๆ (มติผู้ใช้ 2 ก.ย. 69) — ของเดิมสูง
+          128px ทำให้กล่องสูงเกินกว่าระยะขอบ 24px ที่ตั้งใจไว้ */}
       <div
         className='shrink-0 flex items-center justify-center'
-        style={{ width: 160, height: 128 }}
+        style={{ width: 128, height: 104 }}
       >
-        <LottieIllustration animationData={healthInsuranceAnim} size={160} />
+        <LottieIllustration animationData={healthInsuranceAnim} size={128} />
       </div>
       <div className='flex flex-col shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
