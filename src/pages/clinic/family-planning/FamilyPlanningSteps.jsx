@@ -13,7 +13,6 @@ import EDocumentBuilderPopup from '@/components/form-builder/EDocumentBuilderPop
 import EDocumentSheetPopup from '@/components/form-builder/EDocumentSheet';
 import { countBlockFields } from '@/utils/formBuilderModel';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
-import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Table from '@/components/table/Table';
@@ -1316,33 +1315,33 @@ export const FpStep5Postpartum = ({ form, setForm, locked }) => {
   const mother = form.postpartumMother;
   const child = form.postpartumChild;
 
+  /* ติ๊ก "ดูแลหลังคลอด" แล้วจึงแสดงฟอร์ม (มติผู้ใช้ 3 ก.ย. 69) — เดิมเป็น
+     EmptyState + ปุ่มเปิดบันทึก */
+  const togglePostpartum = () => {
+    if (!locked) setForm((f) => ({ ...f, hasPostpartum: !f.hasPostpartum }));
+  };
+
   if (!form.hasPostpartum) {
     return (
       <StepCard>
-        <TopicHeader icon='family_restroom'>การดูแลหลังคลอด</TopicHeader>
-        <EmptyState
-          icon='child_care'
-          title='ไม่มีข้อมูลหลังคลอด'
-          subtitle='ผู้รับบริการรายนี้ไม่มีประวัติการคลอดที่ต้องติดตามในครั้งนี้'
-          action={(
-            <BrandDashedAddButton
-              disabled={locked}
-              onClick={() => { if (!locked) setForm((f) => ({ ...f, hasPostpartum: true })); }}
-            >
-              เปิดบันทึกการดูแลหลังคลอด
-            </BrandDashedAddButton>
-          )}
+        <Checkbox
+          label='ดูแลหลังคลอด'
+          checked={false}
+          onChange={togglePostpartum}
+          disabled={locked}
         />
-        <Banner tone='neutral' icon='info'>
-          หมายเหตุการบูรณาการ: บันทึกส่วนนี้เป็น "สมุดเยี่ยมหลังคลอด" แบบย่อของคลินิกวางแผนครอบครัว
-          — ข้อมูลการตั้งครรภ์ฉบับเต็มอยู่ในงานฝากครรภ์ (ANC) และงานสร้างเสริมภูมิคุ้มกันโรค (EPI)
-        </Banner>
       </StepCard>
     );
   }
 
   return (
     <StepCard>
+      <Checkbox
+        label='ดูแลหลังคลอด'
+        checked
+        onChange={togglePostpartum}
+        disabled={locked}
+      />
       <div className='flex items-center gap-2 flex-wrap'>
         {S5_TABS.map((t) => (
           <TabCapsule key={t.key} variant='filter' label={t.label} selected={tab === t.key} onClick={() => setTab(t.key)} />
@@ -1408,19 +1407,27 @@ export const FpStep5Postpartum = ({ form, setForm, locked }) => {
             <Banner tone='neutral' icon='lock'>
               ชีพจร อุณหภูมิ และความดันโลหิตดึงมาจากห้องซักประวัติ (ขั้นตอนที่ 1) — แก้ไขได้ที่ขั้นตอนที่ 1
             </Banner>
-            <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            {/* ผลตรวจมารดาเป็นดรอปดาวน์บนกริด 3 คอลัมน์ (มติผู้ใช้ 3 ก.ย. 69) */}
+            <div
+              className='w-full'
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                gap: 'var(--dim-space-400, 16px)',
+                alignItems: 'start',
+              }}
+            >
               {FP_POSTPARTUM_MOTHER_FIELDS.map((f) => (
-                <ChoiceRow
-                  key={f.key}
-                  label={f.label}
-                  options={f.options}
-                  value={mother.fields?.[f.key]}
-                  onSelect={setMotherField(f.key)}
-                  locked={locked}
-                />
+                <Field key={f.key} label={f.label}>
+                  <Select
+                    showLabel={false} searchable={false} size='lg' disabled={locked}
+                    value={mother.fields?.[f.key]}
+                    onChange={setMotherField(f.key)}
+                    options={f.options}
+                    placeholder='เลือกผล'
+                  />
+                </Field>
               ))}
-            </div>
-            <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
               <Field label='สรุปภาวะสุขภาพ'>
                 <Select showLabel={false} searchable={false} size='lg' disabled={locked}
                   value={mother.summary} onChange={setMother('summary')} options={FP_POSTPARTUM_MOTHER_SUMMARY} placeholder='เลือกภาวะสุขภาพ' />
@@ -1429,36 +1436,44 @@ export const FpStep5Postpartum = ({ form, setForm, locked }) => {
                 <InputField value={mother.nurse} onChange={setMother('nurse')} disabled placeholder='' />
               </Field>
             </div>
-            <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              <ChoiceRow
-                label='เคยได้รับการตรวจมะเร็งปากมดลูก'
-                options={[{ value: 'yes', label: 'เคย' }, { value: 'no', label: 'ไม่เคย' }]}
-                value={mother.cervicalScreened} onSelect={setMother('cervicalScreened')} locked={locked}
-              />
-              <ChoiceRow
-                label='ได้รับการซักประวัติแล้ว'
-                options={[{ value: 'yes', label: 'ใช่' }, { value: 'no', label: 'ไม่ใช่' }]}
-                value={mother.historyTaken} onSelect={setMother('historyTaken')} locked={locked}
-              />
-              <ChoiceRow
-                label='ได้รับการตรวจร่างกายตอนตั้งครรภ์'
-                options={[{ value: 'yes', label: 'ใช่' }, { value: 'no', label: 'ไม่ใช่' }]}
-                value={mother.physicalExamed} onSelect={setMother('physicalExamed')} locked={locked}
-              />
-              <ChoiceRow
-                label='มีการวางแผนคุมกำเนิดหลังคลอด'
-                options={[{ value: 'yes', label: 'มี' }, { value: 'no', label: 'ไม่มี' }]}
-                value={mother.familyPlanned} onSelect={setMother('familyPlanned')} locked={locked}
-              />
-            </div>
-            {mother.familyPlanned === 'yes' && (
-              <Field label='วิธีคุมกำเนิดหลังคลอดที่เลือก'>
+            <div
+              className='w-full'
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                gap: 'var(--dim-space-400, 16px)',
+                alignItems: 'start',
+              }}
+            >
+              <Field label='เคยได้รับการตรวจมะเร็งปากมดลูก'>
                 <Select showLabel={false} searchable={false} size='lg' disabled={locked}
-                  value={mother.familyPlanMethod} onChange={setMother('familyPlanMethod')}
-                  options={FP_SERVICES.map((s) => ({ value: s.key, label: s.label }))}
-                  placeholder='เลือกวิธีคุมกำเนิด' />
+                  value={mother.cervicalScreened} onChange={setMother('cervicalScreened')}
+                  options={[{ value: 'yes', label: 'เคย' }, { value: 'no', label: 'ไม่เคย' }]} placeholder='เลือก' />
               </Field>
-            )}
+              <Field label='ได้รับการซักประวัติแล้ว'>
+                <Select showLabel={false} searchable={false} size='lg' disabled={locked}
+                  value={mother.historyTaken} onChange={setMother('historyTaken')}
+                  options={[{ value: 'yes', label: 'ใช่' }, { value: 'no', label: 'ไม่ใช่' }]} placeholder='เลือก' />
+              </Field>
+              <Field label='ได้รับการตรวจร่างกายตอนตั้งครรภ์'>
+                <Select showLabel={false} searchable={false} size='lg' disabled={locked}
+                  value={mother.physicalExamed} onChange={setMother('physicalExamed')}
+                  options={[{ value: 'yes', label: 'ใช่' }, { value: 'no', label: 'ไม่ใช่' }]} placeholder='เลือก' />
+              </Field>
+              <Field label='มีการวางแผนคุมกำเนิดหลังคลอด'>
+                <Select showLabel={false} searchable={false} size='lg' disabled={locked}
+                  value={mother.familyPlanned} onChange={setMother('familyPlanned')}
+                  options={[{ value: 'yes', label: 'มี' }, { value: 'no', label: 'ไม่มี' }]} placeholder='เลือก' />
+              </Field>
+              {mother.familyPlanned === 'yes' && (
+                <Field label='วิธีคุมกำเนิดหลังคลอดที่เลือก'>
+                  <Select showLabel={false} searchable={false} size='lg' disabled={locked}
+                    value={mother.familyPlanMethod} onChange={setMother('familyPlanMethod')}
+                    options={FP_SERVICES.map((s) => ({ value: s.key, label: s.label }))}
+                    placeholder='เลือกวิธีคุมกำเนิด' />
+                </Field>
+              )}
+            </div>
             <SuggestibleTextarea
               voice
               disabled={locked}
@@ -1486,10 +1501,18 @@ export const FpStep5Postpartum = ({ form, setForm, locked }) => {
       {tab === 'child' && (
         <>
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-            <TopicHeader icon='child_care'>ข้อมูลการดูแลเด็กหลังคลอด</TopicHeader>
-            <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+            {/* กริด 4 คอลัมน์ ขอบช่องตรงกันทุกแถว (มติผู้ใช้ 3 ก.ย. 69) */}
+            <div
+              className='w-full'
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                gap: 'var(--dim-space-400, 16px)',
+                alignItems: 'start',
+              }}
+            >
               <Field label='ดูแลครั้งที่'>
-                <InputField value={child.visitNo} onChange={setChild('visitNo')} disabled={locked} placeholder='1' />
+                <InputField value={child.visitNo} onChange={setChild('visitNo')} disabled={locked} placeholder='1' type='number' />
               </Field>
               <Field label='วันที่ดูแล'>
                 <DatePicker
@@ -1500,10 +1523,10 @@ export const FpStep5Postpartum = ({ form, setForm, locked }) => {
                 />
               </Field>
               <Field label='น้ำหนักแรกคลอด (กรัม)'>
-                <InputField value={child.birthWeight} onChange={setChild('birthWeight')} disabled={locked} placeholder='เช่น 3100' />
+                <InputField value={child.birthWeight} onChange={setChild('birthWeight')} disabled={locked} placeholder='เช่น 3100' type='number' />
               </Field>
               <Field label='น้ำหนักปัจจุบัน (กรัม)'>
-                <InputField value={child.weight} onChange={setChild('weight')} disabled={locked} placeholder='เช่น 3450' />
+                <InputField value={child.weight} onChange={setChild('weight')} disabled={locked} placeholder='เช่น 3450' type='number' />
               </Field>
               <Field label='ชื่อ-สกุลมารดา'>
                 <InputField value={child.motherName} onChange={setChild('motherName')} disabled={locked} placeholder='ชื่อ-สกุลมารดา' />
@@ -1512,24 +1535,35 @@ export const FpStep5Postpartum = ({ form, setForm, locked }) => {
                 <InputField value={child.motherCid} onChange={setChild('motherCid')} disabled={locked} placeholder='13 หลัก' />
               </Field>
             </div>
-            <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            {/* ผลตรวจทารกเป็นดรอปดาวน์บนกริดเดียวกับช่องด้านบน — ชิปกระจายชิดขวา
+                อ่านยากเมื่อการ์ดกว้าง (มติผู้ใช้ 3 ก.ย. 69) */}
+            <div
+              className='w-full'
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                gap: 'var(--dim-space-400, 16px)',
+                alignItems: 'start',
+              }}
+            >
               {FP_POSTPARTUM_CHILD_FIELDS.map((f) => (
-                <ChoiceRow
-                  key={f.key}
-                  label={f.label}
-                  options={f.options}
-                  value={child.fields?.[f.key]}
-                  onSelect={setChildField(f.key)}
-                  locked={locked}
-                />
+                <Field key={f.key} label={f.label}>
+                  <Select
+                    showLabel={false} searchable={false} size='lg' disabled={locked}
+                    value={child.fields?.[f.key]}
+                    onChange={setChildField(f.key)}
+                    options={f.options}
+                    placeholder='เลือกผล'
+                  />
+                </Field>
               ))}
+              <Field label='ผลการตรวจทารกหลังคลอด'>
+                <Select showLabel={false} searchable={false} size='lg' disabled={locked}
+                  value={child.examSummary} onChange={setChild('examSummary')}
+                  options={[{ value: 'normal', label: 'ปกติ' }, { value: 'abnormal', label: 'ผิดปกติ ต้องติดตาม' }]}
+                  placeholder='เลือกผลการตรวจ' />
+              </Field>
             </div>
-            <Field label='ผลการตรวจทารกหลังคลอด'>
-              <Select showLabel={false} searchable={false} size='lg' disabled={locked}
-                value={child.examSummary} onChange={setChild('examSummary')}
-                options={[{ value: 'normal', label: 'ปกติ' }, { value: 'abnormal', label: 'ผิดปกติ ต้องติดตาม' }]}
-                placeholder='เลือกผลการตรวจ' />
-            </Field>
             <SuggestibleTextarea
               voice
               disabled={locked}
