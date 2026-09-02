@@ -70,6 +70,8 @@ const HOMEVISIT_STEPS = [
   { title: 'คัดกรอง',                    subtitle: 'Screening' },
   /* Family Folder ยุบเข้าไปในขั้น "ข้อมูลส่วนตัว" แล้ว (มติผู้ใช้ 2 ก.ย. 69) */
   { title: 'ประเมินอาการป่วย',            subtitle: 'Chief Complaint & History' },
+  /* ขั้นสุดท้าย — ทวนทุกอย่างที่กรอกก่อนจบการบันทึก (มติผู้ใช้ 2 ก.ย. 69) */
+  { title: 'ตรวจสอบข้อมูล',               subtitle: 'Review' },
 ];
 
 const HomeVisitRecordPage = () => {
@@ -251,7 +253,7 @@ const HomeVisitRecordPage = () => {
           {/* ปุ่มประวัติการเยี่ยมบ้านอยู่แถวเดียวกับ "ขอเข้าถึงข้อมูล" ของ SubHeader
               (มติผู้ใช้ 30 ส.ค. 69) — สองปุ่มนี้เป็นทางเข้าไปดูข้อมูลย้อนหลังเหมือนกัน
               ควรอยู่ที่เดียวกัน ไม่ใช่กระจายอยู่บนหัวแฟ้มอีกจุด */}
-          <SubHeader title={`บันทึกประเมินการเยี่ยมบ้าน — ครั้งที่ ${visitNo}`} hideBottomBorder>
+          <SubHeader title='บันทึกประเมินการเยี่ยมบ้าน' hideBottomBorder>
             {/* ปรึกษาแพทย์ทางไกลอยู่หน้าสุดของแถว (มติผู้ใช้ 30 ส.ค. 69) — ที่บ้าน
                 ต้องเรียกแพทย์ได้ทันทีที่เจอเรื่องเกินมือ ไม่ต้องเดินไปหาปุ่มในขั้น
                 ที่กำลังกรอกอยู่ · พาไปที่เดียวกับปุ่มในขั้น "ประเมินอาการป่วย"
@@ -450,7 +452,7 @@ const HomeVisitRecordPage = () => {
                  เลื่อนมาจาก index 3 ตอนสลับกับสัญญาณชีพ */
               /* ขั้นที่เนื้อหาเป็นการ์ดของตัวเอง: ยินยอม · ข้อมูลส่วนตัว · ที่อยู่ ·
                  ติดต่อ · สิทธิ · อาการป่วย */
-              plainBodySteps={[0, 1, 2, 3, 4, 5]}
+              plainBodySteps={[0, 1, 2, 3, 4, 5, 6]}
               stepIndex={stepIndex}
               onStepChange={setStepIndex}
               completedSteps={completedSteps}
@@ -459,6 +461,7 @@ const HomeVisitRecordPage = () => {
               step0FlushLeft={false}
               onLeave={handleLeave}
               fromDepartment='งานเยี่ยมบ้าน'
+              finishLabel='บันทึกและส่งต่อ'
               onFinish={() => { finishVisit(); return false; }}
             onSaveDraft={() => { if (!readOnly) saveHomeVisitDraft(visitId, formRef.current, stepIndex); }}
           >

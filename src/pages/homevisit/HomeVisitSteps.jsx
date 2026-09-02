@@ -45,6 +45,7 @@ import {
   PatientStatusCard,
 } from '@/components/forms/RegistrationSteps';
 import { findMrPatientByHn } from '@/data/mrPatients';
+import { getPatientByHN } from '@/data/patientProfiles';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 /* ปุ่มลบแถวเป็นสีเทา ไม่ใช่สีแบรนด์ (มติผู้ใช้ 30 ส.ค. 69) — การลบแถวเป็น
    การกระทำรอง ไม่ควรเด่นเท่าปุ่มหลักของฟอร์ม */
@@ -56,6 +57,7 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
    ใหญ่ + ปุ่ม −/+ + เกณฑ์ปกติ + "เพิ่มรอบการวัด" + ไทม์ไลน์รอบก่อนหน้า
    (มติผู้ใช้ 30 ส.ค. 69) */
 import VitalsForm from '@/components/forms/VitalsForm';
+import VitalsSignGraph from '@/components/graph/VitalsSignGraph';
 import Table from '@/components/table/Table';
 import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
 import ViewToggle from '@/components/toggle/ViewToggle';
@@ -947,6 +949,52 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
                     placeholder='เลือก'
                   />
                 </Field>
+                {/* รูปยาแต่ละรายการ (มติผู้ใช้ 2 ก.ย. 69) — ที่บ้านมักหยิบซองยา
+                    มาให้ดูโดยไม่รู้ชื่อ ถ่ายเก็บไว้คู่กับแถวนั้นจะทวนทีหลังได้ */}
+                <Field label='รูปยา'>
+                  {m.photoUrl ? (
+                    <div className='relative' style={{ width: 96, height: 72 }}>
+                      <img
+                        src={m.photoUrl}
+                        alt={`รูปยา ${m.nameOther || m.name || ''}`.trim()}
+                        style={{
+                          width: 96,
+                          height: 72,
+                          objectFit: 'cover',
+                          borderRadius: 'var(--dim-radius-300, 10px)',
+                          border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
+                          display: 'block',
+                        }}
+                      />
+                      {!readOnly && (
+                        <span style={{ position: 'absolute', top: 'var(--dim-space-50, 2px)', right: 'var(--dim-space-50, 2px)' }}>
+                          <NeutralIconButton
+                            icon='close'
+                            variant='ghost'
+                            size='sm'
+                            aria-label='ลบรูปยา'
+                            onClick={() => updateMedication(m.id, 'photoUrl', '')}
+                          />
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <PhotoUploadField
+                      icon='photo_camera'
+                      capture='environment'
+                      disabled={readOnly}
+                      style={{ width: 96, height: 72, padding: 'var(--dim-space-200, 8px)' }}
+                      aria-label='ถ่ายรูปยา'
+                      label='ถ่ายรูปยา'
+                      onFiles={(files) => {
+                        const file = files[0];
+                        if (!file) return;
+                        readAsDataUrl(file, (url) => updateMedication(m.id, 'photoUrl', url));
+                      }}
+                    />
+                  )}
+                </Field>
+
                 {/* เหลือรายการเดียวลบไม่ได้ (มติผู้ใช้ 30 ส.ค. 69) — ลิสต์ที่เปิด
                     ไว้แล้วต้องมีอย่างน้อยหนึ่งแถวให้กรอกเสมอ ถ้าลบหมดจะเหลือ
                     ข้อความว่างที่ต้องกด "เพิ่มรายการ" ใหม่ทุกครั้ง */}
@@ -1101,6 +1149,12 @@ export const HomeVisitStep3Vitals = ({ form, setForm, readOnly, blockedMsg, hn }
         subtitle={hn ? `HN ${hn}` : undefined}
         primaryAction={{ label: 'ปิด', onClick: () => setHistoryOpen(false) }}
       >
+        {/* กราฟแนวโน้มอยู่เหนือตาราง (มติผู้ใช้ 2 ก.ย. 69) — ตัวเลขรายรอบอ่าน
+            ความเปลี่ยนแปลงข้ามครั้งได้ยาก ใช้กราฟชุดเดียวกับหน้าสัญญาณชีพอื่น */}
+        <div className='w-full' style={{ marginBottom: 'var(--dim-space-500, 20px)' }}>
+          <VitalsSignGraph />
+        </div>
+
         <Table
           columns={[
             { key: 'no', label: 'ครั้งที่' },
@@ -1184,688 +1238,140 @@ export const HomeVisitStepBehaviour = ({ form, setForm, readOnly, hn, blockedMsg
 
 export const HOMEVISIT_PHOTO_LIMIT = 20;
 
+/* รูปถ่ายระหว่างการเยี่ยม — 5 ช่องคงที่ ทรงเดียวกับรูปถ่ายบ้าน (มติผู้ใช้
+   2 ก.ย. 69) แต่ละช่องบอกว่าต้องถ่ายอะไร ทีมจึงถ่ายชุดเดียวกันทุกครั้งและ
+   เอามาเทียบข้ามรอบได้ · ไม่มีช่องไหนบังคับ (บางบ้านไม่มีแผล/ไม่มีอุปกรณ์) */
+const VISIT_PHOTO_SLOTS = [
+  { key: 'wound', title: 'ถ่ายภาพที่ 1', caption: 'แผล/รอยโรค' },
+  { key: 'env', title: 'ถ่ายภาพที่ 2', caption: 'สภาพแวดล้อมที่เป็นความเสี่ยง' },
+  { key: 'meds', title: 'ถ่ายภาพที่ 3', caption: 'ยาที่พบในบ้าน' },
+  { key: 'device', title: 'ถ่ายภาพที่ 4', caption: 'อุปกรณ์การแพทย์ที่ใช้อยู่' },
+  { key: 'other', title: 'ถ่ายภาพที่ 5', caption: 'ภาพเพิ่มเติม' },
+];
+
 export const HomeVisitPhotoSection = ({ form, setForm, readOnly }) => {
   const [photoPreview, setPhotoPreview] = useState(null);
-  /* เตือนเมื่อเลือกไฟล์มาเกินโควตา — ตัดทิ้งเงียบ ๆ แล้วทีมจะไม่รู้ว่ารูปหาย */
-  const [limitMsg, setLimitMsg] = useState('');
-  const remaining = HOMEVISIT_PHOTO_LIMIT - form.photos.length;
+  const photos = form.photos || [];
 
-  const removePhotoAt = (index) => setForm((f) => ({
-    ...f,
-    photos: f.photos.filter((_, idx) => idx !== index),
-  }));
+  const setSlot = (index, entry) => setForm((f) => {
+    const next = [...(f.photos || [])];
+    while (next.length < VISIT_PHOTO_SLOTS.length) next.push(null);
+    next[index] = entry;
+    return { ...f, photos: next };
+  });
 
   return (
     <StepSection>
-      <TopicHeader icon='photo_camera'>รูปถ่ายระหว่างการเยี่ยม</TopicHeader>
-      {limitMsg && <NoticeBand tone='warning' icon='filter_alt'>{limitMsg}</NoticeBand>}
+      {/* หัวข้อใช้สไตล์เดียวกับป้าย "ระดับความปวด …" ที่อยู่เหนือมัน
+          (มติผู้ใช้ 2 ก.ย. 69) — เป็นช่องหนึ่งของการ์ดอาการป่วย ไม่ใช่หัวข้อใหญ่ */}
+      <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+        รูปถ่ายระหว่างการเยี่ยม
+      </span>
+      <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+        ขอความยินยอมจากผู้รับบริการหรือผู้ดูแลก่อนถ่ายทุกครั้ง และไม่ถ่ายใบหน้าคนอื่นในบ้านที่ไม่ใช่ผู้รับบริการ
+      </span>
 
-      {/* คำแนะนำว่าควรถ่ายอะไร (มติผู้ใช้ 30 ส.ค. 69) — เดิมเป็นช่องอัปโหลด
-          เปล่า ๆ แต่ละทีมจึงถ่ายไม่เหมือนกัน พอเอารูปมาเทียบข้ามครั้งหรือ
-          ส่งต่อให้ทีมถัดไปจึงใช้ไม่ได้ */}
-      <div
-        className='flex flex-col w-full'
-        style={{
-          gap: 'var(--dim-space-100, 4px)',
-          padding: 'var(--dim-space-300, 12px)',
-          borderRadius: 'var(--dim-radius-300, 8px)',
-          background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
-          fontSize: 'var(--type-size-xs)',
-          color: 'var(--text-content-secondary, #636B72)',
-        }}
-      >
-        <span style={{ color: 'var(--text-content-default, #363B3F)', fontWeight: 'var(--type-weight-medium, 500)' }}>
-          {form.photos.length === 0
-            ? 'รูปแรก: ถ่าย “หน้าบ้านพร้อมเลขที่บ้าน” — ใช้ยืนยันว่าไปถึงบ้านถูกหลังคู่กับพิกัดที่บันทึกไว้'
-            : 'ถ่ายให้ครบตามรายการนี้ เพื่อให้ทีมครั้งถัดไปเทียบความเปลี่ยนแปลงได้'}
-        </span>
-        <span>1. หน้าบ้าน + เลขที่บ้าน · 2. สภาพแวดล้อมที่เป็นความเสี่ยง (ทางเดิน ห้องน้ำ ราวจับ พื้นลื่น)</span>
-        <span>3. แผล/รอยโรค — ถ่ายระยะเดิมทุกครั้งและวางวัตถุเทียบขนาดไว้ข้าง ๆ · 4. ยาที่พบในบ้านทั้งหมด</span>
-        <span>5. อุปกรณ์การแพทย์ที่ใช้อยู่ (สายให้อาหาร ออกซิเจน เตียง ที่นอนลม)</span>
-        <span style={{ color: 'var(--text-warning-default, #B45309)' }}>
-          ขอความยินยอมจากผู้รับบริการหรือผู้ดูแลก่อนถ่ายทุกครั้ง และไม่ถ่ายใบหน้าคนอื่นในบ้านที่ไม่ใช่ผู้รับบริการ
-        </span>
-      </div>
-
-      {/* ปุ่มอัปโหลดกับรูปย่ออยู่แถวเดียวกัน — เดิมรูปย่อต่อท้ายลงข้างล่าง
-          บล็อกจึงยาวขึ้นเรื่อย ๆ และมองไม่เห็นพร้อมกันว่าถ่ายอะไรไปแล้วบ้าง */}
-      <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-        <PhotoUploadField
-          label={form.photos.length
-            ? `เพิ่มรูป (${form.photos.length}/${HOMEVISIT_PHOTO_LIMIT} รูป)`
-            : 'ถ่าย/อัปโหลดรูป'}
-          icon='photo_camera'
-          capture='environment'
-          multiple
-          disabled={readOnly || remaining <= 0}
-          /* อ่านเป็น data URL ไม่ใช่ blob URL — blob URL ใช้ได้เฉพาะในหน้าที่เปิดอยู่
-             พอบันทึกร่างลง sessionStorage แล้วกลับมาเปิดใหม่ ลิงก์จะตาย */
-          onFiles={(files) => {
-            /* รับได้ไม่เกินโควตาที่เหลือ ส่วนที่เกินถูกตัดพร้อมบอกให้รู้ */
-            const picked = Array.from(files);
-            const accepted = picked.slice(0, Math.max(0, remaining));
-            setLimitMsg(accepted.length < picked.length
-              ? `เลือกมา ${picked.length} รูป แต่เก็บได้อีก ${Math.max(0, remaining)} รูป (สูงสุด ${HOMEVISIT_PHOTO_LIMIT} รูปต่อการเยี่ยม 1 ครั้ง) — เก็บให้ ${accepted.length} รูปแรก`
-              : '');
-            accepted.forEach((file, i) => {
-              const entryId = `hv-photo-${Date.now()}-${i}`;
-              const push = (previewUrl) => setForm((f) => ({
-                ...f,
-                photos: [...f.photos, { id: entryId, name: file.name, previewUrl }],
-              }));
-              if (typeof FileReader === 'undefined') {
-                push('');
-                return;
-              }
-              const reader = new FileReader();
-              reader.onload = () => push(String(reader.result || ''));
-              reader.onerror = () => push('');
-              reader.readAsDataURL(file);
-            });
-          }}
-        />
-        {form.photos.length > 0 && (
-          <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-            {form.photos.map((photo, i) => {
-              const entry = typeof photo === 'string' ? { name: photo, previewUrl: '' } : photo;
-              const key = entry.id || `${entry.name}-${i}`;
-              return entry.previewUrl ? (
-                <div
-                  key={key}
-                  className='relative'
-                  style={{
-                    /* สูงเท่ากล่องอัปโหลด และกว้างตามอัตราส่วน 4:3 ของกล้อง —
-                       กรอบจัตุรัสครอบรูปแนวนอนจนดูไม่ออกว่าถ่ายอะไร */
-                    width: 171,
-                    height: 'var(--dim-size-2000, 128px)',
-                    borderRadius: 'var(--dim-radius-300, 8px)',
-                    overflow: 'hidden',
-                    border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #E5E7EB)',
-                    background: 'var(--surface-neutral-quaternary, #F3F4F6)',
-                  }}
-                >
+      <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+        {VISIT_PHOTO_SLOTS.map((slot, index) => {
+          const entry = photos[index];
+          if (entry && entry.previewUrl) {
+            return (
+              <div key={slot.key} className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                <div className='relative shrink-0'>
                   {/* กดที่รูปเพื่อเปิดดูขนาดเต็ม — ปุ่มลบเป็นพี่น้องกันข้างนอก
                       ไม่ใช่ปุ่มซ้อนปุ่ม (HTML ห้าม) */}
                   <button
                     type='button'
                     onClick={() => setPhotoPreview(entry)}
-                    aria-label={`ดูรูป ${entry.name} ขนาดเต็ม`}
+                    aria-label={`ดูรูป ${slot.caption} ขนาดเต็ม`}
                     title={entry.name}
                     style={{
-                      width: '100%',
-                      height: '100%',
+                      width: HOUSE_PHOTO_W,
+                      height: HOUSE_PHOTO_H,
                       padding: 0,
-                      border: 'none',
-                      background: 'transparent',
+                      border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
+                      borderRadius: 'var(--dim-radius-300, 10px)',
+                      overflow: 'hidden',
+                      background: 'var(--surface-neutral-quaternary, #F3F4F6)',
                       cursor: 'zoom-in',
                       display: 'block',
                     }}
                   >
                     <img
                       src={entry.previewUrl}
-                      alt={entry.name}
+                      alt={`${slot.caption} — ${entry.name || ''}`.trim()}
                       style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                     />
                   </button>
-                  {/* ปุ่มลบเป็นวงกลมเทาเล็ก ไม่ใช่ปุ่มแบรนด์สี่เหลี่ยมขนาดปกติ —
-                      ปุ่มเต็มใบทับรูปย่อจนดูไม่ออกว่ารูปอะไร และสีเขียวอ่านเป็น
-                      "ปุ่มหลัก" ทั้งที่เป็นการกระทำรอง */}
                   {!readOnly && (
-                    <button
-                      type='button'
-                      aria-label={`ลบรูป ${entry.name}`}
-                      title={`ลบรูป ${entry.name}`}
-                      /* หยุด event ไม่ให้ทะลุไปเปิดป๊อปอัปดูรูปของกรอบด้านหลัง */
-                      onClick={(e) => { e.stopPropagation(); removePhotoAt(i); }}
-                      className='absolute inline-flex items-center justify-center'
-                      style={{
-                        top: 'var(--dim-space-150, 6px)',
-                        right: 'var(--dim-space-150, 6px)',
-                        width: 24,
-                        height: 24,
-                        borderRadius: 'var(--dim-radius-full, 9999px)',
-                        background: 'var(--surface-neutralButton-secondary, #6B7280)',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: 0,
-                        zIndex: 1,
-                      }}
-                    >
-                      <span
-                        className='material-symbols-outlined'
-                        aria-hidden
-                        style={{
-                          fontFamily: 'Material Symbols Outlined',
-                          fontSize: 16,
-                          lineHeight: 1,
-                          color: 'var(--icon-neutralButton-on-neutral, #FFFFFF)',
-                        }}
-                      >
-                        close
-                      </span>
-                    </button>
+                    <span style={{ position: 'absolute', top: 'var(--dim-space-100, 4px)', right: 'var(--dim-space-100, 4px)' }}>
+                      <NeutralIconButton
+                        icon='close'
+                        variant='ghost'
+                        size='sm'
+                        aria-label={`ลบรูป ${slot.caption}`}
+                        onClick={() => setSlot(index, null)}
+                      />
+                    </span>
                   )}
                 </div>
-              ) : (
-                <ColorfulBadge key={key} style='grey' size='small' hierarchy='secondary' width='hug' maxWidth={220}>
-                  {entry.name}
-                </ColorfulBadge>
-              );
-            })}
-          </div>
-        )}
+                <span style={{
+                  fontSize: 'var(--type-size-xs)',
+                  color: 'var(--text-content-tertiary, #858C92)',
+                  maxWidth: HOUSE_PHOTO_W,
+                }}>
+                  {`${slot.title} · ${slot.caption}`}
+                </span>
+              </div>
+            );
+          }
+          return (
+            <PhotoUploadField
+              key={slot.key}
+              icon='photo_camera'
+              capture='environment'
+              disabled={readOnly}
+              style={{ width: HOUSE_PHOTO_W, height: HOUSE_PHOTO_H }}
+              aria-label={`${slot.title} ${slot.caption}`}
+              label={(
+                <>
+                  {slot.title}
+                  <br />
+                  {slot.caption}
+                </>
+              )}
+              /* อ่านเป็น data URL ไม่ใช่ blob URL — blob URL ใช้ได้เฉพาะในหน้าที่
+                 เปิดอยู่ พอบันทึกร่างแล้วกลับมาเปิดใหม่ลิงก์จะตาย */
+              onFiles={(files) => {
+                const file = files[0];
+                if (!file) return;
+                readAsDataUrl(file, (previewUrl) => setSlot(index, {
+                  id: `hv-photo-${slot.key}-${Date.now()}`,
+                  name: file.name,
+                  previewUrl,
+                }));
+              }}
+            />
+          );
+        })}
       </div>
 
-      {/* ดูรูปขนาดเต็ม — ลบจากในป๊อปอัปได้เลย จะได้ไม่ต้องปิดแล้วไปหาปุ่มกากบาท
-          บนรูปย่ออีกที หลังจากเพิ่งเห็นว่ารูปนี้ถ่ายพลาด */}
       <Popup
         open={!!photoPreview}
         onClose={() => setPhotoPreview(null)}
-        title='รูปถ่ายระหว่างการเยี่ยม'
-        subtitle={photoPreview?.name}
         size='large'
+        title={photoPreview?.name || 'รูปถ่ายระหว่างการเยี่ยม'}
         primaryAction={{ label: 'ปิด', onClick: () => setPhotoPreview(null) }}
-        tertiaryAction={readOnly ? undefined : {
-          label: 'ลบรูปนี้',
-          onClick: () => {
-            const index = form.photos.findIndex((ph) => (
-              typeof ph === 'string' ? ph === photoPreview?.name : ph.id === photoPreview?.id
-            ));
-            if (index >= 0) removePhotoAt(index);
-            setPhotoPreview(null);
-          },
-        }}
       >
         {photoPreview?.previewUrl && (
           <img
             src={photoPreview.previewUrl}
             alt={photoPreview.name}
-            style={{
-              width: '100%',
-              maxHeight: '70vh',
-              objectFit: 'contain',
-              display: 'block',
-              borderRadius: 'var(--dim-radius-300, 8px)',
-              background: 'var(--surface-neutral-quaternary, #F3F4F6)',
-            }}
+            style={{ width: '100%', maxHeight: '70vh', objectFit: 'contain', display: 'block' }}
           />
         )}
       </Popup>
     </StepSection>
-  );
-};
-
-/* การ์ดแบบประเมินมาตรฐาน — ทรงเดียวกับการ์ดใบยินยอมของหน้าเวชระเบียน
-   (หัวการ์ดพื้นอ่อน + รหัส/ป้ายเวอร์ชัน + ชื่อ + แถวปุ่มล่าง) แต่ "เวอร์ชัน"
-   ของแบบประเมินคือ *คะแนน* และป้ายคือ *การแปลผล* ซึ่งเป็นสิ่งที่พยาบาลต้อง
-   เห็นก่อนตัดสินใจว่าจะเปิดชุดไหน (มติผู้ใช้ 30 ส.ค. 69) */
-/* แบบประเมินสี่ชุดแสดงเป็นตาราง (มติผู้ใช้ 2 ก.ย. 69) — หัวข้อ/คะแนน/สถานะ/
-   ปุ่มดำเนินการ อยู่ในคอลัมน์ที่ตรงกันทุกแถว ใช้ <Table> ตัวเดียวกับที่อื่น
-   ในระบบ ไม่ได้จัดแถวเอง */
-
-export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }) => {
-  const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
-
-
-  const setAdl = (itemKey, value) => setForm((f) => ({
-    ...f,
-    adlAnswers: { ...f.adlAnswers, [itemKey]: value },
-  }));
-
-  const adlTotal = useMemo(() => scoreBarthel(form.adlAnswers), [form.adlAnswers]);
-  const adlAnswered = useMemo(() => countBarthelAnswered(form.adlAnswers), [form.adlAnswers]);
-  const adlInterp = useMemo(() => interpretBarthel(adlTotal), [adlTotal]);
-
-  const q2Positive = SCREEN_2Q_QUESTIONS.filter((q) => form.screen2q?.[q.key] === true).length;
-  /* เครื่องมือที่กำลังเปิดทำอยู่ในป๊อปอัป — null = ยังไม่เปิด */
-  const [openTool, setOpenTool] = useState(null);
-
-
-  /* ── เครื่องมือมาตรฐาน (มติ คทง.4 ต่อ §1.18.5) ──────────────────
-     MNA-SF · 9Q (เมื่อ 2Q ผลบวก) · PPS — คำนวณคะแนนและแปลผลอัตโนมัติ
-     ทุกตัว ไม่มีช่องให้ผู้บันทึกสรุปเป็น "ดีขึ้น/แย่ลง" เองอีก */
-  const bmi = useMemo(() => calcBmi(form.vitals?.weight, form.vitals?.height), [form.vitals]);
-  const bmiScore = useMemo(() => mnaBmiScore(bmi), [bmi]);
-
-  const mnaTotal = useMemo(() => scoreMna(form.mna), [form.mna]);
-  const mnaAnswered = useMemo(() => countMnaAnswered(form.mna), [form.mna]);
-  const mnaDone = isMnaComplete(form.mna);
-  const mnaInterp = useMemo(() => interpretMna(mnaTotal), [mnaTotal]);
-
-  /** ตอบ MNA — พร้อมเติมผลแปล (`nutrition`) ให้อัตโนมัติเมื่อครบทุกข้อ. */
-  const setMna = (itemKey, value) => setForm((f) => {
-    const mna = { ...f.mna, [itemKey]: value };
-    return {
-      ...f,
-      mna,
-      nutrition: isMnaComplete(mna) ? interpretMna(scoreMna(mna)).nutrition : '',
-    };
-  });
-
-  const applyBmiToMna = () => {
-    if (bmiScore === null) return;
-    setMna('f', bmiScore);
-  };
-
-  const q9Total = useMemo(() => score9q(form.screen9q), [form.screen9q]);
-  const q9Answered = useMemo(() => count9qAnswered(form.screen9q), [form.screen9q]);
-  const q9Done = is9qComplete(form.screen9q);
-  const q9Interp = useMemo(() => interpret9q(q9Total), [q9Total]);
-  const q9Suicidal = has9qSuicidalRisk(form.screen9q);
-
-  const set9q = (key, value) => setForm((f) => ({
-    ...f,
-    screen9q: { ...f.screen9q, [key]: value },
-  }));
-
-  const ppsInterp = useMemo(() => interpretPps(form.pps), [form.pps]);
-
-  /* meta ของการ์ดสี่ใบ — คะแนน/การแปลผลอ่านจากตัวแปรเดียวกับที่ฟอร์มข้างในใช้
-     จึงไม่มีทางที่การ์ดกับป๊อปอัปจะบอกคนละเรื่อง */
-  const q2Answered = SCREEN_2Q_QUESTIONS.filter((q) => typeof form.screen2q?.[q.key] === 'boolean').length;
-  const q2Done = q2Answered === SCREEN_2Q_QUESTIONS.length;
-  const ASSESSMENT_TOOL_CARDS = [
-    {
-      key: '2q',
-      code: '2Q / 9Q',
-      title: 'คัดกรองภาวะซึมเศร้า 2Q',
-      done: q2Done,
-      scoreLabel: q2Done ? `${q2Positive}/${SCREEN_2Q_QUESTIONS.length} ข้อ` : '—',
-      interp: q2Done
-        ? (q2Positive > 0
-          ? { badge: 'orange', label: `2Q ผลบวก ${q2Positive} ข้อ — ต้องทำ 9Q ต่อ` }
-          : { badge: 'green', label: 'ไม่พบความเสี่ยงซึมเศร้า' })
-        : null,
-    },
-    {
-      key: 'mna',
-      code: 'MNA-SF',
-      title: 'ประเมินภาวะโภชนาการ',
-      done: mnaDone,
-      scoreLabel: mnaDone ? `${mnaTotal}/${MNA_MAX_SCORE}` : `${mnaAnswered}/${MNA_ITEMS.length} ข้อ`,
-      interp: mnaDone ? mnaInterp : null,
-    },
-    {
-      key: 'pps',
-      code: 'PPS',
-      title: 'ระดับความสามารถผู้ป่วยประคับประคอง',
-      done: !!ppsInterp,
-      scoreLabel: ppsInterp ? `${form.pps}%` : '—',
-      interp: ppsInterp,
-    },
-    {
-      key: 'adl',
-      code: 'Barthel Index',
-      title: 'ประเมิน ADL — ดัชนีบาร์เธล',
-      done: isBarthelComplete(form.adlAnswers),
-      scoreLabel: `${adlTotal}/${BARTHEL_MAX_SCORE}`,
-      interp: isBarthelComplete(form.adlAnswers) ? adlInterp : null,
-    },
-  ];
-
-  return (
-    <StepCard>
-      {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
-
-      {/* ถอด "ประเมินสภาพแวดล้อมในบ้าน" ออกจากงานเยี่ยมบ้าน (มติผู้ใช้ 30 ส.ค. 69)
-          — สภาพบ้าน/สุขาภิบาลเป็นหมวดของ "แบบสำรวจบ้าน" ซึ่งเป็นระบบของทีมอื่น
-          คีย์ `form.environment` ยังอยู่ในโมเดลเผื่อบันทึกเก่า */}
-
-      {/* แบบคัดกรองสุขภาพรายบุคคล — ฟอร์มเดียวกับหน้า "คัดกรองเยี่ยมบ้าน" ที่เคยทำไว้
-          ยกมาไว้ทั้งชุดในขั้น "ประเมินและคัดกรอง" (มติผู้ใช้ 30 ส.ค. 69) ซึ่งเป็นที่ของ
-          เครื่องมือคัดกรองทั้งหมดอยู่แล้ว (ADL/Barthel · MNA-SF · 2Q/9Q · PPS)
-          ช่องที่ระบบมีอยู่แล้วไม่ถูกยกมาซ้ำ: ชื่อ-ที่อยู่-เบอร์-สิทธิ (เวชระเบียน) ·
-          น้ำหนัก/ส่วนสูง/BMI/BP/PR/RR/T (ขั้นสัญญาณชีพ) · รายการยา/อาหารที่แพ้และ
-          โรคประจำตัว (ขั้นประวัติ) · วันที่สำรวจ (ใช้วันที่ให้บริการของบันทึกนี้) */}
-      {/* ถอดแผง "แบบคัดกรองสุขภาพรายบุคคล — ข้อมูลประชากรและสิทธิ" ออก
-          (มติผู้ใช้ 30 ส.ค. 69) — สัญชาติ/เชื้อชาติ/ศาสนา ย้ายไปขั้นข้อมูลส่วนตัว
-          แล้ว ส่วนสถานะบุคคล/สถานะในชุมชน/การใช้สิทธิ ผู้ใช้ให้ตัดออก
-          คีย์ใน `form.homeScreening` ยังอยู่ครบเผื่อบันทึกเก่า */}
-
-      {/* "ความเสี่ยงด้านสุขภาพ 15 ข้อ" ย้ายไปขั้น "พฤติกรรมสุขภาพ" แล้ว
-          (มติผู้ใช้ 30 ส.ค. 69) — เป็นเรื่องพฤติกรรม ไม่ใช่ผลการประเมิน */}
-
-      {/* "น้ำตาลปลายนิ้ว (DTX)" ย้ายไปขั้น "คัดกรอง" แล้ว (มติผู้ใช้ 2 ก.ย. 69)
-          — เจาะ DTX พร้อมวัดสัญญาณชีพตอนเพิ่งถึงบ้าน และเจาะเฉพาะรายที่เป็น
-          เบาหวาน · คีย์ `dtx` / `dtxFasting` ยังอยู่ที่ `form.homeScreening` เดิม */}
-
-      <StepSection>
-        {/* แถวการ์ดต้องมีหัวข้อของตัวเอง (มติผู้ใช้ 2 ก.ย. 69) — เดิมลอยอยู่
-            ใต้ช่องอื่นจนอ่านไม่ออกว่าสี่ใบนี้เป็นชุดเดียวกัน */}
-        <TopicHeader icon='checklist'>แบบประเมิน</TopicHeader>
-
-        {/* แบบประเมินมาตรฐาน 4 ชุดเป็น "การ์ด" ทรงเดียวกับใบยินยอมของหน้า
-            เวชระเบียน (มติผู้ใช้ 30 ส.ค. 69) — เดิมกางเป็นฟอร์มยาวเรียงกันสี่ชุด
-            ในขั้นเดียว ทำให้เลื่อนหาไม่เจอว่าเหลือชุดไหนยังไม่ได้ทำ · การ์ดบอก
-            สถานะ/คะแนน/การแปลผลของแต่ละชุดในบรรทัดเดียว แล้วค่อยกดเข้าไปทำ */}
-        <Table
-          columns={[
-            {
-              key: 'tool',
-              label: 'หัวข้อแบบประเมิน',
-              flex: true,
-              minWidth: 260,
-              render: (t) => (
-                <span className='flex flex-col' style={{ gap: 'var(--dim-space-50, 2px)' }}>
-                  <span style={{ color: 'var(--text-content-default, #363B3F)' }}>{t.title}</span>
-                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-                    {t.code}
-                  </span>
-                </span>
-              ),
-            },
-            {
-              key: 'score',
-              label: 'คะแนนประเมิน',
-              minWidth: 140,
-              render: (t) => (
-                <span style={{
-                  color: 'var(--text-brandPrimary-default, #007549)',
-                  fontFamily: 'var(--type-family-heading-content)',
-                }}>
-                  {t.scoreLabel}
-                </span>
-              ),
-            },
-            {
-              key: 'status',
-              label: 'สถานะการประเมิน',
-              minWidth: 220,
-              render: (t) => (t.done && t.interp ? (
-                <ColorfulBadge style={t.interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={260}>
-                  {t.interp.label}
-                </ColorfulBadge>
-              ) : (
-                <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
-                  ยังไม่ได้ประเมิน
-                </ColorfulBadge>
-              )),
-            },
-            {
-              key: 'action',
-              label: 'ดำเนินการ',
-              minWidth: 180,
-              render: (t) => (
-                <BrandSubdueButton
-                  variant='outline'
-                  size='sm'
-                  /* ปุ่มของ DS เรนเดอร์ไอคอนเป็น Material Symbols (ligature) —
-                     ชื่อที่ไม่มีในฟอนต์จะโผล่เป็นตัวอักษรบนปุ่ม */
-                  leadingIcon={t.done ? 'edit' : 'assignment'}
-                  onClick={() => setOpenTool(t.key)}
-                >
-                  {readOnly ? 'ดูผลประเมิน' : (t.done ? 'แก้ไข' : 'ทำแบบประเมิน')}
-                </BrandSubdueButton>
-              ),
-            },
-          ]}
-          rows={ASSESSMENT_TOOL_CARDS}
-          rowKey={(t) => t.key}
-        />
-
-        <Popup
-          open={!!openTool}
-          onClose={() => setOpenTool(null)}
-          size='extraLarge'
-          title={ASSESSMENT_TOOL_CARDS.find((t) => t.key === openTool)?.title || ''}
-          primaryAction={{ label: 'เสร็จสิ้น', onClick: () => setOpenTool(null) }}
-        >
-          {/* ระยะจากเนื้อหาถึงขอบป๊อปอัป 24px ทุกด้าน (มติผู้ใช้ 30 ส.ค. 69) */}
-          <div
-            className='flex flex-col w-full'
-            style={{ gap: 'var(--dim-space-600, 24px)', padding: 'var(--dim-space-600, 24px)' }}
-          >
-            {openTool === '2q' && (
-              <>
-              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
-                <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-                  คัดกรองภาวะซึมเศร้า 2Q
-                </span>
-                {SCREEN_2Q_QUESTIONS.map((q, idx) => (
-                  <div key={q.key} className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                    <span className='flex-1 min-w-0' style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary, #636B72)' }}>
-                      {idx + 1}. {q.label}
-                    </span>
-                    <SelectableTag
-                      label='มี'
-                      size='md'
-                      selected={form.screen2q?.[q.key] === true}
-                      onClick={readOnly ? undefined : () => setForm((f) => ({ ...f, screen2q: { ...f.screen2q, [q.key]: true } }))}
-                    />
-                    <SelectableTag
-                      label='ไม่มี'
-                      size='md'
-                      selected={form.screen2q?.[q.key] === false}
-                      onClick={readOnly ? undefined : () => setForm((f) => ({ ...f, screen2q: { ...f.screen2q, [q.key]: false } }))}
-                    />
-                  </div>
-                ))}
-                {q2Positive > 0 && (
-                  <NoticeBand tone='warning' icon='psychology'>
-                    คัดกรอง 2Q ผลบวก {q2Positive} ข้อ — ต้องประเมิน 9Q ต่อให้ครบก่อนไปขั้นตอนถัดไป
-                    และส่งต่อคลินิกสุขภาพจิตหากเข้าเกณฑ์
-                  </NoticeBand>
-                )}
-              </div>
-
-              {/* 9Q — บังคับเมื่อ 2Q ผลบวก (มติ คทง.4 ต่อ §1.18.5) */}
-              {q2Positive > 0 && (
-                <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                  <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                    <span style={{
-                      fontSize: 'var(--type-size-sm)',
-                      fontWeight: 'var(--type-weight-bold)',
-                      color: 'var(--text-content-default, #363B3F)',
-                    }}>
-                      แบบประเมินโรคซึมเศร้า 9Q
-                    </span>
-                    <div className='flex-1' />
-                    <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default, #363B3F)' }}>
-                      {q9Total}/{SCREEN_9Q_MAX_SCORE} คะแนน
-                    </span>
-                    {q9Done && (
-                      <ColorfulBadge style={q9Interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
-                        {q9Interp.label}
-                      </ColorfulBadge>
-                    )}
-                  </div>
-                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-                    ถามความถี่ของอาการใน 2 สัปดาห์ที่ผ่านมา ระบบรวมคะแนนและแปลผลระดับความรุนแรงให้อัตโนมัติ
-                    (ตอบแล้ว {q9Answered}/{SCREEN_9Q_QUESTIONS.length} ข้อ)
-                  </span>
-                  {SCREEN_9Q_QUESTIONS.map((q, idx) => (
-                    <div key={q.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
-                      <span style={{
-                        fontSize: 'var(--type-size-sm)',
-                        color: q.critical ? 'var(--text-pill-red, #B91C1C)' : 'var(--text-content-default, #363B3F)',
-                      }}>
-                        {idx + 1}. {q.label}
-                      </span>
-                      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                        {SCREEN_9Q_FREQUENCY.map((opt) => (
-                          <SelectableTag
-                            key={opt.value}
-                            label={`${opt.label} (${opt.value})`}
-                            size='md'
-                            selected={form.screen9q?.[q.key] === opt.value}
-                            onClick={readOnly ? undefined : () => set9q(q.key, opt.value)}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  {q9Suicidal && (
-                    <NoticeBand tone='danger' icon='crisis_alert'>
-                      ผู้รับบริการตอบข้อ 9 (คิดทำร้ายตนเอง) — ต้องประเมินความเสี่ยงฆ่าตัวตาย (8Q)
-                      และส่งต่อจิตแพทย์ทันทีในการเยี่ยมครั้งนี้ ห้ามรอรอบเยี่ยมถัดไป
-                    </NoticeBand>
-                  )}
-                  {q9Done && !q9Suicidal && (
-                    <NoticeBand tone={q9Interp.key === 'none' ? 'info' : 'warning'} icon='psychology_alt'>
-                      {q9Interp.label} — {q9Interp.advice}
-                    </NoticeBand>
-                  )}
-                </div>
-              )}
-              </>
-            )}
-            {openTool === 'mna' && (
-              <>
-              <TopicHeader
-                icon='nutrition'
-                aside={(
-                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                    <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default, #363B3F)' }}>
-                      {mnaTotal}/{MNA_MAX_SCORE} คะแนน
-                    </span>
-                    <ColorfulBadge style={mnaInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
-                      {mnaDone ? mnaInterp.label : `ตอบแล้ว ${mnaAnswered}/${MNA_ITEMS.length} ข้อ`}
-                    </ColorfulBadge>
-                  </div>
-                )}
-              >
-                ประเมินภาวะโภชนาการ — MNA-SF
-              </TopicHeader>
-              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-                ใช้แบบประเมินมาตรฐานแทนการเลือก “ดี/เสี่ยง/ขาดสารอาหาร” เอง — ระบบรวมคะแนน แปลผล
-                และเติมช่อง “ภาวะโภชนาการ” ด้านบนให้อัตโนมัติเมื่อตอบครบทั้ง {MNA_ITEMS.length} ข้อ
-              </span>
-              {MNA_ITEMS.map((item, idx) => (
-                <div key={item.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                  <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                    <span className='flex-1 min-w-0' style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-                      {idx + 1}. {item.label}
-                    </span>
-                    {item.autoFromBmi && bmiScore !== null && form.mna?.f !== bmiScore && !readOnly && (
-                      <NeutralSubdueButton variant='outline' size='sm' leadingIcon='calculate' onClick={applyBmiToMna}>
-                        ใช้ค่า BMI {bmi} ที่ระบบคำนวณ
-                      </NeutralSubdueButton>
-                    )}
-                  </div>
-                  {item.autoFromBmi && bmiScore === null && (
-                    <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-                      ยังไม่มีค่า BMI — กรอกน้ำหนักและส่วนสูงในขั้นตอนสัญญาณชีพ แล้วกลับมากดใช้ค่าอัตโนมัติได้
-                    </span>
-                  )}
-                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                    {item.options.map((opt) => (
-                      <SelectableTag
-                        key={opt.value}
-                        label={`${opt.label} (${opt.value})`}
-                        size='md'
-                        selected={form.mna?.[item.key] === opt.value}
-                        onClick={readOnly ? undefined : () => setMna(item.key, opt.value)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {mnaDone && (
-                <NoticeBand tone={mnaInterp.key === 'normal' ? 'info' : 'warning'} icon='restaurant'>
-                  {mnaInterp.label} — {mnaInterp.advice}
-                </NoticeBand>
-              )}
-              </>
-            )}
-            {openTool === 'pps' && (
-              <>
-              <TopicHeader
-                icon='monitor_heart'
-                aside={ppsInterp ? (
-                  <ColorfulBadge style={ppsInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
-                    {ppsInterp.label}
-                  </ColorfulBadge>
-                ) : undefined}
-              >
-                ระดับความสามารถ — PPS (Palliative Performance Scale)
-              </TopicHeader>
-              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-                เลือกระดับที่ตรงกับผู้รับบริการมากที่สุด — ระบบใช้ผลนี้เสนอรอบการเยี่ยมครั้งถัดไปให้อัตโนมัติ
-              </span>
-              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
-                {PPS_LEVELS.map((level) => (
-                  <SelectableTag
-                    key={level.value}
-                    label={level.label}
-                    size='md'
-                    selected={Number(form.pps) === level.value && form.pps !== ''}
-                    onClick={readOnly ? undefined : () => set('pps')(level.value)}
-                  />
-                ))}
-              </div>
-              {ppsInterp && (
-                <NoticeBand tone={ppsInterp.key === 'stable' ? 'info' : 'warning'} icon='event_repeat'>
-                  {ppsInterp.label} — {ppsInterp.advice}
-                  {ppsInterp.followUpDays ? ` (ระบบเสนอรอบเยี่ยมถัดไปทุก ${ppsInterp.followUpDays} วัน)` : ''}
-                </NoticeBand>
-              )}
-              </>
-            )}
-            {openTool === 'adl' && (
-              <>
-              <TopicHeader
-                icon='accessible'
-                aside={(
-                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                    <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default, #363B3F)' }}>
-                      {adlTotal}/{BARTHEL_MAX_SCORE} คะแนน
-                    </span>
-                    <ColorfulBadge style={adlInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
-                      {adlInterp.label}
-                    </ColorfulBadge>
-                  </div>
-                )}
-              >
-                ประเมิน ADL — ดัชนีบาร์เธล (Barthel Index)
-              </TopicHeader>
-              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-                ตอบครบทุกข้อ ระบบคำนวณคะแนนรวมและแปลผลกลุ่มติดสังคม/ติดบ้าน/ติดเตียงให้อัตโนมัติ
-                และส่งคะแนนไปแสดงเป็นแนวโน้มในหน้าติดตามการเยี่ยมบ้าน (ตอบแล้ว {adlAnswered}/{BARTHEL_ITEMS.length} ข้อ)
-              </span>
-              {BARTHEL_ITEMS.map((item, idx) => (
-                <div key={item.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                  <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-                    {idx + 1}. {item.label}
-                  </span>
-                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                    {item.options.map((opt) => (
-                      <SelectableTag
-                        key={opt.value}
-                        label={`${opt.label} (${opt.value})`}
-                        size='md'
-                        selected={form.adlAnswers?.[item.key] === opt.value}
-                        onClick={readOnly ? undefined : () => setAdl(item.key, opt.value)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-              </>
-            )}
-          </div>
-        </Popup>
-
-      </StepSection>
-
-      <StepSection>
-        {/* หัวข้อ "สรุปผลการประเมินการเยี่ยมบ้าน" ถูกถอดออก (มติผู้ใช้ 2 ก.ย. 69)
-            — ป้ายของช่องกรอกบอกอยู่แล้วว่าเป็นสรุปผลการประเมิน */}
-        <SuggestibleTextarea
-          label='สรุปผลการประเมิน'
-          required
-          voice
-          value={form.assessmentNote}
-          onChange={(e) => set('assessmentNote')(e.target.value)}
-          suggestions={HOMEVISIT_ASSESSMENT_SUGGESTIONS}
-          minChars={3}
-          disabled={readOnly}
-          placeholder='สภาพผู้รับบริการ สภาพแวดล้อม ผู้ดูแล และปัญหาที่ต้องแก้ไขเร่งด่วน'
-        />
-      </StepSection>
-
-      {/* "รูปถ่ายระหว่างการเยี่ยม" แยกเป็นการ์ดของตัวเอง (มติผู้ใช้ 2 ก.ย. 69) —
-          ถูกย้ายไปเรนเดอร์ที่ขั้น "ประเมินอาการป่วย" นอกการ์ดแบบประเมิน */}
-    </StepCard>
   );
 };
 
@@ -2253,7 +1759,12 @@ export const HomeVisitStep7Family = ({
                ทะเบียนกลางด้วย HN */
             patientName={patientDisplayName}
             patientHn={hn}
-            patientAvatarUrl={registryEntry?.avatarUrl || appointment?.avatarUrl || mrPatientOfVisit?.avatarUrl}
+            /* รูปเดียวกับหัวแฟ้มผู้รับบริการด้านบน (มติผู้ใช้ 2 ก.ย. 69) — หัวแฟ้มอ่าน
+       จาก `getPatientByHN` ถ้าผังไปหยิบรูปจากทะเบียนอื่นจะกลายเป็นคนละคน */
+    patientAvatarUrl={getPatientByHN(hn)?.avatarUrl
+      || registryEntry?.avatarUrl
+      || appointment?.avatarUrl
+      || mrPatientOfVisit?.avatarUrl}
             onSelect={(person) => setPersonDetail(person)}
             selfRow={selfRow}
           />
@@ -2461,6 +1972,187 @@ export const HomeVisitStepScreening = ({ blockedMsg, ...props }) => (
   </StepCard>
 );
 
+/* ── Step 7 — ตรวจสอบข้อมูล ────────────────────────────────────────
+   ขั้นสุดท้ายก่อนจบการบันทึก (มติผู้ใช้ 2 ก.ย. 69) — กางทุกอย่างที่กรอกไว้แบบ
+   อ่านอย่างเดียวให้ทวนก่อนปิดเยี่ยม ทรงเดียวกับขั้น "ตรวจสอบข้อมูล" ของหน้า
+   เวชระเบียน · ค่าที่ยังไม่ได้กรอกขึ้น "—" เพื่อให้เห็นว่าอะไรยังขาด */
+
+const REVIEW_LABEL_STYLE = {
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-xs)',
+  color: 'var(--text-content-tertiary, #858C92)',
+};
+const REVIEW_VALUE_STYLE = {
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-sm)',
+  color: 'var(--text-content-default, #363B3F)',
+  whiteSpace: 'pre-line',
+};
+
+const ReviewItem = ({ label, value }) => (
+  <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+    <span style={REVIEW_LABEL_STYLE}>{label}</span>
+    <span style={REVIEW_VALUE_STYLE}>{String(value ?? '').trim() || '—'}</span>
+  </div>
+);
+
+const ReviewCard = ({ icon, title, items, onEdit, children }) => (
+  <SectionCard
+    icon={icon}
+    title={title}
+    aside={onEdit && (
+      <BrandSubdueButton variant='outline' size='sm' leadingIcon='edit' onClick={onEdit}>
+        แก้ไข
+      </BrandSubdueButton>
+    )}
+  >
+    {items?.length > 0 && (
+      /* กริดคอลัมน์เท่ากันทุกใบ ค่าจึงตรงแนวกันทั้งหน้า (มติผู้ใช้ 2 ก.ย. 69) —
+         flex-wrap เดิมทำให้ความกว้างแต่ละช่องไม่เท่ากันในแต่ละแถว */
+      <div
+        className='w-full'
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+          gap: 'var(--dim-space-400, 16px) var(--dim-space-600, 24px)',
+          alignItems: 'start',
+        }}
+      >
+        {items.map(([label, value]) => <ReviewItem key={label} label={label} value={value} />)}
+      </div>
+    )}
+    {children}
+  </SectionCard>
+);
+
+const reviewAddressLine = (a) => {
+  if (!a) return '';
+  return [a.houseNo, a.moo && `หมู่ ${a.moo}`, a.road, a.subdistrict, a.district, a.province, a.zip]
+    .filter((x) => String(x || '').trim())
+    .join(' ');
+};
+
+/* หมวดในหน้าตรวจสอบ ↔ ขั้นที่เป็นเจ้าของฟอร์มนั้น — กดแก้ไขแล้วเปิดขั้นนั้น
+   เป็นป๊อปอัป (มติผู้ใช้ 2 ก.ย. 69) ไม่ต้องเดินกลับไปทีละขั้น */
+const REVIEW_EDIT_SECTIONS = {
+  service: { title: 'ข้อมูลการให้บริการ', Step: HomeVisitStep1Service },
+  address: { title: 'ที่อยู่และการติดต่อ', Step: HomeVisitStep2Address },
+  screening: { title: 'คัดกรอง', Step: HomeVisitStepScreening },
+  illness: { title: 'ประเมินอาการป่วย', Step: HomeVisitStep2History },
+  family: { title: 'Family Folder', Step: HomeVisitStep7Family },
+};
+
+export const HomeVisitStepReview = ({ form, hn, registryEntry, appointment, blockedMsg, ...props }) => {
+  const [editing, setEditing] = useState(null);
+  const EditStep = editing ? REVIEW_EDIT_SECTIONS[editing]?.Step : null;
+  const screening = form.homeScreening || {};
+  const vitals = form.vitals || {};
+  const adlTotal = scoreBarthel(form.adlAnswers);
+  const adlInterp = interpretBarthel(adlTotal);
+  const photoCount = (form.photos || []).length;
+  const housePhotoCount = (form.housePhotos || []).filter(Boolean).length;
+
+  return (
+    /* การ์ดในหน้าตรวจสอบห่างกัน 12px (มติผู้ใช้ 2 ก.ย. 69) — เป็นสรุปอ่านต่อเนื่อง
+       ไม่ใช่ฟอร์มที่ต้องเว้นจังหวะเท่าขั้นอื่น */
+    <section className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+      {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+
+      <ReviewCard
+        icon='event_available'
+        title='ข้อมูลการให้บริการ'
+        onEdit={() => setEditing('service')}
+        items={[
+          ['ผู้รับบริการ', registryEntry?.name || appointment?.name || ''],
+          ['HN', hn],
+          ['ประเภทการเยี่ยม', { first: 'เยี่ยมครั้งแรก (แรกรับ)', followup: 'เยี่ยมติดตาม', urgent: 'เยี่ยมกรณีเร่งด่วน' }[form.visitType] || form.visitType],
+          ['วันที่ให้บริการ', form.serviceDate ? formatHomeVisitDate(form.serviceDate) : ''],
+          ['กลุ่มผู้รับบริการ', PATIENT_GROUP_OPTIONS.find((g) => g.key === form.patientGroup)?.label],
+          ['ที่มาของเคส', HOMEVISIT_SOURCES.find((o) => o.value === form.homevisitSource)?.label],
+        ]}
+      />
+
+      <ReviewCard
+        icon='map-pin'
+        title='ที่อยู่และการติดต่อ'
+        onEdit={() => setEditing('address')}
+        items={[
+          ['ที่อยู่ตามทะเบียนบ้าน', reviewAddressLine(form.addressRegistered)],
+          ['ที่อยู่ปัจจุบัน', reviewAddressLine(form.addressCurrent)],
+          ['บันทึกการเดินทาง', form.travelNote],
+          ['รูปถ่ายบ้าน', housePhotoCount ? `${housePhotoCount} รูป` : ''],
+          ['เบอร์โทรศัพท์', form.phone],
+        ]}
+      />
+
+      <ReviewCard
+        icon='favorite'
+        title='คัดกรอง'
+        onEdit={() => setEditing('screening')}
+        items={[
+          ['ความดันโลหิต', vitals.sys && vitals.dia ? `${vitals.sys}/${vitals.dia} mmHg` : ''],
+          ['ชีพจร', vitals.pulse ? `${vitals.pulse} ครั้ง/นาที` : ''],
+          ['อุณหภูมิ', vitals.temp ? `${vitals.temp} °C` : ''],
+          ['ออกซิเจนปลายนิ้ว', vitals.oxygen ? `${vitals.oxygen}%` : ''],
+          ['ประวัติการแพ้', form.flags?.allergyDrug ? (form.allergyFreeText || 'มี') : ''],
+          ['โรคประจำตัว', form.flags?.chronic ? (form.chronicFreeText || 'มี') : ''],
+          ['น้ำตาลปลายนิ้ว (DTX)', screening.dtx ? `${screening.dtx} mg%` : ''],
+        ]}
+      />
+
+      <ReviewCard
+        icon='stethoscope'
+        title='ประเมินอาการป่วย'
+        onEdit={() => setEditing('illness')}
+        items={[
+          ['ประวัติปัจจุบัน', form.presentIllness],
+          ['ระยะเวลาที่มีอาการ', form.symptomDuration],
+          ['ผู้ดูแลหลัก', CAREGIVER_OPTIONS.find((o) => o.value === form.caregiver)?.label],
+          ['แผลกดทับ', PRESSURE_SORE_OPTIONS.find((o) => o.value === form.pressureSore)?.label],
+          ['ระดับความปวด', Number.isFinite(form.painScore) ? `${form.painScore}/10` : ''],
+          ['ADL (ดัชนีบาร์เธล)', adlTotal ? `${adlTotal}/${BARTHEL_MAX_SCORE} · ${adlInterp.label}` : ''],
+          ['สรุปผลการประเมิน', form.assessmentNote],
+          ['รูปถ่ายระหว่างการเยี่ยม', photoCount ? `${photoCount} รูป` : ''],
+        ]}
+      />
+
+      <ReviewCard
+        icon='family_restroom'
+        title='Family Folder'
+        onEdit={() => setEditing('family')}
+        items={[
+          ['สมาชิกในครัวเรือน', (form.familyMembers || [])
+            .map((m) => [m.name, m.relation, m.age && `${m.age} ปี`].filter(Boolean).join(' · '))
+            .join('\n')],
+          ['บันทึก Family Folder', form.familyNote],
+        ]}
+      />
+
+      {/* แก้ไขในป๊อปอัป — เนื้อหาเป็นคอมโพเนนต์ขั้นเดิมทั้งก้อน ค่าที่แก้จึงเขียน
+          ลง `form` ชุดเดียวกันทันที ปิดป๊อปอัปแล้วสรุปด้านหลังอัปเดตตาม */}
+      <Popup
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        size='extraLarge'
+        title={`แก้ไข${REVIEW_EDIT_SECTIONS[editing]?.title || ''}`}
+        subtitle='แก้แล้วค่าจะอัปเดตในหน้าตรวจสอบทันที'
+        primaryAction={{ label: 'เสร็จสิ้น', onClick: () => setEditing(null) }}
+      >
+        {EditStep && (
+          <EditStep
+            {...props}
+            form={form}
+            hn={hn}
+            registryEntry={registryEntry}
+            appointment={appointment}
+            blockedMsg=''
+          />
+        )}
+      </Popup>
+    </section>
+  );
+};
+
 export const HOMEVISIT_STEP_RENDERERS = [
   HomeVisitStep0Consent,
   HomeVisitStep1Service,
@@ -2470,6 +2162,7 @@ export const HOMEVISIT_STEP_RENDERERS = [
      ขั้นเดียว (มติผู้ใช้ 2 ก.ย. 69) */
   HomeVisitStepScreening,
   HomeVisitStep2History,
+  HomeVisitStepReview,
   /* ขั้น "Family Folder" ถูกยุบเข้าไปในขั้น "ข้อมูลส่วนตัว" แล้ว
      (มติผู้ใช้ 2 ก.ย. 69) — แฟ้มครอบครัวเป็นข้อมูลระดับครัวเรือนที่อ่านคู่กับ
      ข้อมูลตัวผู้รับบริการ ไม่ใช่ขั้นตอนท้ายสุดของการเยี่ยม */
