@@ -394,6 +394,8 @@ const AncFormPage = () => {
               <AncPregnancyProgress compact form={form} cardPatient={cardPatient} ancHn={ancHn} visitNo={seed.visitNo} />
             </AncVitalsTextRow>
           )}
+          /* CTA ขั้นสุดท้าย (มติผู้ใช้ 3 ก.ย. 69) */
+          finishLabel='บันทึกและส่งต่อ'
           stepIndex={stepIndex}
           onStepChange={setStepIndex}
           completedSteps={completedSteps}
