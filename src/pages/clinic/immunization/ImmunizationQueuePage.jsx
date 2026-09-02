@@ -16,6 +16,7 @@ import Pagination from '@/components/pagination/Pagination';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import TelemedicineQueueBadge from '@/components/telemed/TelemedicineQueueBadge';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
+import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
 import Textarea from '@/components/forms/Textarea';
 import Popup from '@/components/popup/Popup';
 import Icon from '@/components/icons/Icon';
@@ -50,13 +51,12 @@ import { withEmrRowAction } from '@/components/patient/EmrRowAction';
    เลขบัตร) ที่ TOR 1.10.9.1 บังคับให้เห็นตั้งแต่ระดับ worklist. */
 
 const breadcrumb = ['บันทึกการรักษา', 'งานสร้างเสริมภูมิคุ้มกัน'];
-const SUMMARY_TITLE = 'คิวคลินิกสุขภาพเด็กดี';
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:immunization-queue';
 const PAGE_SIZE = 20;
 const RECORD_PATH = '/clinic/immunization/record';
 
 const buildTabs = (rows, scheduledCount) => [
-  { key: 'all',        label: 'ทั้งหมด',                  icon: 'group',           count: rows.length },
+  { key: 'all',        label: 'คิววันนี้',                 icon: 'group',           count: rows.length },
   { key: 'registered', label: 'ลงทะเบียนส่งตรวจแล้ว',      icon: 'how_to_reg',      count: rows.filter((p) => p.statusKey === 'waiting' || p.statusKey === 'progress').length },
   { key: 'done',       label: 'ตรวจเสร็จแล้ว',            icon: 'check_circle',    count: rows.filter((p) => p.statusKey === 'done').length },
   { key: 'draft',      label: 'ที่ร่างไว้',                icon: 'save',            count: rows.filter((p) => p.statusKey === 'draft').length },
@@ -126,11 +126,18 @@ const renderQueue = (row) => (
 );
 
 const renderName = (row) => (
-  <MaskedWorklistName
-    name={row.name}
-    recordKey={row.hn || row.queue}
-    linkTo={{ pathname: RECORD_PATH, state: { hn: row.hn, queue: row.queue, name: row.name, statusKey: row.statusKey } }}
-  />
+  <div className='flex items-center min-w-0' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+    <QueuePatientAvatar
+      hn={row.hn}
+      name={row.name}
+      avatarUrl={row.avatarUrl}
+    />
+    <MaskedWorklistName
+      name={row.name}
+      recordKey={row.hn || row.queue}
+      linkTo={{ pathname: RECORD_PATH, state: { hn: row.hn, queue: row.queue, name: row.name, statusKey: row.statusKey } }}
+    />
+  </div>
 );
 
 const renderTelemedicine = (row) => (
@@ -491,7 +498,7 @@ const ImmunizationQueuePage = () => {
       breadcrumb={breadcrumb}
       /* ทุก worklist ของบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
       leadingActions={<DutyRosterAction />}
-      title='คลินิกสุขภาพเด็กดี — งานสร้างเสริมภูมิคุ้มกัน'
+      title='งานสร้างเสริมภูมิคุ้มกัน'
       actions={(
         <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
           <BrandSubdueButton variant='outline' leadingIcon='contact_page' onClick={() => history.push('/clinic/immunization/registry')}>
@@ -505,7 +512,6 @@ const ImmunizationQueuePage = () => {
           </BrandSubdueButton>
         </div>
       )}
-      summaryTitle={SUMMARY_TITLE}
       summaryCards={summaryCards}
       tabs={tabs}
       activeTab={activeTab}

@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
-import Header, { SubHeader } from '@/components/layout/Header';
+import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import PatientCard from '@/components/card/PatientCard';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -9,6 +9,7 @@ import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Popup from '@/components/popup/Popup';
 import Icon from '@/components/icons/Icon';
+import Table from '@/components/table/Table';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import TreatmentFormShell from '@/templates/TreatmentFormShell';
 import {
@@ -40,43 +41,196 @@ import {
   formatImmDateTime,
 } from '@/data/immunizationClinic';
 
-/* ImmunizationFormPage — ใบบันทึกสุขภาพเด็กดี (TOR 1.10.9.1/.3/.4/.5/.7
-   + IIS 1.11.2.1). Shell บาง ๆ บน TreatmentFormShell แบบเดียวกับ
-   AncFormPage / MentalHealthFormPage: state ก้อนเดียวข้าม 8 ขั้นตอนที่อยู่ใน
-   ImmunizationSteps.jsx โดย key ด้วย HN ที่หน้าคิวส่งมาทาง location.state.
-
-   ครบ 4 กริยาของ 1.10.9.7:
-     แสดง   — visit ที่บันทึกแล้วเปิดแบบอ่านอย่างเดียว (ล็อคทุกขั้นตอน)
-     บันทึก — ขั้นตอนที่ 8 "ยืนยันบันทึกการตรวจสุขภาพเด็กดี"
-     แก้ไข  — ปุ่ม "แก้ไขบันทึก" บนแถบ view เปิด edit-session พร้อม audit
-     ยกเลิก — "ยกเลิกการบันทึก" / ออกทั้งที่มีข้อมูลค้าง → ยืนยันก่อนทิ้ง */
+/* ImmunizationFormPage — ใบบันทึกสุขภาพเด็กดี (TOR 1.10.9 + IIS 1.11).
+   โครง 5 ขั้นใช้ chrome เดียวกับ ANC: แบบประเมิน → ตรวจร่างกายและวินิจฉัย
+   → สั่งการรักษา → นัดหมาย → สมุดวัคซีน. เนื้อหา domain เดิมยังใช้ต่อเพื่อ
+   เก็บ lot/dose/audit และ session-storage contract เดิมไว้ครบถ้วน. */
 
 const breadcrumb = ['บันทึกการรักษา', 'งานสร้างเสริมภูมิคุ้มกัน', 'บันทึกสุขภาพเด็กดี'];
 const QUEUE_PATH = '/clinic/immunization';
 
 const IMM_STEPS = [
-  { title: 'ข้อมูลทั่วไป', subtitle: 'General Information' },
-  { title: 'ฝากครรภ์-คลอด / โภชนาการ', subtitle: 'Birth History & Nutrition' },
-  { title: 'การเจริญเติบโต', subtitle: 'Growth' },
-  { title: 'พัฒนาการเด็ก', subtitle: 'Development (DSPM)' },
-  { title: 'ให้วัคซีน', subtitle: 'Immunization' },
-  { title: 'ตรวจสุขภาพทั่วไป', subtitle: 'Physical Examination' },
-  { title: 'สั่งการรักษา / Telemedicine', subtitle: 'Orders & Telemedicine' },
-  { title: 'เอกสาร นัดหมาย และสรุป', subtitle: 'Documents, Appointment & Summary' },
+  { title: 'แบบประเมิน', subtitle: 'Assessment' },
+  { title: 'ตรวจร่างกายและวินิจฉัย', subtitle: 'Examination & Diagnosis' },
+  { title: 'สั่งการรักษา', subtitle: 'Treatment Order' },
+  { title: 'นัดหมาย', subtitle: 'Appointment' },
+  { title: 'สมุดวัคซีน', subtitle: 'Vaccine Book' },
 ];
 
+/* ย้ายเฉพาะโครง ไม่คัดลอกเนื้อหาฝากครรภ์: component เก่าถูกจัดกลุ่มใหม่ตาม
+   TOR ของคลินิกเด็กดี เพื่อคง validation ของวัคซีน/lot และข้อมูลที่บันทึกไว้. */
+/* ขั้นแรกใช้ตารางเดียวกับ ANC: เห็นว่ายังขาดแบบใดก่อน แล้วเปิดทำทีละชุด
+   แทนการกางฟอร์มทุกชุดยาวต่อกันในหน้าหลัก. */
+const ImmStepAssessment = (props) => {
+  const [openTool, setOpenTool] = useState(null);
+  const { form, immHn, child, registration } = props;
+  const epi = summarizeEpi(immHn);
+  const dspmAnswered = Object.keys(form.dspmAnswers || {}).length;
+  const birthRecorded = Boolean(
+    form.gestationalAgeWeeks || form.deliveryType || form.birthWeight || form.maternalBloodRh,
+  );
+
+  const tools = [
+    {
+      key: 'general', title: 'ข้อมูลทั่วไปและการซักประวัติ', code: 'ทะเบียนผู้รับบริการ · Nurse intake',
+      score: registration ? 'ลงทะเบียนแล้ว' : 'ยังไม่มีทะเบียน',
+      done: Boolean(form.nurseNote), status: form.nurseNote ? 'บันทึกแล้ว' : 'ยังไม่ได้ประเมิน',
+      tone: form.nurseNote ? 'green' : 'grey',
+    },
+    {
+      key: 'birth', title: 'ประวัติมารดา การคลอด และโภชนาการ', code: 'Maternal / Birth / Nutrition',
+      score: birthRecorded ? 'บันทึกแล้ว' : '—',
+      done: birthRecorded, status: birthRecorded ? 'บันทึกแล้ว' : 'ยังไม่ได้ประเมิน',
+      tone: birthRecorded ? 'green' : 'grey',
+    },
+    {
+      key: 'dspm', title: 'ประเมินพัฒนาการเด็ก', code: 'DSPM ตามช่วงอายุ',
+      score: dspmAnswered ? `${dspmAnswered} ข้อ` : '—',
+      done: dspmAnswered > 0, status: dspmAnswered ? 'อยู่ระหว่าง/ประเมินแล้ว' : 'ยังไม่ได้ประเมิน',
+      tone: dspmAnswered ? 'teal' : 'grey',
+    },
+    {
+      key: 'epi', title: 'ประเมินความครบถ้วนของวัคซีน', code: 'EPI schedule',
+      score: epi.label, done: epi.complete, status: epi.complete ? 'ครบตามเกณฑ์' : 'มีรายการต้องติดตาม',
+      tone: epi.style,
+    },
+  ];
+
+  const activeTool = tools.find((tool) => tool.key === openTool);
+  const ToolContent = openTool === 'general'
+    ? ImmStep1General
+    : openTool === 'birth'
+      ? ImmStep2BirthNutrition
+      : openTool === 'dspm'
+        ? ImmStep4Development
+        : ImmStep5Vaccine;
+
+  return (
+    <section className='flex flex-col' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+      <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        <Icon name='assignment' size={20} color='var(--text-brandPrimary-default, #007549)' />
+        <h2 style={{ color: 'var(--text-brandPrimary-default, #007549)', fontSize: 'var(--type-size-base)', fontWeight: 'var(--type-weight-bold)' }}>แบบประเมิน</h2>
+      </div>
+      <Table
+        columns={[
+          {
+            key: 'tool', label: 'หัวข้อแบบประเมิน', flex: true, minWidth: 260,
+            render: (tool) => (
+              <span className='flex flex-col' style={{ gap: 'var(--dim-space-50, 2px)' }}>
+                <span style={{ color: 'var(--text-content-default, #363B3F)' }}>{tool.title}</span>
+                <span style={{ color: 'var(--text-content-tertiary, #858C92)', fontSize: 'var(--type-size-xs)' }}>{tool.code}</span>
+              </span>
+            ),
+          },
+          { key: 'score', label: 'คะแนนประเมิน', minWidth: 140, render: (tool) => <span style={{ color: 'var(--text-brandPrimary-default, #007549)' }}>{tool.score}</span> },
+          { key: 'status', label: 'สถานะการประเมิน', minWidth: 220, render: (tool) => <ColorfulBadge style={tool.tone} size='small' hierarchy='secondary'>{tool.status}</ColorfulBadge> },
+          {
+            key: 'action', label: 'ดำเนินการ', minWidth: 180,
+            render: (tool) => (
+              <BrandSubdueButton variant='outline' size='sm' leadingIcon={tool.done ? 'edit' : 'assignment'} onClick={() => setOpenTool(tool.key)}>
+                {tool.done ? 'แก้ไข' : 'ทำแบบประเมิน'}
+              </BrandSubdueButton>
+            ),
+          },
+        ]}
+        rows={tools}
+        rowKey={(tool) => tool.key}
+      />
+      <Popup
+        open={Boolean(openTool)}
+        onClose={() => setOpenTool(null)}
+        size='extraLarge'
+        title={activeTool?.title || 'แบบประเมิน'}
+        primaryAction={{ label: 'เสร็จสิ้น', onClick: () => setOpenTool(null) }}
+      >
+        <div style={{ padding: 'var(--dim-space-600, 24px)' }}>
+          {openTool ? <ToolContent {...props} /> : null}
+        </div>
+      </Popup>
+    </section>
+  );
+};
+
+const ImmStepExamDiagnosis = (props) => (
+  <>
+    <ImmStep3Growth {...props} />
+    <ImmStep6GeneralExam {...props} />
+  </>
+);
+
+const ImmStepTreatmentOrder = (props) => (
+  <>
+    <ImmStep5Vaccine {...props} />
+    <ImmStep7Orders {...props} />
+  </>
+);
+
+const ImmStepAppointment = (props) => (
+  <ImmStep8Summary
+    {...props}
+    showDocuments={false}
+    showSummary={false}
+    showPrint={false}
+    showConfirm={false}
+  />
+);
+
+const ImmStepVaccineBook = (props) => (
+  <ImmStep8Summary
+    {...props}
+    showAppointment={false}
+  />
+);
+
 const STEP_RENDERERS = [
-  ImmStep1General,
-  ImmStep2BirthNutrition,
-  ImmStep3Growth,
-  ImmStep4Development,
-  ImmStep5Vaccine,
-  ImmStep6GeneralExam,
-  ImmStep7Orders,
-  ImmStep8Summary,
+  ImmStepAssessment,
+  ImmStepExamDiagnosis,
+  ImmStepTreatmentOrder,
+  ImmStepAppointment,
+  ImmStepVaccineBook,
 ];
 
 const cloneDefaultVisit = () => JSON.parse(JSON.stringify(DEFAULT_IMM_VISIT));
+const clampStepIndex = (value) => Math.max(0, Math.min(IMM_STEPS.length - 1, Number(value) || 0));
+
+/* แถบอ้างอิงใต้ stepper แบบ ANC: ค่าใน intake อ่านอย่างเดียว ส่วนช่องกรอกจริง
+   อยู่ในขั้นตรวจร่างกายเพียงจุดเดียว จึงไม่เกิดข้อมูลสองชุด. */
+const ImmVitalsTextRow = ({ form, intake }) => {
+  const vitals = intake?.vitals || {};
+  const items = [
+    ['อุณหภูมิ', vitals.temp ? `${vitals.temp} °C` : '—'],
+    ['ชีพจร', vitals.hr ? `${vitals.hr} ครั้ง/นาที` : '—'],
+    ['การหายใจ', vitals.rr ? `${vitals.rr} ครั้ง/นาที` : '—'],
+    ['SpO₂', vitals.spo2 ? `${vitals.spo2} %` : '—'],
+    ['น้ำหนัก', form.growth?.weight ? `${form.growth.weight} กก.` : (vitals.weight ? `${vitals.weight} กก.` : '—')],
+    ['ส่วนสูง', form.growth?.height ? `${form.growth.height} ซม.` : (vitals.height ? `${vitals.height} ซม.` : '—')],
+  ];
+
+  return (
+    <div
+      className='flex items-center w-full flex-wrap'
+      style={{
+        position: 'sticky',
+        top: 'var(--mih-record-band-bottom, 0px)',
+        /* อยู่เหนือ table header ของเนื้อหาเสมอ แต่ต่ำกว่า morph stepper
+           (1085 < 1090) เพื่อให้แถบ vital signs ไม่ถูกหัวตารางทับตอนเลื่อน */
+        zIndex: 1085,
+        gap: 'var(--dim-space-400, 16px)',
+        padding: 'var(--dim-space-300, 12px) var(--dim-space-600, 24px)',
+        background: 'var(--surface-card-100, #FFFFFF)',
+        boxShadow: 'var(--shadow-brand-drop-bottom-200)',
+        fontSize: 'var(--type-size-xs)',
+      }}
+    >
+      {items.map(([label, value]) => (
+        <span key={label} className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+          <span style={{ color: 'var(--text-content-tertiary, #858C92)' }}>{label}</span>
+          <span style={{ color: 'var(--text-content-default, #363B3F)', fontWeight: 'var(--type-weight-medium)' }}>{value}</span>
+        </span>
+      ))}
+    </div>
+  );
+};
 
 const ImmunizationFormPage = () => {
   const history = useHistory();
@@ -93,7 +247,7 @@ const ImmunizationFormPage = () => {
   const initial = useMemo(() => {
     const draft = getImmDraft(immHn);
     if (draft) {
-      return { mode: 'draft', form: { ...cloneDefaultVisit(), ...draft.form }, stepIndex: draft.stepIndex ?? 0, draftSavedAt: draft.savedAt };
+      return { mode: 'draft', form: { ...cloneDefaultVisit(), ...draft.form }, stepIndex: clampStepIndex(draft.stepIndex), draftSavedAt: draft.savedAt };
     }
     const visits = getImmVisitRecords(immHn);
     const last = visits[visits.length - 1];
@@ -101,7 +255,7 @@ const ImmunizationFormPage = () => {
       return { mode: 'view', form: { ...cloneDefaultVisit(), ...last }, stepIndex: 0, lastVisit: last };
     }
     if (queueRow?.statusKey === 'draft') {
-      return { mode: 'draft', form: cloneDefaultVisit(), stepIndex: queueRow.draftStep ?? 0 };
+      return { mode: 'draft', form: cloneDefaultVisit(), stepIndex: clampStepIndex(queueRow.draftStep) };
     }
     return { mode: 'new', form: cloneDefaultVisit(), stepIndex: 0 };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -167,7 +321,16 @@ const ImmunizationFormPage = () => {
   };
 
   const ActiveStep = STEP_RENDERERS[stepIndex];
-  const completedSteps = useMemo(() => getImmCompletedSteps(form, stepIndex), [form, stepIndex]);
+  const completedSteps = useMemo(() => {
+    const completed = getImmCompletedSteps(form, stepIndex);
+    return [
+      completed.includes(0) || completed.includes(1) || completed.includes(3),
+      completed.includes(2) || completed.includes(5),
+      completed.includes(4) || completed.includes(6),
+      completed.includes(7),
+      saved || completed.includes(7),
+    ];
+  }, [form, stepIndex, saved]);
 
   const bannerBase = {
     gap: 'var(--dim-space-300, 12px)',
@@ -188,8 +351,6 @@ const ImmunizationFormPage = () => {
         <Sidebar activeKey='treat' />
         <div className='flex-1 min-w-0 flex flex-col'>
           <Header breadcrumb={breadcrumb} standalone={false} />
-          <SubHeader title='บันทึกสุขภาพเด็กดี — งานสร้างเสริมภูมิคุ้มกัน' hideBottomBorder />
-
           <Popup
             open={leaveOpen}
             onClose={() => setLeaveOpen(false)}
@@ -208,7 +369,9 @@ const ImmunizationFormPage = () => {
             sticky
             showBack={false}
             patient={cardPatient}
-            title='บันทึกสุขภาพเด็กดี — คลินิกสุขภาพเด็กดี'
+            alertGroupsLeft
+            alertExpandable
+            title='บันทึกสุขภาพเด็กดี'
             drugAllergies={intake.drugAllergies}
             chronicDiseases={intake.chronicDiseases}
             actions={(
@@ -222,10 +385,10 @@ const ImmunizationFormPage = () => {
                 <BrandSubdueButton
                   variant='outline'
                   size='sm'
-                  leadingIcon='menu_book'
+                  leadingIcon='print'
                   onClick={() => history.push({ pathname: '/clinic/immunization/vaccine-book', state: { hn: immHn } })}
                 >
-                  สมุดวัคซีน
+                  พิมพ์สมุดวัคซีน
                 </BrandSubdueButton>
                 <NeutralSubdueButton
                   size='sm'
@@ -342,6 +505,7 @@ const ImmunizationFormPage = () => {
 
           <TreatmentFormShell
             morphTitle='สุขภาพเด็กดี'
+            hideMorphTitle
             stepIndex={stepIndex}
             onStepChange={handleStepChange}
             completedSteps={completedSteps}
@@ -349,8 +513,11 @@ const ImmunizationFormPage = () => {
             queuePath={QUEUE_PATH}
             step0FlushLeft={false}
             onLeave={handleBack}
+            belowBand={<ImmVitalsTextRow form={form} intake={intake} />}
             fromDepartment='คลินิกสุขภาพเด็กดี'
             onSaveDraft={() => { if (!locked) saveImmDraft(immHn, form, stepIndex); }}
+            finishLabel='จบการบันทึก'
+            hideCancelAfterFirst
           >
             <ActiveStep
               form={form}

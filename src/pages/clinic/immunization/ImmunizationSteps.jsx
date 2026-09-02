@@ -331,11 +331,50 @@ export const ImmStep2BirthNutrition = ({ form, setForm, child, locked }) => {
   return (
     <StepCard>
       <div className='flex flex-col gap-3'>
-        <TopicHeader icon='pregnant_woman'>ประวัติฝากครรภ์และการคลอด</TopicHeader>
+        <TopicHeader icon='pregnant_woman'>ประวัติมารดาและการคลอด</TopicHeader>
         <Banner tone='neutral' icon='info'>
           ข้อมูลจากสมุดบันทึกสุขภาพแม่และเด็ก (สมุดสีชมพู) — หากคลอดที่โรงพยาบาลอื่น
           ให้คีย์จากสำเนาใบสรุปการคลอดที่ผู้ปกครองนำมา
         </Banner>
+        <div className='flex items-start gap-4 w-full flex-wrap'>
+          <Field label='อายุมารดาขณะคลอด (ปี)'>
+            <InputField showLabel={false} showHelperText={false} showLeadingIcon={false} disabled={locked} value={form.motherAgeAtBirth} onChange={set('motherAgeAtBirth')} type='number' placeholder='เช่น 28' />
+          </Field>
+          <Field label='อายุครรภ์เมื่อคลอด (สัปดาห์)'>
+            <InputField showLabel={false} showHelperText={false} showLeadingIcon={false} disabled={locked} value={form.gestationalAgeWeeks} onChange={set('gestationalAgeWeeks')} type='number' placeholder='เช่น 39' />
+          </Field>
+          <Field label='หมู่เลือด / Rh ของมารดา'>
+            <InputField showLabel={false} showHelperText={false} showLeadingIcon={false} disabled={locked} value={form.maternalBloodRh} onChange={set('maternalBloodRh')} placeholder='เช่น O Rh+' />
+          </Field>
+          <Field label='Hb typing'>
+            <InputField showLabel={false} showHelperText={false} showLeadingIcon={false} disabled={locked} value={form.hbTyping} onChange={set('hbTyping')} placeholder='เช่น ปกติ' />
+          </Field>
+        </div>
+
+        <div className='flex items-start gap-4 w-full flex-wrap'>
+          <Field label='Hct / Hb มารดา'>
+            <InputField showLabel={false} showHelperText={false} showLeadingIcon={false} disabled={locked} value={form.maternalHctHb} onChange={set('maternalHctHb')} placeholder='เช่น Hct 36% / Hb 12 g/dL' />
+          </Field>
+          <Field label='Apgar นาทีที่ 1'>
+            <InputField showLabel={false} showHelperText={false} showLeadingIcon={false} disabled={locked} value={form.apgar1} onChange={set('apgar1')} type='number' placeholder='เช่น 8' />
+          </Field>
+          <Field label='Apgar นาทีที่ 5'>
+            <InputField showLabel={false} showHelperText={false} showLeadingIcon={false} disabled={locked} value={form.apgar5} onChange={set('apgar5')} type='number' placeholder='เช่น 9' />
+          </Field>
+          <Field label='ความยาวแรกเกิด (ซม.)'>
+            <InputField showLabel={false} showHelperText={false} showLeadingIcon={false} disabled={locked} value={form.birthLength} onChange={set('birthLength')} type='number' placeholder='เช่น 50' />
+          </Field>
+          <Field label='รอบศีรษะแรกเกิด (ซม.)'>
+            <InputField showLabel={false} showHelperText={false} showLeadingIcon={false} disabled={locked} value={form.birthHeadCirc} onChange={set('birthHeadCirc')} type='number' placeholder='เช่น 34' />
+          </Field>
+        </div>
+
+        {Number(form.gestationalAgeWeeks) > 0 && Number(form.gestationalAgeWeeks) < 37 && (
+          <Banner tone='warning' icon='warning'>
+            คลอดก่อนกำหนด — ใช้อายุปรับแก้และแบบประเมินพัฒนาการสำหรับเด็กเกิดก่อนกำหนดในการติดตามครั้งนี้
+          </Banner>
+        )}
+
         <div className='flex items-start gap-4 w-full flex-wrap'>
           <Field label='ครรภ์ที่'>
             <InputField
@@ -409,7 +448,7 @@ export const ImmStep2BirthNutrition = ({ form, setForm, child, locked }) => {
         {form.hbsAg === 'positive' && (
           <Banner tone='warning' icon='warning'>
             มารดามีผล HBsAg เป็นบวก — เด็กต้องได้รับ HBIG ภายใน 12 ชั่วโมงหลังคลอด
-            และวัคซีนตับอักเสบบีเข็มที่ 2 เมื่ออายุ 1 เดือน (ตรวจสอบในตาราง EPI ขั้นตอนที่ 5)
+            และวัคซีนตับอักเสบบีเข็มที่ 2 เมื่ออายุ 1 เดือน (ตรวจสอบในตาราง EPI ขั้นสั่งการรักษา)
           </Banner>
         )}
       </div>
@@ -450,7 +489,7 @@ export const ImmStep2BirthNutrition = ({ form, setForm, child, locked }) => {
         </div>
         {(form.nutritionStatus === 'underweight' || form.nutritionStatus === 'stunted') && (
           <Banner tone='warning' icon='warning'>
-            ภาวะโภชนาการต่ำกว่าเกณฑ์ — ให้คำแนะนำผู้ปกครองและนัดชั่งน้ำหนักซ้ำภายใน 1 เดือน (ขั้นตอนที่ 8)
+            ภาวะโภชนาการต่ำกว่าเกณฑ์ — ให้คำแนะนำผู้ปกครองและนัดชั่งน้ำหนักซ้ำภายใน 1 เดือน (ขั้นนัดหมาย)
           </Banner>
         )}
       </div>
@@ -495,29 +534,18 @@ export const ImmStep3Growth = ({ form, setForm, immHn, child, locked }) => {
   const lastPoint = points[points.length - 1];
   const evaluation = lastPoint ? evaluatePercentile(reference, lastPoint.x, lastPoint.y) : null;
 
-  const weightMissing = !String(form.growth?.weight || '').trim();
-
   return (
     <StepCard>
       <div className='flex flex-col gap-3'>
         <TopicHeader icon='monitor_weight'>การเจริญเติบโตวันนี้</TopicHeader>
-        {weightMissing && !locked && (
-          <Banner tone='warning' icon='warning'>
-            น้ำหนักเป็นค่าบังคับตามคู่มือระบบงานสร้างเสริมภูมิคุ้มกันโรค —
-            ต้องกรอกก่อนจึงจะบันทึกการตรวจได้
-          </Banner>
-        )}
         <div className='flex items-start gap-4 w-full flex-wrap'>
           <Field
             label='น้ำหนัก (กก.)'
             required
-            hint={weightMissing ? 'กรุณากรอกน้ำหนัก' : undefined}
-            hintTone={weightMissing ? 'error' : undefined}
           >
             <InputField
               showLabel={false} showHelperText={false} showLeadingIcon={false}
               disabled={locked}
-              error={weightMissing ? 'required' : undefined}
               value={form.growth?.weight}
               onChange={(v) => setGrowth('weight')(v)}
               placeholder='เช่น 7.8'
@@ -661,6 +689,21 @@ export const ImmStep4Development = ({ form, setForm, child, locked }) => {
       dspmAnswers: { ...f.dspmAnswers, [key]: pass },
       dspmAssessor: f.dspmAssessor || IMM_CURRENT_USER,
       dspmAssessedAt: f.dspmAssessedAt || new Date().toISOString(),
+      /* มติ คทง.2: ถ้าพบข้อสงสัยพัฒนาการล่าช้า ให้เสนอการติดตามอีก 1 เดือน
+         โดยไม่เขียนทับนัดที่เจ้าหน้าที่เลือกไว้แล้ว. */
+      appointment: pass || f.appointment?.date
+        ? (f.appointment || {})
+        : {
+          ...f.appointment,
+          type: 'development',
+          date: (() => {
+            const date = new Date();
+            date.setMonth(date.getMonth() + 1);
+            return date.toISOString().slice(0, 10);
+          })(),
+          note: 'นัดประเมินพัฒนาการซ้ำภายใน 1 เดือน เนื่องจากสงสัยพัฒนาการล่าช้า',
+          cancelled: false,
+        },
     }));
   };
 
@@ -1178,7 +1221,7 @@ export const ImmStep5Vaccine = ({ form, setForm, immHn, child, locked }) => {
         />
         {(form.todayDoses || []).length > 0 && (
           <AuditLine>
-            รายการเหล่านี้จะถูกบันทึกลงสมุดวัคซีนของเด็กเมื่อกดยืนยันบันทึกในขั้นตอนที่ 8 ·
+            รายการเหล่านี้จะถูกบันทึกลงสมุดวัคซีนของเด็กเมื่อยืนยันในขั้นสมุดวัคซีน ·
             ผู้บันทึก {IMM_CURRENT_USER}
           </AuditLine>
         )}
@@ -1457,7 +1500,11 @@ export const ImmStep7Orders = ({ form, setForm, locked, immHn, child }) => {
 /* ── Step 8 — เอกสารแนบ + นัดหมาย + สรุป/พิมพ์ (1.10.9.4 / .5) ─────── */
 const APPOINTMENT_TIMES = ['08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '13:00', '13:30', '14:00', '14:30', '15:00'];
 
-export const ImmStep8Summary = ({ form, setForm, immHn, child, locked, saved, onConfirmSave }) => {
+export const ImmStep8Summary = ({
+  form, setForm, immHn, child, locked, saved, onConfirmSave,
+  showDocuments = true, showAppointment = true, showSummary = true,
+  showPrint = true, showConfirm = true,
+}) => {
   const [uploadError, setUploadError] = useState('');
   const [removeTarget, setRemoveTarget] = useState(null);
   const [printTick, setPrintTick] = useState(0);
@@ -1500,14 +1547,14 @@ export const ImmStep8Summary = ({ form, setForm, immHn, child, locked, saved, on
 
   const validationErrors = useMemo(() => {
     const errs = [];
-    if (!String(form.growth?.weight || '').trim()) errs.push('น้ำหนักเป็นค่าบังคับ — กรอกในขั้นตอนที่ 3 การเจริญเติบโต');
-    if (!form.doctor) errs.push('ยังไม่ได้เลือกแพทย์ผู้ตรวจ (ขั้นตอนที่ 7)');
+    if (!String(form.growth?.weight || '').trim()) errs.push('น้ำหนักเป็นค่าบังคับ — กรอกในขั้นตรวจร่างกายและวินิจฉัย');
+    if (!form.doctor) errs.push('ยังไม่ได้เลือกแพทย์ผู้ตรวจ (ขั้นสั่งการรักษา)');
     (form.todayDoses || []).forEach((d) => {
       if (d.expiry && d.expiry < todayStr) {
-        errs.push(`วัคซีน Lot ${d.lotNo} หมดอายุแล้ว — แก้ไขหรือยกเลิกรายการในขั้นตอนที่ 5`);
+        errs.push(`วัคซีน Lot ${d.lotNo} หมดอายุแล้ว — แก้ไขหรือยกเลิกรายการในขั้นสั่งการรักษา`);
       }
       if (d.immediateReaction && !d.reactionOnsetTime) {
-        errs.push(`บันทึกอาการผิดปกติของ ${d.lotNo} แล้ว แต่ยังไม่ระบุเวลาเริ่มมีอาการ (ขั้นตอนที่ 5)`);
+        errs.push(`บันทึกอาการผิดปกติของ ${d.lotNo} แล้ว แต่ยังไม่ระบุเวลาเริ่มมีอาการ (ขั้นสั่งการรักษา)`);
       }
     });
     if (appt.date && !appt.cancelled && appt.date < todayStr) {
@@ -1535,7 +1582,7 @@ export const ImmStep8Summary = ({ form, setForm, immHn, child, locked, saved, on
         </span>
       </Popup>
 
-      {validationErrors.length > 0 && (
+      {showConfirm && validationErrors.length > 0 && (
         <div
           className='flex flex-col w-full'
           style={{
@@ -1558,7 +1605,7 @@ export const ImmStep8Summary = ({ form, setForm, immHn, child, locked, saved, on
         </div>
       )}
 
-      <div className='flex flex-col gap-3'>
+      {showDocuments && <div className='flex flex-col gap-3'>
         <TopicHeader icon='attach_file'>เอกสารแนบประกอบการตรวจ</TopicHeader>
         {!locked && (
           <FileUploadField
@@ -1603,9 +1650,9 @@ export const ImmStep8Summary = ({ form, setForm, immHn, child, locked, saved, on
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
-      <div className='flex flex-col gap-3'>
+      {showAppointment && <div className='flex flex-col gap-3'>
         <TopicHeader icon='calendar'>นัดหมายเข็มถัดไป</TopicHeader>
         {appt.cancelled && (
           <div className='flex items-center gap-3 flex-wrap'>
@@ -1702,9 +1749,9 @@ export const ImmStep8Summary = ({ form, setForm, immHn, child, locked, saved, on
             )}
           </>
         )}
-      </div>
+      </div>}
 
-      <div className='flex flex-col gap-3'>
+      {showSummary && <div className='flex flex-col gap-3'>
         <TopicHeader icon='summarize'>สรุปการให้บริการ</TopicHeader>
         <div
           className='flex flex-col w-full'
@@ -1747,9 +1794,9 @@ export const ImmStep8Summary = ({ form, setForm, immHn, child, locked, saved, on
           </ReadOnlyRow>
           <ReadOnlyRow label='เอกสารแนบ'>{(form.documents || []).length > 0 ? `${form.documents.length} ไฟล์` : 'ไม่มี'}</ReadOnlyRow>
         </div>
-      </div>
+      </div>}
 
-      <div className='flex flex-col gap-3'>
+      {showPrint && <div className='flex flex-col gap-3'>
         <TopicHeader icon='print'>พิมพ์เอกสาร</TopicHeader>
         <div className='flex items-center gap-3 flex-wrap'>
           <BrandSubdueButton variant='outline' leadingIcon='print' onClick={() => doPrint('ใบสรุปการตรวจสุขภาพเด็กดี')}>
@@ -1769,13 +1816,13 @@ export const ImmStep8Summary = ({ form, setForm, immHn, child, locked, saved, on
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
-      <div className='flex flex-col gap-3'>
+      {showConfirm && <div className='flex flex-col gap-3'>
         <TopicHeader icon='check-circle'>ยืนยันการบันทึก</TopicHeader>
         {rightsExpired && (
           <Banner tone='warning' icon='warning'>
-            สิทธิการรักษาของเด็กหมดอายุ — ยังบันทึกการตรวจได้ แต่ช่อง "ส่งเบิก" ในขั้นตอนที่ 5
+            สิทธิการรักษาของเด็กหมดอายุ — ยังบันทึกการตรวจได้ แต่ช่อง "ส่งเบิก" ในขั้นสั่งการรักษา
             จะไม่ถูกส่งจนกว่าจะต่อสิทธิเรียบร้อย
           </Banner>
         )}
@@ -1795,7 +1842,7 @@ export const ImmStep8Summary = ({ form, setForm, immHn, child, locked, saved, on
             ยืนยันบันทึกการตรวจสุขภาพเด็กดี
           </BrandSubdueButton>
         )}
-      </div>
+      </div>}
     </StepCard>
   );
 };

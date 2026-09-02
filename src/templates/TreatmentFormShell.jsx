@@ -32,6 +32,8 @@ const Footer = ({
   draftStatusText = 'ยังไม่มีร่างที่บันทึก', draftDirty = false, draftSaving = false,
   /* คำบนปุ่มขั้นสุดท้าย (งานเยี่ยมบ้านใช้ "บันทึกและส่งต่อ" — มติผู้ใช้ 2 ก.ย. 69) */
   finishLabel = 'จบการบันทึก',
+  /** Step-form contract: modules may opt out of a second cancel control after step 1. */
+  hideCancelAfterFirst = false,
 }) => {
   /* Primary CTA label — Figma PHCIS pattern: "ถัดไป: [next step]" so the
      clinician sees where they're heading without re-reading the stepper.
@@ -79,7 +81,7 @@ const Footer = ({
       {/* ตั้งแต่ step 2 เป็นต้นไป ปุ่มซ้ายกลายเป็น "ย้อนกลับ" — ผู้ใช้จึงไม่เหลือ
           ทางออกจากฟอร์ม ใส่ "ยกเลิก" ต่อท้ายไว้ (มติผู้ใช้ 27 ส.ค. 69)
           ทำเหมือนกันทุกระบบที่ใช้ฟอร์มแบบ step */}
-      {!isFirst && (
+      {!isFirst && !hideCancelAfterFirst && (
         <NeutralSubdueButton
           size='lg'
           variant='outline'
@@ -180,6 +182,10 @@ const TreatmentFormShell = ({
   finishLabel = 'จบการบันทึก',
   /** Return false to keep the user on the form before opening final refer. */
   onBeforeFinish,
+  /** Hide the secondary cancel affordance after step 1 for strict step-form flows. */
+  hideCancelAfterFirst = false,
+  /** Some clinic records finish directly; they do not create a second refer flow. */
+  showFinishRefer = true,
 }) => {
   const history = useHistory();
   const [referOpen, setReferOpen] = useState(false);
@@ -277,6 +283,12 @@ const TreatmentFormShell = ({
   const handleNext = () => {
     if (isLast) {
       if (onBeforeFinish?.() === false) return;
+      if (!showFinishRefer) {
+        const cont = onFinish?.();
+        if (cont === false) return;
+        history.push(queuePath);
+        return;
+      }
       setReferOpen(true);
     }
     else onStepChange(stepIndex + 1);
@@ -376,6 +388,7 @@ const TreatmentFormShell = ({
         draftDirty={draftDirty}
         draftSaving={draftSaving}
         finishLabel={finishLabel}
+        hideCancelAfterFirst={hideCancelAfterFirst}
       />
 
       <InternalReferPopup

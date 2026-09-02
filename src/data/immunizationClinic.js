@@ -148,6 +148,7 @@ export const setImmunizationRights = (granted) =>
 export const IMM_CHILDREN = [
   {
     hn: '69-10001', vn: '69-20001',
+    avatarUrl: '/avatars/immunization-child-01.png',
     shortName: 'ปุณณวิช สายทอง', fullName: 'ด.ช.ปุณณวิช สายทอง', englishName: 'Punnawich Saithong',
     sex: 'ชาย', birthDate: '2026-06-02', nationalId: '1100704512883',
     bloodType: 'O', patientType: 'ผู้ป่วยเก่า', doctor: 'พญ.กมลรัตน์ วรกุล',
@@ -157,6 +158,7 @@ export const IMM_CHILDREN = [
   },
   {
     hn: '69-10002', vn: '69-20002',
+    avatarUrl: '/avatars/immunization-child-02.png',
     shortName: 'พิชญาภา แก้วมณี', fullName: 'ด.ญ.พิชญาภา แก้วมณี', englishName: 'Pitchayapa Kaewmanee',
     sex: 'หญิง', birthDate: '2026-02-14', nationalId: '1100704498271',
     bloodType: 'A', patientType: 'ผู้ป่วยเก่า', doctor: 'พญ.กมลรัตน์ วรกุล',
@@ -166,6 +168,7 @@ export const IMM_CHILDREN = [
   },
   {
     hn: '69-10003', vn: '69-20003',
+    avatarUrl: '/avatars/immunization-child-03.png',
     shortName: 'ณัฐกรณ์ บุญมาก', fullName: 'ด.ช.ณัฐกรณ์ บุญมาก', englishName: 'Nattakorn Boonmak',
     sex: 'ชาย', birthDate: '2025-11-05', nationalId: '1100704451930',
     bloodType: 'B', patientType: 'ผู้ป่วยเก่า', doctor: 'นพ.ธีรภัทร สุขสวัสดิ์',
@@ -175,6 +178,7 @@ export const IMM_CHILDREN = [
   },
   {
     hn: '69-10004', vn: '69-20004',
+    avatarUrl: '/avatars/immunization-child-04.png',
     shortName: 'ไอลดา จันทร์เพ็ญ', fullName: 'ด.ญ.ไอลดา จันทร์เพ็ญ', englishName: 'Ailada Chanpen',
     sex: 'หญิง', birthDate: '2025-08-20', nationalId: '1100704412665',
     bloodType: 'O', patientType: 'ผู้ป่วยเก่า', doctor: 'พญ.กมลรัตน์ วรกุล',
@@ -184,6 +188,7 @@ export const IMM_CHILDREN = [
   },
   {
     hn: '69-10005', vn: '69-20005',
+    avatarUrl: '/avatars/immunization-child-05.png',
     shortName: 'กันตพัฒน์ ศรีวิชัย', fullName: 'ด.ช.กันตพัฒน์ ศรีวิชัย', englishName: 'Kantapat Sriwichai',
     sex: 'ชาย', birthDate: '2025-02-10', nationalId: '1100704377418',
     bloodType: 'AB', patientType: 'ผู้ป่วยเก่า', doctor: 'นพ.ธีรภัทร สุขสวัสดิ์',
@@ -193,6 +198,7 @@ export const IMM_CHILDREN = [
   },
   {
     hn: '69-10006', vn: '69-20006',
+    avatarUrl: '/avatars/immunization-child-06.png',
     shortName: 'ธัญชนก ทองอยู่', fullName: 'ด.ญ.ธัญชนก ทองอยู่', englishName: 'Thanchanok Thongyoo',
     sex: 'หญิง', birthDate: '2024-02-28', nationalId: '1100704298114',
     bloodType: 'A', patientType: 'ผู้ป่วยเก่า', doctor: 'พญ.กมลรัตน์ วรกุล',
@@ -202,6 +208,7 @@ export const IMM_CHILDREN = [
   },
   {
     hn: '69-10007', vn: '69-20007',
+    avatarUrl: '/avatars/immunization-child-07.png',
     shortName: 'ภูมิรพี เกิดผล', fullName: 'ด.ช.ภูมิรพี เกิดผล', englishName: 'Phumrapee Kerdphon',
     sex: 'ชาย', birthDate: '2022-07-15', nationalId: '1100704122507',
     bloodType: 'O', patientType: 'ผู้ป่วยเก่า', doctor: 'นพ.ธีรภัทร สุขสวัสดิ์',
@@ -211,6 +218,7 @@ export const IMM_CHILDREN = [
   },
   {
     hn: '69-10008', vn: '69-20008',
+    avatarUrl: '/avatars/immunization-child-08.png',
     shortName: 'ปวีณ์ธิดา นาคสุข', fullName: 'ด.ญ.ปวีณ์ธิดา นาคสุข', englishName: 'Paweethida Naksuk',
     sex: 'หญิง', birthDate: '2026-08-01', nationalId: '1100704531002',
     bloodType: 'B', patientType: 'ผู้ป่วยใหม่', doctor: 'พญ.กมลรัตน์ วรกุล',
@@ -220,6 +228,7 @@ export const IMM_CHILDREN = [
   },
   {
     hn: '69-10009', vn: '69-20009',
+    avatarUrl: '/avatars/immunization-child-09.png',
     shortName: 'เตชินท์ พูลสวัสดิ์', fullName: 'ด.ช.เตชินท์ พูลสวัสดิ์', englishName: 'Techin Poolsawat',
     sex: 'ชาย', birthDate: '2026-04-06', nationalId: '1100704505119',
     bloodType: 'O', patientType: 'ผู้ป่วยเก่า', doctor: 'พญ.กมลรัตน์ วรกุล',
@@ -229,6 +238,7 @@ export const IMM_CHILDREN = [
   },
   {
     hn: '69-10010', vn: '69-20010',
+    avatarUrl: '/avatars/immunization-child-10.png',
     shortName: 'ณิชานันท์ อ่อนน้อม', fullName: 'ด.ญ.ณิชานันท์ อ่อนน้อม', englishName: 'Nichanan Onnom',
     sex: 'หญิง', birthDate: '2025-05-12', nationalId: '1100704391273',
     bloodType: 'A', patientType: 'ผู้ป่วยเก่า', doctor: 'นพ.ธีรภัทร สุขสวัสดิ์',
@@ -244,7 +254,16 @@ export const getImmChild = (hn) => IMM_CHILDREN.find((c) => c.hn === hn) || null
 export const getImmPatientCard = (hn) => {
   const c = getImmChild(hn);
   if (!c) return null;
-  return { ...c, age: formatAgeYMD(c.birthDate) };
+  return {
+    ...c,
+    /* PatientCard renders a photograph whenever avatarUrl exists. The child
+       portraits are curated project assets, not a generated or third-party
+       icon, and preserve the Thai child context of this clinic. */
+    avatarUrl: c.avatarUrl || (c.sex === 'หญิง'
+      ? '/avatars/patient-child-girl.png'
+      : '/avatars/patient-child-boy.png'),
+    age: formatAgeYMD(c.birthDate),
+  };
 };
 
 /* ── คิวคลินิกสุขภาพเด็กดี (คู่มือ HCIS §2.1) ──────────────────────── */
@@ -1424,35 +1443,38 @@ export const DEFAULT_IMM_INTAKE = {
 
 export const getImmIntake = (hn) => IMM_INTAKE_BY_HN[hn] || DEFAULT_IMM_INTAKE;
 
-/* ── ค่าเริ่มต้นของใบบันทึกการตรวจ (8 ขั้นตอน) ─────────────────────── */
+/* ── ค่าเริ่มต้นของใบบันทึกการตรวจ (โครง 5 ขั้น) ───────────────────── */
 export const DEFAULT_IMM_VISIT = {
-  /* step 1 */
+  /* แบบประเมิน */
   visitDate: '', visitTime: '', nurseNote: '',
-  /* step 2 — ฝากครรภ์/คลอด + โภชนาการ */
+  /* แบบประเมิน — มารดา/คลอด + โภชนาการ */
   ancGravida: '', ancPlace: '', deliveryType: '', birthWeight: '',
+  motherAgeAtBirth: '', gestationalAgeWeeks: '', maternalBloodRh: '',
+  hbTyping: '', maternalHctHb: '', apgar1: '', apgar5: '',
+  birthLength: '', birthHeadCirc: '',
   vdrl: '', hbsAg: '', hiv: '',
   feeding: {}, feedingNote: '', nutritionStatus: '',
-  /* step 3 — การเจริญเติบโต */
+  /* ตรวจร่างกายและวินิจฉัย — การเจริญเติบโต */
   growth: {
     weight: '', height: '', headCirc: '', chestCirc: '',
     fontanelleAnterior: '', fontanellePosterior: '',
   },
   growthNote: '',
-  /* step 4 — พัฒนาการ DSPM */
+  /* แบบประเมิน — พัฒนาการ DSPM */
   dspmAnswers: {}, dspmNote: '', dspmAssessor: '', dspmAssessedAt: '', dspmReferral: false,
-  /* step 5 — ให้วัคซีนวันนี้ */
+  /* สั่งการรักษา — ให้วัคซีนวันนี้ */
   todayDoses: [],
-  /* step 6 — ตรวจสุขภาพทั่วไป */
+  /* ตรวจร่างกายและวินิจฉัย — ตรวจสุขภาพทั่วไป */
   exam: {}, examAllNormal: false, examNote: '', illnessHistory: '', allergyNote: '',
   /* step 6 — สุขภาพช่องปากเด็กดี (มติ คทง.6 ครั้งที่ 3 · blueprint หน้า 9)
      "ลงข้อมูลแปรงสีฟันซี่แรก (คลินิกเด็กดี)" — เป็นงานส่งเสริมสุขภาพของ
      WBC ไม่ใช่หัตถการทันตกรรม จึงลงที่นี่ได้ ส่วนผลตรวจฟันจริงยังมาจาก
      หน้าทันตกรรมที่เดียวผ่าน CarriedDentalPanel */
   firstToothAge: '', firstToothBrushStarted: '', oralCareAdvice: false, oralCareNote: '',
-  /* step 7 — EMR / CPOE / Telemedicine */
+  /* สั่งการรักษา — EMR / CPOE / Telemedicine */
   labOrders: {}, medOrders: {}, orderNote: '',
   telemedStatus: '', doctor: '',
-  /* step 8 — เอกสาร + นัดหมาย */
+  /* นัดหมาย + สมุดวัคซีน */
   documents: [],
   appointment: { date: '', time: '', type: '', note: '', cancelled: false },
 };
