@@ -1427,62 +1427,9 @@ export const HomeVisitPhotoSection = ({ form, setForm, readOnly }) => {
    (หัวการ์ดพื้นอ่อน + รหัส/ป้ายเวอร์ชัน + ชื่อ + แถวปุ่มล่าง) แต่ "เวอร์ชัน"
    ของแบบประเมินคือ *คะแนน* และป้ายคือ *การแปลผล* ซึ่งเป็นสิ่งที่พยาบาลต้อง
    เห็นก่อนตัดสินใจว่าจะเปิดชุดไหน (มติผู้ใช้ 30 ส.ค. 69) */
-/* แถวของแบบประเมินแต่ละชุด — ไม่ใช่การ์ดอีกแล้ว (มติผู้ใช้ 2 ก.ย. 69)
-   สี่ชุดเรียงเป็นรายการอ่านจากบนลงล่าง: ชื่อ + คะแนน/ผลแปล + ปุ่มเปิดป๊อปอัป
-   ทำแบบประเมิน · การ์ดสี่ใบกินพื้นที่ทั้งแถวโดยที่เนื้อหาจริงมีไม่กี่บรรทัด */
-const AssessmentToolRow = ({ code, title, done, scoreLabel, interp, readOnly, onOpen, first }) => (
-  <div
-    className='flex items-center w-full flex-wrap'
-    style={{
-      gap: 'var(--dim-space-300, 12px)',
-      paddingTop: 'var(--dim-space-300, 12px)',
-      paddingBottom: 'var(--dim-space-300, 12px)',
-      borderTop: first ? undefined : 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary)',
-    }}
-  >
-    <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-50, 2px)', flex: '1 1 240px' }}>
-      <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-        {title}
-      </span>
-      <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-        {code}
-      </span>
-    </div>
-
-    <span style={{
-      color: 'var(--text-brandPrimary-default, #007549)',
-      fontFamily: 'var(--type-family-heading-content)',
-      fontSize: 'var(--type-size-base)',
-      minWidth: 72,
-      textAlign: 'right',
-    }}>
-      {scoreLabel}
-    </span>
-
-    {done && interp ? (
-      <ColorfulBadge style={interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={260}>
-        {interp.label}
-      </ColorfulBadge>
-    ) : (
-      <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
-        ยังไม่ได้ประเมิน
-      </ColorfulBadge>
-    )}
-
-    <span style={{ marginLeft: 'auto' }}>
-      <BrandSubdueButton
-        variant='outline'
-        size='sm'
-        /* ปุ่มของ DS เรนเดอร์ไอคอนเป็น Material Symbols (ligature) — ชื่อที่ไม่มี
-           ในฟอนต์อย่าง `clipboard-list` จะโผล่เป็นตัวอักษรบนปุ่ม */
-        leadingIcon={done ? 'edit' : 'assignment'}
-        onClick={onOpen}
-      >
-        {readOnly ? 'ดูผลประเมิน' : (done ? 'แก้ไข' : 'ทำแบบประเมิน')}
-      </BrandSubdueButton>
-    </span>
-  </div>
-);
+/* แบบประเมินสี่ชุดแสดงเป็นตาราง (มติผู้ใช้ 2 ก.ย. 69) — หัวข้อ/คะแนน/สถานะ/
+   ปุ่มดำเนินการ อยู่ในคอลัมน์ที่ตรงกันทุกแถว ใช้ <Table> ตัวเดียวกับที่อื่น
+   ในระบบ ไม่ได้จัดแถวเอง */
 
 export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }) => {
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
@@ -1619,21 +1566,70 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
             เวชระเบียน (มติผู้ใช้ 30 ส.ค. 69) — เดิมกางเป็นฟอร์มยาวเรียงกันสี่ชุด
             ในขั้นเดียว ทำให้เลื่อนหาไม่เจอว่าเหลือชุดไหนยังไม่ได้ทำ · การ์ดบอก
             สถานะ/คะแนน/การแปลผลของแต่ละชุดในบรรทัดเดียว แล้วค่อยกดเข้าไปทำ */}
-        <div className='flex flex-col w-full'>
-          {ASSESSMENT_TOOL_CARDS.map((t, i) => (
-            <AssessmentToolRow
-              key={t.key}
-              first={i === 0}
-              code={t.code}
-              title={t.title}
-              done={t.done}
-              scoreLabel={t.scoreLabel}
-              interp={t.interp}
-              readOnly={readOnly}
-              onOpen={() => setOpenTool(t.key)}
-            />
-          ))}
-        </div>
+        <Table
+          columns={[
+            {
+              key: 'tool',
+              label: 'หัวข้อแบบประเมิน',
+              flex: true,
+              minWidth: 260,
+              render: (t) => (
+                <span className='flex flex-col' style={{ gap: 'var(--dim-space-50, 2px)' }}>
+                  <span style={{ color: 'var(--text-content-default, #363B3F)' }}>{t.title}</span>
+                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                    {t.code}
+                  </span>
+                </span>
+              ),
+            },
+            {
+              key: 'score',
+              label: 'คะแนนประเมิน',
+              minWidth: 140,
+              render: (t) => (
+                <span style={{
+                  color: 'var(--text-brandPrimary-default, #007549)',
+                  fontFamily: 'var(--type-family-heading-content)',
+                }}>
+                  {t.scoreLabel}
+                </span>
+              ),
+            },
+            {
+              key: 'status',
+              label: 'สถานะการประเมิน',
+              minWidth: 220,
+              render: (t) => (t.done && t.interp ? (
+                <ColorfulBadge style={t.interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={260}>
+                  {t.interp.label}
+                </ColorfulBadge>
+              ) : (
+                <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
+                  ยังไม่ได้ประเมิน
+                </ColorfulBadge>
+              )),
+            },
+            {
+              key: 'action',
+              label: 'ดำเนินการ',
+              minWidth: 180,
+              render: (t) => (
+                <BrandSubdueButton
+                  variant='outline'
+                  size='sm'
+                  /* ปุ่มของ DS เรนเดอร์ไอคอนเป็น Material Symbols (ligature) —
+                     ชื่อที่ไม่มีในฟอนต์จะโผล่เป็นตัวอักษรบนปุ่ม */
+                  leadingIcon={t.done ? 'edit' : 'assignment'}
+                  onClick={() => setOpenTool(t.key)}
+                >
+                  {readOnly ? 'ดูผลประเมิน' : (t.done ? 'แก้ไข' : 'ทำแบบประเมิน')}
+                </BrandSubdueButton>
+              ),
+            },
+          ]}
+          rows={ASSESSMENT_TOOL_CARDS}
+          rowKey={(t) => t.key}
+        />
 
         <Popup
           open={!!openTool}
