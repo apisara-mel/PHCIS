@@ -504,7 +504,7 @@ export default function Routes() {
         {/* คิวรวมรอรับเคส — ศูนย์ที่พยาบาลไม่ระบุแพทย์ที่จุดคัดกรอง เคสมากอง
             รวมที่นี่ให้แพทย์หยิบเอง ไม่แยกตามคลินิก (มติผู้ใช้ 28 ส.ค. 69) */}
         <Route exact path='/treat/unassigned' component={UnassignedWorklistPage} />
-        {/* Exist Nurse — คู่ตรงข้ามของจุดคัดกรอง อยู่ระดับ rail ของตัวเอง
+        {/* Exit Nurse — คู่ตรงข้ามของจุดคัดกรอง อยู่ระดับ rail ของตัวเอง
             ไม่ใช่คลินิกใต้บันทึกการรักษา (มติผู้ใช้ 28 ส.ค. 69) */}
         <Route exact path='/exit' component={ExitNurseQueuePage} />
         {/* Key by encounter identity so selecting another queue patient

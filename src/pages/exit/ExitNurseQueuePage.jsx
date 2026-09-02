@@ -33,10 +33,10 @@ import {
   compareExitRows,
 } from '@/data/exitNurseQueue';
 
-/* MIH ExitNurseQueuePage — "Exist Nurse" (/exit)
+/* MIH ExitNurseQueuePage — "Exit Nurse" (/exit)
    ══════════════════════════════════════════════════════════════════════════
-   คู่ตรงข้ามของจุดคัดกรอง: คัดกรองรับคนเข้า Exist Nurse ส่งคนออก
-   ชื่อเมนูใช้คำว่า "Exist Nurse" ตามที่ผู้ใช้กำหนด
+   คู่ตรงข้ามของจุดคัดกรอง: คัดกรองรับคนเข้า Exit Nurse ส่งคนออก
+   ชื่อเมนูใช้คำว่า "Exit Nurse" ตามที่ผู้ใช้กำหนด
    เดิมพอแพทย์กดจบการตรวจ ผู้รับบริการก็หายไปจากทุกจอ ทั้งที่ยังมีงานค้างกับเขา
    อีกหลายอย่าง งานพวกนั้นเคยอยู่ในความจำของพยาบาลล้วน ๆ (มติผู้ใช้ 28 ส.ค. 69)
 
@@ -44,8 +44,8 @@ import {
    เหลืออะไรต้องทำก่อนกลับ รายการงานเป็นของเฉพาะคน ไม่ใช่ checklist ชุดเดียว
    ใช้ทุกคน — คนที่ไม่ได้รับยาไม่ควรมีข้อ "อธิบายวิธีใช้ยา" ให้ติ๊ก */
 
-const breadcrumb = ['Exist Nurse'];
-const SUMMARY_TITLE = 'Exist Nurse';
+const breadcrumb = ['Exit Nurse'];
+const SUMMARY_TITLE = 'Exit Nurse';
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:exit-nurse';
 /* รอนานเกินนี้ถือว่าผิดปกติ — 2 ชั่วโมง */
 const LONG_WAIT_MINUTES = 120;
@@ -159,7 +159,7 @@ const RecordList = ({ rows, empty }) => (
     )
 );
 
-/* สิ่งที่แพทย์กรอกไว้ใน visit นี้ แบบอ่านอย่างเดียว — Exist Nurse แก้ไม่ได้
+/* สิ่งที่แพทย์กรอกไว้ใน visit นี้ แบบอ่านอย่างเดียว — Exit Nurse แก้ไม่ได้
    ถ้ายังไม่มีบันทึกในเซสชันนี้ ให้บอกตรง ๆ แล้วโชว์เท่าที่ตารางคิวรู้ ดีกว่า
    ป๊อปอัปเปล่าที่อ่านไม่ออกว่าแพทย์ยังไม่บันทึกหรือระบบพัง */
 /* ขั้นตอนของป๊อปอัป "ข้อมูลจากแพทย์" — เรียงตามลำดับที่แพทย์กรอกจริงในหน้าตรวจรักษา
@@ -174,7 +174,7 @@ const RECORD_STEPS = [
   'เอกสาร',
 ];
 
-/* สิ่งที่แพทย์กรอกไว้ใน visit นี้ แบบอ่านอย่างเดียว — Exist Nurse แก้ไม่ได้
+/* สิ่งที่แพทย์กรอกไว้ใน visit นี้ แบบอ่านอย่างเดียว — Exit Nurse แก้ไม่ได้
    ถ้ายังไม่มีบันทึกในเซสชันนี้ ให้บอกตรง ๆ แล้วโชว์เท่าที่ตารางคิวรู้ ดีกว่า
    ป๊อปอัปเปล่าที่อ่านไม่ออกว่าแพทย์ยังไม่บันทึกหรือระบบพัง */
 const DoctorRecordView = ({ row, record, step, onStepChange }) => {
@@ -268,7 +268,7 @@ const DoctorRecordView = ({ row, record, step, onStepChange }) => {
         </RecordCard>
       )}
 
-      {/* Exist Nurse ต้องอธิบายวิธีใช้ยาและการเตรียมตัวก่อนตรวจ — สามหมวดนี้จึงเป็น
+      {/* Exit Nurse ต้องอธิบายวิธีใช้ยาและการเตรียมตัวก่อนตรวจ — สามหมวดนี้จึงเป็น
           หัวใจของป๊อปอัป ไม่ใช่ของแถม (มติผู้ใช้ 31 ส.ค. 69) */}
       {step === 2 && (
         <>
@@ -327,7 +327,7 @@ const ExitNurseQueuePage = () => {
   const [searchQ, setSearchQ] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [openId, setOpenId] = useState(null);
-  /* นัดหมายครั้งต่อไปจากจุด Exist Nurse (มติผู้ใช้ 31 ส.ค. 69) — งานสุดท้ายก่อน
+  /* นัดหมายครั้งต่อไปจากจุด Exit Nurse (มติผู้ใช้ 31 ส.ค. 69) — งานสุดท้ายก่อน
      ผู้รับบริการกลับบ้านคือ "ยืนยันวันนัดครั้งต่อไป" ซึ่งเดิมเป็นแค่ช่องติ๊ก
      พยาบาลต้องไปเปิดโมดูลนัดหมายอีกหน้าเพื่อจองจริง · นัดที่สร้างที่นี่เขียนลง
      `appointmentExtraStore` ตัวเดียวกับที่หน้ารับคำขอนัดใช้ จึงไปโผล่ในโมดูล
@@ -386,10 +386,10 @@ const ExitNurseQueuePage = () => {
       type: typeLabel,
       doctor: doctorLabel,
       examMode: 'onsite',
-      orderingUnit: 'Exist Nurse',
+      orderingUnit: 'Exit Nurse',
       reason: apptForm.reason,
       prep: apptForm.prep,
-      createdBy: 'Exist Nurse',
+      createdBy: 'Exit Nurse',
     }]);
     /* จองแล้ว = งาน "ยืนยันวันนัดครั้งต่อไป" ของแถวนั้นถือว่าเสร็จ ไม่ต้องให้
        พยาบาลไปติ๊กซ้ำอีกที */
@@ -715,7 +715,7 @@ const ExitNurseQueuePage = () => {
 
             {/* บันทึกของพยาบาล — สิ่งที่ผู้ป่วยถามหรือกังวล ซึ่งไม่มีช่องไหนรับ */}
             <Textarea
-              label='บันทึกของพยาบาล Exist Nurse'
+              label='บันทึกของพยาบาล Exit Nurse'
               placeholder='เช่น ผู้ป่วยยังไม่เข้าใจวิธีฉีดอินซูลิน นัดมาสอนซ้ำสัปดาห์หน้า'
               rows={3}
               value={open.note}

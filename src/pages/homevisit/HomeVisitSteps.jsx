@@ -7,6 +7,9 @@ import TimePicker from '@/components/forms/TimePicker';
 import SelectableTag from '@/components/forms/SelectableTag';
 import { FieldGrid } from '@/components/forms/Fields';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
+import VoiceTextarea from '@/components/forms/VoiceTextarea';
+import { useTelemedCall } from '@/components/telemed/TelemedCallProvider';
+import Checkbox from '@/components/checkbox/Checkbox';
 import PhotoUploadField from '@/components/forms/PhotoUploadField';
 import AddressMapBlock from '@/components/forms/AddressMapBlock';
 import CarriedDentalPanel from '@/components/dental/CarriedDentalPanel';
@@ -39,7 +42,6 @@ import {
   Step1Personal as RegistrationPersonalStep,
   Step3Contact as RegistrationContactStep,
   Step4Rights as RegistrationRightsStep,
-  Step5Flags as RegistrationFlagsStep,
   PatientStatusCard,
 } from '@/components/forms/RegistrationSteps';
 import { findMrPatientByHn } from '@/data/mrPatients';
@@ -139,7 +141,9 @@ import {
   sendOrdersToCpoe,
   getCpoeHandoff,
 } from '@/data/homevisitCpoe';
-import { getVisitHistory, appendVisitHistory, saveFamilyMembers, getFamilyMembers } from '@/data/homevisitRegistry';
+import {
+  getVisitHistory, appendVisitHistory, saveFamilyMembers, getFamilyMembers, getHouseholdProfile,
+} from '@/data/homevisitRegistry';
 import { printHomeVisitSummary } from '@/pages/homevisit/homevisitPrint';
 import {
   TopicHeader,
@@ -375,10 +379,11 @@ export const HomeVisitStep1Service = ({ form, setForm, readOnly, hn, blockedMsg 
   );
 };
 
-/* ── Step 2 — ที่อยู่และการเดินทาง ────────────────────────────────
+/* ── Step 3 — ที่อยู่และการติดต่อ ──────────────────────────────────
    หน้าตาเหมือนขั้น "ที่อยู่" ของหน้าเวชระเบียนทุกอย่าง (ใช้คอมโพเนนต์ตัวเดียวกัน)
    ต่างแค่ต่อท้ายด้วยตำแหน่งบ้าน/เวลาถึงบ้าน และบันทึกการเดินทาง
-   (มติผู้ใช้ 30 ส.ค. 69) */
+   (มติผู้ใช้ 30 ส.ค. 69) · รวมขั้น "ข้อมูลการติดต่อ" เข้ามาต่อท้ายในขั้นเดียวกัน
+   (มติผู้ใช้ 2 ก.ย. 69) — ที่อยู่กับเบอร์ติดต่อเป็นชุดข้อมูลเดียวกันของบ้านหลังนั้น */
 export const HomeVisitStep2Address = ({
   form, setForm, readOnly, visitId, appointment, registryEntry, onDataChanged, blockedMsg,
 }) => {
@@ -433,48 +438,107 @@ export const HomeVisitStep2Address = ({
           ยังอยู่ในโมเดลและใน `homevisitVisits.js` ครบ ถ้าจะเอากลับมาให้ย้าย
           ปุ่มไปไว้ในการ์ด "ที่อยู่ปัจจุบัน" คู่กับแผนที่ ไม่ใช่สร้างหมวดใหม่ */}
 
+      {/* ข้อมูลการติดต่อ — ยกขั้นเดียวกันของหน้าเวชระเบียนมาทั้งก้อน
+          (มติผู้ใช้ 2 ก.ย. 69 — เดิมเป็นขั้นที่ 4 แยกต่างหาก) */}
+      <RegistrationContactStep form={form} setForm={setForm} />
+
     </StepCard>
   );
 };
 
 /* ── Step 2 — ประวัติ ─────────────────────────────────────────────── */
 
-/* ── Step 7 — ประวัติการแพ้ / โรคประจำตัว ─────────────────────────
+/* ── Step 6 — ประวัติการแพ้ / โรคประจำตัว ─────────────────────────
    แยกออกมาเป็นขั้นของตัวเองต่อจากสัญญาณชีพ (มติผู้ใช้ 30 ส.ค. 69) — เป็นชุด
    ข้อมูลระดับผู้ป่วยที่ต้องอ่าน/แก้ก่อนลงมือประเมินอาการ ไม่ใช่ส่วนหนึ่งของ
-   การซักอาการครั้งนี้ · ใช้ขั้น "หมายเหตุและ Flag" ของหน้าเวชระเบียนทั้งก้อน */
-export const HomeVisitStepAllergy = ({ form, setForm, blockedMsg }) => (
-  <StepCard>
-    {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
-    <RegistrationFlagsStep form={form} setForm={setForm} showMobilityCard={false} />
-  </StepCard>
-);
+   การซักอาการครั้งนี้.
+
+   เดิมยกขั้น "หมายเหตุและ Flag" ของหน้าเวชระเบียนมาทั้งก้อน (แถบประเภท VIP ·
+   แพ้ยา · แพ้อาหาร · แพ้สารเคมี · โรคประจำตัว · ความปลอดภัย · DNR · บริจาค
+   อวัยวะ) — ถอดออกทั้งชุด (มติผู้ใช้ 2 ก.ย. 69): ที่บ้านผู้รับบริการเล่าเป็น
+   คำพูด ทีมจึงติ๊กว่ามี/ไม่มี แล้วพิมพ์หรือ "พูด" ใส่ VoiceTextarea เอา
+   เร็วกว่าไล่จำแนกประเภทให้ตรงช่อง · คีย์ของทะเบียน (`drugAllergies` ฯลฯ)
+   ยังอยู่ในโมเดลและยังเป็นตัวจริงที่ห้องบัตร ไม่ได้ถูกลบ */
+export const HomeVisitStepAllergy = ({ form, setForm, readOnly, blockedMsg }) => {
+  const setField = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
+  const setFlag = (key) => (checked) => setForm((f) => ({
+    ...f, flags: { ...f.flags, [key]: checked },
+  }));
+
+  return (
+    <StepCard>
+      {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+
+      <SectionCard icon='flag' title='ประวัติการแพ้ · โรคประจำตัว'>
+        <StepSection gap='var(--dim-space-400, 16px)'>
+          <Checkbox
+            label='มีประวัติการแพ้ยา / แพ้อาหาร / แพ้สารเคมี'
+            checked={!!form.flags?.allergyDrug}
+            onChange={setFlag('allergyDrug')}
+            disabled={readOnly}
+          />
+          {form.flags?.allergyDrug && (
+            <VoiceTextarea
+              label='รายละเอียดการแพ้'
+              value={form.allergyFreeText || ''}
+              onChange={setField('allergyFreeText')}
+              disabled={readOnly}
+              placeholder='สิ่งที่แพ้ อาการที่เกิด และสิ่งที่ทีมต้องระวัง เช่น แพ้ Penicillin ผื่นลมพิษทั้งตัว'
+              helperText='พิมพ์หรือกดไมโครโฟนเพื่อพูดแทนการพิมพ์ได้'
+              style={{ width: '100%', maxWidth: 'none' }}
+            />
+          )}
+
+          <Checkbox
+            label='มีโรคประจำตัว'
+            checked={!!form.flags?.chronic}
+            onChange={setFlag('chronic')}
+            disabled={readOnly}
+          />
+          {form.flags?.chronic && (
+            <VoiceTextarea
+              label='รายละเอียดโรคประจำตัว'
+              value={form.chronicFreeText || ''}
+              onChange={setField('chronicFreeText')}
+              disabled={readOnly}
+              placeholder='โรคที่เป็น ระยะเวลา และการรักษาที่ได้รับ เช่น เบาหวานชนิดที่ 2 มา 10 ปี ฉีดอินซูลินเช้า-เย็น'
+              helperText='พิมพ์หรือกดไมโครโฟนเพื่อพูดแทนการพิมพ์ได้'
+              style={{ width: '100%', maxWidth: 'none' }}
+            />
+          )}
+
+          <VoiceTextarea
+            label='หมายเหตุเพิ่มเติม'
+            value={form.allergyNote || ''}
+            onChange={setField('allergyNote')}
+            disabled={readOnly}
+            placeholder='ข้อควรระวังอื่นที่ทีมครั้งถัดไปควรรู้ (ไม่บังคับ)'
+            helperText='ไม่บังคับกรอก — กดไมโครโฟนเพื่อพูดแทนการพิมพ์ได้'
+            style={{ width: '100%', maxWidth: 'none' }}
+          />
+        </StepSection>
+      </SectionCard>
+    </StepCard>
+  );
+};
 
 /* ── ปรึกษาแพทย์ทางไกล (Telemedicine · TOR 1.18.10) ────────────────
    ย้ายมาอยู่ในขั้น "ประเมินอาการป่วย" (มติผู้ใช้ 30 ส.ค. 69) — ทีมตัดสินใจว่า
    ต้องปรึกษาแพทย์ตอนที่กำลังประเมินอาการอยู่ ไม่ใช่ตอนพิมพ์บันทึกตามบทบาท
    ซึ่งเป็นขั้นหลังจากนั้น · แยกเป็นคอมโพเนนต์เพราะถือ state ป๊อปอัปของตัวเอง */
 export const HomeVisitTelemedSection = ({ form, setForm, readOnly, visitId, hn, appointment }) => {
-  const routerHistory = useHistory();
+  const { start: startTelemedCall } = useTelemedCall();
   const [telemedOpen, setTelemedOpen] = useState(false);
 
   const launchTelemed = () => {
-    /* push ด้านล่างจะ unmount HomeVisitRecordPage ใน commit เดียวกับ setForm —
-       autosave effect ของหน้าไม่ทันทำงาน จึงต้องบันทึกร่างตรงนี้เองก่อนออก
-       (ตรงกับข้อความใน popup ว่า "แบบร่างจะถูกบันทึกอัตโนมัติก่อนออกจากหน้านี้")
-       stepIndex 6 = ขั้น "ประเมินอาการป่วย" ซึ่งเป็นที่อยู่ใหม่ของปุ่มนี้. */
+    /* เปิด "ห้องตรวจรักษาออนไลน์" เป็นป๊อปอัปทับหน้าเดิม (มติผู้ใช้ 2 ก.ย. 69) —
+       เดิม push ไป /telemed/worklist ซึ่ง unmount หน้าเยี่ยมบ้านทิ้ง จึงยัง
+       บันทึกร่างไว้ก่อนเปิดสายเหมือนเดิม (ผู้ใช้ปิดสายแล้วกลับมาทำต่อได้ทันที)
+       stepIndex 6 = ขั้น "ประเมินอาการป่วย" ซึ่งเป็นที่อยู่ของปุ่มนี้ */
     saveHomeVisitDraft(visitId, { ...form, telemedRequested: true }, 6);
     setForm((f) => ({ ...f, telemedRequested: true }));
     setTelemedOpen(false);
-    routerHistory.push({
-      pathname: '/telemed/worklist',
-      state: {
-        hn,
-        name: appointment?.name,
-        from: 'homevisit',
-        reason: 'ปรึกษาแพทย์ทางไกลระหว่างการเยี่ยมบ้าน',
-      },
-    });
+    startTelemedCall({ visitId });
   };
 
   return (
@@ -495,7 +559,7 @@ export const HomeVisitTelemedSection = ({ form, setForm, readOnly, visitId, hn, 
             </ColorfulBadge>
           )}
           <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-            เปิดห้องปรึกษาในระบบ Telemedicine ที่มีอยู่ พร้อมส่งบริบทผู้รับบริการไปด้วย
+            เปิดห้องปรึกษาของระบบ Telemedicine เป็นป๊อปอัปทับหน้านี้ พร้อมส่งบริบทผู้รับบริการไปด้วย
             (ระบบเยี่ยมบ้านไม่แก้ไขหน้าจอ Telemedicine)
           </span>
         </div>
@@ -506,15 +570,15 @@ export const HomeVisitTelemedSection = ({ form, setForm, readOnly, visitId, hn, 
         title='เปิดห้องปรึกษาแพทย์ทางไกล'
         subtitle={appointment ? `${appointment.name} · HN: ${appointment.hn}` : ''}
         tertiaryAction={{ label: 'ยกเลิก', onClick: () => setTelemedOpen(false) }}
-        primaryAction={{ label: 'เปิดระบบ Telemedicine', onClick: launchTelemed }}
+        primaryAction={{ label: 'เปิดห้องตรวจรักษาออนไลน์', onClick: launchTelemed }}
       >
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
           <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary, #636B72)' }}>
-            ระบบจะพาไปยังรายการปรึกษาทางไกลของ PHCIS พร้อมบริบทผู้รับบริการรายนี้
-            — เมื่อสนทนาเสร็จ ให้กลับมาบันทึกผลการปรึกษาในช่อง “บันทึกแพทย์” ของขั้นตอนนี้
+            ระบบจะเปิดห้องตรวจรักษาออนไลน์ทับหน้านี้ พร้อมบริบทผู้รับบริการรายนี้
+            — เมื่อสนทนาเสร็จ ปิดห้องแล้วบันทึกผลการปรึกษาในช่อง “บันทึกแพทย์” ของขั้นตอนนี้ได้ทันที
           </span>
           <NoticeBand tone='neutral' icon='info'>
-            แบบร่างการเยี่ยมจะถูกบันทึกอัตโนมัติก่อนออกจากหน้านี้ กลับมาทำต่อได้จากแท็บ “ที่ร่างไว้” ในคิวเยี่ยมบ้าน
+            แบบร่างการเยี่ยมจะถูกบันทึกอัตโนมัติก่อนเปิดห้อง — หน้าที่กรอกค้างไว้ยังอยู่หลังป๊อปอัป
           </NoticeBand>
         </div>
       </Popup>
@@ -846,17 +910,11 @@ export const HomeVisitStep3Vitals = ({ form, setForm, readOnly, blockedMsg, hn }
   );
 };
 
-/* ── Step 4 — ข้อมูลการติดต่อ · Step 5 — สิทธิการรักษา ─────────────
-   ยกสองขั้นของหน้าเวชระเบียนมาทั้งก้อนแบบเดียวกับที่อยู่/ข้อมูลส่วนตัว
-   (มติผู้ใช้ 30 ส.ค. 69) — ทีมเยี่ยมบ้านเป็นคนที่ได้เบอร์ผู้ดูแลตัวจริงและ
-   เห็นบัตรสิทธิที่บ้าน จึงควรแก้ได้ตรงนั้นด้วยหน้าตาเดียวกับห้องบัตร */
-export const HomeVisitStepContact = ({ form, setForm, blockedMsg }) => (
-  <StepCard>
-    {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
-    <RegistrationContactStep form={form} setForm={setForm} />
-  </StepCard>
-);
-
+/* ── Step 4 — สิทธิการรักษา ────────────────────────────────────────
+   ยกขั้นเดียวกันของหน้าเวชระเบียนมาทั้งก้อนแบบเดียวกับที่อยู่/ข้อมูลส่วนตัว
+   (มติผู้ใช้ 30 ส.ค. 69) — ทีมเยี่ยมบ้านเป็นคนที่เห็นบัตรสิทธิที่บ้าน จึงควร
+   แก้ได้ตรงนั้นด้วยหน้าตาเดียวกับห้องบัตร · ขั้น "ข้อมูลการติดต่อ" ถูกยุบเข้า
+   ขั้นที่อยู่แล้ว (มติผู้ใช้ 2 ก.ย. 69) */
 export const HomeVisitStepRights = ({ form, setForm, blockedMsg }) => (
   <StepCard>
     {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
@@ -873,7 +931,7 @@ export const HomeVisitStepBehaviour = ({ form, setForm, readOnly, hn, blockedMsg
   <StepCard>
     {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
     <SectionCard>
-      <ScreeningStep4 patient={{ hn }} />
+      <ScreeningStep4 patient={{ hn }} padded={false} />
       <HealthRiskFields
         value={form.homeScreening}
         onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
@@ -1674,69 +1732,6 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
   );
 };
 
-/* ── Step 10 — บันทึกตามบทบาทวิชาชีพ + กิจกรรมการดูแล ───────────────
-   ปุ่มปรึกษาแพทย์ทางไกลย้ายไปขั้น "ประเมินอาการป่วย" แล้ว
-   (ดู `HomeVisitTelemedSection`) */
-
-export const HomeVisitStep5Care = ({ form, setForm, readOnly, blockedMsg }) => {
-
-  const toggleActivity = (key) => setForm((f) => ({
-    ...f,
-    activities: { ...f.activities, [key]: !f.activities[key] },
-  }));
-
-  const activityGroups = useMemo(() => {
-    const map = new Map();
-    CARE_ACTIVITIES.forEach((a) => {
-      if (!map.has(a.group)) map.set(a.group, []);
-      map.get(a.group).push(a);
-    });
-    return Array.from(map.entries());
-  }, []);
-
-  const selectedActivities = CARE_ACTIVITIES.filter((a) => form.activities?.[a.key]);
-
-
-  return (
-    <StepCard>
-      {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
-
-      {/* ถอดหมวด "บันทึกเวชระเบียนตามบทบาทวิชาชีพ" ออก (มติผู้ใช้ 30 ส.ค. 69)
-          — คีย์ `form.roleNotes` ยังอยู่ในโมเดลและในใบสรุป/บันทึกเก่า */}
-
-      <StepSection>
-        <TopicHeader
-          icon='checklist'
-          aside={(
-            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-              เลือกแล้ว {selectedActivities.length} กิจกรรม (TOR 1.18.7)
-            </span>
-          )}
-        >
-          กิจกรรมการดูแลที่ให้ในการเยี่ยมครั้งนี้
-        </TopicHeader>
-        {activityGroups.map(([group, items]) => (
-          <div key={group} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
-            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>{group}</span>
-            <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-              {items.map((a) => (
-                <SelectableTag
-                  key={a.key}
-                  label={a.label}
-                  size='md'
-                  selected={!!form.activities?.[a.key]}
-                  onClick={readOnly ? undefined : () => toggleActivity(a.key)}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-      </StepSection>
-
-    </StepCard>
-  );
-};
-
 /* ── Step 6 — สั่งการรักษา (CPOE · TOR 1.18.6) ────────────────────────
    รายการทั้งหมดมาจากแคตตาล็อกกลางชุดเดียวกับหน้าจอ CPOE (`labCatalog` ·
    `xrayCatalog` · ICD-9-CM · รายการยา/เวชภัณฑ์ของ Step5Orders) และส่งต่อ
@@ -2042,12 +2037,15 @@ export const HomeVisitStep7Family = ({
     onDataChanged?.();
   };
 
+  /* ครัวเรือนที่ยังไม่อยู่ในทะเบียนได้ชุด mock ตั้งต้น (มติผู้ใช้ 2 ก.ย. 69) —
+     เดิมทั้งแถวขึ้น "—" จนอ่านไม่ออกว่าแฟ้มครอบครัวเก็บอะไรบ้าง */
+  const household = getHouseholdProfile(hn, registryEntry || appointment);
   const householdRows = [
-    { label: 'ที่อยู่ครัวเรือน', value: registryEntry?.address || appointment?.address || '—' },
-    { label: 'ชุมชน', value: registryEntry?.community || '—' },
-    { label: 'เขต', value: registryEntry?.district || '—' },
-    { label: 'ผู้ติดต่อหลัก', value: registryEntry?.contactName || '—' },
-    { label: 'เบอร์ผู้ติดต่อ', value: registryEntry?.contactPhone || '—' },
+    { label: 'ที่อยู่ครัวเรือน', value: household.address },
+    { label: 'ชุมชน', value: household.community },
+    { label: 'เขต', value: household.district },
+    { label: 'ผู้ติดต่อหลัก', value: household.contactName },
+    { label: 'เบอร์ผู้ติดต่อ', value: household.contactPhone },
   ];
 
   return (
@@ -2163,7 +2161,6 @@ export const HOMEVISIT_STEP_RENDERERS = [
   HomeVisitStep0Consent,
   HomeVisitStep1Service,
   HomeVisitStep2Address,
-  HomeVisitStepContact,
   HomeVisitStepRights,
   HomeVisitStep3Vitals,
   HomeVisitStepAllergy,
@@ -2172,7 +2169,8 @@ export const HOMEVISIT_STEP_RENDERERS = [
   /* ขั้น "ประเมิน" ถูกยุบเข้าไปในขั้น "ประเมินอาการป่วย" แล้ว
      (มติผู้ใช้ 30 ส.ค. 69) — `HomeVisitStep4Assessment` ยัง export อยู่และถูก
      เรียกจากขั้นนั้นโดยตรง */
-  HomeVisitStep5Care,
+  /* ขั้น "บันทึกตามบทบาท/กิจกรรม" ถูกถอดออกจากโฟลว์ (มติผู้ใช้ 2 ก.ย. 69) —
+     คีย์ `form.activities` ยังอยู่ในโมเดลและในใบสรุป/บันทึกเก่า */
   /* ขั้น "สั่งการรักษา" (CPOE) ถูกถอดออกจากโฟลว์ (มติผู้ใช้ 30 ส.ค. 69) —
      `HomeVisitStep6Orders` กับสะพาน `homevisitCpoe.js` ยังอยู่ครบ รอที่ทางใหม่ */
   HomeVisitStep7Family,

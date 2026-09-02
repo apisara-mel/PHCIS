@@ -32,9 +32,9 @@ const REGISTRY_SEED = [
   {
     id: 'hvreg-001', hn: '67-00005', name: 'สุดา ปลอดโปร่ง', age: 67, gender: 'หญิง',
     nationalId: '1100400512341', group: 'severeDisability', source: 'hhc',
-    district: 'เขตคลองเตย', community: 'ชุมชนล็อค 1-2-3',
-    address: '48/12 ซอยอาจณรงค์ 5 แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
-    home: { lat: 13.7702, lng: 100.4906, pinSaved: true },
+    district: 'เขตดินแดง', community: 'ชุมชนแฟลตดินแดง 1-2-3',
+    address: '48/12 ถนนวิภาวดีรังสิต ซอย 3 แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    home: { lat: 13.7717, lng: 100.556, pinSaved: true },
     responsible: 'พว.ศิริพร เยี่ยมสุข', profession: 'nurse',
     registeredDate: '2025-03-11', lastVisitDate: '2026-06-12', visitCount: 8,
     confidential: false, flags: ['bedbound', 'pressureSore'], active: true,
@@ -51,9 +51,9 @@ const REGISTRY_SEED = [
   {
     id: 'hvreg-002', hn: '67-00012', name: 'วิชัย รุ่งเรือง', age: 60, gender: 'ชาย',
     nationalId: '3100600298764', group: 'chronic', source: 'hv',
-    district: 'เขตวัฒนา', community: 'ชุมชนซอยทองหล่อ 20',
-    address: '109 ซอยสุขุมวิท 55 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
-    home: { lat: 13.7585, lng: 100.5122, pinSaved: true },
+    district: 'เขตห้วยขวาง', community: 'ชุมชนริมคลองบางซื่อ',
+    address: '109 ถนนประชาสงเคราะห์ 26 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
+    home: { lat: 13.7734, lng: 100.5769, pinSaved: true },
     responsible: 'พว.กาญจนา ถึงบ้าน', profession: 'nurse',
     registeredDate: '2025-11-04', lastVisitDate: '2026-07-10', visitCount: 5,
     confidential: false, flags: [], active: true,
@@ -64,9 +64,9 @@ const REGISTRY_SEED = [
   {
     id: 'hvreg-003', hn: '67-00018', name: 'ธีรเดช อัครพงศ์', age: 55, gender: 'ชาย',
     nationalId: '1102700884512', group: 'terminal', source: 'hhc',
-    district: 'เขตพระโขนง', community: 'ชุมชนริมคลองพระโขนง',
-    address: '77/3 ซอยสุขุมวิท 71 แขวงพระโขนงเหนือ เขตพระโขนง กรุงเทพมหานคร 10260',
-    home: { lat: 13.7481, lng: 100.5288, pinSaved: true },
+    district: 'เขตพญาไท', community: 'ชุมชนวัดไผ่ตัน',
+    address: '77/3 ถนนราชวิถี ซอย 4 แขวงสามเสนใน เขตพญาไท กรุงเทพมหานคร 10400',
+    home: { lat: 13.7818, lng: 100.5288, pinSaved: true },
     responsible: 'นพ.ธนวัฒน์ เมตตา', profession: 'doctor',
     registeredDate: '2026-02-02', lastVisitDate: '2026-07-30', visitCount: 12,
     confidential: true, flags: ['palliative', 'oxygen'], active: true,
@@ -77,9 +77,9 @@ const REGISTRY_SEED = [
   {
     id: 'hvreg-004', hn: '67-00027', name: 'จิราพร มณีโชติ', age: 23, gender: 'หญิง',
     nationalId: '1409901234560', group: 'curable', source: 'motherChildHv',
-    district: 'เขตคลองเตย', community: 'ชุมชนพัฒนาใหม่',
-    address: '15/44 ซอยไผ่สิงโต แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
-    home: { lat: 13.7738, lng: 100.4972, pinSaved: true },
+    district: 'เขตดินแดง', community: 'ชุมชนประชาสงเคราะห์ 24',
+    address: '15/44 ซอยดินแดง 1 แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    home: { lat: 13.7771, lng: 100.5497, pinSaved: true },
     responsible: 'พว.ดวงพร ห่วงใย', profession: 'nurse',
     registeredDate: '2026-07-28', lastVisitDate: '2026-08-01', visitCount: 1,
     confidential: false, flags: [], active: true,
@@ -90,9 +90,9 @@ const REGISTRY_SEED = [
   {
     id: 'hvreg-005', hn: '67-00003', name: 'ปริญญา รัตนา', age: 54, gender: 'หญิง',
     nationalId: '3101200477883', group: 'mildDisability', source: 'healthDeskHv',
-    district: 'เขตวัฒนา', community: 'ชุมชนสวนอ้อย',
-    address: '223 ซอยเอกมัย 12 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
-    home: { lat: 13.7546, lng: 100.5205, pinSaved: true },
+    district: 'เขตห้วยขวาง', community: 'ชุมชนรุ่งมณีพัฒนา',
+    address: '223 ถนนประชาสงเคราะห์ 26 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
+    home: { lat: 13.7734, lng: 100.5832, pinSaved: true },
     responsible: 'กภ.ณัฐวุฒิ ฟื้นฟู', profession: 'physio',
     registeredDate: '2026-01-19', lastVisitDate: '2026-07-18', visitCount: 4,
     confidential: false, flags: ['fallRisk'], active: true,
@@ -103,9 +103,9 @@ const REGISTRY_SEED = [
   {
     id: 'hvreg-006', hn: '67-00021', name: 'วรรณภา ทองดี', age: 50, gender: 'หญิง',
     nationalId: '3100900556670', group: 'chronic', source: 'centerFound',
-    district: 'เขตคลองเตย', community: 'ชุมชนคลองเตยล็อค 4-5-6',
-    address: '9/88 ซอยอาจณรงค์ 3 แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
-    home: { lat: 13.7684, lng: 100.4861, pinSaved: true },
+    district: 'เขตดินแดง', community: 'ชุมชนแฟลตดินแดง 4-5-6',
+    address: '9/88 ซอยประชาสงเคราะห์ 12 แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    home: { lat: 13.7663, lng: 100.5476, pinSaved: true },
     responsible: 'พว.ศิริพร เยี่ยมสุข', profession: 'nurse',
     registeredDate: '2025-09-08', lastVisitDate: todayIsoDate(), visitCount: 6,
     confidential: false, flags: [], active: true,
@@ -116,9 +116,9 @@ const REGISTRY_SEED = [
   {
     id: 'hvreg-007', hn: '67-00014', name: 'ชัยวัฒน์ ก้องเกียรติ', age: 47, gender: 'ชาย',
     nationalId: '1103300221142', group: 'severeDisability', source: 'hhc',
-    district: 'เขตพระโขนง', community: 'ชุมชนสุเหร่าบ้านดอน',
-    address: '66/2 ซอยสุขุมวิท 38 แขวงพระโขนง เขตคลองเตย กรุงเทพมหานคร 10110',
-    home: { lat: 13.7523, lng: 100.5341, pinSaved: true },
+    district: 'เขตพญาไท', community: 'ชุมชนซอยอารีย์สัมพันธ์',
+    address: '66/2 ถนนมิตรไมตรี แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    home: { lat: 13.7746, lng: 100.533, pinSaved: true },
     responsible: 'พว.ดวงพร ห่วงใย', profession: 'nurse',
     registeredDate: '2024-12-02', lastVisitDate: '2026-01-15', visitCount: 9,
     confidential: false, flags: ['bedbound', 'tubeFeeding'], active: true,
@@ -129,9 +129,9 @@ const REGISTRY_SEED = [
   {
     id: 'hvreg-008', hn: '67-00011', name: 'อรอุมา ดวงสว่าง', age: 48, gender: 'หญิง',
     nationalId: '3120100998872', group: 'special', source: 'healthDeskHv',
-    district: 'เขตบางกอกน้อย', community: 'ชุมชนวัดระฆัง',
-    address: '5/7 ซอยอิสรภาพ 44 แขวงบ้านช่างหล่อ เขตบางกอกน้อย กรุงเทพมหานคร 10700',
-    home: { lat: 13.7601, lng: 100.4738, pinSaved: true },
+    district: 'เขตดินแดง', community: 'ชุมชนซอยประชาสงเคราะห์ 12',
+    address: '5/7 ซอยประชาสงเคราะห์ 12 แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    home: { lat: 13.7681, lng: 100.5602, pinSaved: true },
     responsible: 'นสค.ปิยะ ช่วยชุมชน', profession: 'social',
     registeredDate: '2025-05-06', lastVisitDate: '2026-05-06', visitCount: 2,
     confidential: true, flags: ['alone'], active: true,
@@ -142,9 +142,9 @@ const REGISTRY_SEED = [
   {
     id: 'hvreg-009', hn: '67-00009', name: 'กิตติ ศรีสมบูรณ์', age: 52, gender: 'ชาย',
     nationalId: '3100200334453', group: 'chronic', source: 'hv',
-    district: 'เขตธนบุรี', community: 'ชุมชนตลาดพลู',
-    address: '18 ซอยเทอดไท 33 แขวงตลาดพลู เขตธนบุรี กรุงเทพมหานคร 10600',
-    home: { lat: 13.7442, lng: 100.4756, pinSaved: true },
+    district: 'เขตห้วยขวาง', community: 'ชุมชนตลาดห้วยขวาง',
+    address: '18 ซอยรัชดาภิเษก 7 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
+    home: { lat: 13.7806, lng: 100.5874, pinSaved: true },
     responsible: 'พว.กาญจนา ถึงบ้าน', profession: 'nurse',
     registeredDate: '2026-03-15', lastVisitDate: '2026-07-25', visitCount: 3,
     confidential: false, flags: [], active: true,
@@ -155,8 +155,8 @@ const REGISTRY_SEED = [
   {
     id: 'hvreg-010', hn: '67-00025', name: 'ภาสกร ชาญฉลาด', age: 41, gender: 'ชาย',
     nationalId: '1101800776656', group: 'special', source: 'healthDeskHv',
-    district: 'เขตวัฒนา', community: 'ชุมชนใต้ทางด่วนอโศก',
-    address: '4 ซอยสุขุมวิท 21 แขวงคลองเตยเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
+    district: 'เขตห้วยขวาง', community: 'ชุมชนใต้ทางด่วนรัชดา',
+    address: '4 ซอยพระราม 9 ซอย 41 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
     home: null,
     responsible: 'นสค.ปิยะ ช่วยชุมชน', profession: 'social',
     registeredDate: '2025-08-14', lastVisitDate: '2025-08-14', visitCount: 1,
@@ -168,9 +168,9 @@ const REGISTRY_SEED = [
   {
     id: 'hvreg-011', hn: '67-00007', name: 'มาลี อ่อนน้อม', age: 45, gender: 'หญิง',
     nationalId: '3101100443324', group: 'curable', source: 'hv',
-    district: 'เขตวัฒนา', community: 'ชุมชนซอยร่วมฤดี',
-    address: '31 ซอยสุขุมวิท 31 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
-    home: { lat: 13.7566, lng: 100.5148, pinSaved: true },
+    district: 'เขตห้วยขวาง', community: 'ชุมชนประชาราษฎร์บำเพ็ญ',
+    address: '31 ถนนประชาสงเคราะห์ 26 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
+    home: { lat: 13.777, lng: 100.5706, pinSaved: true },
     responsible: 'พว.ศิริพร เยี่ยมสุข', profession: 'nurse',
     registeredDate: '2026-07-20', lastVisitDate: todayIsoDate(), visitCount: 2,
     confidential: false, flags: [], active: true,
@@ -181,9 +181,9 @@ const REGISTRY_SEED = [
   {
     id: 'hvreg-012', hn: '67-00017', name: 'ภัคจิรา วงศ์อนันต์', age: 41, gender: 'หญิง',
     nationalId: '3130200665549', group: 'mildDisability', source: 'hhc',
-    district: 'เขตบางกอกน้อย', community: 'ชุมชนบ้านช่างหล่อ',
-    address: '88 ซอยพรานนก 6 แขวงบ้านช่างหล่อ เขตบางกอกน้อย กรุงเทพมหานคร 10700',
-    home: { lat: 13.7628, lng: 100.4712, pinSaved: true },
+    district: 'เขตดินแดง', community: 'ชุมชนแฟลตดินแดง 7-8',
+    address: '88 ถนนมิตรไมตรี แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    home: { lat: 13.7753, lng: 100.5602, pinSaved: true },
     responsible: 'กภ.ณัฐวุฒิ ฟื้นฟู', profession: 'physio',
     registeredDate: '2025-10-01', lastVisitDate: '2026-07-28', visitCount: 6,
     confidential: false, flags: ['fallRisk'], active: true,
@@ -255,23 +255,23 @@ export const getRegistryCancellation = (id) =>
 const SMARTCARD_POOL = [
   {
     nationalId: '1100400512341', name: 'สุดา ปลอดโปร่ง', gender: 'หญิง', age: 67,
-    address: '48/12 ซอยอาจณรงค์ 5 แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
-    district: 'เขตคลองเตย', hn: '67-00005',
+    address: '48/12 ถนนวิภาวดีรังสิต ซอย 3 แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    district: 'เขตดินแดง', hn: '67-00005',
   },
   {
     nationalId: '3100600298764', name: 'วิชัย รุ่งเรือง', gender: 'ชาย', age: 60,
-    address: '109 ซอยสุขุมวิท 55 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
-    district: 'เขตวัฒนา', hn: '67-00012',
+    address: '109 ถนนประชาสงเคราะห์ 26 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
+    district: 'เขตห้วยขวาง', hn: '67-00012',
   },
   {
     nationalId: '1103300221142', name: 'ชัยวัฒน์ ก้องเกียรติ', gender: 'ชาย', age: 47,
-    address: '66/2 ซอยสุขุมวิท 38 แขวงพระโขนง เขตคลองเตย กรุงเทพมหานคร 10110',
-    district: 'เขตพระโขนง', hn: '67-00014',
+    address: '66/2 ถนนมิตรไมตรี แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    district: 'เขตพญาไท', hn: '67-00014',
   },
   {
     nationalId: '1409901234560', name: 'จิราพร มณีโชติ', gender: 'หญิง', age: 23,
-    address: '15/44 ซอยไผ่สิงโต แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
-    district: 'เขตคลองเตย', hn: '67-00027',
+    address: '15/44 ซอยดินแดง 1 แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    district: 'เขตดินแดง', hn: '67-00027',
   },
 ];
 
@@ -556,18 +556,50 @@ const MOCK_FAMILY_BY_HN = {
   ],
 };
 
-const buildMockFamily = (entry) => (MOCK_FAMILY_BY_HN[entry.hn] || []).map((m, i) => ({
-  id: `fam-${entry.hn}-${i + 1}`,
-  ...m,
-  mock: true,
-}));
+/* ครัวเรือนตั้งต้นสำหรับ HN ที่ยังไม่อยู่ในทะเบียนเยี่ยมบ้าน (เปิดบันทึกแบบ
+   ad-hoc จากหน้าติดตาม/ลิงก์ตรง) — ตาราง Family Folder เคยว่างเปล่าทั้งใบ
+   จนดูไม่ออกว่าคอลัมน์ไหนเก็บอะไร (มติผู้ใช้ 2 ก.ย. 69) */
+const DEFAULT_MOCK_FAMILY = [
+  { name: 'สมปอง มีสุข', relation: 'คู่สมรส', age: '65', health: 'caregiver' },
+  { name: 'ธนกฤต มีสุข', relation: 'บุตร', age: '38', health: 'healthy' },
+  { name: 'ด.ญ.ปุณิกา มีสุข', relation: 'หลาน', age: '9', health: 'child' },
+];
 
-/** สมาชิกในครอบครัวของครัวเรือนนี้ — ที่บันทึกไว้จริง มิฉะนั้นเป็นชุด mock. */
+/** ข้อมูลครัวเรือนตั้งต้นของ HN ที่ยังไม่อยู่ในทะเบียน — คู่กับ
+    `DEFAULT_MOCK_FAMILY` เพื่อให้หัวแฟ้มครอบครัวไม่ขึ้น "—" ทั้งแถว */
+export const DEFAULT_MOCK_HOUSEHOLD = {
+  address: '112/45 ซอยประชาสงเคราะห์ 12 แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+  community: 'ชุมชนแฟลตดินแดง 1-2-3',
+  district: 'เขตดินแดง',
+  contactName: 'นางสมปอง มีสุข (คู่สมรส)',
+  contactPhone: '089-145-2278',
+};
+
+const buildMockFamily = (entry) => {
+  const rows = (entry && MOCK_FAMILY_BY_HN[entry.hn]) || DEFAULT_MOCK_FAMILY;
+  const prefix = entry?.hn || 'default';
+  return rows.map((m, i) => ({ id: `fam-${prefix}-${i + 1}`, ...m, mock: true }));
+};
+
+/** สมาชิกในครอบครัวของครัวเรือนนี้ — ที่บันทึกไว้จริง มิฉะนั้นเป็นชุด mock
+    (HN ที่ยังไม่อยู่ในทะเบียนก็ได้ชุดตั้งต้น ไม่ปล่อยตารางว่าง). */
 export const getFamilyMembers = (hn) => {
   const reg = hn ? findRegistryEntryByHn(hn) : null;
-  if (!reg) return [];
-  if ((reg.familyMembers || []).length > 0) return reg.familyMembers;
+  if (reg && (reg.familyMembers || []).length > 0) return reg.familyMembers;
   return buildMockFamily(reg);
+};
+
+/** หัวแฟ้มครอบครัว (ที่อยู่ · ชุมชน · เขต · ผู้ติดต่อ) ของครัวเรือนนี้. */
+export const getHouseholdProfile = (hn, fallbackEntry = null) => {
+  const reg = (hn ? findRegistryEntryByHn(hn) : null) || fallbackEntry;
+  if (!reg) return { ...DEFAULT_MOCK_HOUSEHOLD, mock: true };
+  return {
+    address: reg.address || DEFAULT_MOCK_HOUSEHOLD.address,
+    community: reg.community || DEFAULT_MOCK_HOUSEHOLD.community,
+    district: reg.district || DEFAULT_MOCK_HOUSEHOLD.district,
+    contactName: reg.contactName || DEFAULT_MOCK_HOUSEHOLD.contactName,
+    contactPhone: reg.contactPhone || DEFAULT_MOCK_HOUSEHOLD.contactPhone,
+  };
 };
 
 /** บันทึกสมาชิกในครอบครัวกลับเข้าทะเบียน (ระดับครัวเรือน — S011).

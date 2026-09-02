@@ -46,7 +46,10 @@ const BEHAVIOR_DETAIL_SUGGESTIONS = [
   'ไม่ออกกำลังกายเนื่องจากปวดเข่า แนะนำกายภาพบำบัดท่านั่ง',
 ];
 
-const ScreeningStep4 = ({ onValidityChange, patient }) => {
+/* `padded=false` = หน้าที่เอาขั้นนี้ไปวางใน <SectionCard> ของตัวเองอยู่แล้ว
+   (งานเยี่ยมบ้าน) — ถ้ายังใส่ระยะขอบของตัวเองซ้อนเข้าไปอีก ระยะจากเนื้อหาถึง
+   ขอบการ์ดจะกลายเป็น 48px (มติผู้ใช้ 2 ก.ย. 69: ต้องเป็น 24px) */
+const ScreeningStep4 = ({ onValidityChange, patient, padded = true }) => {
   const [choices, setChoices] = useState({ smoking: null, alcohol: null, exercise: null });
   const [detail, setDetail] = useState('');
 
@@ -74,10 +77,10 @@ const ScreeningStep4 = ({ onValidityChange, patient }) => {
            และระยะระหว่างข้อเป็น 16px ทำให้สามข้อดูติดกันเป็นก้อนเดียว */
         style={{
           gap: 'var(--dim-space-600)',
-          paddingTop: 'var(--dim-space-600)',
-          paddingBottom: 'var(--dim-space-600)',
-          paddingLeft: 'var(--dim-space-600)',
-          paddingRight: 'var(--dim-space-600)',
+          paddingTop: padded ? 'var(--dim-space-600)' : 'var(--dim-space-0, 0px)',
+          paddingBottom: padded ? 'var(--dim-space-600)' : 'var(--dim-space-0, 0px)',
+          paddingLeft: padded ? 'var(--dim-space-600)' : 'var(--dim-space-0, 0px)',
+          paddingRight: padded ? 'var(--dim-space-600)' : 'var(--dim-space-0, 0px)',
         }}
       >
         <div className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>

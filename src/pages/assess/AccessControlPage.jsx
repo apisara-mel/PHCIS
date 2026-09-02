@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useActiveCenter } from '@/pages/users/usersShared';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import OrgStructureSubNav from '@/components/system/OrgStructureSubNav';
@@ -168,7 +169,15 @@ function AttrCell({ value, style, emptyLabel }) {
 
 export default function AccessControlPage() {
   const navigate = useHistory();
-  const [records, setRecords] = useState(() => readAccessControls());
+  const [allRecords, setRecords] = useState(() => readAccessControls());
+  /* ทั้งโมดูล "จัดการระบบ" ทำงานในขอบเขตศูนย์ที่เลือกไว้บน Header
+     (มติผู้ใช้ 2 ก.ย. 69) — แม่แบบสิทธิ์เป็นของแต่ละศูนย์ (`centerId`)
+     แม่แบบที่ยังไม่ระบุศูนย์ถือว่าเป็นของส่วนกลาง จึงเห็นได้ทุกศูนย์ */
+  const { center: activeCenter } = useActiveCenter();
+  const records = useMemo(
+    () => allRecords.filter((r) => !r.centerId || r.centerId === activeCenter),
+    [allRecords, activeCenter],
+  );
   const [createOpen, setCreateOpen] = useState(false);
   const [permView, setPermView] = useState(null);
   const [editRecord, setEditRecord] = useState(null);
@@ -184,10 +193,22 @@ export default function AccessControlPage() {
   const [decision, setDecision] = useState(null); // { row, approved }
   const [toast, setToast] = useState(null);
 
+  /* `next` เป็นรายการ "เฉพาะศูนย์ที่กำลังดู" — ต้องผสมกลับเข้ากับแม่แบบของ
+     ศูนย์อื่นก่อนเขียนทะเบียน ไม่งั้นบันทึกครั้งเดียวแม่แบบศูนย์อื่นหายทั้งชุด */
   const persist = useCallback((next) => {
-    writeAccessControls(next);
-    setRecords(next);
-  }, []);
+    setRecords((prev) => {
+      const inScope = (r) => !r.centerId || r.centerId === activeCenter;
+      const byId = new Map(next.map((r) => [r.id, r]));
+      const merged = [];
+      prev.forEach((r) => {
+        if (!inScope(r)) { merged.push(r); return; }
+        if (byId.has(r.id)) { merged.push(byId.get(r.id)); byId.delete(r.id); }
+      });
+      byId.forEach((r) => merged.push(r));
+      writeAccessControls(merged);
+      return merged;
+    });
+  }, [activeCenter]);
 
   const showToast = (message) => {
     setToast(message);

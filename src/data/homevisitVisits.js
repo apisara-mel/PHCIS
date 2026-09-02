@@ -197,9 +197,9 @@ export const HOMEVISIT_STAFF = [
   { name: 'อสส.บุญมี รักชุมชน',      profession: 'volunteer'  },
 ];
 
-export const HOMEVISIT_DISTRICTS = [
-  'เขตคลองเตย', 'เขตวัฒนา', 'เขตพระโขนง', 'เขตบางกอกน้อย', 'เขตธนบุรี',
-];
+/* รายชื่อเขตย้ายไปอยู่ที่ `@/data/centerDistricts` แล้ว (มติผู้ใช้ 2 ก.ย. 69)
+   — เขตที่เลือกได้ขึ้นกับศูนย์บริการที่เลือกไว้บน Header ไม่ใช่ค่าคงที่ชุดเดียว
+   ทั้งระบบ ใช้ `getCenterDistricts(center)` / `buildDistrictFilterOptions(center)` */
 
 export const HOMEVISIT_TIME_SLOTS = [
   { value: 'morning',   label: 'ช่วงเช้า (08:30–12:00)' },
@@ -228,9 +228,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2601', hn: '67-00005', name: 'สุดา ปลอดโปร่ง', age: 67, gender: 'หญิง',
     group: 'severeDisability', source: 'hhc', statusKey: 'toDepart',
-    district: 'เขตคลองเตย', community: 'ชุมชนล็อค 1-2-3',
-    address: '48/12 ซอยอาจณรงค์ 5 แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
-    home: { lat: 13.7702, lng: 100.4906, pinSaved: true },
+    district: 'เขตดินแดง', community: 'ชุมชนแฟลตดินแดง 1-2-3',
+    address: '48/12 ถนนวิภาวดีรังสิต ซอย 3 แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    home: { lat: 13.7609, lng: 100.5623, pinSaved: true },
     responsible: 'พว.ศิริพร เยี่ยมสุข', profession: 'nurse',
     visitDate: null, timeSlot: 'morning', appointmentTime: '09:00',
     lastVisitDate: '2026-06-12', visitCount: 8, confidential: false,
@@ -240,9 +240,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2602', hn: '67-00012', name: 'วิชัย รุ่งเรือง', age: 60, gender: 'ชาย',
     group: 'chronic', source: 'hv', statusKey: 'toDepart',
-    district: 'เขตวัฒนา', community: 'ชุมชนซอยทองหล่อ 20',
-    address: '109 ซอยสุขุมวิท 55 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
-    home: { lat: 13.7585, lng: 100.5122, pinSaved: true },
+    district: 'เขตห้วยขวาง', community: 'ชุมชนริมคลองบางซื่อ',
+    address: '109 ถนนประชาสงเคราะห์ 26 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
+    home: { lat: 13.7716, lng: 100.5685, pinSaved: true },
     responsible: 'พว.กาญจนา ถึงบ้าน', profession: 'nurse',
     visitDate: null, timeSlot: 'morning', appointmentTime: '10:30',
     lastVisitDate: '2026-07-10', visitCount: 5, confidential: false,
@@ -252,9 +252,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2603', hn: '67-00018', name: 'ธีรเดช อัครพงศ์', age: 55, gender: 'ชาย',
     group: 'terminal', source: 'hhc', statusKey: 'toDepart',
-    district: 'เขตพระโขนง', community: 'ชุมชนริมคลองพระโขนง',
-    address: '77/3 ซอยสุขุมวิท 71 แขวงพระโขนงเหนือ เขตพระโขนง กรุงเทพมหานคร 10260',
-    home: { lat: 13.7481, lng: 100.5288, pinSaved: true },
+    district: 'เขตพญาไท', community: 'ชุมชนวัดไผ่ตัน',
+    address: '77/3 ถนนราชวิถี ซอย 4 แขวงสามเสนใน เขตพญาไท กรุงเทพมหานคร 10400',
+    home: { lat: 13.7764, lng: 100.5393, pinSaved: true },
     responsible: 'นพ.ธนวัฒน์ เมตตา', profession: 'doctor',
     visitDate: null, timeSlot: 'morning', appointmentTime: '11:00',
     lastVisitDate: '2026-07-30', visitCount: 12, confidential: true,
@@ -264,9 +264,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2604', hn: '67-00027', name: 'จิราพร มณีโชติ', age: 23, gender: 'หญิง',
     group: 'curable', source: 'motherChildHv', statusKey: 'scheduled',
-    district: 'เขตคลองเตย', community: 'ชุมชนพัฒนาใหม่',
-    address: '15/44 ซอยไผ่สิงโต แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
-    home: { lat: 13.7738, lng: 100.4972, pinSaved: true },
+    district: 'เขตดินแดง', community: 'ชุมชนประชาสงเคราะห์ 24',
+    address: '15/44 ซอยดินแดง 1 แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    home: { lat: 13.7627, lng: 100.5539, pinSaved: true },
     responsible: 'พว.ดวงพร ห่วงใย', profession: 'nurse',
     visitDate: null, timeSlot: 'afternoon', appointmentTime: '13:30',
     lastVisitDate: '2026-08-01', visitCount: 1, confidential: false,
@@ -276,9 +276,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2605', hn: '67-00003', name: 'ปริญญา รัตนา', age: 54, gender: 'หญิง',
     group: 'mildDisability', source: 'healthDeskHv', statusKey: 'scheduled',
-    district: 'เขตวัฒนา', community: 'ชุมชนสวนอ้อย',
-    address: '223 ซอยเอกมัย 12 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
-    home: { lat: 13.7546, lng: 100.5205, pinSaved: true },
+    district: 'เขตห้วยขวาง', community: 'ชุมชนรุ่งมณีพัฒนา',
+    address: '223 ถนนประชาสงเคราะห์ 26 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
+    home: { lat: 13.7824, lng: 100.5769, pinSaved: true },
     responsible: 'กภ.ณัฐวุฒิ ฟื้นฟู', profession: 'physio',
     visitDate: null, timeSlot: 'afternoon', appointmentTime: '14:30',
     lastVisitDate: '2026-07-18', visitCount: 4, confidential: false,
@@ -288,9 +288,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2606', hn: '67-00021', name: 'วรรณภา ทองดี', age: 50, gender: 'หญิง',
     group: 'chronic', source: 'centerFound', statusKey: 'done',
-    district: 'เขตคลองเตย', community: 'ชุมชนคลองเตยล็อค 4-5-6',
-    address: '9/88 ซอยอาจณรงค์ 3 แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
-    home: { lat: 13.7684, lng: 100.4861, pinSaved: true },
+    district: 'เขตดินแดง', community: 'ชุมชนแฟลตดินแดง 4-5-6',
+    address: '9/88 ซอยประชาสงเคราะห์ 12 แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    home: { lat: 13.7771, lng: 100.5602, pinSaved: true },
     responsible: 'พว.ศิริพร เยี่ยมสุข', profession: 'nurse',
     visitDate: null, timeSlot: 'morning', appointmentTime: '08:45',
     lastVisitDate: todayIsoDate(), visitCount: 6, confidential: false,
@@ -302,9 +302,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2620', hn: '67-00003', name: 'วิชัย รุ่งเรือง', age: 68, gender: 'ชาย',
     group: 'mildDisability', source: 'hv', statusKey: 'done',
-    district: 'เขตวัฒนา', community: 'ชุมชนซอยทองหล่อ 20',
-    address: '55/12 ซอยสุขุมวิท 55 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
-    home: { lat: 13.7312, lng: 100.5836, pinSaved: true },
+    district: 'เขตห้วยขวาง', community: 'ชุมชนริมคลองบางซื่อ',
+    address: '55/12 ซอยพระราม 9 ซอย 41 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
+    home: { lat: 13.7734, lng: 100.579, pinSaved: true },
     responsible: 'กภ.ณัฐวุฒิ ฟื้นฟู', profession: 'physio',
     visitDate: todayIsoDate(), timeSlot: 'morning', appointmentTime: '09:15',
     lastVisitDate: todayIsoDate(), visitCount: 5, confidential: false,
@@ -314,9 +314,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2621', hn: '67-00013', name: 'พิมพ์ใจ จันทรา', age: 33, gender: 'หญิง',
     group: 'curable', source: 'motherChildHv', statusKey: 'done',
-    district: 'เขตคลองเตย', community: 'ชุมชนหมู่บ้านพัฒนา',
-    address: '108/5 ซอยพระราม 4 ซอย 12 แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
-    home: { lat: 13.7141, lng: 100.5602, pinSaved: true },
+    district: 'เขตดินแดง', community: 'ชุมชนริมคลองสามเสน',
+    address: '108/5 ถนนวิภาวดีรังสิต ซอย 3 แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    home: { lat: 13.7753, lng: 100.5455, pinSaved: true },
     responsible: 'พว.ดวงพร ห่วงใย', profession: 'nurse',
     visitDate: todayIsoDate(), timeSlot: 'morning', appointmentTime: '10:00',
     lastVisitDate: todayIsoDate(), visitCount: 2, confidential: false,
@@ -326,9 +326,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2622', hn: '67-00011', name: 'อรอุมา ดวงสว่าง', age: 45, gender: 'หญิง',
     group: 'special', source: 'healthDeskHv', statusKey: 'done',
-    district: 'เขตบางกอกน้อย', community: 'ชุมชนวัดระฆัง',
-    address: '77/3 ซอยอรุณอมรินทร์ 14 แขวงศิริราช เขตบางกอกน้อย กรุงเทพมหานคร 10700',
-    home: { lat: 13.7538, lng: 100.4849, pinSaved: true },
+    district: 'เขตดินแดง', community: 'ชุมชนซอยประชาสงเคราะห์ 12',
+    address: '77/3 ซอยประชาสงเคราะห์ 12 แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    home: { lat: 13.7609, lng: 100.5455, pinSaved: true },
     responsible: 'นสค.ปิยะ ช่วยชุมชน', profession: 'social',
     visitDate: todayIsoDate(), timeSlot: 'afternoon', appointmentTime: '13:45',
     lastVisitDate: todayIsoDate(), visitCount: 3, confidential: false,
@@ -340,9 +340,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2630', hn: '67-00005', name: 'สุดา ปลอดโปร่ง', age: 67, gender: 'หญิง',
     group: 'severeDisability', source: 'hhc', statusKey: 'scheduled',
-    district: 'เขตพระโขนง', community: 'ชุมชนสุเหร่าบ้านดอน',
-    address: '12/45 ซอยสุขุมวิท 71 แขวงพระโขนงเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
-    home: { lat: 13.7229, lng: 100.5926, pinSaved: true },
+    district: 'เขตพญาไท', community: 'ชุมชนซอยอารีย์สัมพันธ์',
+    address: '12/45 ถนนประชาสงเคราะห์ 26 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
+    home: { lat: 13.7782, lng: 100.5267, pinSaved: true },
     responsible: 'พว.ศิริพร เยี่ยมสุข', profession: 'nurse',
     visitDate: addDaysIso(todayIsoDate(), 2), timeSlot: 'morning', appointmentTime: '09:30',
     lastVisitDate: null, visitCount: 11, confidential: false,
@@ -352,9 +352,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2631', hn: '67-00018', name: 'ธีรเดช อัครพงศ์', age: 55, gender: 'ชาย',
     group: 'terminal', source: 'hhc', statusKey: 'scheduled',
-    district: 'เขตพระโขนง', community: 'ชุมชนริมคลองพระโขนง',
-    address: '88/2 ซอยปรีดี พนมยงค์ 14 แขวงพระโขนงเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
-    home: { lat: 13.7196, lng: 100.5878, pinSaved: true },
+    district: 'เขตพญาไท', community: 'ชุมชนวัดไผ่ตัน',
+    address: '88/2 ถนนประชาสงเคราะห์ 26 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
+    home: { lat: 13.7728, lng: 100.5351, pinSaved: true },
     responsible: 'นพ.ธนวัฒน์ เมตตา', profession: 'doctor',
     visitDate: addDaysIso(todayIsoDate(), 5), timeSlot: 'afternoon', appointmentTime: '13:30',
     lastVisitDate: null, visitCount: 5, confidential: false,
@@ -364,9 +364,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2632', hn: '67-00012', name: 'วิชัย รุ่งเรือง', age: 60, gender: 'ชาย',
     group: 'chronic', source: 'hv', statusKey: 'scheduled',
-    district: 'เขตวัฒนา', community: 'ชุมชนซอยทองหล่อ 20',
-    address: '31/9 ซอยทองหล่อ 20 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
-    home: { lat: 13.7351, lng: 100.5822, pinSaved: true },
+    district: 'เขตห้วยขวาง', community: 'ชุมชนริมคลองบางซื่อ',
+    address: '31/9 ถนนประชาสงเคราะห์ 26 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
+    home: { lat: 13.7842, lng: 100.5874, pinSaved: true },
     responsible: 'พว.ดวงพร ห่วงใย', profession: 'nurse',
     visitDate: addDaysIso(todayIsoDate(), 9), timeSlot: 'morning', appointmentTime: '10:15',
     lastVisitDate: null, visitCount: 3, confidential: false,
@@ -376,9 +376,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2607', hn: '67-00009', name: 'กิตติ ศรีสมบูรณ์', age: 52, gender: 'ชาย',
     group: 'chronic', source: 'hv', statusKey: 'draft',
-    district: 'เขตธนบุรี', community: 'ชุมชนตลาดพลู',
-    address: '18 ซอยเทอดไท 33 แขวงตลาดพลู เขตธนบุรี กรุงเทพมหานคร 10600',
-    home: { lat: 13.7442, lng: 100.4756, pinSaved: true },
+    district: 'เขตห้วยขวาง', community: 'ชุมชนตลาดห้วยขวาง',
+    address: '18 ซอยรัชดาภิเษก 7 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
+    home: { lat: 13.768, lng: 100.5748, pinSaved: true },
     responsible: 'พว.กาญจนา ถึงบ้าน', profession: 'nurse',
     visitDate: null, timeSlot: 'afternoon', appointmentTime: '15:30',
     lastVisitDate: '2026-07-25', visitCount: 3, confidential: false,
@@ -388,9 +388,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2608', hn: '67-00011', name: 'อรอุมา ดวงสว่าง', age: 48, gender: 'หญิง',
     group: 'special', source: 'healthDeskHv', statusKey: 'scheduled',
-    district: 'เขตบางกอกน้อย', community: 'ชุมชนวัดระฆัง',
-    address: '5/7 ซอยอิสรภาพ 44 แขวงบ้านช่างหล่อ เขตบางกอกน้อย กรุงเทพมหานคร 10700',
-    home: { lat: 13.7601, lng: 100.4738, pinSaved: true },
+    district: 'เขตดินแดง', community: 'ชุมชนซอยประชาสงเคราะห์ 12',
+    address: '5/7 ซอยประชาสงเคราะห์ 12 แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    home: { lat: 13.7735, lng: 100.5539, pinSaved: true },
     responsible: 'นสค.ปิยะ ช่วยชุมชน', profession: 'social',
     visitDate: null, timeSlot: 'afternoon', appointmentTime: '14:00',
     lastVisitDate: '2026-05-06', visitCount: 2, confidential: true,
@@ -400,9 +400,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2609', hn: '67-00014', name: 'ชัยวัฒน์ ก้องเกียรติ', age: 47, gender: 'ชาย',
     group: 'severeDisability', source: 'hhc', statusKey: 'scheduled',
-    district: 'เขตพระโขนง', community: 'ชุมชนสุเหร่าบ้านดอน',
-    address: '66/2 ซอยสุขุมวิท 38 แขวงพระโขนง เขตคลองเตย กรุงเทพมหานคร 10110',
-    home: { lat: 13.7523, lng: 100.5341, pinSaved: true },
+    district: 'เขตพญาไท', community: 'ชุมชนซอยอารีย์สัมพันธ์',
+    address: '66/2 ถนนมิตรไมตรี แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    home: { lat: 13.78, lng: 100.5267, pinSaved: true },
     responsible: 'พว.ดวงพร ห่วงใย', profession: 'nurse',
     visitDate: null, timeSlot: 'morning', appointmentTime: '09:45',
     lastVisitDate: '2026-01-15', visitCount: 9, confidential: false,
@@ -412,9 +412,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2610', hn: '67-00007', name: 'มาลี อ่อนน้อม', age: 45, gender: 'หญิง',
     group: 'curable', source: 'hv', statusKey: 'done',
-    district: 'เขตวัฒนา', community: 'ชุมชนซอยร่วมฤดี',
-    address: '31 ซอยสุขุมวิท 31 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
-    home: { lat: 13.7566, lng: 100.5148, pinSaved: true },
+    district: 'เขตห้วยขวาง', community: 'ชุมชนประชาราษฎร์บำเพ็ญ',
+    address: '31 ถนนประชาสงเคราะห์ 26 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
+    home: { lat: 13.7788, lng: 100.5685, pinSaved: true },
     responsible: 'พว.ศิริพร เยี่ยมสุข', profession: 'nurse',
     visitDate: null, timeSlot: 'morning', appointmentTime: '08:15',
     lastVisitDate: todayIsoDate(), visitCount: 2, confidential: false,
@@ -424,9 +424,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2611', hn: '67-00022', name: 'อนุชา สมบูรณ์ทรัพย์', age: 44, gender: 'ชาย',
     group: 'chronic', source: 'centerFound', statusKey: 'scheduled',
-    district: 'เขตธนบุรี', community: 'ชุมชนวัดกัลยาณ์',
-    address: '212 ซอยเจริญนคร 6 แขวงคลองสาน เขตธนบุรี กรุงเทพมหานคร 10600',
-    home: { lat: 13.7412, lng: 100.4885, pinSaved: true },
+    district: 'เขตห้วยขวาง', community: 'ชุมชนวัดพระราม 9',
+    address: '212 ถนนประชาอุทิศ แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
+    home: { lat: 13.7698, lng: 100.5874, pinSaved: true },
     responsible: 'ภก.อรทัย จัดยา', profession: 'pharmacist',
     visitDate: null, timeSlot: 'afternoon', appointmentTime: '15:00',
     lastVisitDate: '2025-12-20', visitCount: 1, confidential: false,
@@ -436,9 +436,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2612', hn: '67-00017', name: 'ภัคจิรา วงศ์อนันต์', age: 41, gender: 'หญิง',
     group: 'mildDisability', source: 'hhc', statusKey: 'scheduled',
-    district: 'เขตบางกอกน้อย', community: 'ชุมชนบ้านช่างหล่อ',
-    address: '88 ซอยพรานนก 6 แขวงบ้านช่างหล่อ เขตบางกอกน้อย กรุงเทพมหานคร 10700',
-    home: { lat: 13.7628, lng: 100.4712, pinSaved: true },
+    district: 'เขตดินแดง', community: 'ชุมชนแฟลตดินแดง 7-8',
+    address: '88 ถนนมิตรไมตรี แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    home: { lat: 13.7717, lng: 100.5497, pinSaved: true },
     responsible: 'กภ.ณัฐวุฒิ ฟื้นฟู', profession: 'physio',
     visitDate: null, timeSlot: 'morning', appointmentTime: '10:00',
     lastVisitDate: '2026-07-28', visitCount: 6, confidential: false,
@@ -448,9 +448,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2613', hn: '67-00013', name: 'พิมพ์ใจ จันทรา', age: 26, gender: 'หญิง',
     group: 'curable', source: 'motherChildHv', statusKey: 'scheduled',
-    district: 'เขตคลองเตย', community: 'ชุมชนหมู่บ้านพัฒนา',
-    address: '3/19 ซอยพระราม 4 ซอย 2 แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110',
-    home: { lat: 13.7719, lng: 100.5011, pinSaved: true },
+    district: 'เขตดินแดง', community: 'ชุมชนริมคลองสามเสน',
+    address: '3/19 ถนนวิภาวดีรังสิต ซอย 3 แขวงดินแดง เขตดินแดง กรุงเทพมหานคร 10400',
+    home: { lat: 13.7699, lng: 100.5518, pinSaved: true },
     responsible: 'พว.ดวงพร ห่วงใย', profession: 'nurse',
     visitDate: null, timeSlot: 'afternoon', appointmentTime: '13:00',
     lastVisitDate: null, visitCount: 0, confidential: false,
@@ -460,9 +460,9 @@ const HOMEVISIT_APPOINTMENT_SEED = [
   {
     id: 'hv-2614', hn: '67-00025', name: 'ภาสกร ชาญฉลาด', age: 41, gender: 'ชาย',
     group: 'special', source: 'healthDeskHv', statusKey: 'scheduled',
-    district: 'เขตวัฒนา', community: 'ชุมชนใต้ทางด่วนอโศก',
-    address: '4 ซอยสุขุมวิท 21 แขวงคลองเตยเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
-    home: { lat: 13.7492, lng: 100.5064, pinSaved: false },
+    district: 'เขตห้วยขวาง', community: 'ชุมชนใต้ทางด่วนรัชดา',
+    address: '4 ซอยพระราม 9 ซอย 41 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
+    home: { lat: 13.777, lng: 100.5874, pinSaved: false },
     responsible: 'นสค.ปิยะ ช่วยชุมชน', profession: 'social',
     visitDate: null, timeSlot: 'afternoon', appointmentTime: '16:00',
     lastVisitDate: '2025-08-14', visitCount: 1, confidential: true,
@@ -1229,6 +1229,12 @@ export const createEmptyHomeVisitForm = (appointment = null, registryEntry = nul
     flagOther: false,
   },
   flagOtherNote: '',
+  /* ขั้น "ประวัติการแพ้ / โรคประจำตัว" ของงานเยี่ยมบ้านเก็บเป็นข้อความอิสระ
+     (มติผู้ใช้ 2 ก.ย. 69) — ธง `flags.allergyDrug` / `flags.chronic` บอกแค่
+     มี/ไม่มี ส่วนรายละเอียดอยู่ในสามคีย์นี้ (พิมพ์หรือพูดผ่าน VoiceTextarea) */
+  allergyFreeText: '',
+  chronicFreeText: '',
+  allergyNote: '',
   drugAllergies: [],
   foodAllergies: [],
   chemicalAllergies: [],
@@ -1356,39 +1362,35 @@ export const getStepValidationError = (form, stepIndex) => {
          อัตโนมัติเสมอ ด่านที่ผู้ใช้แก้ไม่ได้จึงไม่ใช่ด่าน (มติผู้ใช้ 30 ส.ค. 69) */
       return null;
     case 2:
-      /* ขั้นที่อยู่และการเดินทาง — ไม่บังคับ ทีมบางบ้านสำรวจที่อยู่ไม่ครบ */
+      /* ขั้นที่อยู่และการติดต่อ (รวมสองขั้นเข้าด้วยกัน มติผู้ใช้ 2 ก.ย. 69) —
+         ไม่บังคับ ทีมบางบ้านสำรวจที่อยู่ไม่ครบ และเบอร์ผู้ดูแลอาจได้จาก
+         ทะเบียนอยู่แล้ว */
       return null;
     case 3:
-      /* ข้อมูลการติดต่อ — ไม่บังคับ (เบอร์ผู้ดูแลอาจได้จากทะเบียนอยู่แล้ว) */
-      return null;
-    case 4:
       /* สิทธิการรักษา — ไม่บังคับ ที่บ้านตรวจสอบสิทธิออนไลน์ไม่ได้เสมอไป */
       return null;
-    case 6:
+    case 5:
       /* ประวัติการแพ้/โรคประจำตัว — ไม่มีฟิลด์บังคับ (ผู้รับบริการบางรายปฏิเสธ
          การแพ้ทั้งหมด ซึ่งก็คือ "ไม่ต้องกรอกอะไร") */
       return null;
-    case 5:
+    case 4:
       /* ขั้นสัญญาณชีพไม่มีด่าน (มติผู้ใช้ 30 ส.ค. 69) — ทั้งการบังคับให้วัดครบ
          และแถบแดง "ค่าไม่ถูกต้อง" ถูกถอดออกแล้ว การ์ดแต่ละใบติดป้ายบอกค่าที่
          ผิดช่วงของตัวเองอยู่ตรงจุดที่กรอก ซึ่งอ่านง่ายกว่าแถบรวมด้านบน */
       return null;
-    case 7:
+    case 6:
       /* ขั้น "ประเมินอาการป่วย" (รวมแบบประเมินทั้งชุดแล้ว) ไม่มีด่าน (มติผู้ใช้ 30 ส.ค. 69) — แถบแดงขึ้นค้างตั้งแต่
          เพิ่งเปิดขั้นทั้งที่ยังไม่ได้เริ่มซักอาการ · ช่องยังติดดาว required
          บนหน้าจอเพื่อบอกว่าควรกรอก แต่ไม่ขวางการไปขั้นถัดไป */
       return null;
-    case 8:
+    case 7:
       /* พฤติกรรมสุขภาพ — ไม่มีฟิลด์บังคับ (เหมือนขั้นเดียวกันที่จุดคัดกรอง) */
       return null;
-    case 9: {
-      /* หมวด "บันทึกตามบทบาทวิชาชีพ" ถูกถอดออกจากหน้าจอแล้ว (มติผู้ใช้
-         30 ส.ค. 69) เหลือด่านเดียวคือกิจกรรมการดูแล */
-      const hasActivity = Object.values(form.activities || {}).some(Boolean);
-      if (!hasActivity) return 'กรุณาเลือกกิจกรรมการดูแลที่ให้ในการเยี่ยมครั้งนี้อย่างน้อย 1 รายการ';
-      return null;
-    }
-    case 10:
+    /* ขั้น "บันทึกตามบทบาท/กิจกรรม" ถูกถอดออกทั้งขั้น (มติผู้ใช้ 2 ก.ย. 69) —
+       ด่าน "ต้องเลือกกิจกรรมการดูแลอย่างน้อย 1 รายการ" หายไปพร้อมกัน
+       และขั้น "ข้อมูลการติดต่อ" ถูกยุบรวมกับขั้นที่อยู่ (2 ก.ย. 69) ขั้นสุดท้าย
+       จึงเลื่อนจาก 10 มาเป็น 8 */
+    case 8:
       if (!form.nextVisitDate) return 'กรุณาระบุวันนัดเยี่ยมครั้งถัดไป (หรือระบุเหตุผลในบันทึกแผนการดูแล)';
       return null;
     default:
@@ -1404,11 +1406,12 @@ export const getHomeVisitCompletedSteps = (form, stepIndex = 0) => ([
   ),
   /* 2 ข้อมูลส่วนตัว — ถือว่าครบเมื่อเลือกประเภทการเยี่ยมแล้ว */
   !!form.visitType,
-  /* 2 ที่อยู่และการเดินทาง — มีที่อยู่ (อย่างน้อยเลขที่บ้าน/เขต) หรือปักหมุดแล้ว */
+  /* 3 ที่อยู่และการติดต่อ (ขั้นเดียวกันตั้งแต่ 2 ก.ย. 69) — ครบเมื่อมีที่อยู่
+     (อย่างน้อยเลขที่บ้าน/เขต หรือปักหมุดแล้ว) หรือมีเบอร์ติดต่ออย่างน้อยหนึ่งช่อง */
   !!(form.addressRegistered?.houseNo || form.addressRegistered?.district
-    || form.addressCurrent?.houseNo || form.homeLocation?.pinSaved),
-  /* 4 ข้อมูลการติดต่อ — ครบเมื่อมีเบอร์ติดต่ออย่างน้อยหนึ่งช่อง */
-  !!(String(form.phone || '').trim() || (form.emergency || []).some((e) => String(e.phone || '').trim())),
+    || form.addressCurrent?.houseNo || form.homeLocation?.pinSaved
+    || String(form.phone || '').trim()
+    || (form.emergency || []).some((e) => String(e.phone || '').trim())),
   /* 5 สิทธิการรักษา — ครบเมื่อตรวจสอบสิทธิแล้ว (ธงเดียวกับหน้าเวชระเบียน) */
   !!form.rightsLookupDone,
   summarizeVitals(form.vitals).filled > 0 && summarizeVitals(form.vitals).invalid.length === 0,
@@ -1420,7 +1423,6 @@ export const getHomeVisitCompletedSteps = (form, stepIndex = 0) => ([
   /* พฤติกรรมสุขภาพเก็บที่ทะเบียนกลางของจุดคัดกรอง ไม่ได้อยู่ในร่างของการเยี่ยม
      จึงไม่มีอะไรให้เช็ก — ถือว่าผ่านเสมอ (ขั้นนี้ไม่มีฟิลด์บังคับ) */
   true,
-  Object.values(form.activities || {}).some(Boolean),
   !!form.nextVisitDate,
 ]);
 

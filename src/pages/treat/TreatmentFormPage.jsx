@@ -3,6 +3,7 @@ import React, {
 } from 'react';
 import { Redirect, useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
+import { useTelemedCall } from '@/components/telemed/TelemedCallProvider';
 import QueueSubMenu from '@/components/layout/QueueSubMenu';
 import TabPill, { TabBar } from '@/components/tab/TabPill';
 import { EmrRowAction } from '@/components/patient/EmrRowAction';
@@ -298,6 +299,7 @@ const CPOE_STEP_INDEXES = {
 const TreatmentFormPage = () => {
   const history = useHistory();
   const location = useLocation();
+  const { start: startTelemedCall } = useTelemedCall();
   const { state: navState } = location;
 
   /* Patient identity used by the step bodies (MR shape — full address,
@@ -324,6 +326,21 @@ const TreatmentFormPage = () => {
     () => (navState?.hn && getPatientByHN(navState.hn)) || DEFAULT_PATIENT,
     [navState?.hn],
   );
+
+  /* แถวคิวของการตรวจครั้งนี้ — ใช้ดูว่าเป็นนัด Telemedicine หรือไม่ (แถวคิว
+     ชนิด `telemedicine` มี `telemedAppointmentAt`) เพื่อโชว์ปุ่มเปิดห้องตรวจ
+     ออนไลน์บนหัวหน้าจอ (มติผู้ใช้ 2 ก.ย. 69) — อ่านจากทะเบียนคิวโดยตรง ไม่ใช่
+     จาก location.state อย่างเดียว เข้าหน้านี้ด้วย URL ตรง ๆ ก็ยังเจอ */
+  const telemedQueueRow = useMemo(() => {
+    if (navState?.queue) {
+      const byQueue = TREATMENT_QUEUE_ROWS.find((r) => r.queue === navState.queue);
+      if (byQueue) return byQueue.typeKey === 'telemedicine' ? byQueue : null;
+    }
+    if (!navState?.hn) return null;
+    return TREATMENT_QUEUE_ROWS.find(
+      (r) => r.hn === navState.hn && r.typeKey === 'telemedicine',
+    ) || null;
+  }, [navState?.queue, navState?.hn]);
 
   const encounterHn = navState?.hn || '';
   const visitKey = navState?.vn || navState?.queue || 'current';
@@ -951,6 +968,17 @@ const TreatmentFormPage = () => {
                   ))}
                 </div>
               </Popover>
+              {/* นัด Telemedicine — เปิด "ห้องตรวจรักษาออนไลน์" ทับหน้านี้
+                  (มติผู้ใช้ 2 ก.ย. 69) แพทย์จึงบันทึกการตรวจต่อได้ทันทีที่ปิดสาย */}
+              {telemedQueueRow && (
+                <BrandSubdueButton
+                  variant='fill'
+                  leadingIcon='videocam'
+                  onClick={() => startTelemedCall({ visitId: telemedQueueRow.id })}
+                >
+                  ปรึกษาแพทย์ทางไกล
+                </BrandSubdueButton>
+              )}
               <BrandSubdueButton
                 variant='outline'
                 leadingIcon='medication'
