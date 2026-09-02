@@ -24,6 +24,7 @@ import {
   count9qAnswered,
   is9qComplete,
 } from '@/data/homevisitAssessments';
+import { getGroupFollowUpDays } from '@/data/homevisitQuotaSettings';
 
 /* ─── วันที่ / เวลา ────────────────────────────────────────────────── */
 
@@ -558,19 +559,10 @@ export const getHomeVisitAppointmentCancellation = (id) => {
    ระบบเดิมกำหนดรอบติดตามตามกลุ่มผู้รับบริการ: กลุ่มระยะสุดท้ายทุก 30 วัน,
    กลุ่มเรื้อรัง/พิการช่วยเหลือไม่ได้ภายใน 6 เดือน, กลุ่มอื่นปีละครั้ง. */
 
-export const GROUP_FOLLOWUP_DAYS = {
-  curable: 180,
-  chronic: 180,
-  mildDisability: 365,
-  severeDisability: 180,
-  terminal: 30,
-  special: 365,
-};
-
 /** คืนค่า { dueDate, daysOverdue } เมื่อเลยกำหนดติดตามแล้ว มิฉะนั้น null. */
 export const getVisitFollowUpOverdue = (row, asOfIso = todayIsoDate()) => {
   if (!row) return null;
-  const window = GROUP_FOLLOWUP_DAYS[row.group] ?? 365;
+  const window = getGroupFollowUpDays(row.group);
   /* ยังไม่เคยเยี่ยมเลย → นับจากวันที่ลงทะเบียน/วันนัดแรกแทน */
   const base = row.lastVisitDate || row.registeredDate || row.visitDate;
   if (!base) return null;
@@ -985,22 +977,7 @@ export const ROLE_NOTE_SECTIONS = [
 
 /* ─── §1.18.7 กิจกรรมการดูแล ──────────────────────────────────────── */
 
-export const CARE_ACTIVITIES = [
-  { key: 'vitalCheck',   label: 'ตรวจวัดสัญญาณชีพ',              group: 'พยาบาล' },
-  { key: 'woundCare',    label: 'ทำแผล/ดูแลแผลกดทับ',            group: 'พยาบาล' },
-  { key: 'suction',      label: 'ดูดเสมหะ',                      group: 'พยาบาล' },
-  { key: 'catheter',     label: 'ใส่/เปลี่ยนสายสวนปัสสาวะ',       group: 'พยาบาล' },
-  { key: 'ngTube',       label: 'ใส่/เปลี่ยนสายให้อาหาร',         group: 'พยาบาล' },
-  { key: 'medReview',    label: 'ทบทวนยาและยาเหลือใช้',           group: 'เภสัชกรรม' },
-  { key: 'physioTrain',  label: 'ฝึกกายภาพบำบัด/การเคลื่อนไหว',   group: 'กายภาพบำบัด' },
-  { key: 'healthEdu',    label: 'ให้สุขศึกษาผู้ป่วยและญาติ',       group: 'ส่งเสริมสุขภาพ' },
-  { key: 'caregiverTrain', label: 'สอนผู้ดูแลเรื่องการดูแลที่บ้าน', group: 'ส่งเสริมสุขภาพ' },
-  { key: 'mentalSupport', label: 'ให้คำปรึกษาด้านจิตใจ',          group: 'จิตสังคม' },
-  { key: 'welfareCoord', label: 'ประสานสวัสดิการ/อุปกรณ์ช่วย',     group: 'จิตสังคม' },
-  { key: 'envAdjust',    label: 'ปรับสภาพแวดล้อมในบ้าน',          group: 'สิ่งแวดล้อม' },
-  { key: 'vaccineAdvice', label: 'แนะนำ/ให้วัคซีนตามเกณฑ์',       group: 'ส่งเสริมสุขภาพ' },
-  { key: 'referCoord',   label: 'ประสานส่งต่อสถานพยาบาล',         group: 'ส่งต่อ' },
-];
+export { CARE_ACTIVITIES } from '@/data/homevisitCareTemplates';
 
 /* ─── §1.18.6 สั่งการรักษา (CPOE) ─────────────────────────────────────
    รายการคำสั่งย้ายไปอยู่ที่ `src/data/homevisitCpoe.js` ซึ่งอ้างแคตตาล็อก
@@ -1333,6 +1310,7 @@ export const createEmptyHomeVisitForm = (appointment = null, registryEntry = nul
   /* 5 — บันทึกตามบทบาท + กิจกรรม */
   roleNotes: {},
   activities: {},
+  carePlans: [],
   telemedRequested: false,
   /* 6 — สั่งการรักษา (CPOE) */
   drugOrders: [],

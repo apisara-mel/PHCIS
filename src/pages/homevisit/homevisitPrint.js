@@ -84,7 +84,7 @@ export const printHomeVisitSummary = ({
   patientName, hn, groupLabel, sourceLabel, address, visitNo,
   serviceDate, arrivalTime, distanceLabel, team,
   vitals, adlScore, adlLabel, assessment, roleNotes, activities, orders,
-  familyNote, nextVisitDate, planNote, submission,
+  familyNote, nextVisitDate, planNote, carePlans, submission,
 }) => {
   const vitalRows = Object.keys(vitals || {})
     .filter((k) => String(vitals[k] ?? '').trim() !== '')
@@ -127,6 +127,8 @@ export const printHomeVisitSummary = ({
     <table class="kv"><tbody>
       <tr><td>บันทึก Family Folder</td><td>${esc(familyNote || '—')}</td></tr>
       <tr><td>นัดเยี่ยมครั้งถัดไป</td><td>${esc(nextVisitDate ? formatHomeVisitDate(nextVisitDate) : '—')}</td></tr>
+      <tr><td>Template กิจกรรม/เป้าหมาย</td><td>${esc((carePlans || []).map((plan) => [plan.problem, plan.goal].filter(Boolean).join(' — ')).filter(Boolean).join(' · ') || '—')}</td></tr>
+      <tr><td>เกณฑ์ประเมินผล</td><td>${esc((carePlans || []).map((plan) => plan.evaluation).filter(Boolean).join(' · ') || '—')}</td></tr>
       <tr><td>แผนการดูแลต่อเนื่อง</td><td>${esc(planNote || '—')}</td></tr>
       <tr><td>ส่งข้อมูลเข้าศูนย์บริการฯ</td><td>${esc(submission ? `ส่งแล้วโดย ${submission.by} · ${submission.at}` : 'ยังไม่ได้ส่ง')}</td></tr>
     </tbody></table>

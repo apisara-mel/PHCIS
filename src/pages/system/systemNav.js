@@ -42,6 +42,9 @@ export const SYSTEM_NAV = [
      ตามลำดับชั้น แผนก → คลินิก → ห้อง/เตียง. route /assess/departments ยังเปิด
      อยู่สำหรับลิงก์เดิม แค่ไม่มีเมนูของตัวเอง — แบบเดียวกับ SystemRolesPage. */
   { key: 'system-staff',          label: 'บุคลากร',          icon: 'group',            path: '/assess/users' },
+  /* มาสเตอร์การเยี่ยมบ้าน — ผู้ดูแลระบบตั้งเพดาน สปสช. และรอบติดตามระดับ
+     สำนักอนามัย; งานคิว/ทะเบียน/บันทึกยังอยู่ที่ rail `homevisit` ตามเดิม. */
+  { key: 'system-homevisit',      label: 'ตั้งค่าการเยี่ยมบ้าน', icon: 'home_health',   path: '/admin/homevisit-settings' },
   /* ซ่อนชั่วคราว 26 ส.ค. 69 (มติผู้ใช้) — route /opd/room-config ยังเข้าได้ตาม
      ลิงก์เดิม เอากลับมาโดยลบคอมเมนต์ออก
        TOR §1.2.7 — ห้องตรวจ × แพทย์ประจำห้อง + โควตารายวัน (เดิมอยู่เมนู OPD)

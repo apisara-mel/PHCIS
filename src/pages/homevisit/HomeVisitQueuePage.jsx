@@ -45,7 +45,6 @@ import {
   HOMEVISIT_PROFESSIONS,
   HOMEVISIT_TIME_SLOTS,
   HOMEVISIT_CANCEL_REASONS,
-  GROUP_FOLLOWUP_DAYS,
   addDaysIso,
   todayIsoDate,
   formatHomeVisitDate,
@@ -59,6 +58,7 @@ import {
   resolveProfession,
   resolveVisitStatus,
 } from '@/data/homevisitVisits';
+import { getGroupFollowUpDays } from '@/data/homevisitQuotaSettings';
 import { getVisitHistory } from '@/data/homevisitRegistry';
 import {
   HOMEVISIT_ROLES,
@@ -157,7 +157,7 @@ const TAB_PREDICATE = {
 const nextDueDate = (row) => {
   const base = row.lastVisitDate || row.registeredDate || row.visitDate;
   if (!base) return null;
-  return addDaysIso(base, GROUP_FOLLOWUP_DAYS[row.group] ?? 365);
+  return addDaysIso(base, getGroupFollowUpDays(row.group));
 };
 
 /* ขนาดรูปโปรไฟล์ในตาราง — ค่าเดียวกับตารางหน้าเวชระเบียน */
@@ -642,7 +642,7 @@ const HomeVisitQueuePage = () => {
             </ColorfulBadge>
           ) : (
             <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-              รอบติดตามทุก {GROUP_FOLLOWUP_DAYS[r.group] ?? 365} วัน
+              รอบติดตามทุก {getGroupFollowUpDays(r.group)} วัน
             </span>
           )}
         </div>
