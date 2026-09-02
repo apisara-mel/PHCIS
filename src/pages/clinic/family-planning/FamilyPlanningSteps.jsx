@@ -21,6 +21,8 @@ import Table from '@/components/table/Table';
 import Popup from '@/components/popup/Popup';
 import AddMedicationPopup from '@/components/popup/AddMedicationPopup';
 import { BodyDiagramCard } from '@/components/examination/BodyDrawingCanvas';
+/* แผงวินิจฉัยใช้ของคลินิกฝากครรภ์ทั้งก้อน — ทุกช่องต้องเหมือนกันเป๊ะ (มติผู้ใช้ 3 ก.ย. 69) */
+import { AncStep4Diagnosis } from '@/pages/treat/anc/AncSteps';
 import DrawingCanvasPopup from '@/components/popup/DrawingCanvasPopup';
 import FamilyPlanningFollowUpCard, { printFpFollowUpCard } from '@/pages/clinic/family-planning/FamilyPlanningFollowUpCard';
 import {
@@ -2813,7 +2815,7 @@ export const FpExaminationDiagnosisStep = ({ form, setForm, locked, ...props }) 
       </section>
       <section className='flex flex-col min-w-0 w-full xl:w-auto' style={FP_SPLIT_CARD_STYLE}>
         <FpSplitCardTitle>วินิจฉัย</FpSplitCardTitle>
-        <FpDiagnosisPanel form={form} setForm={setForm} locked={locked} selected={[]} />
+        <AncStep4Diagnosis form={form} setForm={setForm} />
       </section>
     </div>
     <section className='flex flex-col w-full min-w-0' style={{ ...FP_SPLIT_CARD_STYLE, flex: '0 0 auto' }}>

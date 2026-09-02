@@ -881,6 +881,15 @@ export const DEFAULT_FP_VISIT = {
   eDocBlocks: [],
   appointment: { date: '', time: '', type: '', note: '', cancelled: false },
   cardPrinted: false,
+  /* แผงวินิจฉัยใช้ชุดเดียวกับคลินิกฝากครรภ์ (มติผู้ใช้ 3 ก.ย. 69) — คีย์ต้องครบตาม
+     DEFAULT_ANC_VISIT ไม่งั้นช่องในแผงนั้นจะไม่มี state รองรับ */
+  riskLevel: '',
+  gdmConfirmed: false,
+  externalExamResults: '',
+  externalExamAttachments: [],
+  adviceTopics: {},
+  plannedDeliveryMode: '',
+
 };
 
 const hasText = (v) => typeof v === 'string' && v.trim() !== '';
