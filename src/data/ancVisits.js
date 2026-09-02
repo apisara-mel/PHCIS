@@ -1250,22 +1250,37 @@ export const DEFAULT_ANC_VISIT = {
 
   // Step 5 — สั่งการรักษา (TOR 1.10.7.5/.7)
   lab1Orders: {},
-  labResults: {},          // result VALUES for lab1Orders + lab2Orders (TOR 1.10.7.7/.8)
+  /* ผลแล็บ/อัลตราซาวด์ตั้งต้นเป็นชุด mock ของครรภ์นี้ (มติผู้ใช้ 3 ก.ย. 69) —
+     ป๊อปอัป "ผลตรวจชันสูตร"/"ผลตรวจรังสี" บนการ์ดผู้ป่วยจึงมีเนื้อหาให้อ่าน */
+  labResults: {
+    bloodGroup: 'O', rh: 'Positive', hb: '11.8', hct: '35',
+    urineResult: 'ปกติ', vdrlResult: 'Non-reactive',
+    antiHivResult: 'Negative', hbsAgResult: 'Negative',
+    hb2: '11.2', hct2: '34', vdrlResult2: 'Non-reactive', antiHivResult2: 'Negative',
+  },
   secondTrimesterScreening: {}, // swimlane C — Down syndrome + 2nd ultrasound
   diabetesScreening: {},        // swimlane D — GCT/OGTT
   lab2Orders: {},                // swimlane E — 2nd Lab panel
   vaccines: {},                  // swimlane E — dT/Tdap/flu/Covid
   supplements: {},                // swimlane E — iron/folic acid/iodine/calcium
   termAssessment: {},             // swimlane E — 3rd ultrasound/NST/delivery plan
-  ultrasoundResults: {},           // structured Ultrasound findings (pp.50-52) — shared by ultrasound2/ultrasound3
+  ultrasoundResults: {
+    numberOfFetus: '1',
+    presentation: 'Vertex',
+    gaByUltrasound: '13 สัปดาห์ 2 วัน',
+    fetalHeartMotion: 'Positive (FHR 152 ครั้ง/นาที)',
+    placentalSite: 'Anterior, Upper segment',
+    amnioticFluid: 'Normal (AFI 12 ซม.)',
+    anomalies: 'ไม่พบความผิดปกติของโครงสร้างทารก',
+  },           // structured Ultrasound findings (pp.50-52) — shared by ultrasound2/ultrasound3
   nippleAssessment: '',            // ตรวจประเมินด้านและหัวนม (pp.64-66) — 'normal' | 'flat' | 'inverted'
   plannedDeliveryMode: '',         // แผนการคลอด (pp.59-60) — 'vaginal' | 'cesarean' | 'undecided'
   /* มติ คทง.2 — Ultrasound บันทึกว่า "ได้รับการตรวจอย่างน้อย 1 ครั้ง" พร้อม
      อายุครรภ์ ณ วันที่ตรวจ (ศูนย์ฯ ทำก่อน 12 สัปดาห์ได้ยาก) + วิธีคัดกรอง
      กลุ่มอาการดาวน์ (Quadruple test / NIPT) */
-  ultrasoundDone: false,
-  ultrasoundGaWeeks: '',
-  ultrasoundDate: '',
+  ultrasoundDone: true,
+  ultrasoundGaWeeks: '13',
+  ultrasoundDate: '2026-08-26',
   downScreeningMethod: '',
   /* มติ คทง.2 — จ่ายยาและวัคซีนเป็น checkbox ท้ายขั้นสั่งการรักษา; ใบสั่งยา
      จริงยังไปทาง `medications` ชุดเดียวกับ OPD เพื่อให้ห้องยาได้รายการเดียวกัน */

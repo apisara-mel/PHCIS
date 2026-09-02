@@ -2621,22 +2621,173 @@ const ParaScoreFields = ({ form, setForm, locked }) => {
   );
 };
 
+/* แบบประเมินของวางแผนครอบครัวใช้ทรงตารางเดียวกับขั้น "แบบประเมิน" ของคลินิก
+   ฝากครรภ์ (`AncStep2Screening`) — หัวข้อ · ผลที่บันทึก · สถานะ · ปุ่มเปิด
+   ป๊อปอัป — ต่างกันที่ context ของแถวเท่านั้น: ทะเบียน วผ. / PARA /
+   คัดกรอง 11 ข้อ ตามคู่มือ หน้า 2-5 แทนชุด ST-5 · 2Q · GDM ของงานฝากครรภ์ */
 export const FpAssessmentStep = (props) => {
-  const isFamilyPlanning = (props.form.primaryServices || []).includes('familyPlanning');
+  const { form, registration } = props;
+  const [openTool, setOpenTool] = useState(null);
+
+  const services = form.primaryServices || [];
+  const isFamilyPlanning = services.includes('familyPlanning');
+  const screen = interpretFpScreening(form.screening);
+  const para = form.cytologyRequest || {};
+  const paraFilled = ['termBirths', 'pretermBirths', 'abortions', 'livingChildren']
+    .some((key) => String(para[key] ?? '').trim() !== '');
+  const registered = !!registration && registration.status !== 'cancelled';
+
+  /* ทะเบียนกับ PARA ใช้ร่วมทุกบริการ (PARA ผูกกับใบส่งตรวจเซลล์วิทยาด้วย)
+     ส่วนคัดกรอง 11 ข้อ เป็นเกณฑ์จ่ายยาคุมกำเนิด จึงขึ้นเฉพาะเมื่อเลือก
+     "งานวางแผนครอบครัว" */
+  const TOOLS = [
+    {
+      key: 'registry',
+      title: 'ทะเบียนวางแผนครอบครัว',
+      code: 'ผลคัดกรอง · ทะเบียน วผ. · ประวัติการรับบริการ',
+      done: registered,
+      scoreLabel: registered ? registration.fpNumber : '—',
+      interp: registered
+        ? { badge: 'green', label: `ลงทะเบียนแล้ว · ${formatFpDate(registration.firstServiceDate)}` }
+        : null,
+      pendingLabel: 'ยังไม่ได้ลงทะเบียน',
+      openLabel: 'เปิดทะเบียน',
+    },
+    {
+      key: 'para',
+      title: 'PARA และประวัติการคลอด',
+      code: 'Term - Preterm - Abortion - Living child',
+      done: paraFilled,
+      scoreLabel: `${para.termBirths || 0}-${para.pretermBirths || 0}-${para.abortions || 0}-${para.livingChildren || 0}`,
+      interp: paraFilled ? { badge: 'green', label: 'บันทึก PARA แล้ว' } : null,
+      pendingLabel: 'ยังไม่ได้บันทึก',
+      openLabel: 'บันทึก PARA',
+    },
+    ...(isFamilyPlanning ? [{
+      key: 'screening',
+      title: 'ซักประวัติการเจ็บป่วยและตรวจร่างกาย',
+      code: `คู่มือ หน้า 2-5 · ${FP_SCREENING_ITEMS.length} ข้อ`,
+      done: screen.answeredAll,
+      scoreLabel: `${screen.answeredCount}/${FP_SCREENING_ITEMS.length} ข้อ`,
+      interp: screen.mustReferDoctor
+        ? (form.doctorConsulted
+          ? { badge: 'orange', label: 'ส่งปรึกษาแพทย์แล้ว — ปลดล็อกการสั่งยา' }
+          : { badge: 'red', label: `ตอบ "มี" ${screen.flagged.length} ข้อ — ห้ามจ่ายยา ต้องปรึกษาแพทย์` })
+        : (screen.answeredAll
+          ? { badge: 'green', label: 'ไม่พบข้อห้าม — จ่ายยาคุมกำเนิดได้' }
+          : null),
+      openLabel: 'ทำแบบคัดกรอง',
+    }] : []),
+  ];
+
+  const openTool_ = TOOLS.find((t) => t.key === openTool);
+
   return (
     <StepCard>
       <PrimaryServicePicker {...props} />
-      {isFamilyPlanning ? (
-        <>
-          <FpStep1History {...props} />
-          <ParaScoreFields {...props} />
-          <FpStep2Screening {...props} />
-        </>
-      ) : (props.form.primaryServices || []).length > 0 ? (
+
+      {services.length > 0 && (
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <TopicHeader icon='clipboard-list'>แบบประเมิน</TopicHeader>
+          <Table
+            columns={[
+              {
+                key: 'tool',
+                label: 'หัวข้อแบบประเมิน',
+                flex: true,
+                minWidth: 260,
+                render: (t) => (
+                  <span className='flex flex-col' style={{ gap: 'var(--dim-space-50, 2px)' }}>
+                    <span style={{ color: 'var(--text-content-default, #363B3F)' }}>{t.title}</span>
+                    <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                      {t.code}
+                    </span>
+                  </span>
+                ),
+              },
+              {
+                key: 'score',
+                label: 'ผลที่บันทึก',
+                minWidth: 140,
+                render: (t) => (
+                  <span style={{
+                    color: 'var(--text-brandPrimary-default, #007549)',
+                    fontFamily: 'var(--type-family-heading-content)',
+                  }}
+                  >
+                    {t.scoreLabel}
+                  </span>
+                ),
+              },
+              {
+                key: 'status',
+                label: 'สถานะการประเมิน',
+                minWidth: 220,
+                render: (t) => (t.interp ? (
+                  <ColorfulBadge style={t.interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={260}>
+                    {t.interp.label}
+                  </ColorfulBadge>
+                ) : (
+                  <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
+                    {t.pendingLabel || 'ยังไม่ได้ประเมิน'}
+                  </ColorfulBadge>
+                )),
+              },
+              {
+                key: 'action',
+                label: 'ดำเนินการ',
+                minWidth: 180,
+                render: (t) => (
+                  <BrandSubdueButton
+                    variant='outline'
+                    size='sm'
+                    leadingIcon={t.done ? 'edit' : 'assignment'}
+                    onClick={() => setOpenTool(t.key)}
+                  >
+                    {t.done ? 'แก้ไข' : t.openLabel}
+                  </BrandSubdueButton>
+                ),
+              },
+            ]}
+            rows={TOOLS}
+            rowKey={(t) => t.key}
+          />
+        </div>
+      )}
+
+      {/* กฎห้ามจ่ายยาเป็นข้อมูลความปลอดภัย ต้องเห็นบนหน้าขั้นตอน ไม่ใช่ซ่อน
+          อยู่ในป๊อปอัปแบบคัดกรอง (คู่มือ หน้า 2-5) */}
+      {isFamilyPlanning && screen.mustReferDoctor && (
+        <Banner tone={form.doctorConsulted ? 'warning' : 'danger'} icon={form.doctorConsulted ? 'medical_services' : 'e911_emergency'}>
+          {form.doctorConsulted
+            ? `บันทึกการส่งปรึกษาแพทย์แล้ว โดย ${form.doctorConsultedBy} · ${formatFpDateTime(form.doctorConsultedAt)} — ปลดล็อกการสั่งยาแล้ว โปรดยืนยันคำสั่งกับแพทย์ก่อนจ่ายจริง`
+            : `พบข้อคัดกรองที่ตอบ "มี" ${screen.flagged.length} ข้อ — ห้ามจ่ายยาคุมกำเนิด ต้องบันทึกการส่งปรึกษาแพทย์ในแบบคัดกรองก่อน`}
+        </Banner>
+      )}
+
+      {services.length > 0 && !isFamilyPlanning && (
         <Banner tone='neutral' icon='info'>
           เลือกบริการคัดกรอง/หลังคลอดแล้ว — ระบบจะแสดงแบบตรวจเฉพาะบริการที่เลือกในขั้นตรวจร่างกายและวินิจฉัย
         </Banner>
-      ) : null}
+      )}
+
+      <Popup
+        open={!!openTool_}
+        onClose={() => setOpenTool(null)}
+        size='extraLarge'
+        title={openTool_?.title || ''}
+        subtitle={openTool_?.code}
+        primaryAction={{ label: 'เสร็จสิ้น', onClick: () => setOpenTool(null) }}
+      >
+        <div
+          className='flex flex-col w-full'
+          style={{ gap: 'var(--dim-space-600, 24px)', padding: 'var(--dim-space-600, 24px)' }}
+        >
+          {openTool === 'registry' && <FpStep1History {...props} />}
+          {openTool === 'para' && <ParaScoreFields {...props} />}
+          {openTool === 'screening' && <FpStep2Screening {...props} />}
+        </div>
+      </Popup>
     </StepCard>
   );
 };

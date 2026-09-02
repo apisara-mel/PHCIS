@@ -161,7 +161,8 @@ const AncResultPopups = ({ form, open, onClose }) => {
       <Popup
         open={open === 'lab'}
         onClose={onClose}
-        size='large'
+        size='extraLarge'
+        height='auto'
         title='ผลตรวจชันสูตร'
         subtitle='ผลจากห้องปฏิบัติการที่บันทึกไว้ในการฝากครรภ์ครั้งนี้'
         primaryAction={{ label: 'ปิด', onClick: onClose }}
@@ -192,7 +193,8 @@ const AncResultPopups = ({ form, open, onClose }) => {
       <Popup
         open={open === 'imaging'}
         onClose={onClose}
-        size='large'
+        size='extraLarge'
+        height='auto'
         title='ผลตรวจรังสี'
         subtitle={form.ultrasoundDone
           ? `ตรวจ Ultrasound แล้ว${form.ultrasoundDate ? ` เมื่อ ${formatAncDate(form.ultrasoundDate)}` : ''}${form.ultrasoundGaWeeks ? ` · อายุครรภ์ ${form.ultrasoundGaWeeks} สัปดาห์` : ''}`

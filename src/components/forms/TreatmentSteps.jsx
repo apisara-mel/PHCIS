@@ -554,22 +554,58 @@ const ConsultTimeline = ({ patient }) => {
   );
 };
 
+/* โหมด "ดูตามรายการตรวจ" — ตารางเดียว: แถว = ครั้งที่มารับบริการ · คอลัมน์ = หัวข้อ
+   ของแท็บที่เลือก (มติผู้ใช้ 3 ก.ย. 69) อ่านเทียบข้ามครั้งได้ในบรรทัดเดียว
+   คอลัมน์ที่ไม่มีค่าเลยสักครั้งถูกตัดทิ้ง */
 const VisitFieldTimeline = ({ visits, tabLabel }) => {
   const fieldsOf = TIMELINE_FIELDS_BY_TAB[tabLabel];
-  const entries = useMemo(
-    () => (visits || []).map((v, i) => ({
-      key: `${v.date}-${i}`,
-      date: v.date,
-      subtitle: v.center,
-      fields: (fieldsOf ? fieldsOf(v) : []).filter(([, value]) => value),
-    })),
+  const rows = useMemo(
+    () => (visits || []).map((v, i) => {
+      const pairs = fieldsOf ? fieldsOf(v) : [];
+      const row = { id: `${v.date}-${i}`, __date: v.date, __center: v.center };
+      pairs.forEach(([label, value], idx) => { row[`f${idx}`] = value; });
+      return row;
+    }),
     [visits, fieldsOf],
   );
+  const columns = useMemo(() => {
+    const labels = (fieldsOf ? fieldsOf((visits || [])[0] || {}) : []).map(([label]) => label);
+    const used = labels
+      .map((label, idx) => ({ label, key: `f${idx}` }))
+      .filter(({ key }) => rows.some((r) => r[key]));
+    return [
+      {
+        key: '__date',
+        label: 'วันที่รับบริการ',
+        flex: true,
+        minWidth: 150,
+        render: (r) => (
+          <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-050, 2px)' }}>
+            <span style={{ fontWeight: 'var(--type-weight-medium)' }}>{r.__date}</span>
+            {r.__center && (
+              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>{r.__center}</span>
+            )}
+          </div>
+        ),
+      },
+      ...used.map(({ label, key }) => ({
+        key,
+        label,
+        flex: true,
+        minWidth: 160,
+        render: (r) => r[key] || '—',
+      })),
+    ];
+  }, [fieldsOf, rows, visits]);
 
+  if (!rows.length) return <ValueText>ยังไม่มีประวัติการรับบริการของผู้รับบริการรายนี้</ValueText>;
   return (
-    <RecordTimeline
-      entries={entries}
-      emptyText='ยังไม่มีประวัติการรับบริการของผู้รับบริการรายนี้'
+    <Table
+      columns={columns}
+      rows={rows}
+      rowKey={(r) => r.id}
+      stickyColCount={1}
+      emptyMessage='ยังไม่มีประวัติการรับบริการของผู้รับบริการรายนี้'
     />
   );
 };

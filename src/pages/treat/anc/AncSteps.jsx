@@ -2282,9 +2282,8 @@ export const AncStep7Card = ({ form, setForm, patient, cardPatient, ancHn, visit
 
   return (
     <StepCard>
+      {/* ไม่มีหัวข้อซ้ำ — ชื่อขั้น "ตรวจสอบ" บนแถบขั้นตอนบอกอยู่แล้ว (มติผู้ใช้ 3 ก.ย. 69) */}
       <div className='flex flex-col gap-5'>
-        <TopicHeader icon='file-text'>ตรวจสอบข้อมูลก่อนบันทึก</TopicHeader>
-
         <ReviewSection
           title='ข้อมูลการตั้งครรภ์'
           rows={[
@@ -2349,15 +2348,13 @@ export const AncStep7Card = ({ form, setForm, patient, cardPatient, ancHn, visit
           rows={[['นัดหมาย', form.appointment?.note?.trim() || formatAncDate(form.appointment?.date)]]}
         />
 
-        {form.cardConfirmed ? (
+        {/* ปุ่มยืนยันซ้ำกับ CTA "บันทึกและส่งต่อ" ที่แถบล่าง — เหลือแค่ป้ายยืนยันแล้ว
+            (มติผู้ใช้ 3 ก.ย. 69) */}
+        {form.cardConfirmed && (
           <div className='flex items-center gap-2' style={{ color: 'var(--text-brandPrimary-default, #007549)', fontSize: 'var(--type-size-sm)' }}>
             <Icon name='check-circle' size={18} />
             ยืนยันและพิมพ์ใบฝากครรภ์แล้ว · {form.cardConfirmedAt}
           </div>
-        ) : (
-          <BrandSubdueButton variant='fill' size='md' leadingIcon='check' onClick={confirm}>
-            ยืนยันและพิมพ์ใบฝากครรภ์
-          </BrandSubdueButton>
         )}
       </div>
     </StepCard>

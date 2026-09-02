@@ -374,6 +374,7 @@ const FamilyPlanningFormPage = () => {
             completedSteps={completedSteps}
             steps={FP_STEPS}
             plainBodySteps={[1]}
+            step0FlushLeft={false}
             queuePath={QUEUE_PATH}
             hideCancelAfterFirst
             showFinishRefer={false}
