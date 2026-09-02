@@ -396,16 +396,19 @@ export const HomeVisitStep1Service = ({ form, setForm, readOnly, hn, blockedMsg,
 /* รูปถ่ายบ้าน (หน้าบ้าน + เลขที่บ้าน) — อยู่คู่กับบันทึกการเดินทางในขั้นที่อยู่
    (มติผู้ใช้ 2 ก.ย. 69) เก็บที่ `form.housePhotos` แยกจากรูปประกอบการประเมิน
    เพราะเป็นหลักฐานของ "บ้านหลังนี้" ไม่ใช่ของการเยี่ยมครั้งใดครั้งหนึ่ง */
-export const HOMEVISIT_HOUSE_PHOTO_LIMIT = 5;
-
-/* กล่องถ่ายรูปบ้าน — สองช่องแรกเป็นรูปที่ ToR ขอเป็นลำดับ (บริเวณรอบบ้าน แล้ว
-   ป้ายเลขที่บ้าน) ช่องที่สามไว้ถ่ายเพิ่มได้ตามสถานการณ์ (มติผู้ใช้ 2 ก.ย. 69)
-   เก็บทั้งหมดใน `form.housePhotos` โดยยึดตำแหน่ง: index 0 = รอบบ้าน ·
-   index 1 = ป้ายเลขที่บ้าน · index 2+ = รูปเพิ่มเติม */
+/* กล่องถ่ายรูปบ้าน 5 ช่องคงที่ (มติผู้ใช้ 2 ก.ย. 69) — สองช่องแรกเป็นรูปที่
+   ต้องมีเสมอและมีคำกำกับว่าถ่ายอะไร (บริเวณรอบบ้าน แล้วป้ายเลขที่บ้าน)
+   ช่องที่ 3–5 ถ่ายเพิ่มได้ตามสถานการณ์ ไม่บังคับ
+   เก็บใน `form.housePhotos` โดยยึดตำแหน่ง index ตรงกับช่อง */
 const HOUSE_PHOTO_SLOTS = [
-  { key: 'around', title: 'ถ่ายรูปที่ 1', caption: 'บริเวณรอบบ้าน' },
-  { key: 'houseNo', title: 'ถ่ายรูปที่ 2', caption: 'ติดบ้านเลขที่' },
+  { key: 'around', title: 'ถ่ายรูปที่ 1', caption: 'บริเวณรอบบ้าน', required: true },
+  { key: 'houseNo', title: 'ถ่ายรูปที่ 2', caption: 'ติดบ้านเลขที่', required: true },
+  { key: 'extra3', title: 'ถ่ายภาพที่ 3' },
+  { key: 'extra4', title: 'ถ่ายภาพที่ 4' },
+  { key: 'extra5', title: 'ถ่ายภาพที่ 5' },
 ];
+
+export const HOMEVISIT_HOUSE_PHOTO_LIMIT = HOUSE_PHOTO_SLOTS.length;
 
 /* กรอบรูปบ้านเป็นสัดส่วน 4:3 (มติผู้ใช้ 2 ก.ย. 69) — ตรงกับภาพที่ได้จากกล้อง
    มือถือแนวนอน ไม่ต้องครอบตัดจนเลขที่บ้านหาย */
@@ -419,6 +422,8 @@ const readAsDataUrl = (file, done) => {
   reader.onerror = () => done('');
   reader.readAsDataURL(file);
 };
+
+const houseSlotCaption = (slot) => [slot.title, slot.caption].filter(Boolean).join(' · ');
 
 const HouseThumb = ({ photo, caption, onRemove, readOnly }) => (
   <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
@@ -460,73 +465,14 @@ const HouseThumb = ({ photo, caption, onRemove, readOnly }) => (
 
 const HomeVisitHousePhotoField = ({ form, setForm, readOnly }) => {
   const photos = form.housePhotos || [];
-  const extras = photos.slice(HOUSE_PHOTO_SLOTS.length).filter(Boolean);
-  const extrasRoom = HOMEVISIT_HOUSE_PHOTO_LIMIT - HOUSE_PHOTO_SLOTS.length - extras.length;
 
-  /* ช่องที่ 1–2 ผูกกับตำแหน่งคงที่ — ถ่ายทับได้โดยไม่กระทบรูปช่องอื่น */
+  /* ทุกช่องผูกกับตำแหน่งคงที่ — ถ่ายทับได้โดยไม่กระทบรูปช่องอื่น */
   const setSlot = (index, entry) => setForm((f) => {
     const next = [...(f.housePhotos || [])];
     while (next.length < HOUSE_PHOTO_SLOTS.length) next.push(null);
     next[index] = entry;
     return { ...f, housePhotos: next };
   });
-
-  const addExtras = (files) => {
-    Array.from(files).slice(0, Math.max(0, extrasRoom)).forEach((file, i) => {
-      readAsDataUrl(file, (previewUrl) => setForm((f) => ({
-        ...f,
-        housePhotos: [...(f.housePhotos || []), { id: `hv-house-extra-${Date.now()}-${i}`, name: file.name, previewUrl }],
-      })));
-    });
-  };
-
-  const removeExtra = (extraIndex) => setForm((f) => {
-    const list = [...(f.housePhotos || [])];
-    list.splice(HOUSE_PHOTO_SLOTS.length + extraIndex, 1);
-    return { ...f, housePhotos: list };
-  });
-
-  const slotBox = (slot, index) => {
-    const photo = photos[index];
-    if (photo && photo.previewUrl) {
-      return (
-        <HouseThumb
-          key={slot.key}
-          photo={photo}
-          caption={`${slot.title} · ${slot.caption}`}
-          readOnly={readOnly}
-          onRemove={() => setSlot(index, null)}
-        />
-      );
-    }
-    return (
-      <PhotoUploadField
-        key={slot.key}
-        icon='photo_camera'
-        capture='environment'
-        disabled={readOnly}
-        style={{ width: HOUSE_PHOTO_W, height: HOUSE_PHOTO_H }}
-        aria-label={`${slot.title} ${slot.caption}`}
-        label={(
-          /* ชื่อรูปขึ้นบรรทัดใหม่จากคำว่า "ถ่ายรูปที่ N" (มติผู้ใช้ 2 ก.ย. 69) */
-          <>
-            {slot.title}
-            <br />
-            {slot.caption}
-          </>
-        )}
-        onFiles={(files) => {
-          const file = files[0];
-          if (!file) return;
-          readAsDataUrl(file, (previewUrl) => setSlot(index, {
-            id: `hv-house-${slot.key}-${Date.now()}`,
-            name: file.name,
-            previewUrl,
-          }));
-        }}
-      />
-    );
-  };
 
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
@@ -536,31 +482,57 @@ const HomeVisitHousePhotoField = ({ form, setForm, readOnly }) => {
         color: 'var(--text-content-default, #363B3F)',
       }}>
         รูปถ่ายบ้าน (หน้าบ้าน + เลขที่บ้าน)
+        <span style={{ color: 'var(--text-input-require)' }}> *</span>
+      </span>
+      <span style={{
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-xs)',
+        color: 'var(--text-content-tertiary, #858C92)',
+      }}>
+        บังคับสองรูปแรก (บริเวณรอบบ้าน · ป้ายเลขที่บ้าน) — รูปที่ 3–5 ถ่ายเพิ่มได้ตามสถานการณ์
       </span>
       <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-        {HOUSE_PHOTO_SLOTS.map(slotBox)}
-
-        {extras.map((photo, i) => (
-          <HouseThumb
-            key={photo.id || `extra-${i}`}
-            photo={photo}
-            caption='ภาพเพิ่มเติม'
-            readOnly={readOnly}
-            onRemove={() => removeExtra(i)}
-          />
-        ))}
-
-        <PhotoUploadField
-          icon='add_a_photo'
-          capture='environment'
-          multiple
-          disabled={readOnly || extrasRoom <= 0}
-          style={{ width: HOUSE_PHOTO_W, height: HOUSE_PHOTO_H }}
-          label={extrasRoom > 0
-            ? 'ถ่ายภาพเพิ่มเติม'
-            : `ครบ ${HOMEVISIT_HOUSE_PHOTO_LIMIT} รูปแล้ว`}
-          onFiles={addExtras}
-        />
+        {HOUSE_PHOTO_SLOTS.map((slot, index) => {
+          const photo = photos[index];
+          if (photo && photo.previewUrl) {
+            return (
+              <HouseThumb
+                key={slot.key}
+                photo={photo}
+                caption={houseSlotCaption(slot)}
+                readOnly={readOnly}
+                onRemove={() => setSlot(index, null)}
+              />
+            );
+          }
+          return (
+            <PhotoUploadField
+              key={slot.key}
+              icon={slot.caption ? 'photo_camera' : 'add_a_photo'}
+              capture='environment'
+              disabled={readOnly}
+              style={{ width: HOUSE_PHOTO_W, height: HOUSE_PHOTO_H }}
+              aria-label={houseSlotCaption(slot)}
+              label={(
+                /* ชื่อรูปขึ้นบรรทัดใหม่จากคำว่า "ถ่ายรูปที่ N" (มติผู้ใช้ 2 ก.ย. 69) */
+                <>
+                  {slot.title}
+                  {slot.required && <span style={{ color: 'var(--text-input-require)' }}> *</span>}
+                  {slot.caption && <><br />{slot.caption}</>}
+                </>
+              )}
+              onFiles={(files) => {
+                const file = files[0];
+                if (!file) return;
+                readAsDataUrl(file, (previewUrl) => setSlot(index, {
+                  id: `hv-house-${slot.key}-${Date.now()}`,
+                  name: file.name,
+                  previewUrl,
+                }));
+              }}
+            />
+          );
+        })}
       </div>
     </div>
   );
