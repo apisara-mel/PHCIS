@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PatientCard from '@/components/card/PatientCard';
 import CreateConsentRequestHeaderAction from '@/components/consent/CreateConsentRequestHeaderAction';
@@ -171,6 +171,7 @@ const AuditLine = ({ children }) => (
 
 const ImmunizationVaccineBookPage = () => {
   const { state: navState } = useLocation();
+  const history = useHistory();
 
   const [hn, setHn] = useState(navState?.hn || IMM_CHILDREN[0].hn);
   const [activeTab, setActiveTab] = useState('matrix');
@@ -489,6 +490,9 @@ const ImmunizationVaccineBookPage = () => {
     <PatientCard
       patient={cardPatient}
       title='สมุดวัคซีน'
+      /* ปุ่มกลับพาไปหน้าคิวเด็กดีเสมอ (มติผู้ใช้ 3 ก.ย. 69) ไม่ใช่ย้อน history
+         ซึ่งอาจเด้งไปหน้าอื่นที่เปิดมาก่อน */
+      onBack={() => history.push('/clinic/immunization')}
       /* แพ้ยา/โรคประจำตัวชิดซ้ายติดกัน + ปุ่ม "ดูทั้งหมด" ที่กางรายการเต็ม
          — ทรงเดียวกับหน้าบันทึกฝากครรภ์ (มติผู้ใช้ 3 ก.ย. 69) */
       alertGroupsLeft
