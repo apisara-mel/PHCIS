@@ -848,7 +848,7 @@ const PhotoCluster = ({
           <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200)' }}>
             <img
               src={livePhoto}
-              alt='รูปที่สแกน'
+              alt='รูปถ่ายโดยเจ้าหน้าที่'
               width={200}
               height={200}
               style={{
@@ -864,7 +864,10 @@ const PhotoCluster = ({
               fontFamily: 'var(--type-family-body)',
               fontSize: 'var(--type-size-sm)',
             }}>
-              รูปที่สแกน
+              {/* ป้ายเดิมเขียนว่า "รูปที่สแกน" ทั้งที่ภาพคือรูปที่เจ้าหน้าที่เพิ่งถ่าย
+                  ด้วยกล้องหน้าเคาน์เตอร์ ไม่ใช่ภาพจากเครื่องสแกนบัตร (มติผู้ใช้
+                  2 ก.ย. 69) */}
+              รูปถ่ายโดยเจ้าหน้าที่
             </span>
           </div>
           <div className='flex flex-col items-center' style={{ gap: 'var(--dim-space-200)' }}>

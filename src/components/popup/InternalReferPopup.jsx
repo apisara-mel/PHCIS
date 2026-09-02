@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Popup from '@/components/popup/Popup';
 import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
+import NeutralIconButton from '@/components/button/NeutralIconButton';
 import { DEPARTMENTS } from '@/data/usersAccess';
 import { readDepartments } from '@/data/departmentStore';
 import { QUEUE_STATIONS, getStationLabel } from '@/data/queueCenterStore';
@@ -156,37 +157,65 @@ export default function InternalReferPopup({
   const clinicCtx = useClinicFilter();
   const centerId = centerIdProp || clinicCtx?.clinic || DEFAULT_CLINIC_VALUE;
 
-  const [department, setDepartment] = useState('');
+  /* ส่งต่อได้หลายแผนกในครั้งเดียว และแต่ละแผนกมีหมายเหตุของตัวเอง (มติผู้ใช้
+     2 ก.ย. 69) — เคสหนึ่งรายมักต้องส่งหลายทางพร้อมกัน (เช่น กายภาพบำบัด +
+     สังคมสงเคราะห์) เหตุผลที่ส่งไปแต่ละที่คนละเรื่องกัน เดิมต้องเปิดป๊อปอัปซ้ำ
+     ทีละแผนกและหมายเหตุปนกัน */
+  const [destinations, setDestinations] = useState([]);
   const [servicePoint, setServicePoint] = useState('');
-  const [note, setNote] = useState('');
 
   useEffect(() => {
     if (!open) return;
-    setDepartment('');
+    setDestinations([]);
     setServicePoint('');
-    setNote('');
   }, [open]);
 
   const departmentOptions = listInternalReferDepartments(centerId);
-  const servicePointOptions = listInternalReferServicePoints();
+  const chosen = new Set(destinations.map((d) => d.department));
+  /* แผนกที่เลือกไปแล้วหายจากรายการ จะได้ไม่เลือกซ้ำแล้วได้หมายเหตุสองก้อน
+     ของแผนกเดียวกัน */
+  const availableOptions = departmentOptions.filter((o) => !chosen.has(o.value));
+
+  const addDestination = (value) => {
+    if (!value || chosen.has(value)) return;
+    setDestinations((list) => [...list, { department: value, note: '' }]);
+  };
+  const updateNote = (value, note) => setDestinations((list) => list.map(
+    (d) => (d.department === value ? { ...d, note } : d),
+  ));
+  const removeDestination = (value) => setDestinations(
+    (list) => list.filter((d) => d.department !== value),
+  );
+
+  const labelOf = (value) => departmentOptions.find((o) => o.value === value)?.label || value;
+
   /* ช่อง "จุดบริการปลายทาง" ถูกถอดออกแล้ว (มติผู้ใช้ 28 ส.ค. 69) — ถ้ายังนับเป็น
      เงื่อนไขอยู่ ปุ่มยืนยันจะ disabled ตลอดกาลทุกหน้าที่เรียกป๊อปอัปนี้
      ค่ายังส่งกลับไปเป็นค่าว่างตามเดิม ผู้เรียกที่อ่าน servicePoint จึงไม่พัง */
-  const incomplete = !String(department || '').trim();
+  const incomplete = destinations.length === 0;
 
   const handleConfirm = () => {
     if (incomplete) return;
-    const { departmentLabel, servicePointLabel } = resolveInternalReferLabels({
-      departmentId: department,
+    const { servicePointLabel } = resolveInternalReferLabels({
+      departmentId: destinations[0].department,
       servicePointId: servicePoint,
       centerId,
     });
+    const list = destinations.map((d) => ({
+      departmentId: d.department,
+      departmentLabel: labelOf(d.department),
+      note: String(d.note || '').trim(),
+    }));
+    /* คีย์เดิม (departmentId/departmentLabel/note) ยังส่งกลับเป็นปลายทางแรก
+       เสมอ หน้าที่อ่าน payload อยู่ก่อนหน้านี้จึงไม่ต้องแก้ ส่วนหน้าที่รองรับ
+       หลายปลายทางให้อ่าน `destinations` */
     onConfirm?.({
-      departmentId: department,
-      departmentLabel,
+      departmentId: list[0].departmentId,
+      departmentLabel: list[0].departmentLabel,
       servicePointId: servicePoint,
       servicePointLabel,
-      note: note.trim(),
+      note: list[0].note,
+      destinations: list,
     });
   };
 
@@ -196,7 +225,9 @@ export default function InternalReferPopup({
       onClose={onClose}
       title={title}
       subtitle={subtitle}
-      size='large'
+      /* ป๊อปอัปกว้างขึ้น (มติผู้ใช้ 2 ก.ย. 69) — มีได้หลายปลายทาง แต่ละอันมี
+         ช่องหมายเหตุของตัวเอง ความกว้างเดิมทำให้อ่านเป็นแถบยาวแคบ */
+      size='extraLarge'
       secondaryAction={{ label: 'ยกเลิก', onClick: onClose }}
       primaryAction={{
         label: primaryLabel,
@@ -234,17 +265,65 @@ export default function InternalReferPopup({
           </div>
         ) : null}
 
-        <InternalReferFields
-          department={department}
-          servicePoint={servicePoint}
-          note={note}
-          onDepartmentChange={setDepartment}
-          onServicePointChange={setServicePoint}
-          onNoteChange={setNote}
-          departmentOptions={departmentOptions}
-          servicePointOptions={servicePointOptions}
-          extra={extra}
+        <Select
+          label='แผนกหรือคลินิกปลายทาง'
+          helperText='เลือกได้มากกว่า 1 แผนก — เลือกแล้วจะมีช่องหมายเหตุของแผนกนั้นให้กรอก'
+          value=''
+          onChange={(val) => {
+            addDestination(val);
+            setServicePoint('');
+          }}
+          options={availableOptions}
+          placeholder={REFER_DEPARTMENT_PLACEHOLDER}
+          required
         />
+
+        {extra}
+
+        {destinations.map((d) => (
+          <div
+            key={d.department}
+            className='flex flex-col w-full min-w-0'
+            style={{
+              gap: 'var(--dim-space-300)',
+              padding: 'var(--dim-space-400)',
+              borderRadius: 'var(--dim-radius-400)',
+              border: 'var(--dim-stroke-100) solid var(--border-card-default, #E2E4E6)',
+              background: 'var(--surface-card-100)',
+            }}
+          >
+            <div className='flex items-center justify-between' style={{ gap: 'var(--dim-space-200)' }}>
+              <span style={{
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-base)',
+                fontWeight: 'var(--type-weight-medium)',
+                color: 'var(--text-content-default, #363B3F)',
+              }}>
+                {labelOf(d.department)}
+              </span>
+              <NeutralIconButton
+                icon='close'
+                variant='ghost'
+                size='sm'
+                aria-label={`ลบปลายทาง ${labelOf(d.department)}`}
+                onClick={() => removeDestination(d.department)}
+              />
+            </div>
+            <SuggestibleTextarea
+              voice
+              label={`หมายเหตุถึง${labelOf(d.department)}`}
+              value={d.note}
+              onChange={(val) => updateNote(
+                d.department,
+                typeof val === 'string' ? val : val?.target?.value || '',
+              )}
+              placeholder='เช่น อาการคงที่ พร้อมส่งต่อ · แจ้งประวัติแพ้ยา · เอกสารที่ต้องแนบ'
+              showHelperText={false}
+              suggestions={INTERNAL_REFER_NOTE_HINTS}
+              minChars={3}
+            />
+          </div>
+        ))}
       </div>
     </Popup>
   );

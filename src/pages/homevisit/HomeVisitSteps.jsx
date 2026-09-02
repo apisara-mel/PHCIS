@@ -21,10 +21,15 @@ import {
   MinorIllnessFields,
 } from '@/components/homevisit/homeScreeningSections';
 import { PATIENT_GROUP_OPTIONS, MOBILITY_OPTIONS, buildMockRightsGroups } from '@/data/registrationForm';
+/* รายชื่อใบยินยอมชุดเดียวกับที่ขั้นที่ 1 แสดง (`StepConsent`) — ถ้าใช้ catalog
+   คนละชุด หน้าทวนจะบอกว่ายังไม่ได้เซ็นทั้งที่เซ็นครบแล้ว */
+import { REGISTRATION_PENDING_CONSENT_CARDS } from '@/data/registrationConsentForms';
 import { MEDICATION_NAME_OPTIONS } from '@/data/medicationCatalog';
 import {
   NATIONALITY_OPTIONS,
   ETHNICITY_OPTIONS,
+  HEALTH_RISK_OPTIONS,
+  homeScreeningSummaryRows,
 } from '@/data/homeScreeningForm';
 /* ยกชุดคำ/ระดับของขั้น "อาการป่วย" ที่จุดคัดกรอง OPD มาใช้ตรง ๆ
    (มติผู้ใช้ 30 ส.ค. 69) — ถ้าประกาศใหม่ที่นี่ คำที่พยาบาลเลือกจะไม่ตรงกัน
@@ -78,6 +83,7 @@ import {
   PAIN_SCALE,
   PRESSURE_SORE_OPTIONS,
   ROLE_NOTE_SECTIONS,
+  CARE_ACTIVITIES,
   FAMILY_RELATIONS,
   FAMILY_HEALTH_OPTIONS,
   HOMEVISIT_ASSESSMENT_SUGGESTIONS,
@@ -174,7 +180,6 @@ const snapshotCarePlan = (template) => ({
   horizon: template.horizon,
   activityIds: [...(template.activityIds || [])],
   evaluation: template.evaluation,
-  professionGroup: template.professionGroup,
 });
 
 const carePlanText = (plans = []) => plans
@@ -1015,10 +1020,12 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
                       )}
                     </div>
                   ) : (
-                    /* ปุ่มเล็กแทนกล่องอัปโหลด (มติผู้ใช้ 2 ก.ย. 69) — แถวยาแคบ
-                       กล่อง 96×72 ดันความสูงของทั้งแถว */
+                    /* ปุ่มแทนกล่องอัปโหลด (มติผู้ใช้ 2 ก.ย. 69) — แถวยาแคบ กล่อง
+                       96×72 ดันความสูงของทั้งแถว · size md สูง 40px เท่ากับ
+                       Select size lg ที่อยู่ข้างกัน (--dim-size-800) ปุ่มกับช่อง
+                       เลือกจึงอยู่ระดับเดียวกัน (มติผู้ใช้ 2 ก.ย. 69) */
                     <NeutralSubdueButton
-                      size='sm'
+                      size='md'
                       leadingIcon='photo_camera'
                       disabled={readOnly}
                       onClick={() => pickMedicationPhoto(m.id)}
@@ -2138,8 +2145,6 @@ export const HomeVisitStep7Family = ({
   const careActivities = getHomeVisitCareActivities();
   const selectedCarePlans = Array.isArray(form.carePlans) ? form.carePlans : [];
 
-  /* เก็บ snapshot ของ template ลงใบเยี่ยม แม่แบบที่สำนักปิดใช้ภายหลังจึงยังอ่าน
-     ประวัติเดิมได้ครบ แต่ไม่ขึ้นเป็นตัวเลือกสำหรับการเยี่ยมครั้งใหม่. */
   const setCarePlanIds = (ids) => setForm((current) => {
     const selectedIds = Array.isArray(ids) ? ids : [ids];
     const existing = Array.isArray(current.carePlans) ? current.carePlans : [];
@@ -2680,7 +2685,7 @@ const ReviewCard = ({ icon, title, items, onEdit, children }) => (
 
 const reviewAddressLine = (a) => {
   if (!a) return '';
-  return [a.houseNo, a.moo && `หมู่ ${a.moo}`, a.road, a.subdistrict, a.district, a.province, a.zip]
+  return [a.houseNo, a.moo && `หมู่ ${a.moo}`, a.road, a.subdistrict, a.district, a.province, a.postcode || a.zip]
     .filter((x) => String(x || '').trim())
     .join(' ');
 };
@@ -2688,7 +2693,10 @@ const reviewAddressLine = (a) => {
 /* หมวดในหน้าตรวจสอบ ↔ ขั้นที่เป็นเจ้าของฟอร์มนั้น — กดแก้ไขแล้วเปิดขั้นนั้น
    เป็นป๊อปอัป (มติผู้ใช้ 2 ก.ย. 69) ไม่ต้องเดินกลับไปทีละขั้น */
 const REVIEW_EDIT_SECTIONS = {
+  consent: { title: 'แบบฟอร์มความยินยอม', Step: HomeVisitStep0Consent },
+  personal: { title: 'ข้อมูลส่วนตัว', Step: HomeVisitStep1Service },
   service: { title: 'ข้อมูลการให้บริการ', Step: HomeVisitStep1Service },
+  rights: { title: 'สิทธิการรักษา', Step: HomeVisitStepRights },
   address: { title: 'ที่อยู่และการติดต่อ', Step: HomeVisitStep2Address },
   screening: { title: 'คัดกรอง', Step: HomeVisitStepScreening },
   illness: { title: 'ประเมินอาการป่วย', Step: HomeVisitStep2History },
@@ -2705,11 +2713,104 @@ export const HomeVisitStepReview = ({ form, hn, registryEntry, appointment, bloc
   const photoCount = (form.photos || []).length;
   const housePhotoCount = (form.housePhotos || []).filter(Boolean).length;
 
+  /* ── ค่าที่ต้องกางให้ครบทุกขั้นก่อนหน้า (มติผู้ใช้ 2 ก.ย. 69) ──────────
+     ขั้นนี้คือที่สุดท้ายก่อนกดบันทึกและส่งต่อ ถ้ามีอะไรที่กรอกไว้แล้วไม่โผล่
+     ตรงนี้ คนทวนจะไม่มีทางรู้ว่าตกหล่น จึงไล่จากขั้นที่ 1 ถึงขั้นที่ 6 ให้ครบ */
+
+  const consentDone = Array.isArray(form.consentCompletedIds) ? form.consentCompletedIds : [];
+  const consentSigned = REGISTRATION_PENDING_CONSENT_CARDS.filter((f) => consentDone.includes(f.id));
+  const consentPending = REGISTRATION_PENDING_CONSENT_CARDS.filter((f) => !consentDone.includes(f.id));
+
+  const fullNameTh = [form.prefixTh, form.firstNameTh, form.lastNameTh].filter(Boolean).join(' ')
+    || registryEntry?.name || appointment?.name || '';
+  const birthLine = form.dobUnknown
+    ? (form.birthYearBE ? `ปีเกิด ${form.birthYearBE}` : '')
+    : form.dob;
+  const mobilityLine = form.mobility === 'other'
+    ? (form.mobilityOther || 'อื่นๆ')
+    : (MOBILITY_OPTIONS.find((o) => o.key === form.mobility)?.label || '');
+
+  const contactAddressLine = form.useRegisteredForContact
+    ? 'เหมือนที่อยู่ตามทะเบียนบ้าน'
+    : (form.useCurrentForContact ? 'เหมือนที่อยู่ปัจจุบัน' : reviewAddressLine(form.addressContact));
+  const emergencyLine = (Array.isArray(form.emergency) ? form.emergency : [])
+    .filter((e) => e?.name)
+    .map((e) => [e.name, e.relation && `(${e.relation})`, e.phone].filter(Boolean).join(' '))
+    .join('\n');
+
+  /* สิทธิการรักษา — กางทุกกลุ่มพร้อมลำดับที่จัดไว้ในขั้นนั้น ลำดับคือสิ่งที่
+     ตัดสินว่าจะเบิกสิทธิไหนก่อน จึงต้องเห็นในหน้าทวน */
+  const rightsLine = (form.rightsGroups || [])
+    .map((g) => {
+      const items = (g.priorityItems || [])
+        .map((it, i) => `${i + 1}. ${it.label}${it.role ? ` (${it.role})` : ''}`)
+        .join(' · ');
+      return items ? `${g.title}: ${items}` : '';
+    })
+    .filter(Boolean)
+    .join('\n');
+
+  const bmi = calcBmi(vitals.weight, vitals.height);
+  const behaviourRisks = (screening.risks || [])
+    .map((k) => HEALTH_RISK_OPTIONS.find((o) => o.key === k)?.label)
+    .filter(Boolean)
+    .join(' · ');
+
+  const medicationLine = (form.medications || [])
+    .map((m) => {
+      const name = m.name === HOMEVISIT_MED_OTHER ? m.nameOther : m.name;
+      if (!String(name || '').trim()) return '';
+      const dose = m.dose === HOMEVISIT_MED_OTHER ? m.doseOther : m.dose;
+      const adherence = {
+        good: 'รับประทานครบตามสั่ง',
+        partial: 'ลืมบางมื้อ',
+        poor: 'ไม่ได้รับประทาน',
+        stopped: 'หยุดยาเอง',
+      }[m.adherence] || '';
+      return [name, dose, adherence, m.photoUrl && 'มีรูปยา'].filter(Boolean).join(' · ');
+    })
+    .filter(Boolean)
+    .join('\n');
+
+  /* แบบประเมินทั้งชุดในขั้น "ประเมินอาการป่วย" — เดิมหน้าทวนมีแต่ ADL
+     ทั้งที่กรอก 2Q/9Q/MNA/PPS ไปด้วย (มติผู้ใช้ 2 ก.ย. 69) */
+  const q2Positive = SCREEN_2Q_QUESTIONS.filter((q) => form.screen2q?.[q.key] === true).length;
+  const q2Answered = SCREEN_2Q_QUESTIONS.filter((q) => typeof form.screen2q?.[q.key] === 'boolean').length;
+  const q9Total = score9q(form.screen9q);
+  const mnaTotal = scoreMna(form.mna);
+  const ppsInterp = interpretPps(form.pps);
+
   return (
     /* การ์ดในหน้าตรวจสอบห่างกัน 12px (มติผู้ใช้ 2 ก.ย. 69) — เป็นสรุปอ่านต่อเนื่อง
        ไม่ใช่ฟอร์มที่ต้องเว้นจังหวะเท่าขั้นอื่น */
     <section className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
       {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+
+      <ReviewCard
+        icon='assignment_turned_in'
+        title='แบบฟอร์มความยินยอม'
+        onEdit={() => setEditing('consent')}
+        items={[
+          ['เซ็นแล้ว', consentSigned.length ? `${consentSigned.length}/${REGISTRATION_PENDING_CONSENT_CARDS.length} ฉบับ` : ''],
+          ['รายการที่เซ็นแล้ว', consentSigned.map((f) => f.title).join('\n')],
+          ['ยังไม่ได้เซ็น', consentPending.map((f) => f.title).join('\n')],
+        ]}
+      />
+
+      <ReviewCard
+        icon='person'
+        title='ข้อมูลส่วนตัว'
+        onEdit={() => setEditing('personal')}
+        items={[
+          ['ชื่อ-นามสกุล', fullNameTh],
+          ['เลขบัตรประชาชน', form.nationalId],
+          ['วันเดือนปีเกิด', birthLine],
+          ['เพศ', form.gender],
+          ['หมู่เลือด', form.bloodType],
+          ['สถานะการมีชีวิต', form.lifeStatus === 'deceased' ? `เสียชีวิต (${form.deceasedDate || 'ไม่ระบุวันที่'})` : 'มีชีวิตอยู่'],
+          ['สภาพการเคลื่อนไหว', mobilityLine],
+        ]}
+      />
 
       <ReviewCard
         icon='event_available'
@@ -2722,6 +2823,28 @@ export const HomeVisitStepReview = ({ form, hn, registryEntry, appointment, bloc
           ['วันที่ให้บริการ', form.serviceDate ? formatHomeVisitDate(form.serviceDate) : ''],
           ['กลุ่มผู้รับบริการ', PATIENT_GROUP_OPTIONS.find((g) => g.key === form.patientGroup)?.label],
           ['ที่มาของเคส', HOMEVISIT_SOURCES.find((o) => o.value === form.homevisitSource)?.label],
+          ['ทีมผู้รับผิดชอบ', form.team],
+        ]}
+      />
+
+      {/* คัดกรองสุขภาพรายบุคคลอยู่ในขั้น "ข้อมูลส่วนตัว" — ใช้ป้ายชุดเดียวกับ
+          ที่ฟอร์มนั้นประกาศไว้ จะได้ไม่หลุดเมื่อฟอร์มเพิ่มข้อ */}
+      <ReviewCard
+        icon='fact_check'
+        title='คัดกรองสุขภาพรายบุคคล'
+        onEdit={() => setEditing('personal')}
+        items={homeScreeningSummaryRows(screening).map((r) => [r.label, r.value])}
+      />
+
+      <ReviewCard
+        icon='family_restroom'
+        title='ข้อมูลสุขภาพครอบครัว'
+        onEdit={() => setEditing('family')}
+        items={[
+          ['สมาชิกในครัวเรือน', (form.familyMembers || [])
+            .map((m) => [m.name, m.relation, m.age && `${m.age} ปี`].filter(Boolean).join(' · '))
+            .join('\n')],
+          ['บันทึกข้อมูลสุขภาพครอบครัว', form.familyNote],
         ]}
       />
 
@@ -2731,10 +2854,26 @@ export const HomeVisitStepReview = ({ form, hn, registryEntry, appointment, bloc
         onEdit={() => setEditing('address')}
         items={[
           ['ที่อยู่ตามทะเบียนบ้าน', reviewAddressLine(form.addressRegistered)],
-          ['ที่อยู่ปัจจุบัน', reviewAddressLine(form.addressCurrent)],
+          ['ที่อยู่ปัจจุบัน', form.useRegisteredForCurrent ? 'เหมือนที่อยู่ตามทะเบียนบ้าน' : reviewAddressLine(form.addressCurrent)],
+          ['ที่อยู่ติดต่อได้', contactAddressLine],
+          ['พิกัดบ้าน', form.home?.lat ? `${form.home.lat}, ${form.home.lng}${form.home.pinSaved ? ' (ปักหมุดแล้ว)' : ''}` : ''],
           ['บันทึกการเดินทาง', form.travelNote],
+          ['เวลาถึงบ้าน', form.arrivalTime],
           ['รูปถ่ายบ้าน', housePhotoCount ? `${housePhotoCount} รูป` : ''],
           ['เบอร์โทรศัพท์', form.phone],
+          ['อีเมล', form.email],
+          ['ผู้ติดต่อฉุกเฉิน', emergencyLine],
+        ]}
+      />
+
+      <ReviewCard
+        icon='verified_user'
+        title='สิทธิการรักษา'
+        onEdit={() => setEditing('rights')}
+        items={[
+          ['สิทธิหลัก', form.rightsType || form.rights],
+          ['สถานพยาบาลหลัก', form.rightsHospital],
+          ['ลำดับสิทธิที่ตรวจพบ', rightsLine],
         ]}
       />
 
@@ -2745,11 +2884,18 @@ export const HomeVisitStepReview = ({ form, hn, registryEntry, appointment, bloc
         items={[
           ['ความดันโลหิต', vitals.sys && vitals.dia ? `${vitals.sys}/${vitals.dia} mmHg` : ''],
           ['ชีพจร', vitals.pulse ? `${vitals.pulse} ครั้ง/นาที` : ''],
+          ['การหายใจ', vitals.respiration ? `${vitals.respiration} ครั้ง/นาที` : ''],
           ['อุณหภูมิ', vitals.temp ? `${vitals.temp} °C` : ''],
           ['ออกซิเจนปลายนิ้ว', vitals.oxygen ? `${vitals.oxygen}%` : ''],
+          ['น้ำหนัก', vitals.weight ? `${vitals.weight} กก.` : ''],
+          ['ส่วนสูง', vitals.height ? `${vitals.height} ซม.` : ''],
+          ['BMI', bmi ? `${bmi} kg/m²` : ''],
+          ['บันทึกการวัดสัญญาณชีพ', form.vitalsNote],
+          ['น้ำตาลปลายนิ้ว (DTX)', screening.dtx ? `${screening.dtx} mg% ${screening.dtxFasting ? `(${screening.dtxFasting})` : ''}`.trim() : ''],
           ['ประวัติการแพ้', form.flags?.allergyDrug ? (form.allergyFreeText || 'มี') : ''],
           ['โรคประจำตัว', form.flags?.chronic ? (form.chronicFreeText || 'มี') : ''],
-          ['น้ำตาลปลายนิ้ว (DTX)', screening.dtx ? `${screening.dtx} mg%` : ''],
+          ['บันทึกเพิ่มเติม (การแพ้/โรคประจำตัว)', form.allergyNote],
+          ['พฤติกรรม/ความเสี่ยงด้านสุขภาพ', behaviourRisks],
         ]}
       />
 
@@ -2763,22 +2909,15 @@ export const HomeVisitStepReview = ({ form, hn, registryEntry, appointment, bloc
           ['ผู้ดูแลหลัก', CAREGIVER_OPTIONS.find((o) => o.value === form.caregiver)?.label],
           ['แผลกดทับ', PRESSURE_SORE_OPTIONS.find((o) => o.value === form.pressureSore)?.label],
           ['ระดับความปวด', Number.isFinite(form.painScore) ? `${form.painScore}/10` : ''],
+          ['ยาที่ใช้อยู่', medicationLine],
           ['ADL (ดัชนีบาร์เธล)', adlTotal ? `${adlTotal}/${BARTHEL_MAX_SCORE} · ${adlInterp.label}` : ''],
+          ['2Q (คัดกรองซึมเศร้า)', q2Answered ? `ตอบ ${q2Answered}/${SCREEN_2Q_QUESTIONS.length} ข้อ · พบ ${q2Positive} ข้อ` : ''],
+          ['9Q (ประเมินซึมเศร้า)', Number.isFinite(q9Total) && q9Total > 0 ? `${q9Total} คะแนน` : ''],
+          ['MNA (ภาวะโภชนาการ)', Number.isFinite(mnaTotal) && mnaTotal > 0 ? `${mnaTotal} คะแนน` : ''],
+          ['PPS (ระดับผู้ป่วยประคับประคอง)', ppsInterp ? `${form.pps}% · ${ppsInterp.label || ''}`.trim() : ''],
           ['ความต้องการ/ควรได้รับ', describeSupplyNeed(form)],
           ['สรุปผลการประเมิน', form.assessmentNote],
           ['รูปถ่ายระหว่างการเยี่ยม', photoCount ? `${photoCount} รูป` : ''],
-        ]}
-      />
-
-      <ReviewCard
-        icon='family_restroom'
-        title='ข้อมูลสุขภาพครอบครัว'
-        onEdit={() => setEditing('family')}
-        items={[
-          ['สมาชิกในครัวเรือน', (form.familyMembers || [])
-            .map((m) => [m.name, m.relation, m.age && `${m.age} ปี`].filter(Boolean).join(' · '))
-            .join('\n')],
-          ['บันทึกข้อมูลสุขภาพครอบครัว', form.familyNote],
         ]}
       />
 
