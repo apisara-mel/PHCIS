@@ -144,7 +144,11 @@ const isUpcomingVisit = (r) => !!r.visitDate && r.visitDate > todayIsoDate();
 const TAB_PREDICATE = {
   /* แท็บรายชื่อทั้งหมด — ไม่กรองอะไรเลย รวมนัดที่ถูกยกเลิกด้วย */
   all: () => true,
-  toDepart: (r) => !r.cancellation && !isUpcomingVisit(r) && (r.statusKey === 'toDepart' || r.statusKey === 'scheduled'),
+  /* แท็บ "นัดวันนี้" เหลือเฉพาะสถานะ "รอเยี่ยม" (มติผู้ใช้ 2 ก.ย. 69) — ที่ออก
+     ไปแล้วหรือเยี่ยมเสร็จแล้วมีแท็บของตัวเอง ปนกันอยู่ในแท็บเดียวทำให้มองไม่ออก
+     ว่าวันนี้เหลือกี่บ้านที่ยังไม่ได้ไป */
+  today:    (r) => !r.cancellation && !isUpcomingVisit(r) && r.statusKey === 'scheduled',
+  toDepart: (r) => !r.cancellation && !isUpcomingVisit(r) && r.statusKey === 'toDepart',
   done:     (r) => !r.cancellation && !isUpcomingVisit(r) && r.statusKey === 'done',
   draft:    (r) => !r.cancellation && !isUpcomingVisit(r) && r.statusKey === 'draft',
   overdue:  (r) => !r.cancellation && !!r.overdue,
@@ -254,7 +258,7 @@ const HomeVisitQueuePage = () => {
   );
 
   const tabs = useMemo(() => ([
-    { key: 'today',     label: 'นัดวันนี้',         icon: 'event_available',      count: rows.filter((r) => !r.cancellation && !isUpcomingVisit(r)).length },
+    { key: 'today',     label: 'นัดวันนี้',         icon: 'event_available',      count: rows.filter(TAB_PREDICATE.today).length },
     { key: 'toDepart',  label: 'กำลังเยี่ยม',        icon: 'directions_car',       count: rows.filter(TAB_PREDICATE.toDepart).length },
     { key: 'done',      label: 'เยี่ยมเสร็จแล้ว',   icon: 'check_circle',         count: rows.filter(TAB_PREDICATE.done).length },
     { key: 'draft',     label: 'ที่ร่างไว้',        icon: 'save',                 count: rows.filter(TAB_PREDICATE.draft).length },
@@ -277,9 +281,6 @@ const HomeVisitQueuePage = () => {
       const pred = TAB_PREDICATE[activeTab];
       if (pred) {
         if (!pred(r)) return false;
-      } else if (r.cancellation || isUpcomingVisit(r)) {
-        /* แท็บ "นัดวันนี้" ไม่รวมนัดที่ถูกยกเลิกและนัดล่วงหน้า — ดูได้ที่แท็บของมันเอง */
-        return false;
       }
       if (filters.group !== 'all' && r.group !== filters.group) return false;
       if (filters.profession !== 'all' && r.profession !== filters.profession) return false;

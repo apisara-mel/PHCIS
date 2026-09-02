@@ -9,10 +9,12 @@ const now = () => new Date().toISOString();
 export const HOMEVISIT_LTC_SEED = {
   gate: { barthelMin: 0, barthelMax: 11, requireCareManager: true, requireCareGiver: true },
   groups: [
-    { group: 1, adlMin: 0, adlMax: 4, visitsPerMonth: 2, extraRule: '' },
-    { group: 2, adlMin: 5, adlMax: 8, visitsPerMonth: 1, extraRule: '' },
-    { group: 3, adlMin: 9, adlMax: 11, visitsPerMonth: 1, extraRule: '' },
-    { group: 4, adlMin: null, adlMax: null, visitsPerMonth: 1, extraRule: 'เกณฑ์เพิ่มตามสำนักอนามัย เช่น TAI / ภาวะสมองเสื่อม (มติไม่ได้ระบุช่วงคะแนน)' },
+    /* เงื่อนไข Care Manager / Care Giver เป็นของแต่ละกลุ่ม (มติผู้ใช้ 2 ก.ย. 69)
+       — เดิมเป็นสวิตช์ระดับหน้าอันเดียวคุมทุกกลุ่ม */
+    { group: 1, adlMin: 0, adlMax: 4, visitsPerMonth: 2, extraRule: '', requireCareManager: true, requireCareGiver: true },
+    { group: 2, adlMin: 5, adlMax: 8, visitsPerMonth: 1, extraRule: '', requireCareManager: true, requireCareGiver: true },
+    { group: 3, adlMin: 9, adlMax: 11, visitsPerMonth: 1, extraRule: '', requireCareManager: true, requireCareGiver: true },
+    { group: 4, adlMin: null, adlMax: null, visitsPerMonth: 1, extraRule: 'เกณฑ์เพิ่มตามสำนักอนามัย เช่น TAI / ภาวะสมองเสื่อม (มติไม่ได้ระบุช่วงคะแนน)', requireCareManager: true, requireCareGiver: true },
   ],
 };
 
@@ -25,7 +27,21 @@ const normalize = (source = {}) => ({
   },
   groups: [1, 2, 3, 4].map((group) => {
     const row = source.groups?.find((item) => Number(item.group) === group) || HOMEVISIT_LTC_SEED.groups[group - 1];
-    return { group, adlMin: row.adlMin == null ? null : Number(row.adlMin), adlMax: row.adlMax == null ? null : Number(row.adlMax), visitsPerMonth: Number(row.visitsPerMonth), extraRule: String(row.extraRule || '').replace('ตัวอย่างตามมติ คทง.4: ', '') };
+    return {
+      group,
+      adlMin: row.adlMin == null ? null : Number(row.adlMin),
+      adlMax: row.adlMax == null ? null : Number(row.adlMax),
+      visitsPerMonth: Number(row.visitsPerMonth),
+      extraRule: String(row.extraRule || '').replace('ตัวอย่างตามมติ คทง.4: ', ''),
+      /* ค่าเดิมของทั้งหน้าใช้เป็นค่าตั้งต้นให้ทุกกลุ่ม เผื่อบันทึกเก่าที่เก็บไว้
+         ตอนที่ยังเป็นสวิตช์ระดับหน้า */
+      requireCareManager: row.requireCareManager !== undefined
+        ? row.requireCareManager !== false
+        : source.gate?.requireCareManager !== false,
+      requireCareGiver: row.requireCareGiver !== undefined
+        ? row.requireCareGiver !== false
+        : source.gate?.requireCareGiver !== false,
+    };
   }),
 });
 

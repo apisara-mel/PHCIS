@@ -531,8 +531,46 @@ export default function HomeVisitSettingsPage() {
 
   const ltcColumns = useMemo(() => [
     { key: 'group', label: 'กลุ่ม LTC', render: (row) => <ColorfulBadge style={row.group === 1 ? 'red' : 'blue'} size='small' hierarchy='secondary' width='hug'>กลุ่ม {row.group}</ColorfulBadge> },
-    { key: 'range', label: 'ช่วง ADL (0–20)', render: (row) => <InputField showLabel={false} showHelperText={false} value={row.adlMin == null ? 'เกณฑ์เพิ่ม' : `${row.adlMin} – ${row.adlMax}`} disabled={!isAdmin || row.group === 4} onChange={(value) => { const m = String(value).match(/(\d+)\s*[-–]\s*(\d+)/); if (m) { patchLtcGroup(row.group, 'adlMin', Number(m[1])); patchLtcGroup(row.group, 'adlMax', Number(m[2])); } }} /> },
+    /* ช่วง ADL แยกเป็นสองช่อง "เริ่มต้น" กับ "สิ้นสุด" (มติผู้ใช้ 2 ก.ย. 69) —
+       เดิมเป็นช่องเดียวที่ต้องพิมพ์เป็นข้อความ "0 – 4" แล้วให้ระบบแกะตัวเลขเอง
+       ซึ่งพิมพ์ผิดรูปแบบนิดเดียวก็บันทึกไม่เข้า · กลุ่ม 4 ใช้เกณฑ์เพิ่มแทนช่วงคะแนน
+       จึงไม่มีช่องให้กรอก */
+    {
+      key: 'range',
+      label: 'ช่วง ADL (0–20)',
+      render: (row) => (row.adlMin == null ? (
+        <span style={TEXT}>ใช้เกณฑ์เพิ่ม</span>
+      ) : (
+        <span className='flex items-center' style={{ gap: 'var(--dim-space-200)' }}>
+          <Stepper
+            aria-label={`ADL เริ่มต้นของกลุ่ม ${row.group}`}
+            value={row.adlMin}
+            min={0}
+            max={20}
+            step={1}
+            size='large'
+            disabled={!isAdmin}
+            onChange={(value) => patchLtcGroup(row.group, 'adlMin', value ?? 0)}
+          />
+          <span style={TEXT}>ถึง</span>
+          <Stepper
+            aria-label={`ADL สิ้นสุดของกลุ่ม ${row.group}`}
+            value={row.adlMax}
+            min={0}
+            max={20}
+            step={1}
+            size='large'
+            disabled={!isAdmin}
+            onChange={(value) => patchLtcGroup(row.group, 'adlMax', value ?? 0)}
+          />
+        </span>
+      )),
+    },
     { key: 'visitsPerMonth', label: 'ความถี่ (ครั้ง/เดือน)', render: (row) => <Stepper aria-label={`ความถี่กลุ่ม ${row.group}`} value={row.visitsPerMonth} min={1} step={1} size='large' disabled={!isAdmin} onChange={(value) => patchLtcGroup(row.group, 'visitsPerMonth', value || 1)} /> },
+    /* เงื่อนไขผู้ดูแลอยู่ในแถวของแต่ละกลุ่ม (มติผู้ใช้ 2 ก.ย. 69) — เดิมเป็นสวิตช์
+       ระดับหน้าอันเดียว บอกไม่ได้ว่ากลุ่มไหนบังคับบ้าง */
+    { key: 'careManager', label: 'บังคับมี Care Manager', align: 'center', sortable: false, render: (row) => <Switch checked={row.requireCareManager !== false} disabled={!isAdmin} onChange={(value) => patchLtcGroup(row.group, 'requireCareManager', value)} /> },
+    { key: 'careGiver', label: 'บังคับมี Care Giver', align: 'center', sortable: false, render: (row) => <Switch checked={row.requireCareGiver !== false} disabled={!isAdmin} onChange={(value) => patchLtcGroup(row.group, 'requireCareGiver', value)} /> },
     { key: 'extraRule', label: 'เกณฑ์เพิ่ม', flex: true, render: (row) => <Textarea showLabel={false} showHelperText={false} value={row.extraRule} disabled={!isAdmin} onChange={(value) => patchLtcGroup(row.group, 'extraRule', value)} placeholder='ระบุเกณฑ์เพิ่มเติม' /> },
   ], [isAdmin]);
 
@@ -710,7 +748,7 @@ export default function HomeVisitSettingsPage() {
           {activeTab === 'ltc' ? (
             <section className='w-full flex flex-col' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
               <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}><h2 style={{ color: 'var(--text-content-primary)', fontFamily: 'var(--type-family-heading-content)', fontSize: 'var(--type-size-lg)', fontWeight: 'var(--type-weight-bold)' }}>เกณฑ์ LTC กลุ่ม 1–4</h2></div>
-              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}><span style={TEXT}>ประตูเข้า LTC: ADL 0 ถึง</span><Stepper aria-label='ADL สูงสุดของประตู LTC' value={ltcSettings.gate.barthelMax} min={0} max={20} step={1} size='large' disabled={!isAdmin} onChange={(value) => patchLtc('gate', { ...ltcSettings.gate, barthelMax: value || 0 })} /><Switch checked={ltcSettings.gate.requireCareManager} disabled={!isAdmin} onChange={(value) => patchLtc('gate', { ...ltcSettings.gate, requireCareManager: value })} /><span style={TEXT}>บังคับมี Care Manager</span><Switch checked={ltcSettings.gate.requireCareGiver} disabled={!isAdmin} onChange={(value) => patchLtc('gate', { ...ltcSettings.gate, requireCareGiver: value })} /><span style={TEXT}>บังคับมี Care Giver</span></div>
+              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}></div>
               <Table columns={ltcColumns} rows={ltcSettings.groups} rowKey={(row) => row.group} pagination={false} stickyColCount={1} stickyShadow emptyMessage='ไม่พบเกณฑ์ LTC' />
               {ltcDirty ? <ColorfulBadge style='orange' size='small' hierarchy='secondary' width='hug'>ค่าที่ปรับอาจทำให้ความถี่นัดของผู้เข้าเกณฑ์เปลี่ยนทันที</ColorfulBadge> : null}
             </section>
