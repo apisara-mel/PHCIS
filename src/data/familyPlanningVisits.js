@@ -871,6 +871,16 @@ export const DEFAULT_FP_VISIT = {
   externalReferReason: '',
   externalReferDate: '',
 
+  /* ขั้นสั่งการรักษาใช้ของคลินิกฝากครรภ์ทั้งก้อน (`AncStep5Orders`) จึงต้องมี
+     state ชุดเดียวกับ DEFAULT_ANC_VISIT ของขั้นนั้น (มติผู้ใช้ 3 ก.ย. 69) */
+  riskLevel: 'low',
+  lab1Orders: {},
+  lab2Orders: {},
+  labResults: {},
+  diabetesScreening: {},
+  supplements: {},
+  termAssessment: {},
+
   /* S7 — e-Document + นัดหมาย + พิมพ์บัตร */
   documents: [],                   /* [{ name, size, uploadedBy, uploadedAt }] */
   /* e-Document ที่ "สร้าง" ในการมารับบริการครั้งนี้ด้วย form-builder

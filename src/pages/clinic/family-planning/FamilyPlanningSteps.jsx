@@ -24,6 +24,7 @@ import { BodyDiagramCard } from '@/components/examination/BodyDrawingCanvas';
 /* แผงวินิจฉัยใช้ของคลินิกฝากครรภ์ทั้งก้อน — ทุกช่องต้องเหมือนกันเป๊ะ (มติผู้ใช้ 3 ก.ย. 69) */
 import { AncStep4Diagnosis } from '@/pages/treat/anc/AncSteps';
 import DrawingCanvasPopup from '@/components/popup/DrawingCanvasPopup';
+import { AncStep5Orders } from '@/pages/treat/anc/AncSteps';
 import FamilyPlanningFollowUpCard, { printFpFollowUpCard } from '@/pages/clinic/family-planning/FamilyPlanningFollowUpCard';
 import {
   FP_CURRENT_USER,
@@ -2825,14 +2826,24 @@ export const FpExaminationDiagnosisStep = ({ form, setForm, locked, ...props }) 
   </div>
 );
 
-export const FpTreatmentOrderStep = ({ form, ...props }) => {
+/* ขั้นสั่งการรักษาใช้ของคลินิกฝากครรภ์ทั้งก้อน (มติผู้ใช้ 3 ก.ย. 69) —
+   `AncStep5Orders` ถูกเรียกตรง ๆ ไม่ก๊อป ไม่ดัดแปลง จึงได้ครบทุกบล็อกตาม
+   ลำดับเดิม: สรุปผลแล็บ/ภาวะเสี่ยง · ส่งตรวจ Lab ครั้งที่ 1 + ผลตรวจ ·
+   คัดกรองเบาหวานขณะตั้งครรภ์ · Lab ครั้งที่ 2 + ผลตรวจ · ยาเสริม ·
+   ประเมินสุขภาพทารกในครรภ์ · ช่องค้นยา/วัคซีน/หัตถการจากทะเบียน + ตาราง
+   ประเภท/รายการ/การใช้/คำเตือน + Re-Medicine + FrequentOrdersCard ·
+   กล่องนัดหมายครั้งถัดไป (textarea ช่องเดียว) — ห้ามซ่อนบล็อกใดตามบริการของ
+   คลินิกวางแผนครอบครัว
+
+   ส่วน `FpStep3Plan` (ข้อมูลการรับบริการ · ประเภทผู้รับบริการ · บริการที่
+   ได้รับ ตาม TOR 1.10.8.7) ยังอยู่หัวขั้น เพราะเป็นแกนของทะเบียนวางแผน
+   ครอบครัวและ `validateFpVisit` บังคับก่อนบันทึก */
+export const FpTreatmentOrderStep = ({ form, setForm, fpHn, ...props }) => {
+  const isFollowUp = (getFpVisitRecords(fpHn) || []).length > 0;
   return (
     <StepCard>
-      <FpStep3Plan form={form} {...props} />
-      <FpStep6Orders form={form} {...props} />
-      {/* ขั้น "นัดหมาย" ถูกถอดออกจากลำดับขั้น — กล่องนัดหมายครั้งถัดไปย้ายมา
-          อยู่ใต้ตารางสั่งการรักษา ทรงเดียวกับคลินิกฝากครรภ์ (มติผู้ใช้ 3 ก.ย. 69) */}
-      <FpAppointmentStep form={form} {...props} />
+      <FpStep3Plan form={form} setForm={setForm} fpHn={fpHn} {...props} />
+      <AncStep5Orders form={form} setForm={setForm} isFollowUp={isFollowUp} />
     </StepCard>
   );
 };
