@@ -581,6 +581,8 @@ export const FpStep2Screening = ({ form, setForm, locked }) => {
 /* ══ Step 3 — วางแผนครอบครัวและคำแนะนำ (TOR 1.10.8.7) ══════════════ */
 /* ทั้งก้อนย้ายไปอยู่ขั้น "ตรวจร่างกายและวินิจฉัย" แล้ว (มติผู้ใช้ 3 ก.ย. 69) —
    ขั้นสั่งการรักษาเหลือของคลินิกฝากครรภ์ล้วน ๆ */
+const DISPENSED_KEY = '__dispensed';
+
 export const FpStep3Plan = ({ form, setForm, locked }) => {
   const screen = interpretFpScreening(form.screening);
   const dispensingBlocked = screen.mustReferDoctor && !form.doctorConsulted;
@@ -588,31 +590,30 @@ export const FpStep3Plan = ({ form, setForm, locked }) => {
 
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
-  const toggleService = (key) => {
+  /* ดรอปดาวน์เลือกได้หลายรายการ — บล็อกเฉพาะการ "เพิ่ม" รายการใหม่ที่ติดเงื่อนไข
+     ส่วนรายการที่เลือกไว้แล้วถอนออกได้เสมอ ไม่งั้นติดธง/ตั้งครรภ์ทีหลังแล้ว
+     deadlock ปลดไม่ได้ */
+  const setServices = (next) => {
     if (locked) return;
-    const service = resolveFpService(key);
-    /* บล็อกเฉพาะการ "เพิ่ม" รายการใหม่ — รายการที่เลือกไว้แล้วต้องถอน
-       ติ๊กออกได้เสมอ ไม่งั้นติดธง/ตั้งครรภ์ทีหลังแล้ว deadlock ปลดไม่ได้ */
-    const alreadySelected = form.services.includes(key);
-    if (!alreadySelected) {
-      if (dispensingBlocked && !FP_SERVICES_ALLOWED_WHEN_FLAGGED.includes(key)) return;
-      if (pregnant && service?.hormonal) return;
-    }
+    const list = Array.isArray(next) ? next : (next ? [next] : []);
     setForm((f) => ({
       ...f,
-      services: f.services.includes(key)
-        ? f.services.filter((k) => k !== key)
-        : [...f.services, key],
+      services: list.filter((key) => f.services.includes(key) || !serviceDisabledReason(key)),
     }));
   };
 
-  const toggleRemoval = (key) => {
+  /* ดรอปดาวน์รวม "การถอด" กับธง "จ่ายยาคุมกำเนิดจริงในครั้งนี้" ไว้ช่องเดียว
+     — ธงเก็บแยกใน form.dispensed เหมือนเดิม */
+  const removalValue = [...(form.removals || []), ...(form.dispensed ? [DISPENSED_KEY] : [])];
+  const setRemovalValue = (next) => {
     if (locked) return;
+    const list = Array.isArray(next) ? next : (next ? [next] : []);
+    const wantsDispensed = list.includes(DISPENSED_KEY);
     setForm((f) => ({
       ...f,
-      removals: f.removals.includes(key)
-        ? f.removals.filter((k) => k !== key)
-        : [...f.removals, key],
+      removals: list.filter((key) => key !== DISPENSED_KEY),
+      /* ถอนธงได้เสมอ — บล็อกเฉพาะการติ๊กใหม่ตอน dispensingBlocked */
+      dispensed: wantsDispensed ? (f.dispensed || !dispensingBlocked) : false,
     }));
   };
 
@@ -647,137 +648,90 @@ export const FpStep3Plan = ({ form, setForm, locked }) => {
         </Banner>
       )}
 
+      {/* สี่ช่องหลักของวิสิตอยู่แถวเดียวกัน (มติผู้ใช้ 3 ก.ย. 69) —
+          ประเภทผู้รับบริการ (คู่มือ หน้า 2-3 ข้อ 3) · วิธีคุมกำเนิดครั้งสุดท้าย
+          (ข้อ 4.1) · บริการที่ได้รับ (หน้า 2-4 ข้อ 5) · การถอด */}
       <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-        <TopicHeader icon='event'>ข้อมูลการรับบริการ</TopicHeader>
         <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-          <Field label='วันที่รับบริการ' required hint='ระบบกำหนดเป็นวันที่ปัจจุบัน แก้ไขได้'>
-            <DatePicker
-              showLabel={false}
-              disabled={locked}
-              value={form.serviceDate ? new Date(form.serviceDate) : null}
-              onChange={(d) => set('serviceDate')(d ? d.toISOString().slice(0, 10) : '')}
-              placeholder='เลือกวันที่รับบริการ'
-            />
-          </Field>
-          <Field label='ผลทดสอบการตั้งครรภ์' hint='คู่มือ หน้า 2-4 ข้อ 6'>
+          <Field label='ประเภทผู้รับบริการ' required>
             <Select
               showLabel={false} searchable={false} size='lg' disabled={locked}
-              value={form.pregnancyTest} onChange={set('pregnancyTest')}
-              options={FP_PREGNANCY_TEST_OPTIONS} placeholder='เลือกผลทดสอบ'
+              value={form.clientType} onChange={set('clientType')}
+              options={FP_CLIENT_TYPES} placeholder='เลือกประเภทผู้รับบริการ'
             />
           </Field>
-        </div>
-      </div>
-
-      {/* ประเภทผู้รับบริการ — 5 Radio Box (คู่มือ หน้า 2-3 ข้อ 3) */}
-      <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-        <TopicHeader icon='how_to_reg'>ประเภทผู้รับบริการ</TopicHeader>
-        <div className='flex items-center gap-3 flex-wrap'>
-          {FP_CLIENT_TYPES.map((t) => (
-            <SelectableTag
-              key={t.value}
-              label={t.label}
-              size='lg'
-              selected={form.clientType === t.value}
-              onClick={() => { if (!locked) set('clientType')(t.value); }}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* วิธีคุมกำเนิดครั้งสุดท้าย — เลือก "อื่นๆ" เปิดช่องระบุ (ข้อ 4.1) */}
-      <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-        <TopicHeader icon='history'>วิธีคุมกำเนิดครั้งสุดท้าย</TopicHeader>
-        <div className='flex items-center gap-3 flex-wrap'>
-          {FP_LAST_METHODS.map((m) => (
-            <SelectableTag
-              key={m.value}
-              label={m.label}
-              size='lg'
-              selected={form.lastMethod === m.value}
-              onClick={() => {
-                if (locked) return;
-                set('lastMethod')(m.value);
-                if (m.value !== 'other') set('lastMethodOther')('');
+          <Field label='วิธีคุมกำเนิดครั้งสุดท้าย'>
+            <Select
+              showLabel={false} searchable={false} size='lg' disabled={locked}
+              value={form.lastMethod}
+              onChange={(value) => {
+                set('lastMethod')(value);
+                if (value !== 'other') set('lastMethodOther')('');
               }}
-            />
-          ))}
-        </div>
-        {form.lastMethod === 'other' && (
-          <Field
-            label='ระบุวิธีคุมกำเนิดอื่นๆ'
-            required
-            hint={form.lastMethodOther.trim() ? undefined : 'จำเป็นต้องระบุเมื่อเลือก "อื่นๆ" (คู่มือ ข้อ 4.1)'}
-            hintTone={form.lastMethodOther.trim() ? undefined : 'error'}
-          >
-            <InputField
-              value={form.lastMethodOther}
-              onChange={set('lastMethodOther')}
-              disabled={locked}
-              placeholder='เช่น นับวันปลอดภัย / หลั่งภายนอก / ห่วงอนามัยชนิดฮอร์โมน'
-              error={form.lastMethodOther.trim() ? undefined : ' '}
+              options={FP_LAST_METHODS} placeholder='เลือกวิธีคุมกำเนิดครั้งสุดท้าย'
             />
           </Field>
-        )}
-      </div>
-
-      {/* บริการที่ได้รับ (คู่มือ หน้า 2-4 ข้อ 5) */}
-      <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-        <TopicHeader icon='vaccines'>บริการที่ได้รับ</TopicHeader>
-        <div className='flex items-center gap-3 flex-wrap'>
-          {FP_SERVICES.map((s) => {
-            const reason = serviceDisabledReason(s.key);
-            return (
-              <span key={s.key} title={reason} style={{ opacity: reason ? 0.45 : 1 }}>
-                <SelectableTag
-                  label={s.label}
-                  size='lg'
-                  selected={form.services.includes(s.key)}
-                  onClick={() => toggleService(s.key)}
-                />
-              </span>
-            );
-          })}
+          <Field label='บริการที่ได้รับ' required>
+            <Select
+              showLabel={false} searchable={false} size='lg' multiple disabled={locked}
+              value={form.services}
+              onChange={setServices}
+              options={FP_SERVICES.map((item) => ({
+                value: item.key,
+                label: item.label,
+                disabled: !!serviceDisabledReason(item.key),
+              }))}
+              placeholder='เลือกบริการที่ได้รับ'
+            />
+          </Field>
+          <Field label='การถอด (เข้าทะเบียนถอดห่วง/ถอดยาฝัง)'>
+            <Select
+              showLabel={false} searchable={false} size='lg' multiple disabled={locked}
+              value={removalValue}
+              onChange={setRemovalValue}
+              options={[
+                ...FP_REMOVAL_OPTIONS.map((r) => ({ value: r.key, label: r.label })),
+                { value: DISPENSED_KEY, label: 'จ่ายยาคุมกำเนิดจริงในครั้งนี้', disabled: !form.dispensed && dispensingBlocked },
+              ]}
+              placeholder='เลือกรายการถอด/การจ่ายยา'
+            />
+          </Field>
         </div>
+
+        {form.lastMethod === 'other' && (
+          <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+            <Field
+              label='ระบุวิธีคุมกำเนิดอื่นๆ'
+              required
+              hint={form.lastMethodOther.trim() ? undefined : 'จำเป็นต้องระบุเมื่อเลือก "อื่นๆ" (คู่มือ ข้อ 4.1)'}
+              hintTone={form.lastMethodOther.trim() ? undefined : 'error'}
+            >
+              <InputField
+                value={form.lastMethodOther}
+                onChange={set('lastMethodOther')}
+                disabled={locked}
+                placeholder='เช่น นับวันปลอดภัย / หลั่งภายนอก / ห่วงอนามัยชนิดฮอร์โมน'
+                error={form.lastMethodOther.trim() ? undefined : ' '}
+              />
+            </Field>
+          </div>
+        )}
+
         {/* เหตุผลที่บางบริการถูกปิด — แสดงเป็นข้อความเสมอ ไม่ผูกกับ hover
             เพื่อให้ผู้ใช้คีย์บอร์ด/แท็บเล็ตเห็นด้วย */}
         {(dispensingBlocked || pregnant) && (
           <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-warning-default, #C2410C)' }}>
             บริการที่จางลงถูกปิดไว้:{' '}
-            {FP_SERVICES.filter((s) => !!serviceDisabledReason(s.key)).map((s) => s.label).join(' · ')}
+            {FP_SERVICES.filter((item) => !!serviceDisabledReason(item.key)).map((item) => item.label).join(' · ')}
             {dispensingBlocked ? ' — เนื่องจากผลคัดกรองมีข้อ "มี" ต้องส่งปรึกษาแพทย์ก่อน' : ''}
             {pregnant ? ' — เนื่องจากผลทดสอบการตั้งครรภ์เป็นบวก (ห้ามวิธีที่มีฮอร์โมน)' : ''}
           </span>
         )}
-
-        <div className='flex items-center gap-3 flex-wrap'>
-          <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary, #636B72)' }}>
-            การถอด (เข้าทะเบียนถอดห่วง/ถอดยาฝัง):
-          </span>
-          {FP_REMOVAL_OPTIONS.map((r) => (
-            <SelectableTag
-              key={r.key}
-              label={r.label}
-              size='md'
-              selected={form.removals.includes(r.key)}
-              onClick={() => toggleRemoval(r.key)}
-            />
-          ))}
-          <SelectableTag
-            label='จ่ายยาคุมกำเนิดจริงในครั้งนี้'
-            size='md'
-            selected={form.dispensed}
-            onClick={() => {
-              /* ถอนติ๊กได้เสมอ — บล็อกเฉพาะการติ๊กใหม่ตอน dispensingBlocked */
-              if (!locked && (form.dispensed || !dispensingBlocked)) set('dispensed')(!form.dispensed);
-            }}
-          />
-        </div>
       </div>
 
       {/* คลอด/แท้งครั้งสุดท้าย + LMP (คู่มือ หน้า 2-4 ข้อ 7-8) */}
       <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-        <TopicHeader icon='calendar'>ประวัติการคลอด / แท้ง และประจำเดือน</TopicHeader>
+        <FpSubHeading>ประวัติการคลอด / แท้ง และประจำเดือน</FpSubHeading>
         <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
           <Field label='ครั้งสุดท้ายเป็น'>
             <Select
