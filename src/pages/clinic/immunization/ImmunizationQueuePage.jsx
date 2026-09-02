@@ -447,7 +447,9 @@ const ImmunizationQueuePage = () => {
     /* ชื่อผู้ให้บริการโชว์เฉพาะแท็บ "ทั้งหมด" (มติผู้ใช้ 2 ก.ย. 69 · ทำไว้ที่คิว
        ฝากครรภ์ก่อน) — แท็บที่เป็นคิวนั้นผู้ใช้เห็นเฉพาะคิวของตัวเอง ชื่อผู้ตรวจจึง
        ซ้ำกันทุกแถว ส่วนแท็บทั้งหมดเป็นรายชื่อข้ามผู้ให้บริการ จึงต้องบอกว่าใครดูแล */
-    ...(activeTab === 'all' || activeTab === 'directory' ? [{ key: 'doctor',    label: 'แพทย์', flex: true, minWidth: 160 }] : []),
+    /* คิวเด็กดี: คอลัมน์แพทย์โชว์เฉพาะแท็บทะเบียน — แท็บ "คิววันนี้" (key 'all') เป็นคิว
+       ไม่ใช่รายชื่อข้ามผู้ให้บริการ (มติผู้ใช้ 3 ก.ย. 69) */
+    ...(activeTab === 'directory' ? [{ key: 'doctor',    label: 'แพทย์', flex: true, minWidth: 160 }] : []),
     { key: 'telemed',   label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
     { key: 'wait',      label: 'รอนาน', render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',    label: 'สถานะ', render: renderStatus },
