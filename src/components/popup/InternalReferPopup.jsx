@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import Popup from '@/components/popup/Popup';
+import Table from '@/components/table/Table';
 import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
-import NeutralIconButton from '@/components/button/NeutralIconButton';
+import { VOICE_TEXTAREA_MIN_HEIGHT } from '@/components/forms/VoiceTextarea';
+import NeutralSubdueIconButton from '@/components/button/NeutralSubdueIconButton';
 import { DEPARTMENTS } from '@/data/usersAccess';
 import { readDepartments } from '@/data/departmentStore';
 import { QUEUE_STATIONS, getStationLabel } from '@/data/queueCenterStore';
@@ -162,11 +164,13 @@ export default function InternalReferPopup({
      สังคมสงเคราะห์) เหตุผลที่ส่งไปแต่ละที่คนละเรื่องกัน เดิมต้องเปิดป๊อปอัปซ้ำ
      ทีละแผนกและหมายเหตุปนกัน */
   const [destinations, setDestinations] = useState([]);
+  const [pendingDepartments, setPendingDepartments] = useState([]);
   const [servicePoint, setServicePoint] = useState('');
 
   useEffect(() => {
     if (!open) return;
     setDestinations([]);
+    setPendingDepartments([]);
     setServicePoint('');
   }, [open]);
 
@@ -183,9 +187,10 @@ export default function InternalReferPopup({
   const updateNote = (value, note) => setDestinations((list) => list.map(
     (d) => (d.department === value ? { ...d, note } : d),
   ));
-  const removeDestination = (value) => setDestinations(
-    (list) => list.filter((d) => d.department !== value),
-  );
+  const removeDestination = (value) => {
+    setDestinations((list) => list.filter((d) => d.department !== value));
+    setPendingDepartments((list) => list.filter((d) => d !== value));
+  };
 
   const labelOf = (value) => departmentOptions.find((o) => o.value === value)?.label || value;
 
@@ -267,63 +272,76 @@ export default function InternalReferPopup({
 
         <Select
           label='แผนกหรือคลินิกปลายทาง'
-          helperText='เลือกได้มากกว่า 1 แผนก — เลือกแล้วจะมีช่องหมายเหตุของแผนกนั้นให้กรอก'
-          value=''
-          onChange={(val) => {
-            addDestination(val);
-            setServicePoint('');
-          }}
-          options={availableOptions}
+          helperText='เลือกได้หลายแผนก แล้วกดยืนยันในรายการ'
+          multiple
+          multipleConfirmLabel='ยืนยันรายการที่เลือก'
+          value={pendingDepartments}
+          onChange={(values) => setPendingDepartments(values)}
+          onConfirmSelection={(values) => { setDestinations(values.map((department) => ({ department, note: '' }))); setServicePoint(''); }}
+          options={departmentOptions}
           placeholder={REFER_DEPARTMENT_PLACEHOLDER}
           required
         />
 
         {extra}
 
-        {destinations.map((d) => (
-          <div
-            key={d.department}
-            className='flex flex-col w-full min-w-0'
-            style={{
-              gap: 'var(--dim-space-300)',
-              padding: 'var(--dim-space-400)',
-              borderRadius: 'var(--dim-radius-400)',
-              border: 'var(--dim-stroke-100) solid var(--border-card-default, #E2E4E6)',
-              background: 'var(--surface-card-100)',
-            }}
-          >
-            <div className='flex items-center justify-between' style={{ gap: 'var(--dim-space-200)' }}>
-              <span style={{
-                fontFamily: 'var(--type-family-body)',
-                fontSize: 'var(--type-size-base)',
-                fontWeight: 'var(--type-weight-medium)',
-                color: 'var(--text-content-default, #363B3F)',
-              }}>
-                {labelOf(d.department)}
-              </span>
-              <NeutralIconButton
-                icon='close'
-                variant='ghost'
-                size='sm'
-                aria-label={`ลบปลายทาง ${labelOf(d.department)}`}
-                onClick={() => removeDestination(d.department)}
-              />
-            </div>
-            <SuggestibleTextarea
-              voice
-              label={`หมายเหตุถึง${labelOf(d.department)}`}
-              value={d.note}
-              onChange={(val) => updateNote(
-                d.department,
-                typeof val === 'string' ? val : val?.target?.value || '',
-              )}
-              placeholder='เช่น อาการคงที่ พร้อมส่งต่อ · แจ้งประวัติแพ้ยา · เอกสารที่ต้องแนบ'
-              showHelperText={false}
-              suggestions={INTERNAL_REFER_NOTE_HINTS}
-              minChars={3}
-            />
-          </div>
-        ))}
+        {destinations.length > 0 ? (
+          <Table
+            columns={[
+              {
+                key: 'department',
+                header: 'แผนก',
+                render: (row) => (
+                  <span style={{
+                    fontFamily: 'var(--type-family-body)',
+                    fontSize: 'var(--type-size-base)',
+                    fontWeight: 'var(--type-weight-medium)',
+                    color: 'var(--text-content-default, #363B3F)',
+                  }}>
+                    {labelOf(row.department)}
+                  </span>
+                ),
+              },
+              {
+                key: 'note',
+                header: 'บันทึก',
+                flex: 1,
+                render: (row) => (
+                  <SuggestibleTextarea
+                    voice
+                    label={`หมายเหตุถึง${labelOf(row.department)}`}
+                    value={row.note}
+                    onChange={(val) => updateNote(
+                      row.department,
+                      typeof val === 'string' ? val : val?.target?.value || '',
+                    )}
+                    placeholder='เช่น อาการคงที่ พร้อมส่งต่อ · แจ้งประวัติแพ้ยา · เอกสารที่ต้องแนบ'
+                    showHelperText={false}
+                    suggestions={INTERNAL_REFER_NOTE_HINTS}
+                    minChars={3}
+                    height={VOICE_TEXTAREA_MIN_HEIGHT}
+                    minHeight={VOICE_TEXTAREA_MIN_HEIGHT}
+                  />
+                ),
+              },
+              {
+                key: 'actions',
+                header: 'จัดการ',
+                render: (row) => (
+                  <NeutralSubdueIconButton
+                    icon='delete'
+                    variant='outline'
+                    size='sm'
+                    aria-label={`ลบปลายทาง ${labelOf(row.department)}`}
+                    onClick={() => removeDestination(row.department)}
+                  />
+                ),
+              },
+            ]}
+            rows={destinations}
+            rowKey={(row) => row.department}
+          />
+        ) : null}
       </div>
     </Popup>
   );

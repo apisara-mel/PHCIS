@@ -1,25 +1,19 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
-import Header, { SubHeader } from '@/components/layout/Header';
+import Header from '@/components/layout/Header';
+import CreateConsentRequestHeaderAction from '@/components/consent/CreateConsentRequestHeaderAction';
 import Footer from '@/components/layout/Footer';
 import PatientCard from '@/components/card/PatientCard';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
-import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
-import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Popup from '@/components/popup/Popup';
 import Icon from '@/components/icons/Icon';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
-import TreatmentFormShell from '@/templates/TreatmentFormShell';
-import {
-  FpStep1History, FpStep2Screening, FpStep3Plan, FpStep4WomenExam,
-  FpStep5Postpartum, FpStep6Orders, FpStep7Documents,
-} from '@/pages/clinic/family-planning/FamilyPlanningSteps';
+import { EmptyStepBody } from '@/pages/clinic/family-planning/FamilyPlanningSteps';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
 import {
   DEFAULT_FP_VISIT,
-  getFpCompletedSteps,
   getFpRegistrationByHn,
   getFpQueueRowByHn,
   getFpDraft,
@@ -27,47 +21,19 @@ import {
   clearFpDraft,
   saveFpVisitRecord,
   getFpVisitRecords,
-  hasFamilyPlanningRights,
-  setFamilyPlanningRights,
   formatFpDateTime,
   todayIso,
 } from '@/data/familyPlanningVisits';
 
-/* FamilyPlanningFormPage — บันทึกวางแผนครอบครัว (TOR 1.10.8.1/.3/.4/.5/.7).
+/* FamilyPlanningFormPage — บันทึกวางแผนครอบครัว (TOR 1.10.8).
 
-   Shell บาง ๆ เหนือ TreatmentFormShell — โครงเดียวกับ AncFormPage /
-   MentalHealthFormPage: form-state ก้อนเดียวข้าม 7 ขั้นตอน คีย์ด้วย HN ที่
-   หน้าคิวส่งมา ({hn, queue, name, statusKey})
+   เนื้อในและแถบ 7 ขั้นถูกล้าง 2 ก.ย. 69 ตามมติผู้ใช้ — เหลือ PatientCard ·
+   แบนเนอร์ทะเบียน/ร่าง · พื้นที่ว่าง · footer ยกเลิก/บันทึกร่าง/จบการบันทึก
+   ของเดิมทั้งเจ็ดขั้นอยู่ใน git ที่ FamilyPlanningSteps.jsx */
 
-   ครบทั้ง 4 กริยาของ TOR:
-     แสดง   — visit ที่บันทึกแล้วเปิดแบบอ่านอย่างเดียว + แบนเนอร์ view
-     บันทึก — ขั้นตอนที่ 7 "ยืนยันบันทึกการให้บริการวางแผนครอบครัว"
-     แก้ไข  — ปุ่ม "แก้ไขบันทึก" บนแบนเนอร์ view เปิดฟอร์มกลับมาแก้ได้
-     ยกเลิก — "ยกเลิกการบันทึก" / ย้อนกลับทั้งที่มีข้อมูลค้าง → ยืนยันก่อนทิ้ง
-
-   แท็บ "ที่ร่างไว้" กลับมาทำต่อที่ขั้นตอนเดิม (getFpDraft) */
-
-const breadcrumb = ['บันทึกการรักษา', 'งานวางแผนครอบครัว', 'บันทึกวางแผนครอบครัว'];
+const breadcrumb = ['บันทึกการรักษา', 'คลินิกวางแผนครอบครัว'];
 const QUEUE_PATH = '/clinic/family-planning';
 const REGISTRY_PATH = '/clinic/family-planning/registry';
-
-const FP_STEPS = [
-  { title: 'ประวัติการรักษา',        subtitle: 'Medical History' },
-  /* ไม่ใช่ "คัดกรอง/ซักประวัติ" — จุดคัดกรองมีที่เดียวที่ `/opd/screening`
-     step นี้เก็บเฉพาะแบบประเมินคุณสมบัติการคุมกำเนิด 11 ข้อ (WHO MEC)
-     ส่วนผลคัดกรองแสดงอ่านอย่างเดียวที่ step 1 */
-  { title: 'แบบประเมิน',              subtitle: 'Assessment (11 items)' },
-  { title: 'วางแผนครอบครัว',         subtitle: 'Family Planning' },
-  { title: 'ตรวจสตรี',               subtitle: 'Breast & PV Exam' },
-  { title: 'ดูแลหลังคลอด',           subtitle: 'Postpartum Care' },
-  { title: 'คำสั่งทางการแพทย์',      subtitle: 'Orders & Refer' },
-  { title: 'เอกสารและนัดหมาย',       subtitle: 'Documents & Appointment' },
-];
-
-const STEP_RENDERERS = [
-  FpStep1History, FpStep2Screening, FpStep3Plan, FpStep4WomenExam,
-  FpStep5Postpartum, FpStep6Orders, FpStep7Documents,
-];
 
 const cloneDefaultVisit = () => ({
   ...JSON.parse(JSON.stringify(DEFAULT_FP_VISIT)),
@@ -95,11 +61,9 @@ const FamilyPlanningFormPage = () => {
   }, [navState]);
 
   const queueRow = useMemo(() => getFpQueueRowByHn(fpHn), [fpHn]);
-  const [registrationTick, setRegistrationTick] = useState(0);
   const registration = useMemo(
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     () => getFpRegistrationByHn(fpHn),
-    [fpHn, registrationTick],
+    [fpHn],
   );
 
   /* ── mode: resume draft > view saved visit > new record ─────────── */
@@ -109,7 +73,6 @@ const FamilyPlanningFormPage = () => {
       return {
         mode: 'draft',
         form: { ...cloneDefaultVisit(), ...draft.form },
-        stepIndex: draft.stepIndex ?? 0,
         draftSavedAt: draft.savedAt,
       };
     }
@@ -117,47 +80,27 @@ const FamilyPlanningFormPage = () => {
     const last = visits[visits.length - 1];
     const row = getFpQueueRowByHn(fpHn);
     if (last && (navState?.statusKey === 'done' || row?.statusKey === 'done')) {
-      return { mode: 'view', form: { ...cloneDefaultVisit(), ...last }, stepIndex: 0, lastVisit: last };
+      return { mode: 'view', form: { ...cloneDefaultVisit(), ...last }, lastVisit: last };
     }
     if (row?.statusKey === 'draft') {
-      return { mode: 'draft', form: cloneDefaultVisit(), stepIndex: row.draftStep ?? 0 };
+      return { mode: 'draft', form: cloneDefaultVisit() };
     }
-    return { mode: 'new', form: cloneDefaultVisit(), stepIndex: 0 };
+    return { mode: 'new', form: cloneDefaultVisit() };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fpHn]);
 
   const [mode, setMode] = useState(initial.mode); /* 'new' | 'draft' | 'view' | 'edit' */
-  const [stepIndex, setStepIndex] = useState(initial.stepIndex);
-  const [form, setFormState] = useState(initial.form);
+  const [form] = useState(initial.form);
   const [saved, setSaved] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [resumeBanner, setResumeBanner] = useState(initial.mode === 'draft');
-  const [, setRightsTick] = useState(0);
 
   const seedJson = useRef(JSON.stringify(initial.form));
   const locked = mode === 'view' || saved;
   const dirty = !saved && JSON.stringify(form) !== seedJson.current;
 
-  const canRead = hasFamilyPlanningRights();
-  const toggleRightsDemo = () => {
-    setFamilyPlanningRights(!hasFamilyPlanningRights());
-    setRightsTick((t) => t + 1);
-  };
-
-  /* Auto-persist ร่างทุกครั้งที่แก้ (แท็บ "ที่ร่างไว้" กลับมาทำต่อได้) —
-     ไม่บันทึกร่างขณะเปิดดู record ที่ commit แล้ว */
-  const setForm = (updater) => {
-    setFormState((prev) => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      if (!locked) saveFpDraft(fpHn, next, stepIndex);
-      return next;
-    });
-  };
-
-  const handleStepChange = (idx) => {
-    setStepIndex(idx);
-    if (!locked && dirty) saveFpDraft(fpHn, form, idx);
-  };
+  const visitNo = getFpVisitRecords(fpHn).length + (mode === 'view' ? 0 : 1);
+  const pageTitle = `บันทึกวางแผนครอบครัว — ครั้งที่ ${Math.max(visitNo, 1)}`;
 
   const confirmSave = () => {
     saveFpVisitRecord(fpHn, form);
@@ -172,7 +115,7 @@ const FamilyPlanningFormPage = () => {
   };
 
   const leaveKeepDraft = () => {
-    saveFpDraft(fpHn, form, stepIndex);
+    saveFpDraft(fpHn, form, 0);
     setLeaveOpen(false);
     history.push(QUEUE_PATH);
   };
@@ -194,9 +137,6 @@ const FamilyPlanningFormPage = () => {
     state: { hn: fpHn, name: mrPatient.name, createFor: fpHn },
   });
 
-  const ActiveStep = STEP_RENDERERS[stepIndex];
-  const completedSteps = useMemo(() => getFpCompletedSteps(form, stepIndex), [form, stepIndex]);
-
   const bannerBase = {
     gap: 'var(--dim-space-300, 12px)',
     marginLeft: 'var(--dim-space-600, 24px)',
@@ -210,17 +150,14 @@ const FamilyPlanningFormPage = () => {
     fontSize: 'var(--type-size-sm)',
   };
 
-  const pageTitle = 'บันทึกวางแผนครอบครัว — คลินิกวางแผนครอบครัว';
-
   return (
     <ClinicFilterProvider>
       <div className='flex w-full min-h-screen' style={{ background: 'var(--background-screen-brand-100, #F4FBF8)' }}>
         <Sidebar activeKey='treat' />
         <div className='flex-1 min-w-0 flex flex-col'>
           <Header breadcrumb={breadcrumb} standalone={false} />
-          <SubHeader title={pageTitle} hideBottomBorder />
-
-          {/* ยืนยันก่อนทิ้งข้อมูลที่ยังไม่บันทึก (กริยา "ยกเลิก") */}
+          {/* ไม่มีแถบ SubHeader แล้ว — ทรงเดียวกับคลินิกฝากครรภ์ (มติผู้ใช้ 2 ก.ย. 69)
+              หัวเรื่องอยู่บนการ์ดผู้ป่วยที่เดียว ปุ่มคำขอเข้าถึงข้อมูลอยู่แถวปุ่มบนการ์ด */}
           <Popup
             open={leaveOpen}
             onClose={() => setLeaveOpen(false)}
@@ -239,43 +176,22 @@ const FamilyPlanningFormPage = () => {
             sticky
             showBack={false}
             patient={cardPatient}
+            alertGroupsLeft
+            alertExpandable
             title={pageTitle}
             drugAllergies={mrPatient.drugAllergies}
             chronicDiseases={mrPatient.chronicDiseases}
             actions={(
-              <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-                <ColorfulBadge style='red' size='small' hierarchy='secondary'>ข้อมูลลับ §1.4.2</ColorfulBadge>
-                {registration && registration.status !== 'cancelled' ? (
-                  <ColorfulBadge style='teal' size='small' hierarchy='secondary'>{registration.fpNumber}</ColorfulBadge>
-                ) : (
-                  <ColorfulBadge style='grey' size='small' hierarchy='secondary'>ยังไม่มีเลขที่วางแผนครอบครัว</ColorfulBadge>
-                )}
-                <NeutralSubdueButton
-                  size='sm'
-                  leadingIcon={canRead ? 'lock_open' : 'lock'}
-                  onClick={toggleRightsDemo}
-                  title='สลับสิทธิการเข้าถึงข้อมูลลับ (สำหรับทดสอบ)'
-                >
-                  {canRead ? 'สิทธิ: เข้าถึงได้' : 'สิทธิ: ถูกจำกัด'}
-                </NeutralSubdueButton>
+              <>
+                <CreateConsentRequestHeaderAction />
                 <BrandSubdueButton
-                  variant='outline'
-                  size='sm'
+                  variant='fill'
                   leadingIcon='credit_card'
-                  onClick={() => setStepIndex(6)}
+                  onClick={goRegistry}
                 >
                   พิมพ์บัตรติดตาม
                 </BrandSubdueButton>
-                {!locked && (
-                  <NeutralSubdueButton
-                    size='sm'
-                    leadingIcon='block'
-                    onClick={() => { if (dirty) setLeaveOpen(true); else history.push(QUEUE_PATH); }}
-                  >
-                    ยกเลิกการบันทึก
-                  </NeutralSubdueButton>
-                )}
-              </div>
+              </>
             )}
           />
 
@@ -331,8 +247,7 @@ const FamilyPlanningFormPage = () => {
             >
               <Icon name='history' size={18} />
               <span>
-                กลับมาทำต่อจากร่างที่บันทึกไว้{initial.draftSavedAt ? ` (${formatFpDateTime(initial.draftSavedAt)})` : ''} —
-                เริ่มที่ขั้นตอนที่ {initial.stepIndex + 1}: {FP_STEPS[initial.stepIndex].title}
+                กลับมาทำต่อจากร่างที่บันทึกไว้{initial.draftSavedAt ? ` (${formatFpDateTime(initial.draftSavedAt)})` : ''}
               </span>
               <div className='flex-1' />
               <button
@@ -375,32 +290,38 @@ const FamilyPlanningFormPage = () => {
             </div>
           )}
 
-          <TreatmentFormShell
-            morphTitle='วางแผนครอบครัว'
-            stepIndex={stepIndex}
-            onStepChange={handleStepChange}
-            completedSteps={completedSteps}
-            steps={FP_STEPS}
-            queuePath={QUEUE_PATH}
-            step0FlushLeft={false}
-            onLeave={handleBack}
-            fromDepartment='คลินิกวางแผนครอบครัว'
-            onSaveDraft={() => { if (!locked) saveFpDraft(fpHn, form, stepIndex); }}
+          <main
+            className='flex-1 min-w-0 flex flex-col'
+            style={{
+              padding: 'var(--dim-space-600)',
+              gap: 'var(--dim-space-400)',
+            }}
           >
-            <ActiveStep
-              form={form}
-              setForm={setForm}
-              fpHn={fpHn}
-              queueRow={queueRow}
-              registration={registration}
-              cardPatient={cardPatient}
-              locked={locked}
-              saved={saved}
-              onConfirmSave={confirmSave}
-              onGoRegistry={goRegistry}
-              onRegistrationChanged={() => setRegistrationTick((t) => t + 1)}
+            <EmptyStepBody
+              title='บันทึกวางแผนครอบครัว'
+              subtitle='เนื้อหาและขั้นตอนถูกถอดออกแล้ว — ยังไม่มีเนื้อหา'
             />
-          </TreatmentFormShell>
+          </main>
+          <Footer
+            type='with BTN'
+            sticky
+            showLegal={false}
+            showAutoSave={false}
+            showButton3
+            button3Label='ยกเลิก'
+            onButton3Click={handleBack}
+            showButton2={!locked}
+            button2Label='บันทึกร่าง'
+            button2Icon='save'
+            onButton2Click={() => { if (!locked) saveFpDraft(fpHn, form, 0); }}
+            showButton1
+            button1Label={saved ? 'กลับหน้าคิว' : 'จบการบันทึก'}
+            button1TrailingIcon='check'
+            onButton1Click={() => {
+              if (!saved && !locked) confirmSave();
+              history.push(QUEUE_PATH);
+            }}
+          />
           <Footer />
         </div>
       </div>

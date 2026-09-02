@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Popover from '@/components/popup/Popover';
+import BrandButton from '@/components/button/BrandButton';
 import Badge from '@/components/badge/Badge';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Icon from '@/components/icons/Icon';
@@ -438,6 +439,8 @@ const Select = React.forwardRef(function Select(
        top of the dropdown. Clicking it selects every option; clicking again
        when all are already selected clears them. */
     selectAllLabel,
+    multipleConfirmLabel,
+    onConfirmSelection,
     options = [],
     leadingIcon,
     badge,
@@ -987,6 +990,19 @@ const Select = React.forwardRef(function Select(
               })
             )}
           </div>
+          {multiple && multipleConfirmLabel ? (
+            <BrandButton
+              type='button'
+              disabled={!arr.length}
+              onClick={() => { onConfirmSelection?.(arr); setOpen(false); }}
+              variant='fill'
+              size='sm'
+              style={{
+                margin: 'var(--dim-space-200)',
+                marginLeft: 'auto',
+              }}
+            >{multipleConfirmLabel}</BrandButton>
+          ) : null}
         </Popover>
       </div>
     </FieldShell>

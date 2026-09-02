@@ -34,7 +34,6 @@ import {
   getFpQueueCancellation,
   getFpRegistrationByHn,
   hasFamilyPlanningRights,
-  setFamilyPlanningRights,
   formatFpDateTime,
 } from '@/data/familyPlanningVisits';
 
@@ -54,8 +53,8 @@ import {
    คอลัมน์ "วิธีคุมกำเนิด/บริการที่ได้รับ" จะถูกปิดเมื่อผู้ใช้ไม่มีสิทธิ
    คลินิกวางแผนครอบครัว (รายการยังเห็นได้ แต่รายละเอียดวิธีคุมกำเนิดไม่เห็น) */
 
-const breadcrumb = ['บันทึกการรักษา', 'งานวางแผนครอบครัว'];
-const SUMMARY_TITLE = 'คิวคลินิกวางแผนครอบครัว';
+const breadcrumb = ['บันทึกการรักษา', 'คลินิกวางแผนครอบครัว'];
+const SUMMARY_TITLE = 'คิววางแผนครอบครัว';
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:family-planning-queue';
 const PAGE_SIZE = 20;
 const RECORD_PATH = '/clinic/family-planning/record';
@@ -137,13 +136,8 @@ const FamilyPlanningQueuePage = () => {
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
-  const [, setRightsTick] = useState(0);
 
   const canRead = hasFamilyPlanningRights();
-  const toggleRightsDemo = () => {
-    setFamilyPlanningRights(!hasFamilyPlanningRights());
-    setRightsTick((t) => t + 1);
-  };
 
   const {
     history: searchHistory,
@@ -479,7 +473,6 @@ const FamilyPlanningQueuePage = () => {
       breadcrumb={breadcrumb}
       /* ทุก worklist ของบันทึกการรักษามีปุ่มนี้ (มติผู้ใช้ 28 ส.ค. 69) */
       leadingActions={<DutyRosterAction />}
-      title='คลินิกวางแผนครอบครัว'
       summaryTitle={SUMMARY_TITLE}
       summaryCards={summaryCards}
       tabs={tabs}
@@ -488,21 +481,9 @@ const FamilyPlanningQueuePage = () => {
       /* แท็บ "นัดล่วงหน้า" — shell เป็นคนเติมแท็บและวาดเนื้อหา */
       upcoming={{ depts: ['สูติ-นรีเวช'] }}
       actions={(
-        <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <ColorfulBadge style='red' size='small' hierarchy='secondary'>ข้อมูลลับ §1.4.2</ColorfulBadge>
-          {/* Demo toggle สำหรับสถานะ "สิทธิไม่พอ" (mock — RBAC จริงมากับ §1.20) */}
-          <NeutralSubdueButton
-            size='sm'
-            leadingIcon={canRead ? 'lock_open' : 'lock'}
-            onClick={toggleRightsDemo}
-            title='สลับสิทธิการเข้าถึงข้อมูลลับ (สำหรับทดสอบ)'
-          >
-            {canRead ? 'สิทธิ: เข้าถึงได้' : 'สิทธิ: ถูกจำกัด'}
-          </NeutralSubdueButton>
-          <BrandSubdueButton variant='outline' leadingIcon='contact_page' onClick={() => history.push(REGISTRY_PATH)}>
-            ทะเบียนผู้รับบริการ
-          </BrandSubdueButton>
-        </div>
+        <BrandSubdueButton variant='outline' leadingIcon='contact_page' onClick={() => history.push(REGISTRY_PATH)}>
+          ทะเบียนผู้รับบริการ
+        </BrandSubdueButton>
       )}
     >
       <Popup
