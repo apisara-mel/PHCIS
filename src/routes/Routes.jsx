@@ -77,12 +77,7 @@ import HivStiFollowUpPage from '@/pages/clinic/hiv-sti/HivStiFollowUpPage';
 import FamilyPlanningQueuePage from '@/pages/clinic/family-planning/FamilyPlanningQueuePage';
 import FamilyPlanningFormPage from '@/pages/clinic/family-planning/FamilyPlanningFormPage';
 import FamilyPlanningRegistryPage from '@/pages/clinic/family-planning/FamilyPlanningRegistryPage';
-import ImmunizationQueuePage from '@/pages/clinic/immunization/ImmunizationQueuePage';
-import ImmunizationFormPage from '@/pages/clinic/immunization/ImmunizationFormPage';
-import ImmunizationRegistryPage from '@/pages/clinic/immunization/ImmunizationRegistryPage';
-import ImmunizationFollowUpPage from '@/pages/clinic/immunization/ImmunizationFollowUpPage';
-import ImmunizationVaccineBookPage from '@/pages/clinic/immunization/ImmunizationVaccineBookPage';
-import VaccineCatalogPage from '@/pages/clinic/immunization/VaccineCatalogPage';
+import ImmunizationBlankPage from '@/pages/clinic/immunization/ImmunizationBlankPage';
 import RehabQueuePage from '@/pages/clinic/rehab/RehabQueuePage';
 import RehabFormPage from '@/pages/clinic/rehab/RehabFormPage';
 import RehabRegistryPage from '@/pages/clinic/rehab/RehabRegistryPage';
@@ -608,12 +603,13 @@ export default function Routes() {
         <Route exact path='/clinic/family-planning'          component={FamilyPlanningQueuePage} />
         <Route exact path='/clinic/family-planning/record'   component={FamilyPlanningFormPage} />
         <Route exact path='/clinic/family-planning/registry' component={FamilyPlanningRegistryPage} />
-        <Route exact path='/clinic/immunization'              component={ImmunizationQueuePage} />
-        <Route exact path='/clinic/immunization/record'       component={ImmunizationFormPage} />
-        <Route exact path='/clinic/immunization/registry'     component={ImmunizationRegistryPage} />
-        <Route exact path='/clinic/immunization/follow-up'    component={ImmunizationFollowUpPage} />
-        <Route exact path='/clinic/immunization/vaccines'     component={VaccineCatalogPage} />
-        <Route exact path='/clinic/immunization/vaccine-book' component={ImmunizationVaccineBookPage} />
+        {/* คง URL เดิมไว้ แต่ล้างทุกเนื้อหาของคลินิกสร้างเสริมภูมิคุ้มกันโรค */}
+        <Route exact path='/clinic/immunization'              component={ImmunizationBlankPage} />
+        <Route exact path='/clinic/immunization/record'       component={ImmunizationBlankPage} />
+        <Route exact path='/clinic/immunization/registry'     component={ImmunizationBlankPage} />
+        <Route exact path='/clinic/immunization/follow-up'    component={ImmunizationBlankPage} />
+        <Route exact path='/clinic/immunization/vaccines'     component={ImmunizationBlankPage} />
+        <Route exact path='/clinic/immunization/vaccine-book' component={ImmunizationBlankPage} />
         <Route exact path='/clinic/rehab'          component={RehabQueuePage} />
         <Route exact path='/clinic/rehab/record'   component={RehabFormPage} />
         <Route exact path='/clinic/rehab/registry' component={RehabRegistryPage} />
