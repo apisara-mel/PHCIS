@@ -17,6 +17,7 @@ import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandButton from '@/components/button/BrandButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import NeutralIconButton from '@/components/button/NeutralIconButton';
 import PendingConsentFormCard from '@/components/consent/PendingConsentFormCard';
 import ConsentDisclosureFillPopup from '@/components/consent/ConsentDisclosureFillPopup';
 import ConsentFormPrintConfirmDialog from '@/components/consent/ConsentFormPrintConfirmDialog';
@@ -195,7 +196,6 @@ const PatientStatusSection = ({
   onDeceasedDateChange,
 }) => {
   const setStatus = onPatientStatusChange || (() => {});
-  const hnLabel = hn || '—';
   const showLifeStatus = typeof onLifeStatusChange === 'function';
   return (
     <div
@@ -220,75 +220,80 @@ const PatientStatusSection = ({
           <ColorfulBadge badgeStyle='teal' hierarchy='primary' size='default' width='hug'>
             {patientTypeLabel}
           </ColorfulBadge>
-          <ColorfulBadge badgeStyle='teal' hierarchy='secondary' size='default' width='hug'>
-            HN: {hnLabel}
-          </ColorfulBadge>
+          {/* ป้าย "HN:" ถูกถอดออก (มติผู้ใช้ 2 ก.ย. 69) — หัวแฟ้มผู้รับบริการ
+              ด้านบนของทุกหน้าบอก HN อยู่แล้ว ทั้งหน้าลงทะเบียนและหน้าเยี่ยมบ้าน */}
         </div>
       </div>
-      <div
-        role='radiogroup'
-        aria-label='สถานะผู้รับบริการ'
-        className='flex items-center flex-wrap'
-        style={{ gap: 'var(--dim-space-400)' }}
-      >
-        <PatientStatusOption
-          name='patient-active-status'
-          icon='sentiment_satisfied'
-          label='ยังคง Active'
-          tone='active'
-          value='active'
-          checked={patientStatus === 'active'}
-          onChange={setStatus}
-        />
-        <PatientStatusOption
-          name='patient-active-status'
-          icon='sentiment_calm'
-          label='ไม่ Active แล้ว'
-          tone='inactive'
-          value='inactive'
-          checked={patientStatus === 'inactive'}
-          onChange={setStatus}
-        />
-      </div>
-
-      {/* TOR 1.1.1.2 — สถานะการมีชีวิต + วันที่เสียชีวิต (บังคับเมื่อเสียชีวิต) */}
-      {showLifeStatus && (
-        <div
-          className='flex flex-col w-full'
-          style={{
-            /* ไม่มีเส้นคั่นกับ "สถานะผู้รับบริการ" ด้านบน (มติผู้ใช้ 28 ส.ค. 69)
-               — สองหัวข้อนี้อยู่ในการ์ดเดียวกันและอ่านต่อเนื่องกันอยู่แล้ว
-               เส้นคั่นทำให้ดูเป็นคนละเรื่อง */
-            gap: 'var(--dim-space-300)',
-            paddingTop: 'var(--dim-space-300)',
-          }}
-        >
-          <PatientStatusSubTitle>สถานะการมีชีวิต</PatientStatusSubTitle>
+      {/* สองกลุ่มสถานะอยู่บรรทัดเดียวกัน แต่ละกลุ่มมีหัวข้อของตัวเอง
+          (มติผู้ใช้ 2 ก.ย. 69) — เดิมเรียงลงล่างสองแถว ทั้งที่เป็นตัวเลือกสั้น ๆ
+          ชุดละสองใบ · ใช้ทั้งหน้าลงทะเบียนและหน้าเยี่ยมบ้าน (คอมโพเนนต์เดียวกัน) */}
+      <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-600)' }}>
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+          <PatientStatusSubTitle>สถานะการ Active</PatientStatusSubTitle>
+          {/* ปุ่มในกลุ่มเดียวกันชิดกว่าระยะระหว่างกลุ่ม (8px ต่อ 24px) —
+              มติผู้ใช้ 2 ก.ย. 69 */}
           <div
             role='radiogroup'
-            aria-label='สถานะการมีชีวิต'
+            aria-label='สถานะผู้รับบริการ'
             className='flex items-center flex-wrap'
-            style={{ gap: 'var(--dim-space-400)' }}
+            style={{ gap: 'var(--dim-space-200)' }}
           >
             <PatientStatusOption
-              name='patient-life-status'
-              icon='favorite'
-              label='มีชีวิตอยู่'
+              name='patient-active-status'
+              icon='sentiment_satisfied'
+              label='ยังคง Active'
               tone='active'
-              value='alive'
-              checked={(lifeStatus || 'alive') === 'alive'}
-              onChange={onLifeStatusChange}
+              value='active'
+              checked={patientStatus === 'active'}
+              onChange={setStatus}
             />
             <PatientStatusOption
-              name='patient-life-status'
-              icon='heart_broken'
-              label='เสียชีวิต'
+              name='patient-active-status'
+              icon='sentiment_calm'
+              label='ไม่ Active แล้ว'
               tone='inactive'
-              value='deceased'
-              checked={lifeStatus === 'deceased'}
-              onChange={onLifeStatusChange}
+              value='inactive'
+              checked={patientStatus === 'inactive'}
+              onChange={setStatus}
             />
           </div>
+        </div>
+
+        {/* TOR 1.1.1.2 — สถานะการมีชีวิต + วันที่เสียชีวิต (บังคับเมื่อเสียชีวิต) */}
+        {showLifeStatus && (
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+            <PatientStatusSubTitle>สถานะการมีชีวิต</PatientStatusSubTitle>
+            <div
+              role='radiogroup'
+              aria-label='สถานะการมีชีวิต'
+              className='flex items-center flex-wrap'
+              style={{ gap: 'var(--dim-space-200)' }}
+            >
+              <PatientStatusOption
+                name='patient-life-status'
+                icon='favorite'
+                label='มีชีวิตอยู่'
+                tone='active'
+                value='alive'
+                checked={(lifeStatus || 'alive') === 'alive'}
+                onChange={onLifeStatusChange}
+              />
+              <PatientStatusOption
+                name='patient-life-status'
+                icon='heart_broken'
+                label='เสียชีวิต'
+                tone='inactive'
+                value='deceased'
+                checked={lifeStatus === 'deceased'}
+                onChange={onLifeStatusChange}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showLifeStatus && (
+        <div className='flex flex-col w-full'>
           {lifeStatus === 'deceased' && (
             /* การ์ดนี้กว้างเต็มแถว ส่วน "ข้อมูลส่วนตัว" อยู่ในคอลัมน์ซ้ายที่แคบกว่า
                (มีการ์ดรูปกว้าง 384 + gap 48 อยู่ขวา) ถ้าใช้ 3 คอลัมน์ตรง ๆ ช่อง
@@ -1829,7 +1834,9 @@ const RIGHTS_LOOKUP_PANEL_STYLE = {
   background: 'var(--surface-positive-quaternary, #F4FBFA)',
   width: 'fit-content',
   boxSizing: 'border-box',
-  marginTop: 'var(--dim-space-1200)',
+  /* ระยะจากขอบบนของการ์ดถึงกล่อง = 24px ตามระยะขอบของการ์ด (มติผู้ใช้
+     2 ก.ย. 69) — เดิมเว้นเพิ่มอีก 48px แล้วยังจัดกึ่งกลางในกรอบสูง 400px
+     ทำให้เหนือกล่องเป็นพื้นที่ว่างเกือบครึ่งจอ */
 };
 
 /* การ์ดกลุ่มสิทธิ — ขาวแยกใบเหมือนการ์ดอื่นในฟอร์ม (มติผู้ใช้ 27 ส.ค. 69) */
@@ -1928,11 +1935,13 @@ const RightsLookupPanel = ({ form, setForm, onVerified }) => {
 
   return (
     <div style={RIGHTS_LOOKUP_PANEL_STYLE}>
+      {/* ภาพประกอบสูงเท่าบล็อกข้อความข้าง ๆ (มติผู้ใช้ 2 ก.ย. 69) — ของเดิมสูง
+          128px ทำให้กล่องสูงเกินกว่าระยะขอบ 24px ที่ตั้งใจไว้ */}
       <div
         className='shrink-0 flex items-center justify-center'
-        style={{ width: 160, height: 128 }}
+        style={{ width: 128, height: 104 }}
       >
-        <LottieIllustration animationData={healthInsuranceAnim} size={160} />
+        <LottieIllustration animationData={healthInsuranceAnim} size={128} />
       </div>
       <div className='flex flex-col shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}>
@@ -2152,48 +2161,25 @@ const RightsPhotoThumb = ({ previewUrl, name, onRemove }) => (
    เป็นข้อมูลของสิทธิใบเดียวกัน วางคนละบรรทัดแล้วอ่านเหมือนคนละเรื่อง และกิน
    ความสูงเป็นสองเท่าเมื่อมีหลายสิทธิ · flex-wrap ไว้ให้จอแคบตกบรรทัดเองแทน
    ที่จะบีบข้อความ */
+/* ลำดับความต้องการใช้สิทธิ — จัดลำดับด้วยปุ่มขึ้น/ลง (มติผู้ใช้ 2 ก.ย. 69)
+   เดิมเป็นลากวาง ซึ่งกดพลาดง่ายบนจอสัมผัสของจุดบริการ และมองไม่ออกว่าจะตกไป
+   อยู่ลำดับไหนจนกว่าจะปล่อยมือ · ปุ่มขึ้น/ลงย้ายทีละหนึ่งลำดับและบอกสถานะได้ตรง ๆ
+   (ปุ่มบนสุด/ล่างสุดถูกปิดการใช้งาน) */
 const RightsEntitlementDetails = ({ items = [], onReorder }) => {
-  const [dragIndex, setDragIndex] = useState(null);
-  const [overIndex, setOverIndex] = useState(null);
-
-  const finishDrag = () => {
-    setDragIndex(null);
-    setOverIndex(null);
-  };
-
-  const handleDrop = (toIndex) => {
-    if (dragIndex == null || dragIndex === toIndex) {
-      finishDrag();
-      return;
-    }
-    onReorder?.(reorderList(items, dragIndex, toIndex));
-    finishDrag();
-  };
-
   if (!items.length) return null;
-  const draggable = typeof onReorder === 'function' && items.length > 1;
+  const sortable = typeof onReorder === 'function' && items.length > 1;
+
+  const move = (from, to) => {
+    if (!sortable || to < 0 || to >= items.length) return;
+    onReorder(reorderList(items, from, to));
+  };
+
   return (
-    /* คั่นแต่ละสิทธิด้วยเส้นบาง ๆ แทนช่องว่าง — ลำดับอ่านง่ายขึ้นเวลาลากสลับ */
+    /* คั่นแต่ละสิทธิด้วยเส้นบาง ๆ แทนช่องว่าง — ลำดับอ่านง่ายขึ้นเวลาสลับ */
     <div className='flex flex-col w-full'>
       {items.map((item, index) => (
         <div
           key={item.id}
-          draggable={draggable}
-          onDragStart={draggable ? (e) => {
-            setDragIndex(index);
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', String(index));
-          } : undefined}
-          onDragEnd={draggable ? finishDrag : undefined}
-          onDragOver={draggable ? (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            setOverIndex(index);
-          } : undefined}
-          onDrop={draggable ? (e) => {
-            e.preventDefault();
-            handleDrop(index);
-          } : undefined}
           className='flex items-center w-full flex-wrap'
           style={{
             gap: 'var(--dim-space-200) var(--dim-space-300)',
@@ -2202,18 +2188,33 @@ const RightsEntitlementDetails = ({ items = [], onReorder }) => {
             borderTop: index === 0
               ? undefined
               : 'var(--dim-stroke-100) solid var(--border-neutral-quaternary)',
-            cursor: draggable ? (dragIndex === index ? 'grabbing' : 'grab') : undefined,
-            opacity: dragIndex === index ? 0.45 : 1,
-            boxShadow: overIndex === index && dragIndex !== index
-              ? '0 0 0 var(--dim-stroke-200) var(--border-brandPrimary-default, #007549)'
-              : undefined,
-            transition: 'opacity 120ms ease, box-shadow 120ms ease',
           }}
         >
           <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200)' }}>
-            {draggable && (
-              <Sym name='drag_indicator' size={20} color='var(--brand-p500)' />
+            {sortable && (
+              <div className='flex items-center' style={{ gap: 'var(--dim-space-50, 2px)' }}>
+                <NeutralIconButton
+                  variant='ghost'
+                  size='sm'
+                  icon='keyboard_arrow_up'
+                  aria-label={`เลื่อน ${item.label} ขึ้นหนึ่งลำดับ`}
+                  disabled={index === 0}
+                  onClick={() => move(index, index - 1)}
+                />
+                <NeutralIconButton
+                  variant='ghost'
+                  size='sm'
+                  icon='keyboard_arrow_down'
+                  aria-label={`เลื่อน ${item.label} ลงหนึ่งลำดับ`}
+                  disabled={index === items.length - 1}
+                  onClick={() => move(index, index + 1)}
+                />
+              </div>
             )}
+            {/* ป้ายลำดับ — บอกผลของการกดปุ่มขึ้น/ลงทันทีโดยไม่ต้องนับแถวเอง */}
+            <ColorfulBadge style='green' size='small' hierarchy='secondary' width='hug'>
+              {`ลำดับ ${index + 1}`}
+            </ColorfulBadge>
             <Sym name='check_circle' size={18} color='var(--icon-positive-success, var(--text-brandPrimary-default))' />
             <span style={{
               color: 'var(--text-content-default)',
@@ -2312,7 +2313,7 @@ const RightsGroupCard = ({
             fontSize: 'var(--type-size-xs)',
             lineHeight: 1.5,
           }}>
-            เลือกลำดับความต้องการใช้สิทธิ เพียงลากแล้ววาง โดยระบบจะตัดสิทธิ์จากลำดับแรกก่อน
+            จัดลำดับความต้องการใช้สิทธิด้วยปุ่มขึ้น/ลง โดยระบบจะตัดสิทธิ์จากลำดับแรกก่อน
           </span>
         </div>
         <ColorfulBadge style='green' size='small' width='hug'>
@@ -2363,12 +2364,15 @@ const RightsGroupCard = ({
         {/* ช่องอัปโหลดกับปุ่มถ่ายรูปอยู่แถวเดียวกัน — เป็นสองทางของการแนบสิ่งเดียวกัน
             ปุ่มถ่ายรูปยืดสูงเท่าช่องอัปโหลดแทนสี่เหลี่ยม 128×128 ตายตัว */}
         <div className='flex items-stretch w-full' style={{ gap: 'var(--dim-space-400)' }}>
-          <div className='flex-1 min-w-0'>
+          {/* ช่องอัปโหลดสูงเท่าปุ่มถ่ายรูป/สแกนที่อยู่ข้างกัน (มติผู้ใช้ 2 ก.ย. 69)
+              — `DragAndDrop` มีแค่ `minHeight` ไม่ได้ยืดเต็มแถวเอง */}
+          <div className='flex-1 min-w-0 flex'>
             <DragAndDrop
               size='sm'
               value={[]}
               onChange={handleUploadFiles}
               accept='image/*,.pdf'
+              style={{ height: '100%' }}
             />
           </div>
           {useNativeCapture ? (
@@ -2409,10 +2413,7 @@ const RightsGroupCard = ({
    ชื่อ step (มติผู้ใช้ 27 ส.ค. 69) */
 const Step4RightsLookupEmpty = ({ form, setForm }) => (
   <SubCard>
-    <div
-      className='flex w-full items-center justify-center'
-      style={{ minHeight: 400 }}
-    >
+    <div className='flex w-full items-center justify-center'>
       <RightsLookupPanel form={form} setForm={setForm} />
     </div>
   </SubCard>

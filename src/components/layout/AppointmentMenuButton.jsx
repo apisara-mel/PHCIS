@@ -136,7 +136,8 @@ export default function AppointmentMenuButton({
         variant='outline'
         size={size}
         leadingIcon='calendar_clock'
-        trailingIcon='expand_more'
+        /* เปิดเมนูอยู่ให้ลูกศรชี้ขึ้น (มติผู้ใช้ 2 ก.ย. 69) */
+        trailingIcon={open ? 'expand_less' : 'expand_more'}
         active={open}
         aria-haspopup='menu'
         aria-expanded={open}

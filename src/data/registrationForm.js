@@ -376,13 +376,16 @@ export const mobilityLabel = (key) =>
 
 /* ๖ กลุ่มผู้รับบริการ (TOR ๑.๑๐.๑๒.๑) — ป้ายสั้นตามที่เจ้าหน้าที่เรียกกันจริง
    ส่วน `value` ยึดตาม `HOMEVISIT_GROUPS` เพื่อให้ส่งต่อไปงานเยี่ยมบ้านได้ตรง ๆ */
+/* กำกับชื่ออังกฤษตาม TOR ไว้ในป้ายด้วย (มติผู้ใช้ 2 ก.ย. 69) — ระบบเดิมและ
+   เอกสารอ้างอิงเรียกกลุ่มด้วยชื่ออังกฤษ พยาบาลที่ย้ายมาจากระบบเดิมจึงจับคู่
+   กลุ่มได้ทันทีโดยไม่ต้องเปิด TOR เทียบ */
 export const PATIENT_GROUP_OPTIONS = [
-  { key: 'curable',          label: 'รักษาหายได้',        icon: 'healing' },
-  { key: 'chronic',          label: 'เรื้อรัง',            icon: 'event_repeat' },
-  { key: 'mildDisability',   label: 'เรื้อรังพิการเล็กน้อย', icon: 'accessible' },
-  { key: 'severeDisability', label: 'เรื้อรังพิการรุนแรง',  icon: 'wheelchair_pickup' },
-  { key: 'terminal',         label: 'ระยะสุดท้าย',        icon: 'hourglass_bottom' },
-  { key: 'special',          label: 'กลุ่มเฉพาะ',          icon: 'diversity_3' },
+  { key: 'curable',          label: 'รักษาหายได้ (Curable)',                    en: 'Curable',              icon: 'healing' },
+  { key: 'chronic',          label: 'เรื้อรัง (Long-term chronic)',              en: 'Long-term chronic',    icon: 'event_repeat' },
+  { key: 'mildDisability',   label: 'เรื้อรังพิการเล็กน้อย (Mild disabilities)',   en: 'Mild disabilities',    icon: 'accessible' },
+  { key: 'severeDisability', label: 'เรื้อรังพิการรุนแรง (Extreme disabilities)', en: 'Extreme disabilities', icon: 'wheelchair_pickup' },
+  { key: 'terminal',         label: 'ระยะสุดท้าย (Terminally ill)',              en: 'Terminally ill',       icon: 'hourglass_bottom' },
+  { key: 'special',          label: 'กลุ่มเฉพาะ (Special group)',                en: 'Special group',        icon: 'diversity_3' },
 ];
 
 export const patientGroupLabel = (key) =>

@@ -1,6 +1,5 @@
 import React from 'react';
 import SelectableCardButton from '@/components/button/SelectableCardButton';
-import CheckboxButton from '@/components/checkbox/CheckboxButton';
 /* ตัวเลือกความเสี่ยง/พฤติกรรมใช้ชิปแบบไม่มีช่องติ๊กด้านหน้า (มติผู้ใช้
    30 ส.ค. 69) — ทรงเดียวกับแถวสูบบุหรี่/ดื่มสุราของขั้นพฤติกรรมสุขภาพที่อยู่
    เหนือมันในการ์ดเดียวกัน จะได้อ่านเป็นชุดเดียวกัน */
@@ -104,15 +103,14 @@ export const PersonalProfileFields = ({ value, onChange, readOnly }) => {
       <Field label='การปฏิบัติตัวเมื่อเจ็บป่วยเล็กน้อย (เลือกได้หลายข้อ)'>
         <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
           {MINOR_ILLNESS_OPTIONS.map((opt) => (
-            <CheckboxButton
+            <SelectableCardButton
               key={opt}
-              checked={(v.minorIllness || []).includes(opt)}
-              onChange={readOnly ? undefined : toggle('minorIllness', opt)}
-              label={opt}
-              showCircleIcon={false}
-              showIcon={false}
-              disabled={readOnly}
-            />
+              selected={(v.minorIllness || []).includes(opt)}
+              onClick={readOnly ? undefined : toggle('minorIllness', opt)}
+              ariaLabel={opt}
+            >
+              {opt}
+            </SelectableCardButton>
           ))}
         </div>
       </Field>
@@ -143,8 +141,12 @@ export const PersonalProfileFields = ({ value, onChange, readOnly }) => {
 export const DtxFields = ({ value, onChange, readOnly }) => {
   const { v, set } = useSetters(value, onChange);
   return (
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-      <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+    /* ค่าน้ำตาลอ่านไม่ได้ถ้าไม่รู้ว่าอดอาหารมาหรือเปล่า จึงเป็นคู่กันเสมอ —
+       และอยู่บรรทัดเดียวกัน (มติผู้ใช้ 2 ก.ย. 69) ช่องตัวเลขสั้น ๆ ไม่ควรกิน
+       ทั้งบรรทัดแล้วดันสถานะการอดอาหารลงไปอีกแถว · ระยะห่างระหว่างสองกลุ่ม
+       = 24px (--dim-space-600) */
+    <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+      <div className='flex flex-col' style={{ flex: '0 0 240px', minWidth: 160 }}>
         <Field label='DTX (mg%)'>
           <InputField
             showLabel={false}
@@ -156,7 +158,6 @@ export const DtxFields = ({ value, onChange, readOnly }) => {
           />
         </Field>
       </div>
-      {/* ค่าน้ำตาลอ่านไม่ได้ถ้าไม่รู้ว่าอดอาหารมาหรือเปล่า จึงเป็นคู่กันเสมอ */}
       <ChoiceRow label='สถานะการอดอาหารก่อนเจาะ DTX' options={DTX_FASTING_OPTIONS} value={v.dtxFasting} onChange={set('dtxFasting')} readOnly={readOnly} />
     </div>
   );
@@ -170,15 +171,14 @@ export const MinorIllnessFields = ({ value, onChange, readOnly }) => {
   return (
     <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
       {MINOR_ILLNESS_OPTIONS.map((opt) => (
-        <CheckboxButton
+        <SelectableCardButton
           key={opt}
-          checked={(v.minorIllness || []).includes(opt)}
-          onChange={readOnly ? undefined : toggle('minorIllness', opt)}
-          label={opt}
-          showCircleIcon={false}
-          showIcon={false}
-          disabled={readOnly}
-        />
+          selected={(v.minorIllness || []).includes(opt)}
+          onClick={readOnly ? undefined : toggle('minorIllness', opt)}
+          ariaLabel={opt}
+        >
+          {opt}
+        </SelectableCardButton>
       ))}
     </div>
   );
@@ -203,43 +203,45 @@ export const HealthRiskFields = ({ value, onChange, readOnly }) => {
           </span>
           <div className='flex items-center flex-wrap w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
             {g.keys.map((key) => (
-              /* สารเสพติดถามเป็นสองตัวเลือก "ไม่ใช้ / ใช้" (มติผู้ใช้ 30 ส.ค. 69)
+              /* ปุ่มความเสี่ยงทุกใบใช้ `SelectableCardButton` ชุดเดียวกับแถว
+                 สูบบุหรี่/ดื่มสุรา/ออกกำลังกายของขั้นพฤติกรรมสุขภาพ (มติผู้ใช้
+                 2 ก.ย. 69) — เดิมเป็น `CheckboxButton` ที่มีกล่องติ๊กนำหน้า
+                 ขนาดและทรงจึงไม่ตรงกันทั้งที่อยู่ในการ์ดเดียวกัน
+
+                 สารเสพติดถามเป็นสองตัวเลือก "ไม่ใช้ / ใช้" (มติผู้ใช้ 30 ส.ค. 69)
                  — ทรงเดียวกับแถวสูบบุหรี่/ดื่มสุราของขั้นพฤติกรรมสุขภาพที่อยู่
                  เหนือมันในหน้าเดียวกัน · เก็บที่คีย์เดิม: เลือก "ใช้" = ติ๊ก
                  `substance` ในลิสต์ความเสี่ยง เลือก "ไม่ใช้" = ถอดออก */
               key === 'substance' ? (
-                <div key={key} className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                  <CheckboxButton
-                    checked={!(v.risks || []).includes(key)}
-                    onChange={readOnly ? undefined : () => {
+                <div key={key} className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                  <SelectableCardButton
+                    selected={!(v.risks || []).includes(key)}
+                    onClick={readOnly ? undefined : () => {
                       if ((v.risks || []).includes(key)) toggle('risks', key)();
                     }}
-                    label='ไม่ใช้สารเสพติด'
-                    showCircleIcon={false}
-                    showIcon={false}
-                    disabled={readOnly}
-                  />
-                  <CheckboxButton
-                    checked={(v.risks || []).includes(key)}
-                    onChange={readOnly ? undefined : () => {
+                    ariaLabel='ไม่ใช้สารเสพติด'
+                  >
+                    ไม่ใช้สารเสพติด
+                  </SelectableCardButton>
+                  <SelectableCardButton
+                    selected={(v.risks || []).includes(key)}
+                    onClick={readOnly ? undefined : () => {
                       if (!(v.risks || []).includes(key)) toggle('risks', key)();
                     }}
-                    label='ใช้สารเสพติด'
-                    showCircleIcon={false}
-                    showIcon={false}
-                    disabled={readOnly}
-                  />
+                    ariaLabel='ใช้สารเสพติด'
+                  >
+                    ใช้สารเสพติด
+                  </SelectableCardButton>
                 </div>
               ) : (
-                <CheckboxButton
+                <SelectableCardButton
                   key={key}
-                  checked={(v.risks || []).includes(key)}
-                  onChange={readOnly ? undefined : toggle('risks', key)}
-                  label={labelOf(key)}
-                  showCircleIcon={false}
-                  showIcon={false}
-                  disabled={readOnly}
-                />
+                  selected={(v.risks || []).includes(key)}
+                  onClick={readOnly ? undefined : toggle('risks', key)}
+                  ariaLabel={labelOf(key)}
+                >
+                  {labelOf(key)}
+                </SelectableCardButton>
               )
             ))}
           </div>

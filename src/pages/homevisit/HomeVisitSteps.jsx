@@ -1,10 +1,12 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import DatePicker from '@/components/forms/DatePicker';
 import TimePicker from '@/components/forms/TimePicker';
 import SelectableTag from '@/components/forms/SelectableTag';
+import SelectableCardButton from '@/components/button/SelectableCardButton';
+import PainScaleCards from '@/components/forms/PainScaleCards';
 import { FieldGrid } from '@/components/forms/Fields';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import VoiceTextarea from '@/components/forms/VoiceTextarea';
@@ -18,18 +20,16 @@ import {
   HealthRiskFields,
   MinorIllnessFields,
 } from '@/components/homevisit/homeScreeningSections';
-import { PATIENT_GROUP_OPTIONS, MOBILITY_OPTIONS } from '@/data/registrationForm';
+import { PATIENT_GROUP_OPTIONS, MOBILITY_OPTIONS, buildMockRightsGroups } from '@/data/registrationForm';
 import { MEDICATION_NAME_OPTIONS } from '@/data/medicationCatalog';
 import {
   NATIONALITY_OPTIONS,
   ETHNICITY_OPTIONS,
-  RELIGION_OPTIONS,
 } from '@/data/homeScreeningForm';
 /* ยกชุดคำ/ระดับของขั้น "อาการป่วย" ที่จุดคัดกรอง OPD มาใช้ตรง ๆ
    (มติผู้ใช้ 30 ส.ค. 69) — ถ้าประกาศใหม่ที่นี่ คำที่พยาบาลเลือกจะไม่ตรงกัน
    ระหว่างจุดคัดกรองกับที่บ้าน แล้วเอามาเทียบ/รวมรายงานไม่ได้ */
 import {
-  CHIEF_COMPLAINT_SUGGESTIONS,
   DURATION_SUGGESTIONS,
   PRESENT_ILLNESS_SUGGESTIONS,
 } from '@/pages/opd/ScreeningPage';
@@ -45,6 +45,7 @@ import {
   PatientStatusCard,
 } from '@/components/forms/RegistrationSteps';
 import { findMrPatientByHn } from '@/data/mrPatients';
+import { getPatientByHN } from '@/data/patientProfiles';
 import BrandDashedAddButton from '@/components/button/BrandDashedAddButton';
 /* ปุ่มลบแถวเป็นสีเทา ไม่ใช่สีแบรนด์ (มติผู้ใช้ 30 ส.ค. 69) — การลบแถวเป็น
    การกระทำรอง ไม่ควรเด่นเท่าปุ่มหลักของฟอร์ม */
@@ -56,11 +57,17 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
    ใหญ่ + ปุ่ม −/+ + เกณฑ์ปกติ + "เพิ่มรอบการวัด" + ไทม์ไลน์รอบก่อนหน้า
    (มติผู้ใช้ 30 ส.ค. 69) */
 import VitalsForm from '@/components/forms/VitalsForm';
+import VitalsSignGraph from '@/components/graph/VitalsSignGraph';
 import Table from '@/components/table/Table';
 import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
+import ViewToggle from '@/components/toggle/ViewToggle';
+import FamilyGenogram from '@/components/homevisit/FamilyGenogram';
 import Popup from '@/components/popup/Popup';
 import {
   HOMEVISIT_TIME_SLOTS,
+  HOMEVISIT_SUPPLY_SETS,
+  DIAPER_SIZES,
+  describeSupplyNeed,
   HOMEVISIT_CENTER,
   HOMEVISIT_CENTER_LOCATION,
   VITAL_FIELDS,
@@ -69,7 +76,6 @@ import {
   CAREGIVER_OPTIONS,
   SCREEN_2Q_QUESTIONS,
   PAIN_SCALE,
-  NUTRITION_OPTIONS,
   PRESSURE_SORE_OPTIONS,
   ROLE_NOTE_SECTIONS,
   CARE_ACTIVITIES,
@@ -180,6 +186,12 @@ import {
    (ตั้งแต่ตื่นนอน · ตั้งแต่เช้านี้ · ตั้งแต่เมื่อคืน) ออก (มติผู้ใช้ 30 ส.ค. 69)
    — คำพวกนี้เป็นภาษาของคนเดินมาห้องฉุกเฉินในวันเดียวกัน ส่วนการเยี่ยมบ้านนัด
    ล่วงหน้าเป็นรอบ อาการที่ทีมเจอจึงนับเป็นวัน/สัปดาห์/เดือนขึ้นไป */
+/* มุมมองของแฟ้มครอบครัว — ผังเครือญาติ / ตาราง (มติผู้ใช้ 2 ก.ย. 69) */
+const FAMILY_VIEW_OPTIONS = [
+  { value: 'map', icon: 'account_tree', label: 'มุมมองผังเครือญาติ' },
+  { value: 'table', icon: 'table_rows', label: 'มุมมองตาราง' },
+];
+
 const HOMEVISIT_DURATION_EXCLUDED = ['ตั้งแต่ตื่นนอน', 'ตั้งแต่เช้านี้', 'ตั้งแต่เมื่อคืน'];
 
 const HOMEVISIT_DURATION_OPTIONS = DURATION_SUGGESTIONS
@@ -227,7 +239,7 @@ export const HomeVisitStep0Consent = ({ form, setForm, hn, blockedMsg }) => {
      2. ข้อมูลการเยี่ยมครั้งนี้ (กลุ่มผู้รับบริการ · ที่มาของเคส · ประเภทการเยี่ยม)
      3. รูปถ่ายระหว่างการเยี่ยม
    ที่อยู่/แผนที่/บันทึกการเดินทางอยู่ขั้นที่ 2 */
-export const HomeVisitStep1Service = ({ form, setForm, readOnly, hn, blockedMsg }) => {
+export const HomeVisitStep1Service = ({ form, setForm, readOnly, hn, blockedMsg, ...props }) => {
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
   /* ผู้รับบริการในทะเบียนกลาง — `Step1Personal` ใช้เป็นค่าสำรองของ HN
      และรูปบัตร ค่าฟิลด์จริงถูกเติมไว้ตั้งแต่ `createEmptyHomeVisitForm` แล้ว */
@@ -326,14 +338,14 @@ export const HomeVisitStep1Service = ({ form, setForm, readOnly, hn, blockedMsg 
           form={form}
           setForm={setForm}
           patient={mrPatient}
-          /* ศาสนา · เชื้อชาติ · สัญชาติ วางเหนือแถวเลขบัตรประชาชน
-             (มติผู้ใช้ 30 ส.ค. 69) — ฟอร์มกระดาษ ศบส. เก็บสามอย่างนี้ไว้ใน
-             ส่วนข้อมูลประชากร ระบบนี้ย้ายมาอยู่กับข้อมูลส่วนตัว เก็บที่คีย์เดิม
-             ของแบบคัดกรอง (`homeScreening.*`) จึงไม่มีข้อมูลซ้ำสองชุด */
+          /* เชื้อชาติ · สัญชาติ วางเหนือแถวเลขบัตรประชาชน (มติผู้ใช้ 30 ส.ค. 69)
+             — ฟอร์มกระดาษ ศบส. เก็บไว้ในส่วนข้อมูลประชากร ระบบนี้ย้ายมาอยู่กับ
+             ข้อมูลส่วนตัว เก็บที่คีย์เดิมของแบบคัดกรอง (`homeScreening.*`)
+             · "ศาสนา" ถูกถอดออก (มติผู้ใช้ 2 ก.ย. 69) เพราะซ้ำกับช่องศาสนาของ
+             การ์ด "ข้อมูลส่วนตัว" ที่อยู่ในขั้นเดียวกัน (`form.religion`) */
           beforeIdRow={(
             <FieldGrid cols={3} rowGap='var(--dim-space-600)' columnGap='var(--dim-space-600)'>
               {[
-                { key: 'religion', other: 'religionOther', label: 'ศาสนา', options: RELIGION_OPTIONS, placeholder: 'เช่น ซิกข์ · ฮินดู · ไม่นับถือศาสนา' },
                 { key: 'ethnicity', other: 'ethnicityOther', label: 'เชื้อชาติ', options: ETHNICITY_OPTIONS, placeholder: 'เช่น จีน · มอญ · กะเหรี่ยง' },
                 { key: 'nationality', other: 'nationalityOther', label: 'สัญชาติ', options: NATIONALITY_OPTIONS, placeholder: 'เช่น เมียนมา · กัมพูชา · ลาว' },
               ].map((f) => (
@@ -377,7 +389,157 @@ export const HomeVisitStep1Service = ({ form, setForm, readOnly, hn, blockedMsg 
         />
       </SectionCard>
 
+
+      {/* Family Folder ย้ายมาอยู่ในขั้นนี้ (มติผู้ใช้ 2 ก.ย. 69) — แฟ้มครอบครัว
+          เป็นข้อมูลระดับครัวเรือนที่อ่านคู่กับข้อมูลตัวผู้รับบริการ ไม่ใช่ขั้นตอน
+          ท้ายสุดของการเยี่ยม · คอมโพเนนต์เดิมยกมาทั้งก้อน ไม่ได้เขียนใหม่ */}
+      <HomeVisitStep7Family {...props} form={form} setForm={setForm} readOnly={readOnly} hn={hn} blockedMsg='' />
     </StepCard>
+  );
+};
+
+/* รูปถ่ายบ้าน (หน้าบ้าน + เลขที่บ้าน) — อยู่คู่กับบันทึกการเดินทางในขั้นที่อยู่
+   (มติผู้ใช้ 2 ก.ย. 69) เก็บที่ `form.housePhotos` แยกจากรูปประกอบการประเมิน
+   เพราะเป็นหลักฐานของ "บ้านหลังนี้" ไม่ใช่ของการเยี่ยมครั้งใดครั้งหนึ่ง */
+/* กล่องถ่ายรูปบ้าน 5 ช่องคงที่ (มติผู้ใช้ 2 ก.ย. 69) — สองช่องแรกเป็นรูปที่
+   ต้องมีเสมอและมีคำกำกับว่าถ่ายอะไร (บริเวณรอบบ้าน แล้วป้ายเลขที่บ้าน)
+   ช่องที่ 3–5 ถ่ายเพิ่มได้ตามสถานการณ์ ไม่บังคับ
+   เก็บใน `form.housePhotos` โดยยึดตำแหน่ง index ตรงกับช่อง */
+const HOUSE_PHOTO_SLOTS = [
+  { key: 'around', title: 'ถ่ายรูปที่ 1', caption: 'บริเวณรอบบ้าน', required: true },
+  { key: 'houseNo', title: 'ถ่ายรูปที่ 2', caption: 'ติดบ้านเลขที่', required: true },
+  { key: 'extra3', title: 'ถ่ายภาพที่ 3' },
+  { key: 'extra4', title: 'ถ่ายภาพที่ 4' },
+  { key: 'extra5', title: 'ถ่ายภาพที่ 5' },
+];
+
+export const HOMEVISIT_HOUSE_PHOTO_LIMIT = HOUSE_PHOTO_SLOTS.length;
+
+/* กรอบรูปบ้านเป็นสัดส่วน 4:3 (มติผู้ใช้ 2 ก.ย. 69) — ตรงกับภาพที่ได้จากกล้อง
+   มือถือแนวนอน ไม่ต้องครอบตัดจนเลขที่บ้านหาย */
+const HOUSE_PHOTO_W = 192;
+const HOUSE_PHOTO_H = 144;
+
+const readAsDataUrl = (file, done) => {
+  if (typeof FileReader === 'undefined') { done(''); return; }
+  const reader = new FileReader();
+  reader.onload = () => done(String(reader.result || ''));
+  reader.onerror = () => done('');
+  reader.readAsDataURL(file);
+};
+
+const houseSlotCaption = (slot) => [slot.title, slot.caption].filter(Boolean).join(' · ');
+
+const HouseThumb = ({ photo, caption, onRemove, readOnly }) => (
+  <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+    <div className='relative shrink-0'>
+      <img
+        src={photo.previewUrl}
+        alt={`${caption} — ${photo.name || ''}`.trim()}
+        style={{
+          width: HOUSE_PHOTO_W,
+          height: HOUSE_PHOTO_H,
+          objectFit: 'cover',
+          borderRadius: 'var(--dim-radius-300, 10px)',
+          border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
+          display: 'block',
+        }}
+      />
+      {!readOnly && (
+        <span style={{ position: 'absolute', top: 'var(--dim-space-100, 4px)', right: 'var(--dim-space-100, 4px)' }}>
+          <NeutralIconButton
+            icon='close'
+            variant='ghost'
+            size='sm'
+            aria-label={`ลบรูป ${caption}`}
+            onClick={onRemove}
+          />
+        </span>
+      )}
+    </div>
+    <span style={{
+      fontFamily: 'var(--type-family-body)',
+      fontSize: 'var(--type-size-xs)',
+      color: 'var(--text-content-tertiary, #858C92)',
+      maxWidth: HOUSE_PHOTO_W,
+    }}>
+      {caption}
+    </span>
+  </div>
+);
+
+const HomeVisitHousePhotoField = ({ form, setForm, readOnly }) => {
+  const photos = form.housePhotos || [];
+
+  /* ทุกช่องผูกกับตำแหน่งคงที่ — ถ่ายทับได้โดยไม่กระทบรูปช่องอื่น */
+  const setSlot = (index, entry) => setForm((f) => {
+    const next = [...(f.housePhotos || [])];
+    while (next.length < HOUSE_PHOTO_SLOTS.length) next.push(null);
+    next[index] = entry;
+    return { ...f, housePhotos: next };
+  });
+
+  return (
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+      <span style={{
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-sm)',
+        color: 'var(--text-content-default, #363B3F)',
+      }}>
+        รูปถ่ายบ้าน (หน้าบ้าน + เลขที่บ้าน)
+        <span style={{ color: 'var(--text-input-require)' }}> *</span>
+      </span>
+      <span style={{
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-xs)',
+        color: 'var(--text-content-tertiary, #858C92)',
+      }}>
+        บังคับสองรูปแรก (บริเวณรอบบ้าน · ป้ายเลขที่บ้าน) — รูปที่ 3–5 ถ่ายเพิ่มได้ตามสถานการณ์
+      </span>
+      <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+        {HOUSE_PHOTO_SLOTS.map((slot, index) => {
+          const photo = photos[index];
+          if (photo && photo.previewUrl) {
+            return (
+              <HouseThumb
+                key={slot.key}
+                photo={photo}
+                caption={houseSlotCaption(slot)}
+                readOnly={readOnly}
+                onRemove={() => setSlot(index, null)}
+              />
+            );
+          }
+          return (
+            <PhotoUploadField
+              key={slot.key}
+              icon={slot.caption ? 'photo_camera' : 'add_a_photo'}
+              capture='environment'
+              disabled={readOnly}
+              style={{ width: HOUSE_PHOTO_W, height: HOUSE_PHOTO_H }}
+              aria-label={houseSlotCaption(slot)}
+              label={(
+                /* ชื่อรูปขึ้นบรรทัดใหม่จากคำว่า "ถ่ายรูปที่ N" (มติผู้ใช้ 2 ก.ย. 69) */
+                <>
+                  {slot.title}
+                  {slot.required && <span style={{ color: 'var(--text-input-require)' }}> *</span>}
+                  {slot.caption && <><br />{slot.caption}</>}
+                </>
+              )}
+              onFiles={(files) => {
+                const file = files[0];
+                if (!file) return;
+                readAsDataUrl(file, (previewUrl) => setSlot(index, {
+                  id: `hv-house-${slot.key}-${Date.now()}`,
+                  name: file.name,
+                  previewUrl,
+                }));
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 };
 
@@ -415,6 +577,8 @@ export const HomeVisitStep2Address = ({
         /* บันทึกการเดินทางอยู่ในการ์ด "ที่อยู่ปัจจุบัน" (มติผู้ใช้ 30 ส.ค. 69) —
            เป็นเรื่องของการเดินทางไปยังที่อยู่นั้นโดยตรง ไม่ใช่หัวข้อแยก */
         currentAddressExtra={(
+        /* บันทึกการเดินทาง ↔ รูปถ่ายบ้าน ห่างกัน 24px (มติผู้ใช้ 2 ก.ย. 69) */
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600, 24px)' }}>
         <SuggestibleTextarea
           label='บันทึกการเดินทาง'
           required
@@ -430,6 +594,12 @@ export const HomeVisitStep2Address = ({
           disabled={readOnly}
           placeholder='เส้นทาง อุปสรรคการเข้าถึงบ้าน และข้อมูลที่ทีมครั้งถัดไปควรรู้'
         />
+
+        {/* รูปถ่ายบ้าน — อยู่ใต้บันทึกการเดินทาง (มติผู้ใช้ 2 ก.ย. 69)
+            "หน้าบ้าน + เลขที่บ้าน" คือหลักฐานว่าไปถึงบ้านถูกหลัง คู่กับหมุด
+            ที่บันทึกไว้ด้านบน · เก็บแยกจากรูปประกอบการประเมิน (`form.photos`) */}
+        <HomeVisitHousePhotoField form={form} setForm={setForm} readOnly={readOnly} />
+        </div>
         )}
       />
 
@@ -524,34 +694,6 @@ export const HomeVisitStepAllergy = ({ form, setForm, readOnly, blockedMsg }) =>
   );
 };
 
-/* ── Step 5 — คัดกรอง (สัญญาณชีพ + ประวัติการแพ้/โรคประจำตัว) ─────
-   สองขั้นนี้คือ "สิ่งที่ทีมทำทันทีที่ถึงบ้าน ก่อนเริ่มซักอาการ" จึงยุบเป็นขั้นเดียว
-   (มติผู้ใช้ 2 ก.ย. 69) — คอมโพเนนต์เดิมทั้งสองตัวยังอยู่ครบ ขั้นนี้แค่วางต่อกัน
-   ไม่ได้คัดลอกเนื้อหามาเขียนใหม่ */
-export const HomeVisitStepScreening = ({ blockedMsg, ...props }) => (
-  <StepCard>
-    {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
-
-    {/* สัญญาณชีพกับประวัติการแพ้เป็นคนละการ์ด (มติผู้ใช้ 2 ก.ย. 69) — `VitalsForm`
-        เป็นการ์ดที่มนเฉพาะมุมล่าง (เดิมวางต่อจากหัวการ์ดของ shell) จึงต้องห่อ
-        ให้มนครบสี่มุมเมื่อยืนเป็นการ์ดของตัวเอง */}
-    <div
-      className='w-full'
-      style={{
-        background: 'var(--surface-card-100, #FFFFFF)',
-        borderRadius: 'var(--dim-radius-500, 16px)',
-        border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
-        boxShadow: 'var(--shadow-card-strong)',
-        overflow: 'hidden',
-      }}
-    >
-      <HomeVisitStep3Vitals {...props} blockedMsg='' />
-    </div>
-
-    <HomeVisitStepAllergy {...props} blockedMsg='' />
-  </StepCard>
-);
-
 /* ── ปรึกษาแพทย์ทางไกล (Telemedicine · TOR 1.18.10) ────────────────
    ย้ายมาอยู่ในขั้น "ประเมินอาการป่วย" (มติผู้ใช้ 30 ส.ค. 69) — ทีมตัดสินใจว่า
    ต้องปรึกษาแพทย์ตอนที่กำลังประเมินอาการอยู่ ไม่ใช่ตอนพิมพ์บันทึกตามบทบาท
@@ -628,6 +770,21 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
     ...f,
     medications: f.medications.map((m) => (m.id === id ? { ...m, [key]: value } : m)),
   }));
+  /* เปิดตัวเลือกไฟล์/กล้องของแถวยา — สร้าง input ชั่วคราวแทนการถือ ref ราย
+     แถว (มติผู้ใช้ 2 ก.ย. 69) */
+  const pickMedicationPhoto = (id) => {
+    if (typeof document === 'undefined') return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (file) readAsDataUrl(file, (url) => updateMedication(id, 'photoUrl', url));
+    };
+    input.click();
+  };
+
   const removeMedication = (id) => setForm((f) => ({
     ...f,
     medications: f.medications.filter((m) => m.id !== id),
@@ -649,35 +806,12 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
       <SectionCard>
       <StepSection gap='var(--dim-space-600)'>
         <TopicHeader icon='stethoscope'>อาการป่วยที่พบในการเยี่ยมครั้งนี้</TopicHeader>
-        {/* กริด 2 คอลัมน์ — อาการสำคัญ / ระยะเวลา / ประวัติปัจจุบัน กว้างเท่ากันหมด
-            (มติผู้ใช้ 30 ส.ค. 69) เดิมประวัติปัจจุบันเป็นแถวเต็มความกว้างอยู่ใต้
-            สองช่องนั้น ขนาดจึงไม่ตรงกัน */}
+        {/* ถอดช่อง "อาการสำคัญ (Chief Complaint)" ออก แล้วให้ "ประวัติปัจจุบัน"
+            ขึ้นเป็นช่องแรก (มติผู้ใช้ 2 ก.ย. 69) — ที่บ้านผู้รับบริการเล่าเป็น
+            ลำดับเหตุการณ์ต่อเนื่อง ไม่ได้แยกเป็นประโยคอาการสำคัญเหมือนที่ห้องตรวจ
+            · คีย์ `chiefComplaint` ยังอยู่ในโมเดลและในบันทึกเก่า/ใบสรุป */}
         <FieldGrid cols={2} rowGap='var(--dim-space-600)' columnGap='var(--dim-space-600)'>
-          <Field label='อาการสำคัญ (Chief Complaint)' required>
-            <SuggestibleTextarea
-              showLabel={false}
-              value={form.chiefComplaint}
-              onChange={(e) => set('chiefComplaint')(e?.target ? e.target.value : e)}
-              suggestions={CHIEF_COMPLAINT_SUGGESTIONS}
-              minChars={2}
-              rows={3}
-              voice
-              disabled={readOnly}
-              placeholder='อาการที่ผู้รับบริการหรือผู้ดูแลแจ้งในการเยี่ยมครั้งนี้'
-            />
-          </Field>
-          {/* ระยะเวลาเป็นดรอปดาวน์ (มติผู้ใช้ 30 ส.ค. 69) — ใช้ชุดคำเดียวกับ
-              จุดคัดกรอง ข้อความอิสระอย่าง "3 วัน" กับ "สามวัน" นับรวมกันไม่ได้ */}
-          <Field label='ระยะเวลาที่มีอาการ'>
-            <Select
-              showLabel={false} showHelperText={false} searchable size='lg'
-              value={form.symptomDuration} onChange={set('symptomDuration')} disabled={readOnly}
-              options={HOMEVISIT_DURATION_OPTIONS}
-              placeholder='เลือกระยะเวลาที่มีอาการ'
-            />
-          </Field>
-
-          <Field label='ประวัติปัจจุบัน (Present Illness)'>
+          <Field label='ประวัติปัจจุบัน (Present Illness)' required>
             <SuggestibleTextarea
               showLabel={false}
               value={form.presentIllness}
@@ -690,7 +824,71 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
               placeholder='ลำดับอาการ สิ่งที่ทำมาแล้ว และการตอบสนองต่อการรักษาที่บ้าน'
             />
           </Field>
+          {/* ระยะเวลาเป็นดรอปดาวน์ (มติผู้ใช้ 30 ส.ค. 69) — ใช้ชุดคำเดียวกับ
+              จุดคัดกรอง ข้อความอิสระอย่าง "3 วัน" กับ "สามวัน" นับรวมกันไม่ได้ */}
+          <Field label='ระยะเวลาที่มีอาการ'>
+            <Select
+              showLabel={false} showHelperText={false} searchable size='lg'
+              value={form.symptomDuration} onChange={set('symptomDuration')} disabled={readOnly}
+              options={HOMEVISIT_DURATION_OPTIONS}
+              placeholder='เลือกระยะเวลาที่มีอาการ'
+            />
+          </Field>
         </FieldGrid>
+
+        {/* ผู้ดูแลหลัก · ภาวะโภชนาการ · แผลกดทับ ย้ายมาอยู่ในการ์ดอาการป่วย
+            (มติผู้ใช้ 2 ก.ย. 69) — เป็นบริบทที่ทีมอ่านคู่กับอาการที่พบ ไม่ใช่
+            หมวดของตัวเอง · หัวข้อ "คัดกรองสุขภาพรายบุคคล" ถูกถอดออกด้วย */}
+        {/* ระยะระหว่างช่อง 24px เท่ากับแถวอื่นในการ์ดนี้ (มติผู้ใช้ 2 ก.ย. 69) */}
+        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+          <Field label='ผู้ดูแลหลัก'>
+            <Select
+              showLabel={false} showHelperText={false} searchable={false} size='lg'
+              value={form.caregiver} onChange={set('caregiver')} disabled={readOnly}
+              options={CAREGIVER_OPTIONS}
+              placeholder='เลือกลักษณะผู้ดูแล'
+            />
+          </Field>
+          {/* ช่อง "ภาวะโภชนาการ" ถูกถอดออก (มติผู้ใช้ 2 ก.ย. 69) — ค่าที่แสดง
+              เป็นผลแปลจาก MNA-SF ซึ่งอ่านได้จากการ์ดแบบประเมินด้านล่างอยู่แล้ว
+              คีย์ `form.nutrition` ยังอยู่ในโมเดลและในใบสรุป */}
+          <Field label='แผลกดทับ'>
+            <Select
+              showLabel={false} showHelperText={false} searchable={false} size='lg'
+              value={form.pressureSore} onChange={set('pressureSore')} disabled={readOnly}
+              options={PRESSURE_SORE_OPTIONS}
+              placeholder='เลือกระยะแผลกดทับ'
+            />
+          </Field>
+        </div>
+
+        {form.caregiver === 'none' && (
+          <NoticeBand tone='warning' icon='person_alert'>
+            ผู้รับบริการไม่มีผู้ดูแล — ควรประสานงานสังคมสงเคราะห์และ อสส. ในชุมชนก่อนปิดการเยี่ยม
+          </NoticeBand>
+        )}
+
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+          <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+            ระดับความปวด (1 = ปวดน้อยที่สุด · 10 = ปวดมากที่สุด)
+          </span>
+          {/* ปุ่มชุดเดียวกับจุดคัดกรอง — ไอคอนหน้าคนนำหน้าตัวเลข 10 ระดับ
+              (มติผู้ใช้ 2 ก.ย. 69) */}
+          <PainScaleCards
+            value={form.painScore}
+            onChange={(n) => set('painScore')(n)}
+            disabled={readOnly}
+          />
+          {Number.isFinite(form.painScore) && form.painScore >= 7 && (
+            <NoticeBand tone='danger' icon='priority_high'>
+              ความปวดระดับรุนแรง ({form.painScore}/10) — ควรทบทวนแผนจัดการความปวดและพิจารณาปรึกษาแพทย์ทางไกล
+            </NoticeBand>
+          )}
+        </div>
+
+        {/* รูปถ่ายอยู่ในการ์ดอาการป่วย (มติผู้ใช้ 2 ก.ย. 69) — รูปแผล/สภาพแวดล้อม
+            เป็นหลักฐานของสิ่งที่บันทึกในการ์ดนี้ ไม่ใช่การ์ดแยกท้ายขั้น */}
+        <HomeVisitPhotoSection form={form} setForm={setForm} readOnly={readOnly} />
 
       </StepSection>
       </SectionCard>
@@ -769,6 +967,49 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
                     placeholder='เลือก'
                   />
                 </Field>
+                {/* รูปยาแต่ละรายการ (มติผู้ใช้ 2 ก.ย. 69) — ที่บ้านมักหยิบซองยา
+                    มาให้ดูโดยไม่รู้ชื่อ ถ่ายเก็บไว้คู่กับแถวนั้นจะทวนทีหลังได้ */}
+                <Field label='รูปยา'>
+                  {m.photoUrl ? (
+                    <div className='relative' style={{ width: 96, height: 72 }}>
+                      <img
+                        src={m.photoUrl}
+                        alt={`รูปยา ${m.nameOther || m.name || ''}`.trim()}
+                        style={{
+                          width: 96,
+                          height: 72,
+                          objectFit: 'cover',
+                          borderRadius: 'var(--dim-radius-300, 10px)',
+                          border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
+                          display: 'block',
+                        }}
+                      />
+                      {!readOnly && (
+                        <span style={{ position: 'absolute', top: 'var(--dim-space-50, 2px)', right: 'var(--dim-space-50, 2px)' }}>
+                          <NeutralIconButton
+                            icon='close'
+                            variant='ghost'
+                            size='sm'
+                            aria-label='ลบรูปยา'
+                            onClick={() => updateMedication(m.id, 'photoUrl', '')}
+                          />
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    /* ปุ่มเล็กแทนกล่องอัปโหลด (มติผู้ใช้ 2 ก.ย. 69) — แถวยาแคบ
+                       กล่อง 96×72 ดันความสูงของทั้งแถว */
+                    <NeutralSubdueButton
+                      size='sm'
+                      leadingIcon='photo_camera'
+                      disabled={readOnly}
+                      onClick={() => pickMedicationPhoto(m.id)}
+                    >
+                      เพิ่มรูปยา
+                    </NeutralSubdueButton>
+                  )}
+                </Field>
+
                 {/* เหลือรายการเดียวลบไม่ได้ (มติผู้ใช้ 30 ส.ค. 69) — ลิสต์ที่เปิด
                     ไว้แล้วต้องมีอย่างน้อยหนึ่งแถวให้กรอกเสมอ ถ้าลบหมดจะเหลือ
                     ข้อความว่างที่ต้องกด "เพิ่มรายการ" ใหม่ทุกครั้ง */}
@@ -809,6 +1050,64 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
       <SectionCard>
         <HomeVisitStep4Assessment form={form} setForm={setForm} readOnly={readOnly} />
       </SectionCard>
+
+      {/* ความต้องการ/สิ่งที่ควรได้รับ — ชุดผ้าอ้อม/แผ่นรองซับตามแบบฟอร์มกระดาษ
+          ของ ศบส. (มติผู้ใช้ 2 ก.ย. 69) เลือกได้ชุดเดียวเพราะเบิกได้วันละหนึ่งชุด */}
+      <SectionCard icon='clipboard-list' title='มีความต้องการ / ควรได้รับ'>
+        <StepSection gap='var(--dim-space-400, 16px)'>
+          {/* ดรอปดาวน์แทนแถวการ์ด (มติผู้ใช้ 2 ก.ย. 69) — หกตัวเลือกที่ข้อความยาว
+              กินพื้นที่สองแถวเต็มโดยที่เลือกได้ชุดเดียวอยู่ดี */}
+          <Field label='ชุดที่ควรได้รับ'>
+            <Select
+              showLabel={false} showHelperText={false} searchable={false} size='lg'
+              value={form.supplyNeedSet}
+              onChange={set('supplyNeedSet')}
+              disabled={readOnly}
+              options={HOMEVISIT_SUPPLY_SETS.map((opt) => ({
+                value: opt.value,
+                label: [opt.label, opt.detail, opt.price].filter(Boolean).join(' — '),
+              }))}
+              placeholder='เลือกชุดที่ควรได้รับ'
+            />
+          </Field>
+
+          {form.supplyNeedSet === 'other' && (
+            <Field label='ระบุความต้องการ'>
+              <InputField
+                showLabel={false} showHelperText={false}
+                value={form.supplyNeedOther || ''}
+                onChange={set('supplyNeedOther')}
+                disabled={readOnly}
+                placeholder='เช่น แผ่นรองซับขนาดใหญ่ · ถุงมือยาง · สำลี/ผ้าก๊อซทำแผล'
+              />
+            </Field>
+          )}
+
+          {/* ไซซ์ถามเฉพาะชุดที่มีผ้าอ้อมผู้ใหญ่ */}
+          {['A', 'C', 'D', 'E'].includes(form.supplyNeedSet) && (
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+                ไซซ์ผ้าอ้อมผู้ใหญ่
+              </span>
+              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                {DIAPER_SIZES.map((size) => (
+                  <SelectableCardButton
+                    key={size}
+                    selected={form.diaperSize === size}
+                    onClick={readOnly ? undefined : () => set('diaperSize')(form.diaperSize === size ? '' : size)}
+                    ariaLabel={`ไซซ์ ${size}`}
+                    padX='var(--dim-space-400, 16px)'
+                  >
+                    {size}
+                  </SelectableCardButton>
+                ))}
+              </div>
+            </div>
+          )}
+        </StepSection>
+      </SectionCard>
+
+
 
       {/* การ์ด "ปรึกษาแพทย์ทางไกล" ถูกถอดออก (มติผู้ใช้ 30 ส.ค. 69) — ปุ่มเดียวกัน
           อยู่บนหัวหน้าจอแล้ว (SubHeader) ซึ่งกดได้จากทุกขั้น */}
@@ -921,6 +1220,12 @@ export const HomeVisitStep3Vitals = ({ form, setForm, readOnly, blockedMsg, hn }
         subtitle={hn ? `HN ${hn}` : undefined}
         primaryAction={{ label: 'ปิด', onClick: () => setHistoryOpen(false) }}
       >
+        {/* กราฟแนวโน้มอยู่เหนือตาราง (มติผู้ใช้ 2 ก.ย. 69) — ตัวเลขรายรอบอ่าน
+            ความเปลี่ยนแปลงข้ามครั้งได้ยาก ใช้กราฟชุดเดียวกับหน้าสัญญาณชีพอื่น */}
+        <div className='w-full' style={{ marginBottom: 'var(--dim-space-500, 20px)' }}>
+          <VitalsSignGraph />
+        </div>
+
         <Table
           columns={[
             { key: 'no', label: 'ครั้งที่' },
@@ -946,12 +1251,26 @@ export const HomeVisitStep3Vitals = ({ form, setForm, readOnly, blockedMsg, hn }
    (มติผู้ใช้ 30 ส.ค. 69) — ทีมเยี่ยมบ้านเป็นคนที่เห็นบัตรสิทธิที่บ้าน จึงควร
    แก้ได้ตรงนั้นด้วยหน้าตาเดียวกับห้องบัตร · ขั้น "ข้อมูลการติดต่อ" ถูกยุบเข้า
    ขั้นที่อยู่แล้ว (มติผู้ใช้ 2 ก.ย. 69) */
-export const HomeVisitStepRights = ({ form, setForm, blockedMsg }) => (
-  <StepCard>
-    {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
-    <RegistrationRightsStep form={form} setForm={setForm} />
-  </StepCard>
-);
+export const HomeVisitStepRights = ({ form, setForm, blockedMsg }) => {
+  /* ที่บ้านตรวจสอบสิทธิออนไลน์ไม่ได้ทุกครั้ง และผู้รับบริการอยู่ในทะเบียนเยี่ยมบ้าน
+     อยู่แล้ว — ขั้นนี้จึงกางรายการสิทธิให้เลย ไม่ต้องกด "ตรวจสอบสิทธิ" ก่อน
+     (มติผู้ใช้ 2 ก.ย. 69) · ยังกดตรวจสอบซ้ำได้จากแผงด้านบนของผลลัพธ์ */
+  useEffect(() => {
+    if (form.rightsLookupDone) return;
+    setForm((f) => (f.rightsLookupDone ? f : {
+      ...f,
+      rightsLookupDone: true,
+      rightsGroups: (f.rightsGroups || []).length ? f.rightsGroups : buildMockRightsGroups(),
+    }));
+  }, [form.rightsLookupDone, setForm]);
+
+  return (
+    <StepCard>
+      {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+      <RegistrationRightsStep form={form} setForm={setForm} />
+    </StepCard>
+  );
+};
 
 /* ── Step 8 — พฤติกรรมสุขภาพ ───────────────────────────────────── */
 export const HomeVisitStepBehaviour = ({ form, setForm, readOnly, hn, blockedMsg }) => (
@@ -962,27 +1281,37 @@ export const HomeVisitStepBehaviour = ({ form, setForm, readOnly, hn, blockedMsg
   <StepCard>
     {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
     <SectionCard>
-      <ScreeningStep4 patient={{ hn }} padded={false} />
-      <HealthRiskFields
-        value={form.homeScreening}
-        onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
-        readOnly={readOnly}
-      />
+      {/* ช่อง "รายละเอียดพฤติกรรมเพิ่มเติม" ต้องอยู่ล่างสุดของการ์ด (มติผู้ใช้
+          2 ก.ย. 69) — ส่งความเสี่ยง/การปฏิบัติตัวเข้าไปเป็น slot ก่อนช่องนั้น
+          แทนการวางต่อท้าย `ScreeningStep4` (state ของช่องอยู่ในคอมโพเนนต์นั้น) */}
+      <ScreeningStep4
+        patient={{ hn }}
+        padded={false}
+        beforeDetailSlot={(
+          <>
+            <HealthRiskFields
+              value={form.homeScreening}
+              onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
+              readOnly={readOnly}
+            />
 
-      <StepSection gap='var(--dim-space-200)'>
-        <span style={{
-          color: 'var(--text-content-secondary, #636B72)',
-          fontFamily: 'var(--type-family-body)',
-          fontSize: 'var(--type-size-sm)',
-        }}>
-          การปฏิบัติตัวเมื่อเจ็บป่วยเล็กน้อย (เลือกได้หลายข้อ)
-        </span>
-        <MinorIllnessFields
-          value={form.homeScreening}
-          onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
-          readOnly={readOnly}
-        />
-      </StepSection>
+            <StepSection gap='var(--dim-space-200)'>
+              <span style={{
+                color: 'var(--text-content-secondary, #636B72)',
+                fontFamily: 'var(--type-family-body)',
+                fontSize: 'var(--type-size-sm)',
+              }}>
+                การปฏิบัติตัวเมื่อเจ็บป่วยเล็กน้อย (เลือกได้หลายข้อ)
+              </span>
+              <MinorIllnessFields
+                value={form.homeScreening}
+                onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
+                readOnly={readOnly}
+              />
+            </StepSection>
+          </>
+        )}
+      />
     </SectionCard>
   </StepCard>
 );
@@ -994,210 +1323,136 @@ export const HomeVisitStepBehaviour = ({ form, setForm, readOnly, hn, blockedMsg
 
 export const HOMEVISIT_PHOTO_LIMIT = 20;
 
+/* รูปถ่ายระหว่างการเยี่ยม — 5 ช่องคงที่ ทรงเดียวกับรูปถ่ายบ้าน (มติผู้ใช้
+   2 ก.ย. 69) แต่ละช่องบอกว่าต้องถ่ายอะไร ทีมจึงถ่ายชุดเดียวกันทุกครั้งและ
+   เอามาเทียบข้ามรอบได้ · ไม่มีช่องไหนบังคับ (บางบ้านไม่มีแผล/ไม่มีอุปกรณ์) */
+const VISIT_PHOTO_SLOTS = [
+  { key: 'wound', title: 'ถ่ายภาพที่ 1', caption: 'แผล/รอยโรค' },
+  { key: 'env', title: 'ถ่ายภาพที่ 2', caption: 'สภาพแวดล้อมที่เป็นความเสี่ยง' },
+  { key: 'meds', title: 'ถ่ายภาพที่ 3', caption: 'ยาที่พบในบ้าน' },
+  { key: 'device', title: 'ถ่ายภาพที่ 4', caption: 'อุปกรณ์การแพทย์ที่ใช้อยู่' },
+  { key: 'other', title: 'ถ่ายภาพที่ 5', caption: 'ภาพเพิ่มเติม' },
+];
+
 export const HomeVisitPhotoSection = ({ form, setForm, readOnly }) => {
   const [photoPreview, setPhotoPreview] = useState(null);
-  /* เตือนเมื่อเลือกไฟล์มาเกินโควตา — ตัดทิ้งเงียบ ๆ แล้วทีมจะไม่รู้ว่ารูปหาย */
-  const [limitMsg, setLimitMsg] = useState('');
-  const remaining = HOMEVISIT_PHOTO_LIMIT - form.photos.length;
+  const photos = form.photos || [];
 
-  const removePhotoAt = (index) => setForm((f) => ({
-    ...f,
-    photos: f.photos.filter((_, idx) => idx !== index),
-  }));
+  const setSlot = (index, entry) => setForm((f) => {
+    const next = [...(f.photos || [])];
+    while (next.length < VISIT_PHOTO_SLOTS.length) next.push(null);
+    next[index] = entry;
+    return { ...f, photos: next };
+  });
 
   return (
     <StepSection>
-      <TopicHeader icon='photo_camera'>รูปถ่ายระหว่างการเยี่ยม</TopicHeader>
-      {limitMsg && <NoticeBand tone='warning' icon='filter_alt'>{limitMsg}</NoticeBand>}
+      {/* หัวข้อใช้สไตล์เดียวกับป้าย "ระดับความปวด …" ที่อยู่เหนือมัน
+          (มติผู้ใช้ 2 ก.ย. 69) — เป็นช่องหนึ่งของการ์ดอาการป่วย ไม่ใช่หัวข้อใหญ่ */}
+      <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+        รูปถ่ายระหว่างการเยี่ยม
+      </span>
+      <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+        ขอความยินยอมจากผู้รับบริการหรือผู้ดูแลก่อนถ่ายทุกครั้ง และไม่ถ่ายใบหน้าคนอื่นในบ้านที่ไม่ใช่ผู้รับบริการ
+      </span>
 
-      {/* คำแนะนำว่าควรถ่ายอะไร (มติผู้ใช้ 30 ส.ค. 69) — เดิมเป็นช่องอัปโหลด
-          เปล่า ๆ แต่ละทีมจึงถ่ายไม่เหมือนกัน พอเอารูปมาเทียบข้ามครั้งหรือ
-          ส่งต่อให้ทีมถัดไปจึงใช้ไม่ได้ */}
-      <div
-        className='flex flex-col w-full'
-        style={{
-          gap: 'var(--dim-space-100, 4px)',
-          padding: 'var(--dim-space-300, 12px)',
-          borderRadius: 'var(--dim-radius-300, 8px)',
-          background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
-          fontSize: 'var(--type-size-xs)',
-          color: 'var(--text-content-secondary, #636B72)',
-        }}
-      >
-        <span style={{ color: 'var(--text-content-default, #363B3F)', fontWeight: 'var(--type-weight-medium, 500)' }}>
-          {form.photos.length === 0
-            ? 'รูปแรก: ถ่าย “หน้าบ้านพร้อมเลขที่บ้าน” — ใช้ยืนยันว่าไปถึงบ้านถูกหลังคู่กับพิกัดที่บันทึกไว้'
-            : 'ถ่ายให้ครบตามรายการนี้ เพื่อให้ทีมครั้งถัดไปเทียบความเปลี่ยนแปลงได้'}
-        </span>
-        <span>1. หน้าบ้าน + เลขที่บ้าน · 2. สภาพแวดล้อมที่เป็นความเสี่ยง (ทางเดิน ห้องน้ำ ราวจับ พื้นลื่น)</span>
-        <span>3. แผล/รอยโรค — ถ่ายระยะเดิมทุกครั้งและวางวัตถุเทียบขนาดไว้ข้าง ๆ · 4. ยาที่พบในบ้านทั้งหมด</span>
-        <span>5. อุปกรณ์การแพทย์ที่ใช้อยู่ (สายให้อาหาร ออกซิเจน เตียง ที่นอนลม)</span>
-        <span style={{ color: 'var(--text-warning-default, #B45309)' }}>
-          ขอความยินยอมจากผู้รับบริการหรือผู้ดูแลก่อนถ่ายทุกครั้ง และไม่ถ่ายใบหน้าคนอื่นในบ้านที่ไม่ใช่ผู้รับบริการ
-        </span>
-      </div>
-
-      {/* ปุ่มอัปโหลดกับรูปย่ออยู่แถวเดียวกัน — เดิมรูปย่อต่อท้ายลงข้างล่าง
-          บล็อกจึงยาวขึ้นเรื่อย ๆ และมองไม่เห็นพร้อมกันว่าถ่ายอะไรไปแล้วบ้าง */}
-      <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-        <PhotoUploadField
-          label={form.photos.length
-            ? `เพิ่มรูป (${form.photos.length}/${HOMEVISIT_PHOTO_LIMIT} รูป)`
-            : 'ถ่าย/อัปโหลดรูป'}
-          icon='photo_camera'
-          capture='environment'
-          multiple
-          disabled={readOnly || remaining <= 0}
-          /* อ่านเป็น data URL ไม่ใช่ blob URL — blob URL ใช้ได้เฉพาะในหน้าที่เปิดอยู่
-             พอบันทึกร่างลง sessionStorage แล้วกลับมาเปิดใหม่ ลิงก์จะตาย */
-          onFiles={(files) => {
-            /* รับได้ไม่เกินโควตาที่เหลือ ส่วนที่เกินถูกตัดพร้อมบอกให้รู้ */
-            const picked = Array.from(files);
-            const accepted = picked.slice(0, Math.max(0, remaining));
-            setLimitMsg(accepted.length < picked.length
-              ? `เลือกมา ${picked.length} รูป แต่เก็บได้อีก ${Math.max(0, remaining)} รูป (สูงสุด ${HOMEVISIT_PHOTO_LIMIT} รูปต่อการเยี่ยม 1 ครั้ง) — เก็บให้ ${accepted.length} รูปแรก`
-              : '');
-            accepted.forEach((file, i) => {
-              const entryId = `hv-photo-${Date.now()}-${i}`;
-              const push = (previewUrl) => setForm((f) => ({
-                ...f,
-                photos: [...f.photos, { id: entryId, name: file.name, previewUrl }],
-              }));
-              if (typeof FileReader === 'undefined') {
-                push('');
-                return;
-              }
-              const reader = new FileReader();
-              reader.onload = () => push(String(reader.result || ''));
-              reader.onerror = () => push('');
-              reader.readAsDataURL(file);
-            });
-          }}
-        />
-        {form.photos.length > 0 && (
-          <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-            {form.photos.map((photo, i) => {
-              const entry = typeof photo === 'string' ? { name: photo, previewUrl: '' } : photo;
-              const key = entry.id || `${entry.name}-${i}`;
-              return entry.previewUrl ? (
-                <div
-                  key={key}
-                  className='relative'
-                  style={{
-                    /* สูงเท่ากล่องอัปโหลด และกว้างตามอัตราส่วน 4:3 ของกล้อง —
-                       กรอบจัตุรัสครอบรูปแนวนอนจนดูไม่ออกว่าถ่ายอะไร */
-                    width: 171,
-                    height: 'var(--dim-size-2000, 128px)',
-                    borderRadius: 'var(--dim-radius-300, 8px)',
-                    overflow: 'hidden',
-                    border: 'var(--dim-stroke-100, 1px) solid var(--border-neutral-quaternary, #E5E7EB)',
-                    background: 'var(--surface-neutral-quaternary, #F3F4F6)',
-                  }}
-                >
+      <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+        {VISIT_PHOTO_SLOTS.map((slot, index) => {
+          const entry = photos[index];
+          if (entry && entry.previewUrl) {
+            return (
+              <div key={slot.key} className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+                <div className='relative shrink-0'>
                   {/* กดที่รูปเพื่อเปิดดูขนาดเต็ม — ปุ่มลบเป็นพี่น้องกันข้างนอก
                       ไม่ใช่ปุ่มซ้อนปุ่ม (HTML ห้าม) */}
                   <button
                     type='button'
                     onClick={() => setPhotoPreview(entry)}
-                    aria-label={`ดูรูป ${entry.name} ขนาดเต็ม`}
+                    aria-label={`ดูรูป ${slot.caption} ขนาดเต็ม`}
                     title={entry.name}
                     style={{
-                      width: '100%',
-                      height: '100%',
+                      width: HOUSE_PHOTO_W,
+                      height: HOUSE_PHOTO_H,
                       padding: 0,
-                      border: 'none',
-                      background: 'transparent',
+                      border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
+                      borderRadius: 'var(--dim-radius-300, 10px)',
+                      overflow: 'hidden',
+                      background: 'var(--surface-neutral-quaternary, #F3F4F6)',
                       cursor: 'zoom-in',
                       display: 'block',
                     }}
                   >
                     <img
                       src={entry.previewUrl}
-                      alt={entry.name}
+                      alt={`${slot.caption} — ${entry.name || ''}`.trim()}
                       style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                     />
                   </button>
-                  {/* ปุ่มลบเป็นวงกลมเทาเล็ก ไม่ใช่ปุ่มแบรนด์สี่เหลี่ยมขนาดปกติ —
-                      ปุ่มเต็มใบทับรูปย่อจนดูไม่ออกว่ารูปอะไร และสีเขียวอ่านเป็น
-                      "ปุ่มหลัก" ทั้งที่เป็นการกระทำรอง */}
                   {!readOnly && (
-                    <button
-                      type='button'
-                      aria-label={`ลบรูป ${entry.name}`}
-                      title={`ลบรูป ${entry.name}`}
-                      /* หยุด event ไม่ให้ทะลุไปเปิดป๊อปอัปดูรูปของกรอบด้านหลัง */
-                      onClick={(e) => { e.stopPropagation(); removePhotoAt(i); }}
-                      className='absolute inline-flex items-center justify-center'
-                      style={{
-                        top: 'var(--dim-space-150, 6px)',
-                        right: 'var(--dim-space-150, 6px)',
-                        width: 24,
-                        height: 24,
-                        borderRadius: 'var(--dim-radius-full, 9999px)',
-                        background: 'var(--surface-neutralButton-secondary, #6B7280)',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: 0,
-                        zIndex: 1,
-                      }}
-                    >
-                      <span
-                        className='material-symbols-outlined'
-                        aria-hidden
-                        style={{
-                          fontFamily: 'Material Symbols Outlined',
-                          fontSize: 16,
-                          lineHeight: 1,
-                          color: 'var(--icon-neutralButton-on-neutral, #FFFFFF)',
-                        }}
-                      >
-                        close
-                      </span>
-                    </button>
+                    <span style={{ position: 'absolute', top: 'var(--dim-space-100, 4px)', right: 'var(--dim-space-100, 4px)' }}>
+                      <NeutralIconButton
+                        icon='close'
+                        variant='ghost'
+                        size='sm'
+                        aria-label={`ลบรูป ${slot.caption}`}
+                        onClick={() => setSlot(index, null)}
+                      />
+                    </span>
                   )}
                 </div>
-              ) : (
-                <ColorfulBadge key={key} style='grey' size='small' hierarchy='secondary' width='hug' maxWidth={220}>
-                  {entry.name}
-                </ColorfulBadge>
-              );
-            })}
-          </div>
-        )}
+                <span style={{
+                  fontSize: 'var(--type-size-xs)',
+                  color: 'var(--text-content-tertiary, #858C92)',
+                  maxWidth: HOUSE_PHOTO_W,
+                }}>
+                  {`${slot.title} · ${slot.caption}`}
+                </span>
+              </div>
+            );
+          }
+          return (
+            <PhotoUploadField
+              key={slot.key}
+              icon='photo_camera'
+              capture='environment'
+              disabled={readOnly}
+              style={{ width: HOUSE_PHOTO_W, height: HOUSE_PHOTO_H }}
+              aria-label={`${slot.title} ${slot.caption}`}
+              label={(
+                <>
+                  {slot.title}
+                  <br />
+                  {slot.caption}
+                </>
+              )}
+              /* อ่านเป็น data URL ไม่ใช่ blob URL — blob URL ใช้ได้เฉพาะในหน้าที่
+                 เปิดอยู่ พอบันทึกร่างแล้วกลับมาเปิดใหม่ลิงก์จะตาย */
+              onFiles={(files) => {
+                const file = files[0];
+                if (!file) return;
+                readAsDataUrl(file, (previewUrl) => setSlot(index, {
+                  id: `hv-photo-${slot.key}-${Date.now()}`,
+                  name: file.name,
+                  previewUrl,
+                }));
+              }}
+            />
+          );
+        })}
       </div>
 
-      {/* ดูรูปขนาดเต็ม — ลบจากในป๊อปอัปได้เลย จะได้ไม่ต้องปิดแล้วไปหาปุ่มกากบาท
-          บนรูปย่ออีกที หลังจากเพิ่งเห็นว่ารูปนี้ถ่ายพลาด */}
       <Popup
         open={!!photoPreview}
         onClose={() => setPhotoPreview(null)}
-        title='รูปถ่ายระหว่างการเยี่ยม'
-        subtitle={photoPreview?.name}
         size='large'
+        title={photoPreview?.name || 'รูปถ่ายระหว่างการเยี่ยม'}
         primaryAction={{ label: 'ปิด', onClick: () => setPhotoPreview(null) }}
-        tertiaryAction={readOnly ? undefined : {
-          label: 'ลบรูปนี้',
-          onClick: () => {
-            const index = form.photos.findIndex((ph) => (
-              typeof ph === 'string' ? ph === photoPreview?.name : ph.id === photoPreview?.id
-            ));
-            if (index >= 0) removePhotoAt(index);
-            setPhotoPreview(null);
-          },
-        }}
       >
         {photoPreview?.previewUrl && (
           <img
             src={photoPreview.previewUrl}
             alt={photoPreview.name}
-            style={{
-              width: '100%',
-              maxHeight: '70vh',
-              objectFit: 'contain',
-              display: 'block',
-              borderRadius: 'var(--dim-radius-300, 8px)',
-              background: 'var(--surface-neutral-quaternary, #F3F4F6)',
-            }}
+            style={{ width: '100%', maxHeight: '70vh', objectFit: 'contain', display: 'block' }}
           />
         )}
       </Popup>
@@ -1209,68 +1464,9 @@ export const HomeVisitPhotoSection = ({ form, setForm, readOnly }) => {
    (หัวการ์ดพื้นอ่อน + รหัส/ป้ายเวอร์ชัน + ชื่อ + แถวปุ่มล่าง) แต่ "เวอร์ชัน"
    ของแบบประเมินคือ *คะแนน* และป้ายคือ *การแปลผล* ซึ่งเป็นสิ่งที่พยาบาลต้อง
    เห็นก่อนตัดสินใจว่าจะเปิดชุดไหน (มติผู้ใช้ 30 ส.ค. 69) */
-const AssessmentToolCard = ({ code, title, done, scoreLabel, interp, readOnly, onOpen }) => (
-  <section
-    className='flex flex-col w-full min-w-0'
-    style={{
-      borderRadius: 'var(--dim-radius-400, 12px)',
-      border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
-      background: 'var(--surface-card-100, #FFFFFF)',
-      overflow: 'hidden',
-    }}
-  >
-    <div
-      className='flex flex-col items-center w-full'
-      style={{
-        gap: 'var(--dim-space-100, 4px)',
-        paddingTop: 'var(--dim-space-500, 20px)',
-        paddingBottom: 'var(--dim-space-500, 20px)',
-        background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
-      }}
-    >
-      <span style={{
-        color: 'var(--text-brandPrimary-default, #007549)',
-        fontFamily: 'var(--type-family-heading-content)',
-        fontSize: 'var(--type-size-xl)',
-      }}>
-        {scoreLabel}
-      </span>
-      <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-        {code}
-      </span>
-    </div>
-
-    <div
-      className='flex flex-col w-full flex-1'
-      style={{
-        gap: 'var(--dim-space-200, 8px)',
-        padding: 'var(--dim-space-400, 16px)',
-      }}
-    >
-      <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-        {title}
-      </span>
-      {done && interp ? (
-        <ColorfulBadge style={interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={260}>
-          {interp.label}
-        </ColorfulBadge>
-      ) : (
-        <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
-          ยังไม่ได้ประเมิน
-        </ColorfulBadge>
-      )}
-      <div className='flex-1' />
-      <BrandSubdueButton
-        variant='outline'
-        size='sm'
-        leadingIcon={done ? 'edit' : 'clipboard-list'}
-        onClick={onOpen}
-      >
-        {readOnly ? 'ดูผลประเมิน' : (done ? 'แก้ไข' : 'ทำแบบประเมิน')}
-      </BrandSubdueButton>
-    </div>
-  </section>
-);
+/* แบบประเมินสี่ชุดแสดงเป็นตาราง (มติผู้ใช้ 2 ก.ย. 69) — หัวข้อ/คะแนน/สถานะ/
+   ปุ่มดำเนินการ อยู่ในคอลัมน์ที่ตรงกันทุกแถว ใช้ <Table> ตัวเดียวกับที่อื่น
+   ในระบบ ไม่ได้จัดแถวเอง */
 
 export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }) => {
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
@@ -1394,110 +1590,83 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
       {/* "ความเสี่ยงด้านสุขภาพ 15 ข้อ" ย้ายไปขั้น "พฤติกรรมสุขภาพ" แล้ว
           (มติผู้ใช้ 30 ส.ค. 69) — เป็นเรื่องพฤติกรรม ไม่ใช่ผลการประเมิน */}
 
-      {/* DTX คู่กับสถานะการอดอาหาร — ค่าน้ำตาลอ่านไม่ได้ถ้าไม่รู้ว่าอดอาหารมาหรือไม่ */}
-      <StepSection>
-        <TopicHeader icon='bloodtype'>น้ำตาลปลายนิ้ว (DTX)</TopicHeader>
-        <DtxFields
-          value={form.homeScreening}
-          onChange={(next) => setForm((f) => ({ ...f, homeScreening: next }))}
-          readOnly={readOnly}
-        />
-      </StepSection>
+      {/* "น้ำตาลปลายนิ้ว (DTX)" ย้ายไปขั้น "คัดกรอง" แล้ว (มติผู้ใช้ 2 ก.ย. 69)
+          — เจาะ DTX พร้อมวัดสัญญาณชีพตอนเพิ่งถึงบ้าน และเจาะเฉพาะรายที่เป็น
+          เบาหวาน · คีย์ `dtx` / `dtxFasting` ยังอยู่ที่ `form.homeScreening` เดิม */}
 
       <StepSection>
-        <TopicHeader icon='health_metrics'>คัดกรองสุขภาพรายบุคคล</TopicHeader>
-        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-          <Field label='ผู้ดูแลหลัก'>
-            <Select
-              showLabel={false} showHelperText={false} searchable={false} size='lg'
-              value={form.caregiver} onChange={set('caregiver')} disabled={readOnly}
-              options={CAREGIVER_OPTIONS}
-              placeholder='เลือกลักษณะผู้ดูแล'
-            />
-          </Field>
-          <Field
-            label='ภาวะโภชนาการ'
-            hint='ระบบแปลผลจากคะแนน MNA-SF ด้านล่างให้อัตโนมัติ — ไม่ต้องเลือกเอง'
-          >
-            <div
-              className='flex items-center'
-              style={{
-                minHeight: 'var(--dim-size-1000, 48px)',
-                gap: 'var(--dim-space-200, 8px)',
-                paddingLeft: 'var(--dim-space-300, 12px)',
-                paddingRight: 'var(--dim-space-300, 12px)',
-                borderRadius: 'var(--dim-radius-200, 8px)',
-                border: 'var(--dim-stroke-100, 1px) solid var(--border-input-default, #DFE1E3)',
-                background: 'var(--surface-neutral-quaternary, #F9FBFB)',
-              }}
-            >
-              {mnaDone ? (
-                <ColorfulBadge style={mnaInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={320}>
-                  {NUTRITION_OPTIONS.find((o) => o.value === mnaInterp.nutrition)?.label || mnaInterp.label}
-                </ColorfulBadge>
-              ) : (
-                <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary, #858C92)' }}>
-                  ยังประเมิน MNA-SF ไม่ครบ
-                </span>
-              )}
-            </div>
-          </Field>
-          <Field label='แผลกดทับ'>
-            <Select
-              showLabel={false} showHelperText={false} searchable={false} size='lg'
-              value={form.pressureSore} onChange={set('pressureSore')} disabled={readOnly}
-              options={PRESSURE_SORE_OPTIONS}
-              placeholder='เลือกระยะแผลกดทับ'
-            />
-          </Field>
-        </div>
-
-        {form.caregiver === 'none' && (
-          <NoticeBand tone='warning' icon='person_alert'>
-            ผู้รับบริการไม่มีผู้ดูแล — ควรประสานงานสังคมสงเคราะห์และ อสส. ในชุมชนก่อนปิดการเยี่ยม
-          </NoticeBand>
-        )}
-
-        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
-          <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-            ระดับความปวด (0 = ไม่ปวด · 10 = ปวดมากที่สุด)
-          </span>
-          <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-            {PAIN_SCALE.map((n) => (
-              <SelectableTag
-                key={n}
-                label={String(n)}
-                size='md'
-                selected={form.painScore === n}
-                onClick={readOnly ? undefined : () => set('painScore')(n)}
-              />
-            ))}
-          </div>
-          {Number.isFinite(form.painScore) && form.painScore >= 7 && (
-            <NoticeBand tone='danger' icon='priority_high'>
-              ความปวดระดับรุนแรง ({form.painScore}/10) — ควรทบทวนแผนจัดการความปวดและพิจารณาปรึกษาแพทย์ทางไกล
-            </NoticeBand>
-          )}
-        </div>
+        {/* แถวการ์ดต้องมีหัวข้อของตัวเอง (มติผู้ใช้ 2 ก.ย. 69) — เดิมลอยอยู่
+            ใต้ช่องอื่นจนอ่านไม่ออกว่าสี่ใบนี้เป็นชุดเดียวกัน */}
+        <TopicHeader icon='checklist'>แบบประเมิน</TopicHeader>
 
         {/* แบบประเมินมาตรฐาน 4 ชุดเป็น "การ์ด" ทรงเดียวกับใบยินยอมของหน้า
             เวชระเบียน (มติผู้ใช้ 30 ส.ค. 69) — เดิมกางเป็นฟอร์มยาวเรียงกันสี่ชุด
             ในขั้นเดียว ทำให้เลื่อนหาไม่เจอว่าเหลือชุดไหนยังไม่ได้ทำ · การ์ดบอก
             สถานะ/คะแนน/การแปลผลของแต่ละชุดในบรรทัดเดียว แล้วค่อยกดเข้าไปทำ */}
-        <FieldGrid cols={4} rowGap='var(--dim-space-400)' columnGap='var(--dim-space-400)'>
-          {ASSESSMENT_TOOL_CARDS.map((t) => (
-            <AssessmentToolCard
-              key={t.key}
-              code={t.code}
-              title={t.title}
-              done={t.done}
-              scoreLabel={t.scoreLabel}
-              interp={t.interp}
-              readOnly={readOnly}
-              onOpen={() => setOpenTool(t.key)}
-            />
-          ))}
-        </FieldGrid>
+        <Table
+          columns={[
+            {
+              key: 'tool',
+              label: 'หัวข้อแบบประเมิน',
+              flex: true,
+              minWidth: 260,
+              render: (t) => (
+                <span className='flex flex-col' style={{ gap: 'var(--dim-space-50, 2px)' }}>
+                  <span style={{ color: 'var(--text-content-default, #363B3F)' }}>{t.title}</span>
+                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                    {t.code}
+                  </span>
+                </span>
+              ),
+            },
+            {
+              key: 'score',
+              label: 'คะแนนประเมิน',
+              minWidth: 140,
+              render: (t) => (
+                <span style={{
+                  color: 'var(--text-brandPrimary-default, #007549)',
+                  fontFamily: 'var(--type-family-heading-content)',
+                }}>
+                  {t.scoreLabel}
+                </span>
+              ),
+            },
+            {
+              key: 'status',
+              label: 'สถานะการประเมิน',
+              minWidth: 220,
+              render: (t) => (t.done && t.interp ? (
+                <ColorfulBadge style={t.interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={260}>
+                  {t.interp.label}
+                </ColorfulBadge>
+              ) : (
+                <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
+                  ยังไม่ได้ประเมิน
+                </ColorfulBadge>
+              )),
+            },
+            {
+              key: 'action',
+              label: 'ดำเนินการ',
+              minWidth: 180,
+              render: (t) => (
+                <BrandSubdueButton
+                  variant='outline'
+                  size='sm'
+                  /* ปุ่มของ DS เรนเดอร์ไอคอนเป็น Material Symbols (ligature) —
+                     ชื่อที่ไม่มีในฟอนต์จะโผล่เป็นตัวอักษรบนปุ่ม */
+                  leadingIcon={t.done ? 'edit' : 'assignment'}
+                  onClick={() => setOpenTool(t.key)}
+                >
+                  {readOnly ? 'ดูผลประเมิน' : (t.done ? 'แก้ไข' : 'ทำแบบประเมิน')}
+                </BrandSubdueButton>
+              ),
+            },
+          ]}
+          rows={ASSESSMENT_TOOL_CARDS}
+          rowKey={(t) => t.key}
+        />
 
         <Popup
           open={!!openTool}
@@ -1744,7 +1913,8 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
       </StepSection>
 
       <StepSection>
-        <TopicHeader icon='clipboard-list'>สรุปผลการประเมินการเยี่ยมบ้าน</TopicHeader>
+        {/* หัวข้อ "สรุปผลการประเมินการเยี่ยมบ้าน" ถูกถอดออก (มติผู้ใช้ 2 ก.ย. 69)
+            — ป้ายของช่องกรอกบอกอยู่แล้วว่าเป็นสรุปผลการประเมิน */}
         <SuggestibleTextarea
           label='สรุปผลการประเมิน'
           required
@@ -1758,11 +1928,11 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
         />
       </StepSection>
 
-      <HomeVisitPhotoSection form={form} setForm={setForm} readOnly={readOnly} />
+      {/* "รูปถ่ายระหว่างการเยี่ยม" แยกเป็นการ์ดของตัวเอง (มติผู้ใช้ 2 ก.ย. 69) —
+          ถูกย้ายไปเรนเดอร์ที่ขั้น "ประเมินอาการป่วย" นอกการ์ดแบบประเมิน */}
     </StepCard>
   );
 };
-
 /* ── Step 6 — สั่งการรักษา (CPOE · TOR 1.18.6) ────────────────────────
    รายการทั้งหมดมาจากแคตตาล็อกกลางชุดเดียวกับหน้าจอ CPOE (`labCatalog` ·
    `xrayCatalog` · ICD-9-CM · รายการยา/เวชภัณฑ์ของ Step5Orders) และส่งต่อ
@@ -2052,9 +2222,40 @@ export const HomeVisitStep7Family = ({
      ชุดเบิกจ่าย สปสช. (§1.7.1.1) · เขียนแฟ้มครอบครัวกลับทะเบียน
      โค้ดยังอยู่ครบในไฟล์นี้ รอต่อกลับเข้าปุ่มใหม่ */
   const [familyEditOpen, setFamilyEditOpen] = useState(false);
+  /* สลับดูแฟ้มครอบครัวเป็น "ผังเครือญาติ" หรือ "ตาราง" (มติผู้ใช้ 2 ก.ย. 69) —
+     ผังอ่านโครงสร้างครัวเรือนได้เร็วกว่า ส่วนตารางไว้กวาดตาอ่านรายละเอียด */
+  const [familyView, setFamilyView] = useState('map');
   /* ครัวเรือนที่ยังไม่เคยบันทึกสมาชิกได้ชุด mock คงที่ต่อ HN — ตารางจะได้ไม่ว่าง
      เปล่าทุกราย (มติผู้ใช้ 30 ส.ค. 69) กดแก้ไขแล้วบันทึกจึงกลายเป็นข้อมูลจริง */
   const familyRows = form.familyMembers.length > 0 ? form.familyMembers : getFamilyMembers(hn);
+
+  /* ป๊อปอัปข้อมูลรายบุคคล — กดจากแถวในตารางหรือการ์ดในผังก็เปิดตัวเดียวกัน
+     (มติผู้ใช้ 2 ก.ย. 69) */
+  const [personDetail, setPersonDetail] = useState(null);
+
+  /* ชื่อที่จะขึ้นบนการ์ด "ผู้รับบริการ" ของผังเครือญาติ */
+  const mrPatientOfVisit = useMemo(() => (hn ? findMrPatientByHn(hn) : null), [hn]);
+  const patientDisplayName = registryEntry?.name
+    || appointment?.name
+    || (mrPatientOfVisit
+      ? `${mrPatientOfVisit.firstNameTh || ''} ${mrPatientOfVisit.lastNameTh || ''}`.trim()
+      : '')
+    || 'ผู้รับบริการ';
+
+  /* ตารางต้องมีตัวผู้รับบริการอยู่ด้วย (มติผู้ใช้ 2 ก.ย. 69) — แฟ้มครอบครัวคือ
+     "ทั้งครัวเรือน" ไม่ใช่เฉพาะคนอื่นในบ้าน · แถวนี้ไม่ถูกเขียนกลับทะเบียน
+     (ไม่ได้อยู่ใน `form.familyMembers`) */
+  const selfRow = {
+    id: '__self__',
+    name: patientDisplayName,
+    relation: 'ผู้รับบริการ',
+    age: mrPatientOfVisit?.age || '',
+    health: '',
+    hn,
+    avatarUrl: registryEntry?.avatarUrl || appointment?.avatarUrl || mrPatientOfVisit?.avatarUrl,
+    self: true,
+  };
+  const tableRows = [selfRow, ...familyRows];
 
   /* เปิดป๊อปอัปครั้งแรกบนครัวเรือนที่ยังใช้ชุด mock — ย้ายเข้าฟอร์มก่อน
      เพื่อให้แก้ไข/ลบทีละแถวทำงานกับ state จริง */
@@ -2071,21 +2272,13 @@ export const HomeVisitStep7Family = ({
     onDataChanged?.();
   };
 
-  /* ครัวเรือนที่ยังไม่อยู่ในทะเบียนได้ชุด mock ตั้งต้น (มติผู้ใช้ 2 ก.ย. 69) —
-     เดิมทั้งแถวขึ้น "—" จนอ่านไม่ออกว่าแฟ้มครอบครัวเก็บอะไรบ้าง */
-  const household = getHouseholdProfile(hn, registryEntry || appointment);
-  const householdRows = [
-    { label: 'ที่อยู่ครัวเรือน', value: household.address },
-    { label: 'ชุมชน', value: household.community },
-    { label: 'เขต', value: household.district },
-    { label: 'ผู้ติดต่อหลัก', value: household.contactName },
-    { label: 'เบอร์ผู้ติดต่อ', value: household.contactPhone },
-  ];
-
   return (
     <StepCard>
       {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
 
+      {/* การ์ดของตัวเอง — ตั้งแต่ย้ายมาอยู่ในขั้น "ข้อมูลส่วนตัว" (มติผู้ใช้
+          2 ก.ย. 69) เนื้อหาของขั้นนั้นเป็นการ์ดขาวของตัวเองทุกก้อน */}
+      <SectionCard>
       <StepSection gap='var(--dim-space-600)'>
         <TopicHeader
           icon='family_restroom'
@@ -2094,25 +2287,46 @@ export const HomeVisitStep7Family = ({
               variant='outline' size='sm' leadingIcon='edit'
               onClick={openFamilyEdit}
             >
-              แก้ไข Family Folder
+              แก้ไขข้อมูลสุขภาพครอบครัว
             </BrandSubdueButton>
           )}
         >
-          Family Folder — แฟ้มครอบครัว
+          ข้อมูลสุขภาพครอบครัว
         </TopicHeader>
-        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-600, 24px)' }}>
-          {householdRows.map((r) => (
-            <div key={r.label} className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)', minWidth: 200 }}>
-              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-                {r.label}
-              </span>
-              <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
-                {r.value}
-              </span>
-            </div>
-          ))}
+        {/* แถวหัวแฟ้ม (ที่อยู่ครัวเรือน · ชุมชน · เขต · ผู้ติดต่อ) ถูกถอดออก
+            (มติผู้ใช้ 2 ก.ย. 69) — ข้อมูลชุดนี้อยู่ที่ขั้น "ที่อยู่และการติดต่อ"
+            อยู่แล้ว แฟ้มครอบครัวจึงเหลือเฉพาะสมาชิกในครัวเรือน
+            (`getHouseholdProfile` ยังใช้ที่ใบสรุปพิมพ์) */}
+
+        {/* สลับมุมมองอยู่เหนือผัง/ตารางที่มันควบคุม (มติผู้ใช้ 2 ก.ย. 69) —
+            บนหัวข้อมันปนกับปุ่มแก้ไขจนอ่านไม่ออกว่าคุมอะไร */}
+        <div className='flex items-center justify-end w-full'>
+          <ViewToggle
+            value={familyView}
+            onChange={setFamilyView}
+            options={FAMILY_VIEW_OPTIONS}
+            aria-label='สลับมุมมองแฟ้มครอบครัว'
+          />
         </div>
 
+        {familyView === 'map' ? (
+          <FamilyGenogram
+            members={familyRows}
+            /* ชื่อผู้รับบริการต้องขึ้นในผังเสมอ (มติผู้ใช้ 2 ก.ย. 69) — เคสที่เปิด
+               บันทึกแบบ ad-hoc ไม่มี registryEntry/appointment จึงตกไปอ่านจาก
+               ทะเบียนกลางด้วย HN */
+            patientName={patientDisplayName}
+            patientHn={hn}
+            /* รูปเดียวกับหัวแฟ้มผู้รับบริการด้านบน (มติผู้ใช้ 2 ก.ย. 69) — หัวแฟ้มอ่าน
+       จาก `getPatientByHN` ถ้าผังไปหยิบรูปจากทะเบียนอื่นจะกลายเป็นคนละคน */
+    patientAvatarUrl={getPatientByHN(hn)?.avatarUrl
+      || registryEntry?.avatarUrl
+      || appointment?.avatarUrl
+      || mrPatientOfVisit?.avatarUrl}
+            onSelect={(person) => setPersonDetail(person)}
+            selfRow={selfRow}
+          />
+        ) : (
         <Table
           columns={[
             {
@@ -2123,7 +2337,7 @@ export const HomeVisitStep7Family = ({
               /* รูปประจำตัวคู่ชื่อเหมือนตารางคิวอื่นในระบบ (มติผู้ใช้ 2 ก.ย. 69) */
               render: (r) => (
                 <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                  <QueuePatientAvatar name={r.name} avatarUrl={familyMemberAvatar(r)} size={32} />
+                  <QueuePatientAvatar name={r.name} avatarUrl={r.self ? r.avatarUrl : familyMemberAvatar(r)} size={32} />
                   <span>{r.name || '—'}</span>
                 </span>
               ),
@@ -2140,12 +2354,50 @@ export const HomeVisitStep7Family = ({
               render: (r) => FAMILY_HEALTH_OPTIONS.find((o) => o.value === r.health)?.label || r.health || '—',
             },
           ]}
-          rows={familyRows}
+          rows={tableRows}
           rowKey={(r) => r.id}
+          onRowClick={(r) => setPersonDetail(r)}
           emptyMessage='ยังไม่มีข้อมูลสมาชิกในครอบครัวในทะเบียนของครัวเรือนนี้'
         />
+        )}
 
       </StepSection>
+      </SectionCard>
+
+      {/* ข้อมูลรายบุคคลของสมาชิกในครัวเรือน — เปิดจากแถวในตารางหรือการ์ดในผัง */}
+      <Popup
+        open={!!personDetail}
+        onClose={() => setPersonDetail(null)}
+        size='small'
+        title={personDetail?.name || 'ข้อมูลสมาชิกในครอบครัว'}
+        subtitle={personDetail?.self ? 'ผู้รับบริการของการเยี่ยมครั้งนี้' : 'สมาชิกในครัวเรือนเดียวกัน'}
+        primaryAction={{ label: 'ปิด', onClick: () => setPersonDetail(null) }}
+      >
+        <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+          <QueuePatientAvatar
+            name={personDetail?.name}
+            avatarUrl={personDetail?.self ? personDetail?.avatarUrl : (personDetail ? familyMemberAvatar(personDetail) : undefined)}
+            size={56}
+          />
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+            {[
+              ['ความสัมพันธ์', personDetail?.relation],
+              ['อายุ', personDetail?.age ? `${personDetail.age} ปี` : ''],
+              ['ภาวะสุขภาพ', FAMILY_HEALTH_OPTIONS.find((o) => o.value === personDetail?.health)?.label || personDetail?.health],
+              ['HN', personDetail?.hn],
+            ].filter(([, value]) => String(value || '').trim()).map(([label, value]) => (
+              <div key={label} className='flex items-baseline' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)', minWidth: 96 }}>
+                  {label}
+                </span>
+                <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+                  {value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Popup>
 
       {/* แก้ไขในป๊อปอัป — บันทึกแล้วเขียนกลับทะเบียนระดับครัวเรือนทันที
           ครั้งถัดไปที่เยี่ยมบ้านหลังนี้จึงเห็นรายชื่อชุดใหม่ */}
@@ -2153,9 +2405,9 @@ export const HomeVisitStep7Family = ({
         open={familyEditOpen}
         onClose={() => setFamilyEditOpen(false)}
         size='extraLarge'
-        title='แก้ไข Family Folder'
+        title='แก้ไขข้อมูลสุขภาพครอบครัว'
         tertiaryAction={{ label: 'ยกเลิก', onClick: () => setFamilyEditOpen(false) }}
-        primaryAction={{ label: 'บันทึกแฟ้มครอบครัว', onClick: saveFamily }}
+        primaryAction={{ label: 'บันทึกข้อมูลสุขภาพครอบครัว', onClick: saveFamily }}
       >
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600, 24px)' }}>
           {familyRows.map((m) => (
@@ -2188,7 +2440,7 @@ export const HomeVisitStep7Family = ({
           <BrandDashedAddButton onClick={addMember}>เพิ่มสมาชิกในครอบครัว</BrandDashedAddButton>
 
           <SuggestibleTextarea
-            label='บันทึก Family Folder'
+            label='บันทึกข้อมูลสุขภาพครอบครัว'
             voice
             value={form.familyNote}
             onChange={(e) => set('familyNote')(e.target.value)}
@@ -2203,16 +2455,276 @@ export const HomeVisitStep7Family = ({
   );
 };
 
+/* ── Step 5 — คัดกรอง (สัญญาณชีพ · ประวัติการแพ้/โรคประจำตัว · พฤติกรรมสุขภาพ) ─
+   สองขั้นนี้คือ "สิ่งที่ทีมทำทันทีที่ถึงบ้าน ก่อนเริ่มซักอาการ" จึงยุบเป็นขั้นเดียว
+   (มติผู้ใช้ 2 ก.ย. 69) — คอมโพเนนต์เดิมทั้งสองตัวยังอยู่ครบ ขั้นนี้แค่วางต่อกัน
+   ไม่ได้คัดลอกเนื้อหามาเขียนใหม่ */
+/* น้ำตาลปลายนิ้ว (DTX) ในขั้นคัดกรอง — ถามก่อนว่าเป็นเบาหวานหรือไม่
+   (มติผู้ใช้ 2 ก.ย. 69) ทีมเยี่ยมบ้านเจาะ DTX เฉพาะรายที่เป็นเบาหวาน
+   ช่องกรอกจึงไม่ควรค้างอยู่บนจอของทุกคน · ธง `dtxDiabetic` เก็บใน
+   `form.homeScreening` ก้อนเดียวกับค่าที่เจาะได้ */
+export const HomeVisitDtxCard = ({ form, setForm, readOnly }) => {
+  const screening = form.homeScreening || {};
+  const setScreening = (next) => setForm((f) => ({ ...f, homeScreening: next }));
+  /* ร่างเก่าที่กรอก DTX ไว้ก่อนมีธงนี้ ต้องเปิดการ์ดค้างไว้ให้เห็นค่าที่บันทึกแล้ว */
+  const diabetic = screening.dtxDiabetic ?? !!String(screening.dtx || '').trim();
+
+  return (
+    <SectionCard icon='bloodtype' title='น้ำตาลปลายนิ้ว (DTX)'>
+      <StepSection gap='var(--dim-space-400, 16px)'>
+        <Checkbox
+          label='เป็นเบาหวาน'
+          description='ติ๊กเมื่อผู้รับบริการเป็นเบาหวาน แล้วจึงบันทึกค่าน้ำตาลปลายนิ้วที่เจาะได้'
+          checked={diabetic}
+          onChange={(checked) => setScreening({
+            ...screening,
+            dtxDiabetic: checked,
+            /* ยกเลิกการติ๊กแล้วค่าที่กรอกค้างไว้ต้องไม่ถูกส่งต่อไปใบสรุป */
+            ...(checked ? null : { dtx: '', dtxFasting: '' }),
+          })}
+          disabled={readOnly}
+        />
+        {diabetic && (
+          <DtxFields
+            value={screening}
+            onChange={setScreening}
+            readOnly={readOnly}
+          />
+        )}
+      </StepSection>
+    </SectionCard>
+  );
+};
+
+export const HomeVisitStepScreening = ({ blockedMsg, ...props }) => (
+  <StepCard>
+    {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+
+    {/* สัญญาณชีพกับประวัติการแพ้เป็นคนละการ์ด (มติผู้ใช้ 2 ก.ย. 69) — `VitalsForm`
+        เป็นการ์ดที่มนเฉพาะมุมล่าง (เดิมวางต่อจากหัวการ์ดของ shell) จึงต้องห่อ
+        ให้มนครบสี่มุมเมื่อยืนเป็นการ์ดของตัวเอง */}
+    <div
+      className='w-full'
+      style={{
+        background: 'var(--surface-card-100, #FFFFFF)',
+        borderRadius: 'var(--dim-radius-500, 16px)',
+        border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+        boxShadow: 'var(--shadow-card-strong)',
+        overflow: 'hidden',
+      }}
+    >
+      <HomeVisitStep3Vitals {...props} blockedMsg='' />
+    </div>
+
+    {/* น้ำตาลปลายนิ้ว — ต่อจากสัญญาณชีพ ก่อนประวัติการแพ้ (มติผู้ใช้ 2 ก.ย. 69)
+        เป็นค่าที่เจาะพร้อมรอบวัดสัญญาณชีพ · เจาะเฉพาะรายที่เป็นเบาหวาน
+        ติ๊ก "เป็นเบาหวาน" ก่อน ช่องกรอกจึงจะขึ้น */}
+    <HomeVisitDtxCard {...props} />
+
+    <HomeVisitStepAllergy {...props} blockedMsg='' />
+
+    {/* พฤติกรรมสุขภาพย้ายมารวมในขั้นคัดกรอง (มติผู้ใช้ 2 ก.ย. 69) — สูบบุหรี่/
+        ดื่มสุรา/ออกกำลังกาย เป็นชุดคำถามคัดกรองชุดเดียวกับที่จุดคัดกรอง OPD
+        ถามไปพร้อมกับสัญญาณชีพและประวัติการแพ้ตอนเพิ่งถึงบ้าน */}
+    <HomeVisitStepBehaviour {...props} blockedMsg='' />
+  </StepCard>
+);
+
+/* ── Step 7 — ตรวจสอบข้อมูล ────────────────────────────────────────
+   ขั้นสุดท้ายก่อนจบการบันทึก (มติผู้ใช้ 2 ก.ย. 69) — กางทุกอย่างที่กรอกไว้แบบ
+   อ่านอย่างเดียวให้ทวนก่อนปิดเยี่ยม ทรงเดียวกับขั้น "ตรวจสอบข้อมูล" ของหน้า
+   เวชระเบียน · ค่าที่ยังไม่ได้กรอกขึ้น "—" เพื่อให้เห็นว่าอะไรยังขาด */
+
+const REVIEW_LABEL_STYLE = {
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-xs)',
+  color: 'var(--text-content-tertiary, #858C92)',
+};
+const REVIEW_VALUE_STYLE = {
+  fontFamily: 'var(--type-family-body)',
+  fontSize: 'var(--type-size-sm)',
+  color: 'var(--text-content-default, #363B3F)',
+  whiteSpace: 'pre-line',
+};
+
+const ReviewItem = ({ label, value }) => (
+  <div className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+    <span style={REVIEW_LABEL_STYLE}>{label}</span>
+    <span style={REVIEW_VALUE_STYLE}>{String(value ?? '').trim() || '—'}</span>
+  </div>
+);
+
+const ReviewCard = ({ icon, title, items, onEdit, children }) => (
+  <SectionCard
+    icon={icon}
+    title={title}
+    aside={onEdit && (
+      <BrandSubdueButton variant='outline' size='sm' leadingIcon='edit' onClick={onEdit}>
+        แก้ไข
+      </BrandSubdueButton>
+    )}
+  >
+    {items?.length > 0 && (
+      /* กริดคอลัมน์เท่ากันทุกใบ ค่าจึงตรงแนวกันทั้งหน้า (มติผู้ใช้ 2 ก.ย. 69) —
+         flex-wrap เดิมทำให้ความกว้างแต่ละช่องไม่เท่ากันในแต่ละแถว */
+      <div
+        className='w-full'
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+          gap: 'var(--dim-space-400, 16px) var(--dim-space-600, 24px)',
+          alignItems: 'start',
+        }}
+      >
+        {items.map(([label, value]) => <ReviewItem key={label} label={label} value={value} />)}
+      </div>
+    )}
+    {children}
+  </SectionCard>
+);
+
+const reviewAddressLine = (a) => {
+  if (!a) return '';
+  return [a.houseNo, a.moo && `หมู่ ${a.moo}`, a.road, a.subdistrict, a.district, a.province, a.zip]
+    .filter((x) => String(x || '').trim())
+    .join(' ');
+};
+
+/* หมวดในหน้าตรวจสอบ ↔ ขั้นที่เป็นเจ้าของฟอร์มนั้น — กดแก้ไขแล้วเปิดขั้นนั้น
+   เป็นป๊อปอัป (มติผู้ใช้ 2 ก.ย. 69) ไม่ต้องเดินกลับไปทีละขั้น */
+const REVIEW_EDIT_SECTIONS = {
+  service: { title: 'ข้อมูลการให้บริการ', Step: HomeVisitStep1Service },
+  address: { title: 'ที่อยู่และการติดต่อ', Step: HomeVisitStep2Address },
+  screening: { title: 'คัดกรอง', Step: HomeVisitStepScreening },
+  illness: { title: 'ประเมินอาการป่วย', Step: HomeVisitStep2History },
+  family: { title: 'ข้อมูลสุขภาพครอบครัว', Step: HomeVisitStep7Family },
+};
+
+export const HomeVisitStepReview = ({ form, hn, registryEntry, appointment, blockedMsg, ...props }) => {
+  const [editing, setEditing] = useState(null);
+  const EditStep = editing ? REVIEW_EDIT_SECTIONS[editing]?.Step : null;
+  const screening = form.homeScreening || {};
+  const vitals = form.vitals || {};
+  const adlTotal = scoreBarthel(form.adlAnswers);
+  const adlInterp = interpretBarthel(adlTotal);
+  const photoCount = (form.photos || []).length;
+  const housePhotoCount = (form.housePhotos || []).filter(Boolean).length;
+
+  return (
+    /* การ์ดในหน้าตรวจสอบห่างกัน 12px (มติผู้ใช้ 2 ก.ย. 69) — เป็นสรุปอ่านต่อเนื่อง
+       ไม่ใช่ฟอร์มที่ต้องเว้นจังหวะเท่าขั้นอื่น */
+    <section className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+      {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+
+      <ReviewCard
+        icon='event_available'
+        title='ข้อมูลการให้บริการ'
+        onEdit={() => setEditing('service')}
+        items={[
+          ['ผู้รับบริการ', registryEntry?.name || appointment?.name || ''],
+          ['HN', hn],
+          ['ประเภทการเยี่ยม', { first: 'เยี่ยมครั้งแรก (แรกรับ)', followup: 'เยี่ยมติดตาม', urgent: 'เยี่ยมกรณีเร่งด่วน' }[form.visitType] || form.visitType],
+          ['วันที่ให้บริการ', form.serviceDate ? formatHomeVisitDate(form.serviceDate) : ''],
+          ['กลุ่มผู้รับบริการ', PATIENT_GROUP_OPTIONS.find((g) => g.key === form.patientGroup)?.label],
+          ['ที่มาของเคส', HOMEVISIT_SOURCES.find((o) => o.value === form.homevisitSource)?.label],
+        ]}
+      />
+
+      <ReviewCard
+        icon='map-pin'
+        title='ที่อยู่และการติดต่อ'
+        onEdit={() => setEditing('address')}
+        items={[
+          ['ที่อยู่ตามทะเบียนบ้าน', reviewAddressLine(form.addressRegistered)],
+          ['ที่อยู่ปัจจุบัน', reviewAddressLine(form.addressCurrent)],
+          ['บันทึกการเดินทาง', form.travelNote],
+          ['รูปถ่ายบ้าน', housePhotoCount ? `${housePhotoCount} รูป` : ''],
+          ['เบอร์โทรศัพท์', form.phone],
+        ]}
+      />
+
+      <ReviewCard
+        icon='favorite'
+        title='คัดกรอง'
+        onEdit={() => setEditing('screening')}
+        items={[
+          ['ความดันโลหิต', vitals.sys && vitals.dia ? `${vitals.sys}/${vitals.dia} mmHg` : ''],
+          ['ชีพจร', vitals.pulse ? `${vitals.pulse} ครั้ง/นาที` : ''],
+          ['อุณหภูมิ', vitals.temp ? `${vitals.temp} °C` : ''],
+          ['ออกซิเจนปลายนิ้ว', vitals.oxygen ? `${vitals.oxygen}%` : ''],
+          ['ประวัติการแพ้', form.flags?.allergyDrug ? (form.allergyFreeText || 'มี') : ''],
+          ['โรคประจำตัว', form.flags?.chronic ? (form.chronicFreeText || 'มี') : ''],
+          ['น้ำตาลปลายนิ้ว (DTX)', screening.dtx ? `${screening.dtx} mg%` : ''],
+        ]}
+      />
+
+      <ReviewCard
+        icon='stethoscope'
+        title='ประเมินอาการป่วย'
+        onEdit={() => setEditing('illness')}
+        items={[
+          ['ประวัติปัจจุบัน', form.presentIllness],
+          ['ระยะเวลาที่มีอาการ', form.symptomDuration],
+          ['ผู้ดูแลหลัก', CAREGIVER_OPTIONS.find((o) => o.value === form.caregiver)?.label],
+          ['แผลกดทับ', PRESSURE_SORE_OPTIONS.find((o) => o.value === form.pressureSore)?.label],
+          ['ระดับความปวด', Number.isFinite(form.painScore) ? `${form.painScore}/10` : ''],
+          ['ADL (ดัชนีบาร์เธล)', adlTotal ? `${adlTotal}/${BARTHEL_MAX_SCORE} · ${adlInterp.label}` : ''],
+          ['ความต้องการ/ควรได้รับ', describeSupplyNeed(form)],
+          ['สรุปผลการประเมิน', form.assessmentNote],
+          ['รูปถ่ายระหว่างการเยี่ยม', photoCount ? `${photoCount} รูป` : ''],
+        ]}
+      />
+
+      <ReviewCard
+        icon='family_restroom'
+        title='ข้อมูลสุขภาพครอบครัว'
+        onEdit={() => setEditing('family')}
+        items={[
+          ['สมาชิกในครัวเรือน', (form.familyMembers || [])
+            .map((m) => [m.name, m.relation, m.age && `${m.age} ปี`].filter(Boolean).join(' · '))
+            .join('\n')],
+          ['บันทึกข้อมูลสุขภาพครอบครัว', form.familyNote],
+        ]}
+      />
+
+      {/* แก้ไขในป๊อปอัป — เนื้อหาเป็นคอมโพเนนต์ขั้นเดิมทั้งก้อน ค่าที่แก้จึงเขียน
+          ลง `form` ชุดเดียวกันทันที ปิดป๊อปอัปแล้วสรุปด้านหลังอัปเดตตาม */}
+      <Popup
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        size='extraLarge'
+        title={`แก้ไข${REVIEW_EDIT_SECTIONS[editing]?.title || ''}`}
+        subtitle='แก้แล้วค่าจะอัปเดตในหน้าตรวจสอบทันที'
+        primaryAction={{ label: 'เสร็จสิ้น', onClick: () => setEditing(null) }}
+      >
+        {EditStep && (
+          <EditStep
+            {...props}
+            form={form}
+            hn={hn}
+            registryEntry={registryEntry}
+            appointment={appointment}
+            blockedMsg=''
+          />
+        )}
+      </Popup>
+    </section>
+  );
+};
+
 export const HOMEVISIT_STEP_RENDERERS = [
   HomeVisitStep0Consent,
   HomeVisitStep1Service,
   HomeVisitStep2Address,
   HomeVisitStepRights,
-  /* สัญญาณชีพ + ประวัติการแพ้/โรคประจำตัว = ขั้น "คัดกรอง" ขั้นเดียว
-     (มติผู้ใช้ 2 ก.ย. 69) */
+  /* สัญญาณชีพ + ประวัติการแพ้/โรคประจำตัว + พฤติกรรมสุขภาพ = ขั้น "คัดกรอง"
+     ขั้นเดียว (มติผู้ใช้ 2 ก.ย. 69) */
   HomeVisitStepScreening,
   HomeVisitStep2History,
-  HomeVisitStepBehaviour,
+  HomeVisitStepReview,
+  /* ขั้น "Family Folder" ถูกยุบเข้าไปในขั้น "ข้อมูลส่วนตัว" แล้ว
+     (มติผู้ใช้ 2 ก.ย. 69) — แฟ้มครอบครัวเป็นข้อมูลระดับครัวเรือนที่อ่านคู่กับ
+     ข้อมูลตัวผู้รับบริการ ไม่ใช่ขั้นตอนท้ายสุดของการเยี่ยม */
   /* ขั้น "ประเมิน" ถูกยุบเข้าไปในขั้น "ประเมินอาการป่วย" แล้ว
      (มติผู้ใช้ 30 ส.ค. 69) — `HomeVisitStep4Assessment` ยัง export อยู่และถูก
      เรียกจากขั้นนั้นโดยตรง */
@@ -2220,7 +2732,6 @@ export const HOMEVISIT_STEP_RENDERERS = [
      คีย์ `form.activities` ยังอยู่ในโมเดลและในใบสรุป/บันทึกเก่า */
   /* ขั้น "สั่งการรักษา" (CPOE) ถูกถอดออกจากโฟลว์ (มติผู้ใช้ 30 ส.ค. 69) —
      `HomeVisitStep6Orders` กับสะพาน `homevisitCpoe.js` ยังอยู่ครบ รอที่ทางใหม่ */
-  HomeVisitStep7Family,
 ];
 
 export default HOMEVISIT_STEP_RENDERERS;

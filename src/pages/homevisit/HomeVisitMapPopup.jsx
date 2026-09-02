@@ -62,12 +62,7 @@ const HomeVisitMapPopup = ({ open, row, onClose, onSaved }) => {
           {row.address || 'ยังไม่ได้บันทึกที่อยู่'}
         </span>
 
-        {inside === false && (
-          <NoticeBand tone='danger' icon='wrong_location'>
-            ตำแหน่งนี้อยู่นอก{SERVICE_AREA.label} — ตรวจสอบที่อยู่อีกครั้ง
-            หรือประสานส่งต่อให้ศูนย์บริการสาธารณสุขที่รับผิดชอบพื้นที่นั้น
-          </NoticeBand>
-        )}
+        {/* แบนเนอร์ "อยู่นอกพื้นที่รับผิดชอบ" ถูกถอดออก (มติผู้ใช้ 2 ก.ย. 69) */}
 
         <AddressMapBlock
           value={current || {}}

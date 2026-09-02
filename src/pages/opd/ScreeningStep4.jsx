@@ -49,7 +49,11 @@ const BEHAVIOR_DETAIL_SUGGESTIONS = [
 /* `padded=false` = หน้าที่เอาขั้นนี้ไปวางใน <SectionCard> ของตัวเองอยู่แล้ว
    (งานเยี่ยมบ้าน) — ถ้ายังใส่ระยะขอบของตัวเองซ้อนเข้าไปอีก ระยะจากเนื้อหาถึง
    ขอบการ์ดจะกลายเป็น 48px (มติผู้ใช้ 2 ก.ย. 69: ต้องเป็น 24px) */
-const ScreeningStep4 = ({ onValidityChange, patient, padded = true }) => {
+/* `beforeDetailSlot` — เนื้อหาที่ผู้เรียกอยากให้อยู่ "ระหว่างชุดพฤติกรรมกับช่อง
+   รายละเอียดเพิ่มเติม" (งานเยี่ยมบ้านส่งความเสี่ยง/การปฏิบัติตัวเมื่อเจ็บป่วย
+   เล็กน้อยเข้ามา เพื่อให้ช่องรายละเอียดไปอยู่ล่างสุดของการ์ด — มติผู้ใช้
+   2 ก.ย. 69) ค่าเริ่มต้นไม่มีอะไร หน้าจุดคัดกรอง OPD จึงเหมือนเดิม */
+const ScreeningStep4 = ({ onValidityChange, patient, padded = true, beforeDetailSlot = null }) => {
   const [choices, setChoices] = useState({ smoking: null, alcohol: null, exercise: null });
   const [detail, setDetail] = useState('');
 
@@ -130,6 +134,8 @@ const ScreeningStep4 = ({ onValidityChange, patient, padded = true }) => {
             </div>
           </div>
         ))}
+
+        {beforeDetailSlot}
 
         <SuggestibleTextarea
           label='รายละเอียดพฤติกรรมเพิ่มเติม (ถ้ามี)'

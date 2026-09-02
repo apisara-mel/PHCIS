@@ -30,6 +30,8 @@ const STEP_SCROLL_MS = 320;
 const Footer = ({
   stepIndex, steps, onPrev, onCancel, onNext, onSave, isLast,
   draftStatusText = 'ยังไม่มีร่างที่บันทึก', draftDirty = false, draftSaving = false,
+  /* คำบนปุ่มขั้นสุดท้าย (งานเยี่ยมบ้านใช้ "บันทึกและส่งต่อ" — มติผู้ใช้ 2 ก.ย. 69) */
+  finishLabel = 'จบการบันทึก',
 }) => {
   /* Primary CTA label — Figma PHCIS pattern: "ถัดไป: [next step]" so the
      clinician sees where they're heading without re-reading the stepper.
@@ -39,7 +41,7 @@ const Footer = ({
      ก่อนวาด UI (บั๊กที่ผู้ใช้เจอ 30 ส.ค. 69) */
   const nextStep = steps[stepIndex + 1];
   const nextStepLabel = isLast || !nextStep
-    ? 'จบการบันทึก'
+    ? finishLabel
     : `ถัดไป: ${nextStep.title}`;
   const isFirst = stepIndex === 0;
 
@@ -169,6 +171,9 @@ const TreatmentFormShell = ({
   /** Called after internal-refer confirm, before navigating to queuePath.
       Return false to skip the default history.push(queuePath). */
   onFinish,
+  /* คำบนปุ่มขั้นสุดท้าย — บางโมดูลไม่ได้แค่ "จบการบันทึก" แต่ส่งต่อด้วย
+     (งานเยี่ยมบ้าน: "บันทึกและส่งต่อ" — มติผู้ใช้ 2 ก.ย. 69) */
+  finishLabel = 'จบการบันทึก',
   /** Return false to keep the user on the form before opening final refer. */
   onBeforeFinish,
 }) => {
@@ -349,6 +354,7 @@ const TreatmentFormShell = ({
         draftStatusText={draftStatusText}
         draftDirty={draftDirty}
         draftSaving={draftSaving}
+        finishLabel={finishLabel}
       />
 
       <InternalReferPopup

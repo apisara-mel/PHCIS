@@ -859,7 +859,34 @@ export const SCREEN_2Q_QUESTIONS = [
   { key: 'q2', label: '2 สัปดาห์ที่ผ่านมา รู้สึกเบื่อ ทำอะไรก็ไม่เพลิดเพลินหรือไม่' },
 ];
 
-export const PAIN_SCALE = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+/* ระดับความปวด 10 ระดับ (มติผู้ใช้ 2 ก.ย. 69) — เดิมเป็น 0–10 (11 ปุ่ม)
+   "ไม่ปวด" คือการไม่เลือกอะไรเลย ไม่ต้องมีปุ่ม 0 */
+/* ความต้องการ/สิ่งที่ควรได้รับ — ชุดผ้าอ้อมผู้ใหญ่/แผ่นรองซับตามแบบฟอร์มกระดาษ
+   ของ ศบส. (มติผู้ใช้ 2 ก.ย. 69) ราคาเป็นค่าต่อชุดต่อวันตามที่ระบุในแบบฟอร์ม —
+   เลือกได้ชุดเดียว เพราะเป็นสิทธิที่เบิกได้วันละหนึ่งชุด */
+export const HOMEVISIT_SUPPLY_SETS = [
+  { value: 'A', label: 'ชุด A', detail: 'ผ้าอ้อมผู้ใหญ่ 3 ชิ้น', price: '28.50 บาท/ชุด/วัน' },
+  { value: 'B', label: 'ชุด B', detail: 'แผ่นรองซับการขับถ่าย 5 ชิ้น', price: '30 บาท/ชุด/วัน' },
+  { value: 'C', label: 'ชุด C', detail: 'ผ้าอ้อมผู้ใหญ่ 1 ชิ้น + แผ่นรองซับการขับถ่าย 3 ชิ้น', price: '27.50 บาท/ชุด/วัน' },
+  { value: 'D', label: 'ชุด D', detail: 'ผ้าอ้อมผู้ใหญ่ 1 ชิ้น + แผ่นเสริมซึมซับ 4 ชิ้น', price: '28.30 บาท/ชุด/วัน' },
+  { value: 'E', label: 'ชุด E', detail: 'ผ้าอ้อมผู้ใหญ่ 2 ชิ้น + แผ่นเสริมซึมซับ 2 ชิ้น', price: '28.40 บาท/ชุด/วัน' },
+  { value: 'other', label: 'อื่น ๆ', detail: 'ระบุความต้องการเอง', price: '' },
+];
+
+/** ไซซ์ผ้าอ้อมผู้ใหญ่ตามแบบฟอร์ม */
+export const DIAPER_SIZES = ['S', 'M', 'L', 'XL'];
+
+/** ข้อความสรุปชุดที่เลือก — ใช้ทั้งหน้าตรวจสอบข้อมูลและใบสรุปพิมพ์ */
+export const describeSupplyNeed = (form) => {
+  if (!form?.supplyNeedSet) return '';
+  if (form.supplyNeedSet === 'other') return form.supplyNeedOther || 'อื่น ๆ';
+  const set = HOMEVISIT_SUPPLY_SETS.find((o) => o.value === form.supplyNeedSet);
+  if (!set) return form.supplyNeedSet;
+  const size = form.diaperSize ? ` · ไซซ์ ${form.diaperSize}` : '';
+  return `${set.label} — ${set.detail} (${set.price})${size}`;
+};
+
+export const PAIN_SCALE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 export const NUTRITION_OPTIONS = [
   { value: 'good',   label: 'ภาวะโภชนาการดี'  },
@@ -1191,6 +1218,8 @@ export const createEmptyHomeVisitForm = (appointment = null, registryEntry = nul
   geolocationDenied: false,
   arrivalTime: '',
   photos: [],
+  /* รูปถ่ายบ้าน (หน้าบ้าน + เลขที่บ้าน) ของขั้นที่อยู่ — มติผู้ใช้ 2 ก.ย. 69 */
+  housePhotos: [],
   /* 2 — ที่อยู่และการเดินทาง · ใช้ชุดฟิลด์เดียวกับขั้น "ที่อยู่" ของหน้าเวชระเบียน
      ทั้งก้อน (ทะเบียนบ้าน / ปัจจุบัน / ติดต่อได้ + ธงยืมที่อยู่) เพื่อให้ทีมเยี่ยมบ้าน
      กรอกด้วยหน้าตาเดียวกันเป๊ะ และข้อมูลสองที่เทียบกันได้ (มติผู้ใช้ 30 ส.ค. 69) */
@@ -1235,6 +1264,10 @@ export const createEmptyHomeVisitForm = (appointment = null, registryEntry = nul
   allergyFreeText: '',
   chronicFreeText: '',
   allergyNote: '',
+  /* ความต้องการ/สิ่งที่ควรได้รับ (แบบฟอร์มกระดาษ ศบส. — มติผู้ใช้ 2 ก.ย. 69) */
+  supplyNeedSet: '',
+  supplyNeedOther: '',
+  diaperSize: '',
   drugAllergies: [],
   foodAllergies: [],
   chemicalAllergies: [],
@@ -1273,7 +1306,8 @@ export const createEmptyHomeVisitForm = (appointment = null, registryEntry = nul
      เป็นข้อความว่างเปล่าที่ต้องกด "เพิ่มรายการ" ก่อนถึงจะกรอกได้ ทั้งที่แทบทุกบ้าน
      มียาอย่างน้อยหนึ่งรายการ · คู่กับกติกา "เหลือแถวเดียวลบไม่ได้" ที่หน้าจอ
      ลิสต์นี้จึงมีอย่างน้อยหนึ่งแถวเสมอ */
-  medications: [{ id: 'med-1', name: '', nameOther: '', dose: '', doseOther: '', adherence: '' }],
+  /* `photoUrl` = รูปซองยาของแถวนั้น (มติผู้ใช้ 2 ก.ย. 69) */
+  medications: [{ id: 'med-1', name: '', nameOther: '', dose: '', doseOther: '', adherence: '', photoUrl: '' }],
   /* แบบคัดกรองสุขภาพรายบุคคล (ฟอร์มกระดาษของทีมเยี่ยมบ้าน) — ช่องถูกกระจายไป
      ตามขั้นที่ควรอยู่ (ประวัติ · สัญญาณชีพ · ประเมินและคัดกรอง) แต่เก็บรวมเป็น
      ก้อนเดียวเพื่อให้บันทึก/พิมพ์/ส่งต่อได้ทั้งชุด */
@@ -1381,17 +1415,11 @@ export const getStepValidationError = (form, stepIndex) => {
          เพิ่งเปิดขั้นทั้งที่ยังไม่ได้เริ่มซักอาการ · ช่องยังติดดาว required
          บนหน้าจอเพื่อบอกว่าควรกรอก แต่ไม่ขวางการไปขั้นถัดไป */
       return null;
-    case 6:
-      /* พฤติกรรมสุขภาพ — ไม่มีฟิลด์บังคับ (เหมือนขั้นเดียวกันที่จุดคัดกรอง) */
-      return null;
-    /* ขั้น "บันทึกตามบทบาท/กิจกรรม" ถูกถอดออกทั้งขั้น (มติผู้ใช้ 2 ก.ย. 69) —
-       ด่าน "ต้องเลือกกิจกรรมการดูแลอย่างน้อย 1 รายการ" หายไปพร้อมกัน
-       และขั้น "ข้อมูลการติดต่อ" ถูกยุบรวมกับขั้นที่อยู่ (2 ก.ย. 69) ขั้นสุดท้าย
-       จึงเลื่อนจาก 10 มาเป็น 8 · แล้วยุบสัญญาณชีพ+ประวัติการแพ้เป็นขั้น
-       "คัดกรอง" (2 ก.ย. 69) จึงเหลือ 7 */
-    case 7:
-      if (!form.nextVisitDate) return 'กรุณาระบุวันนัดเยี่ยมครั้งถัดไป (หรือระบุเหตุผลในบันทึกแผนการดูแล)';
-      return null;
+
+    /* ขั้นสุดท้ายคือ "ประเมินอาการป่วย" (index 5) ซึ่งไม่มีด่าน — ด่าน
+       "ต้องระบุวันนัดเยี่ยมครั้งถัดไป" ถูกถอดออกพร้อมกับขั้น Family Folder
+       ที่ยุบเข้าขั้น "ข้อมูลส่วนตัว" (มติผู้ใช้ 2 ก.ย. 69) `form.nextVisitDate`
+       ยังอยู่ในโมเดลและในใบสรุป */
     default:
       return null;
   }
@@ -1418,12 +1446,12 @@ export const getHomeVisitCompletedSteps = (form, stepIndex = 0) => ([
      โรคประจำตัวแล้ว (ติดธงอย่างน้อยหนึ่งใบ) */
   (summarizeVitals(form.vitals).filled > 0 && summarizeVitals(form.vitals).invalid.length === 0)
     || Object.values(form.flags || {}).some(Boolean),
-  /* ขั้น "ประเมินอาการป่วย" — ครบเมื่อมีอาการสำคัญหรือประวัติเจ็บป่วย */
-  !!(String(form.chiefComplaint || '').trim() || String(form.illnessHistory || '').trim()),
-  /* พฤติกรรมสุขภาพเก็บที่ทะเบียนกลางของจุดคัดกรอง ไม่ได้อยู่ในร่างของการเยี่ยม
-     จึงไม่มีอะไรให้เช็ก — ถือว่าผ่านเสมอ (ขั้นนี้ไม่มีฟิลด์บังคับ) */
-  true,
-  !!form.nextVisitDate,
+  /* ขั้น "ประเมินอาการป่วย" — ครบเมื่อมีประวัติปัจจุบันหรือประวัติเจ็บป่วย
+     (ช่อง "อาการสำคัญ" ถูกถอดออกจากหน้าจอแล้ว มติผู้ใช้ 2 ก.ย. 69 — ยังเช็ก
+     คีย์เดิมไว้เผื่อร่างที่บันทึกก่อนหน้านั้น) */
+  !!(String(form.presentIllness || '').trim()
+    || String(form.illnessHistory || '').trim()
+    || String(form.chiefComplaint || '').trim()),
 ]);
 
 /** ค่าเริ่มต้นของตัวแปลงคำสั่ง → ข้อความ: ร่างรุ่นเก่าเก็บเป็นข้อความอยู่แล้ว.

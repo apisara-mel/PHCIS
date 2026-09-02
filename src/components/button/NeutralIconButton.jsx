@@ -36,6 +36,16 @@ const FOCUS_OUTLINE_SECONDARY = 'var(--dim-stroke-400, 4px) solid var(--border-n
 
 const resolveStyles = ({ variant, isHover, active, focused, disabled }) => {
   if (disabled) {
+    /* variant ghost ไม่มีพื้น/ขอบตอนปกติอยู่แล้ว — ตอน disabled จึงต้องไม่โผล่
+       กล่องเทาขึ้นมา (มติผู้ใช้ 2 ก.ย. 69) เหลือแค่ไอคอนสีจาง ๆ ให้รู้ว่ากดไม่ได้ */
+    if (variant === 'ghost') {
+      return {
+        bg: 'transparent',
+        border: 'none',
+        outline: 'none',
+        icon: 'var(--icon-disabledButton-tertiary)',
+      };
+    }
     return {
       bg: 'var(--surface-disabledButton-tertiary)',
       border: `var(--dim-stroke-100) solid var(--border-disabledButton-tertiary)`,
