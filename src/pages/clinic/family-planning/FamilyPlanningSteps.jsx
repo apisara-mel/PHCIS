@@ -20,6 +20,7 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Table from '@/components/table/Table';
 import Popup from '@/components/popup/Popup';
 import AddMedicationPopup from '@/components/popup/AddMedicationPopup';
+import { BodyDiagramCard } from '@/components/examination/BodyDrawingCanvas';
 import DrawingCanvasPopup from '@/components/popup/DrawingCanvasPopup';
 import FamilyPlanningFollowUpCard, { printFpFollowUpCard } from '@/pages/clinic/family-planning/FamilyPlanningFollowUpCard';
 import {
@@ -267,6 +268,18 @@ const EmptyState = ({ icon = 'inbox', title, subtitle, action }) => (
 );
 
 /* คำถาม + choice chips (แถวคำถามแบบเดียวกับ AncStep2Screening) */
+/* หัวข้อย่อยในแผงตรวจ — ข้อความสีดำ ขนาดเล็ก ไม่มีไอคอน (มติผู้ใช้ 3 ก.ย. 69) */
+const FpSubHeading = ({ children }) => (
+  <span style={{
+    fontFamily: 'var(--type-family-body)',
+    fontSize: 'var(--type-size-sm)',
+    fontWeight: 'var(--type-weight-medium)',
+    color: 'var(--text-content-default, #363B3F)',
+  }}>
+    {children}
+  </span>
+);
+
 const ChoiceRow = ({ label, options, value, onSelect, locked, tone }) => (
   <div
     className='flex items-center justify-between gap-4 w-full flex-wrap'
@@ -1038,9 +1051,18 @@ export const FpStep4WomenExam = ({ form, setForm, fpHn, locked, showBreast = tru
             </Field>
           </div>
 
+          <div
+            className='w-full'
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+              gap: 'var(--dim-space-400, 16px)',
+              alignItems: 'start',
+            }}
+          >
           {FP_BREAST_SIDES.map((side) => (
-            <div key={side.key} className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-              <TopicHeader icon='diagnosis'>{side.label}</TopicHeader>
+            <div key={side.key} className='flex flex-col min-w-0' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              <FpSubHeading>{side.label}</FpSubHeading>
               <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
                 <Field label='ผลการตรวจ'>
                   <Select
@@ -1065,14 +1087,25 @@ export const FpStep4WomenExam = ({ form, setForm, fpHn, locked, showBreast = tru
               />
             </div>
           ))}
+          </div>
 
           {/* ภาพประกอบ/มาร์คตำแหน่ง — แทน Abstract PaintImage ของระบบเดิม */}
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-            <TopicHeader icon='draw'>ภาพประกอบและการมาร์คตำแหน่ง</TopicHeader>
+            <FpSubHeading>ภาพประกอบและการมาร์คตำแหน่ง</FpSubHeading>
+            {/* พรีวิวรูปร่างกายพร้อมจุดที่มาร์คไว้ — กดที่รูปเพื่อเปิดผืนผ้าใบเต็ม */}
+            {/* ย่อเท่าหน้าตรวจครรภ์ (zoom 0.7) และมีทั้งด้านหน้า-หลัง */}
+            <div style={{ zoom: 0.7, maxWidth: 520 }}>
+              <BodyDiagramCard
+                viewKey={form.breastView || 'front'}
+                onViewChange={(v) => set('breastView')(v)}
+                markers={form.breastMarkers}
+                drawings={form.breastDrawings}
+                onSaveClick={() => { if (!locked) setCanvasOpen(true); }}
+                expandedTitle='บันทึกการตรวจมะเร็งเต้านม'
+              />
+            </div>
+            {/* ปุ่มเพิ่มภาพถูกตัดออก — กดที่รูปพรีวิวเพื่อเปิดผืนผ้าใบแทน (มติผู้ใช้ 3 ก.ย. 69) */}
             <div className='flex items-center gap-3 flex-wrap'>
-              <BrandSubdueButton variant='outline' leadingIcon='edit_square' onClick={() => setCanvasOpen(true)} disabled={locked}>
-                {form.breastMarkers.length > 0 || form.breastDrawings.length > 0 ? 'แก้ไข/ดูภาพประกอบ' : 'เพิ่มภาพประกอบการตรวจ'}
-              </BrandSubdueButton>
               {form.breastMarkers.length > 0 && (
                 <ColorfulBadge style='teal' size='small' hierarchy='secondary'>
                   มาร์คตำแหน่งไว้ {form.breastMarkers.length} จุด
@@ -1115,7 +1148,7 @@ export const FpStep4WomenExam = ({ form, setForm, fpHn, locked, showBreast = tru
           </div>
 
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-            <TopicHeader icon='history'>ประวัติการตรวจเต้านมครั้งก่อน</TopicHeader>
+            <FpSubHeading>ประวัติการตรวจเต้านมครั้งก่อน</FpSubHeading>
             {priorBreastExams.length > 0 ? (
               <Table
                 columns={[
@@ -1266,45 +1299,6 @@ export const FpStep4WomenExam = ({ form, setForm, fpHn, locked, showBreast = tru
               minHeight={64}
               placeholder='รายละเอียดผลการตรวจมะเร็งปากมดลูก'
             />
-            <div className='flex items-center gap-3 flex-wrap'>
-              <SelectableTag
-                label='ส่งสิ่งส่งตรวจไปห้องปฏิบัติการแล้ว'
-                size='md'
-                selected={form.papSentToLab}
-                onClick={() => { if (!locked) set('papSentToLab')(!form.papSentToLab); }}
-              />
-              <SelectableTag
-                label='แจ้งผลให้ผู้รับบริการทราบ'
-                size='md'
-                selected={form.papNotifyClient}
-                onClick={() => { if (!locked) set('papNotifyClient')(!form.papNotifyClient); }}
-              />
-              <SelectableTag
-                label='ติดตามการรักษา / นัดแจ้งผล'
-                size='md'
-                selected={form.papFollowUp}
-                onClick={() => { if (!locked) set('papFollowUp')(!form.papFollowUp); }}
-              />
-            </div>
-            <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-              <Field label='ค่าใช้จ่ายบริการรวม (บาท)'>
-                <InputField
-                  value={form.papServiceCost}
-                  onChange={set('papServiceCost')}
-                  disabled={locked}
-                  type='number'
-                  placeholder='0.00'
-                />
-              </Field>
-              <Field label='การเบิกค่าบริการ'>
-                <SelectableTag
-                  label='ขอเบิกค่าบริการ'
-                  size='md'
-                  selected={form.papReimbursement}
-                  onClick={() => { if (!locked) set('papReimbursement')(!form.papReimbursement); }}
-                />
-              </Field>
-            </div>
             {form.papResult === 'abnormal' && (
               <Banner tone='danger' icon='warning'>
                 ผลตรวจมะเร็งปากมดลูกผิดปกติ — ต้องบันทึกการส่งต่อสูตินรีแพทย์ในขั้นตอนที่ 6
@@ -1315,9 +1309,6 @@ export const FpStep4WomenExam = ({ form, setForm, fpHn, locked, showBreast = tru
 
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
             <TopicHeader icon='description'>Cytologic Request</TopicHeader>
-            <Banner tone='neutral' icon='info'>
-              ประวัติประกอบการขอตรวจเซลล์วิทยา - บันทึกเฉพาะเมื่อมีการส่งตรวจมะเร็งปากมดลูก
-            </Banner>
             <div className='flex flex-col' style={{ gap: 'var(--dim-space-200, 8px)' }}>
               <CodeGroupLabel>Type of Specimen — เลือกได้มากกว่าหนึ่งชนิด</CodeGroupLabel>
               <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
@@ -1421,12 +1412,7 @@ export const FpStep4WomenExam = ({ form, setForm, fpHn, locked, showBreast = tru
               กรอกกลับมา จึงเปิดให้บันทึกเฉพาะเมื่อส่งสิ่งส่งตรวจไปแล้ว */}
           <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
             <TopicHeader icon='biotech'>ผลการตรวจเซลล์วิทยา (Bethesda)</TopicHeader>
-            {!form.papSentToLab ? (
-              <Banner tone='neutral' icon='info'>
-                ยังไม่ได้ส่งสิ่งส่งตรวจไปห้องปฏิบัติการ — ติ๊ก “ส่งสิ่งส่งตรวจไปห้องปฏิบัติการแล้ว”
-                ด้านบนก่อน จึงจะบันทึกผลที่ห้องเซลล์วิทยาอ่านกลับมาได้
-              </Banner>
-            ) : (
+            {(
               <>
                 <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
                   <Field label='วันที่รับสิ่งส่งตรวจ'>

@@ -539,9 +539,72 @@ export const FP_NORMAL_ABNORMAL = [
   { value: 'abnormal', label: 'ผิดปกติ' },
 ];
 
+/* หัวนมไม่ใช่แค่ ปกติ/ผิดปกติ (มติ คทง.2 9 ต.ค. 68) — ปกติ · สั้น · บอด · บุ๋ม
+   บันทึกแยกซ้าย-ขวา เหมือนคลินิกฝากครรภ์ */
+export const FP_NIPPLE_SIDE_OPTIONS = [
+  { value: 'normal',   label: 'ปกติ' },
+  { value: 'short',    label: 'สั้น' },
+  { value: 'inverted', label: 'บอด' },
+  { value: 'retracted', label: 'บุ๋ม' },
+];
+
+/* ตรวจภายในหลังคลอด — ปกติ/ผิดปกติ ต่อรายการ แล้วจึงระบุรายละเอียด (มติ คทง.2) */
+export const FP_POSTPARTUM_PV_FIELDS = [
+  { key: 'externalGenitalia', label: 'External Genitalia' },
+  { key: 'vagina',            label: 'Vagina (รวมน้ำคาวปลา)' },
+  { key: 'cervix',            label: 'Cervix' },
+  { key: 'uterus',            label: 'Uterus ขนาด-ตำแหน่ง' },
+  { key: 'adnexa',            label: 'Adnexa' },
+];
+
+/* ── งานตรวจคัดกรองมะเร็งเต้านม (มติ คทง.2 · แบบประเมินมูลนิธิกาญจนบารมี) ── */
+export const FP_BREAST_RISK_FACTORS = [
+  { key: 'ageOver40',        label: 'อายุ 40 ปีขึ้นไป' },
+  { key: 'familyHistory',    label: 'ญาติสายตรงเป็นมะเร็งเต้านม/รังไข่' },
+  { key: 'earlyMenarche',    label: 'ประจำเดือนมาครั้งแรกก่อนอายุ 12 ปี' },
+  { key: 'lateMenopause',    label: 'หมดประจำเดือนหลังอายุ 55 ปี' },
+  { key: 'nulliparous',      label: 'ไม่เคยมีบุตร หรือมีบุตรคนแรกหลังอายุ 30 ปี' },
+  { key: 'hormoneUse',       label: 'ใช้ฮอร์โมนทดแทนต่อเนื่องเกิน 5 ปี' },
+  { key: 'priorBreastLump',  label: 'เคยพบก้อนที่เต้านม/เคยผ่าตัดเต้านม' },
+  { key: 'obesity',          label: 'ภาวะอ้วน (BMI ≥ 30)' },
+  { key: 'alcoholSmoking',   label: 'ดื่มสุรา / สูบบุหรี่เป็นประจำ' },
+  { key: 'radiationHistory', label: 'เคยฉายรังสีบริเวณทรวงอก' },
+];
+
+/* สอนตรวจเต้านมด้วยตนเอง (BSE) — พยาบาลประเมินว่าทำได้ถูกต้องหรือไม่ */
+export const FP_BSE_TEACHING_ITEMS = [
+  { key: 'mirrorLook',    label: 'ดูหน้ากระจก แขนแนบลำตัว สังเกตรูปร่าง สี ผิวหนัง' },
+  { key: 'armsRaised',    label: 'ยกแขนขึ้นเหนือศีรษะ สังเกตรอยบุ๋ม/ผิวเปลือกส้ม' },
+  { key: 'handsOnHips',   label: 'เท้าเอวเกร็งอก สังเกตความผิดปกติของผิวหนัง' },
+  { key: 'nippleCheck',   label: 'บีบหัวนมเบา ๆ ดูสิ่งคัดหลั่ง' },
+  { key: 'lyingPosition', label: 'นอนราบ สอดหมอนใต้ไหล่ข้างที่ตรวจ' },
+  { key: 'circleMethod',  label: 'คลำแบบก้นหอย (circular) ครอบคลุมทั้งเต้า' },
+  { key: 'wedgeMethod',   label: 'คลำแบบรัศมี (wedge) จากหัวนมออกด้านนอก' },
+  { key: 'verticalMethod', label: 'คลำแบบขึ้น-ลง (vertical strip)' },
+  { key: 'axillaCheck',   label: 'คลำต่อมน้ำเหลืองรักแร้และเหนือไหปลาร้า' },
+  { key: 'monthlyRoutine', label: 'ทราบว่าต้องตรวจทุกเดือน หลังหมดประจำเดือน 3-7 วัน' },
+];
+
+/* ── งานตรวจคัดกรองมะเร็งปากมดลูก (มติ คทง.2 · 17 ธ.ค. 68 ข้อ 1.19.8) ── */
+export const FP_CERVICAL_PURPOSE_OPTIONS = [
+  { value: 'screening', label: 'มารับบริการตรวจ' },
+  { value: 'result',    label: 'มาฟังผล' },
+];
+
+export const FP_CERVICAL_TEST_TYPES = [
+  { value: 'liquidCytology', label: 'Liquid-based Cytology' },
+  { value: 'hpvDna',         label: 'HPV DNA Testing' },
+  { value: 'hpvSelf',        label: 'HPV Self-sampling' },
+];
+
+/** เชิงรับ/เชิงรุก — บังคับเมื่อชนิดการตรวจเป็น HPV DNA (รหัสบริการ 3150) */
+export const FP_SCREENING_APPROACH_OPTIONS = [
+  { value: 'passive', label: 'เชิงรับ (ผู้รับบริการมาที่หน่วยบริการ)' },
+  { value: 'active',  label: 'เชิงรุก (ออกหน่วย/ลงชุมชน)' },
+];
+
 export const FP_POSTPARTUM_MOTHER_FIELDS = [
   { key: 'breast',     label: 'เต้านม',            options: FP_NORMAL_ABNORMAL },
-  { key: 'nipple',     label: 'หัวนม',              options: FP_NORMAL_ABNORMAL },
   { key: 'milkFlow',   label: 'น้ำนมไหล',           options: [{ value: 'yes', label: 'ไหลดี' }, { value: 'no', label: 'ไม่ไหล/ไหลน้อย' }] },
   { key: 'fundus',     label: 'ระดับมดลูก',         options: FP_NORMAL_ABNORMAL },
   { key: 'lochia',     label: 'น้ำคาวปลา',          options: [{ value: 'normal', label: 'ปกติ' }, { value: 'abnormal', label: 'ผิดปกติ/มีกลิ่น' }, { value: 'none', label: 'ไม่มี' }] },

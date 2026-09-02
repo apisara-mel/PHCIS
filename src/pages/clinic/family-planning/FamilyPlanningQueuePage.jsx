@@ -65,7 +65,7 @@ const MASKED = '••••••••';
    วันนี้แต่ยังไม่มาติดต่อเข้ามาด้วย (แท็บ "นัดแล้วยังไม่มาติดต่อ" ที่แยกอยู่เดิม
    ถูกยุบเข้ามาที่นี่ · มติผู้ใช้ 3 ก.ย. 69) */
 const buildTabs = (rows, registryCount) => [
-  { key: 'all',       label: 'ทั้งหมด',              icon: 'group',        count: rows.length },
+  { key: 'all',       label: 'คิววันนี้',              icon: 'group',        count: rows.length },
   { key: 'waiting',   label: 'รอตรวจ',               icon: 'schedule',     count: rows.filter((r) => r.statusKey === 'waiting').length },
   { key: 'progress',  label: 'กำลังตรวจ',            icon: 'assignment',   count: rows.filter((r) => r.statusKey === 'progress').length },
   { key: 'done',      label: 'ตรวจเสร็จแล้ว',        icon: 'check_circle', count: rows.filter((r) => r.statusKey === 'done').length },

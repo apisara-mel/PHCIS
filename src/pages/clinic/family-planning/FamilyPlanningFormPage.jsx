@@ -114,7 +114,8 @@ const FamilyPlanningFormPage = () => {
   const dirty = !saved && JSON.stringify(form) !== seedJson.current;
 
   const visitNo = getFpVisitRecords(fpHn).length + (mode === 'view' ? 0 : 1);
-  const pageTitle = `บันทึกวางแผนครอบครัว — ครั้งที่ ${Math.max(visitNo, 1)}`;
+  /* ไม่มีเลขครั้งที่ต่อท้าย (มติผู้ใช้ 3 ก.ย. 69) */
+  const pageTitle = 'บันทึกวางแผนครอบครัว';
   const triageVitals = useMemo(() => getFpTriageVitals(fpHn), [fpHn]);
   const shownVitals = form.vitalsOverride ? form.vitals : (triageVitals || form.vitals);
   const bmi = useMemo(() => {
