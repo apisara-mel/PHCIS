@@ -346,6 +346,8 @@ const decorateQueueRow = (row) => {
   const child = getImmChild(row.hn) || {};
   return {
     ...row,
+    /* รูปหน้าเด็กจากทะเบียน (IMM_CHILDREN) — คิวต้องโชว์รูปคน ไม่ใช่วงกลมอักษรย่อ */
+    avatarUrl: child.avatarUrl,
     name: child.fullName || '—',
     shortName: child.shortName || '—',
     sex: child.sex || '—',
@@ -587,6 +589,20 @@ export const reactivateImmRegistration = (id) => {
    site, lotNo, expiry, vialNo, place, otherFacility, facilityName,
    reference, immediateReaction, nurse, status, recordedBy/At,
    editedBy/At, cancellation }. */
+/* แหล่งที่มาของเข็ม (มติผู้ใช้ 3 ก.ย. 69) — บอกว่าเข็มนี้ฉีดที่ไหน: ที่ศูนย์เอง ·
+   โรงพยาบาลอื่น (บันทึกย้อนหลังจากสมุดสีชมพู) · อนามัยโรงเรียน/ศูนย์เด็กเล็ก ·
+   ออกหน่วยในชุมชน. เข็มเก่าที่ไม่มี `source` ให้อนุมานจาก `otherFacility`. */
+export const IMM_DOSE_SOURCES = {
+  center:   { label: 'ศูนย์บริการสาธารณสุข', short: 'ที่ศูนย์',       style: 'teal'   },
+  hospital: { label: 'โรงพยาบาลอื่น',        short: 'รพ.อื่น',        style: 'indigo' },
+  school:   { label: 'อนามัยโรงเรียน',       short: 'อนามัยโรงเรียน', style: 'purple' },
+  outreach: { label: 'ออกหน่วย',              short: 'ออกหน่วย',       style: 'orange' },
+};
+export const resolveDoseSource = (dose) => {
+  const key = dose?.source || (dose?.otherFacility ? 'hospital' : 'center');
+  return { key, ...(IMM_DOSE_SOURCES[key] || IMM_DOSE_SOURCES.center) };
+};
+
 const DOSE_SEED = [
   /* 69-10001 (2 เดือน) — แรกเกิดครบ */
   { id: 'd-1001-1', hn: '69-10001', vaccineId: 'vac-bcg', seq: 1, date: '2026-06-02', time: '10:20', site: 'lt-forearm', lotNo: 'BCG-6901', expiry: '2027-03-31', vialNo: '3', place: 'โรงพยาบาลเจริญกรุงประชารักษ์', otherFacility: true, facilityName: 'โรงพยาบาลเจริญกรุงประชารักษ์', reference: 'สมุดสีชมพู หน้า 12', immediateReaction: '', nurse: 'พว.รพ.เจริญกรุง', status: 'active', recordedBy: 'พว.ศิริพร ใจดี', recordedAt: '2026-06-09T09:25:00' },
@@ -666,10 +682,44 @@ const DOSE_SEED = [
   { id: 'd-1007-11', hn: '69-10007', vaccineId: 'vac-dtp', seq: 4, date: '2024-01-17', time: '09:50', site: 'lt-deltoid', lotNo: 'DTP-6904', expiry: '2027-02-28', vialNo: '1', place: 'ศบส.22 วัดปากบ่อ', otherFacility: false, immediateReaction: '', nurse: 'พว.มาลี พงษ์ทอง', status: 'active', recordedBy: 'พว.มาลี พงษ์ทอง', recordedAt: '2024-01-17T09:55:00' },
   { id: 'd-1007-12', hn: '69-10007', vaccineId: 'vac-opv', seq: 4, date: '2024-01-17', time: '09:52', site: 'oral', lotNo: 'OPV-6907', expiry: '2026-12-31', vialNo: '4', place: 'ศบส.22 วัดปากบ่อ', otherFacility: false, immediateReaction: '', nurse: 'พว.มาลี พงษ์ทอง', status: 'active', recordedBy: 'พว.มาลี พงษ์ทอง', recordedAt: '2024-01-17T09:57:00' },
   { id: 'd-1007-13', hn: '69-10007', vaccineId: 'vac-mmr', seq: 2, date: '2024-01-17', time: '09:54', site: 'rt-deltoid', lotNo: 'MMR-6801', expiry: '2026-08-31', vialNo: '2', place: 'ศบส.22 วัดปากบ่อ', otherFacility: false, immediateReaction: '', nurse: 'พว.มาลี พงษ์ทอง', status: 'active', recordedBy: 'พว.มาลี พงษ์ทอง', recordedAt: '2024-01-17T09:59:00' },
-  { id: 'd-1007-14', hn: '69-10007', vaccineId: 'vac-je', seq: 2, date: '2025-01-15', time: '10:00', site: 'lt-deltoid', lotNo: 'JE-6906', expiry: '2027-05-31', vialNo: '3', place: 'ศบส.22 วัดปากบ่อ', otherFacility: false, immediateReaction: '', nurse: 'พว.ศิริพร ใจดี', status: 'active', recordedBy: 'พว.ศิริพร ใจดี', recordedAt: '2025-01-15T10:05:00' },
+  { id: 'd-1007-14', hn: '69-10007', vaccineId: 'vac-je', seq: 2, date: '2025-01-15', time: '10:00', site: 'lt-deltoid', lotNo: 'JE-6906', expiry: '2027-05-31', vialNo: '3', place: 'ศูนย์พัฒนาเด็กเล็กวัดปากบ่อ (งานอนามัยโรงเรียน)', source: 'school', otherFacility: false, immediateReaction: '', nurse: 'พว.ศิริพร ใจดี', status: 'active', recordedBy: 'พว.ศิริพร ใจดี', recordedAt: '2025-01-15T10:05:00' },
 ];
 
 /* 69-10008 (แรกเกิด 1 สัปดาห์) ตั้งใจให้ยังไม่มีเข็มเลย — demo empty state */
+
+/* 69-10001 เพิ่ม HBV เข็ม 2 ตอน 1 เดือน จากออกหน่วย (เด็กคนแรกในคิว — ให้สองแท็บมีข้อมูลโชว์) */
+DOSE_SEED.push(
+  { id: 'd-1001-3', hn: '69-10001', vaccineId: 'vac-hbv', seq: 2, date: '2026-07-03', time: '10:40', site: 'lt-thigh', lotNo: 'HBV-6903', expiry: '2027-06-30', vialNo: '8', place: 'ออกหน่วย ชุมชนอ่อนนุช 17', otherFacility: false, immediateReaction: 'ไข้ต่ำ ๆ 37.7 °C หลังฉีด 30 นาที', nurse: 'พว.มาลี พงษ์ทอง', source: 'outreach', status: 'active', recordedBy: 'พว.มาลี พงษ์ทอง', recordedAt: '2026-07-03T10:46:00' },
+);
+
+/* 69-10009 (5 เดือน · นัดบ่ายวันนี้) — แรกเกิดจาก รพ.อื่น · 2 เดือนจากออกหน่วย · 4 เดือนที่ศูนย์ */
+DOSE_SEED.push(
+  { id: 'd-1009-1', hn: '69-10009', vaccineId: 'vac-bcg', seq: 1, date: '2026-04-06', time: '11:30', site: 'lt-forearm', lotNo: 'BCG-6901', expiry: '2027-03-31', vialNo: '2', place: 'โรงพยาบาลสิรินธร', otherFacility: true, facilityName: 'โรงพยาบาลสิรินธร', reference: 'สมุดสีชมพู หน้า 12', immediateReaction: '', nurse: 'พว.รพ.สิรินธร', source: 'hospital', status: 'active', recordedBy: 'พว.ศิริพร ใจดี', recordedAt: '2026-04-13T09:10:00' },
+  { id: 'd-1009-2', hn: '69-10009', vaccineId: 'vac-hbv', seq: 1, date: '2026-04-06', time: '11:35', site: 'rt-thigh', lotNo: 'HBV-6903', expiry: '2027-06-30', vialNo: '4', place: 'โรงพยาบาลสิรินธร', otherFacility: true, facilityName: 'โรงพยาบาลสิรินธร', reference: 'สมุดสีชมพู หน้า 12', immediateReaction: '', nurse: 'พว.รพ.สิรินธร', source: 'hospital', status: 'active', recordedBy: 'พว.ศิริพร ใจดี', recordedAt: '2026-04-13T09:11:00' },
+  { id: 'd-1009-3', hn: '69-10009', vaccineId: 'vac-hbv', seq: 2, date: '2026-05-08', time: '10:10', site: 'lt-thigh', lotNo: 'HBV-6903', expiry: '2027-06-30', vialNo: '6', place: 'ออกหน่วย ชุมชนคลองจั่น', otherFacility: false, immediateReaction: '', nurse: 'พว.มาลี พงษ์ทอง', source: 'outreach', status: 'active', recordedBy: 'พว.มาลี พงษ์ทอง', recordedAt: '2026-05-08T10:14:00' },
+  { id: 'd-1009-4', hn: '69-10009', vaccineId: 'vac-dtphb', seq: 1, date: '2026-06-09', time: '09:40', site: 'lt-thigh', lotNo: 'DTPHB-6905', expiry: '2027-01-31', vialNo: '7', place: 'ออกหน่วย ชุมชนคลองจั่น', otherFacility: false, immediateReaction: '', nurse: 'พว.มาลี พงษ์ทอง', source: 'outreach', status: 'active', recordedBy: 'พว.มาลี พงษ์ทอง', recordedAt: '2026-06-09T09:44:00' },
+  { id: 'd-1009-5', hn: '69-10009', vaccineId: 'vac-opv', seq: 1, date: '2026-06-09', time: '09:42', site: 'oral', lotNo: 'OPV-6907', expiry: '2026-12-31', vialNo: '7', place: 'ออกหน่วย ชุมชนคลองจั่น', otherFacility: false, immediateReaction: '', nurse: 'พว.มาลี พงษ์ทอง', source: 'outreach', status: 'active', recordedBy: 'พว.มาลี พงษ์ทอง', recordedAt: '2026-06-09T09:45:00' },
+  { id: 'd-1009-6', hn: '69-10009', vaccineId: 'vac-ipd', seq: 1, date: '2026-06-09', time: '09:44', site: 'rt-thigh', lotNo: 'IPD-6902', expiry: '2027-03-31', vialNo: '1', place: 'ออกหน่วย ชุมชนคลองจั่น', otherFacility: false, immediateReaction: '', nurse: 'พว.มาลี พงษ์ทอง', source: 'outreach', status: 'active', recordedBy: 'พว.มาลี พงษ์ทอง', recordedAt: '2026-06-09T09:46:00' },
+  { id: 'd-1009-7', hn: '69-10009', vaccineId: 'vac-rota', seq: 1, date: '2026-06-09', time: '09:46', site: 'oral', lotNo: 'ROTA-6912', expiry: '2027-02-28', vialNo: '1', place: 'ออกหน่วย ชุมชนคลองจั่น', otherFacility: false, immediateReaction: '', nurse: 'พว.มาลี พงษ์ทอง', source: 'outreach', status: 'active', recordedBy: 'พว.มาลี พงษ์ทอง', recordedAt: '2026-06-09T09:47:00' },
+  { id: 'd-1009-8', hn: '69-10009', vaccineId: 'vac-dtphb', seq: 2, date: '2026-08-10', time: '09:20', site: 'rt-thigh', lotNo: 'DTPHB-6905', expiry: '2027-01-31', vialNo: '9', place: 'ศบส.22 วัดปากบ่อ', otherFacility: false, immediateReaction: 'ไข้ต่ำ ๆ 37.6 °C หลังฉีด 30 นาที', nurse: 'พว.ศิริพร ใจดี', source: 'center', status: 'active', recordedBy: 'พว.ศิริพร ใจดี', recordedAt: '2026-08-10T09:26:00' },
+  { id: 'd-1009-9', hn: '69-10009', vaccineId: 'vac-opv', seq: 2, date: '2026-08-10', time: '09:22', site: 'oral', lotNo: 'OPV-6907', expiry: '2026-12-31', vialNo: '9', place: 'ศบส.22 วัดปากบ่อ', otherFacility: false, immediateReaction: '', nurse: 'พว.ศิริพร ใจดี', source: 'center', status: 'active', recordedBy: 'พว.ศิริพร ใจดี', recordedAt: '2026-08-10T09:27:00' },
+  { id: 'd-1009-10', hn: '69-10009', vaccineId: 'vac-ipv', seq: 1, date: '2026-08-10', time: '09:24', site: 'lt-thigh', lotNo: 'IPV-6903', expiry: '2027-04-30', vialNo: '2', place: 'ศบส.22 วัดปากบ่อ', otherFacility: false, immediateReaction: '', nurse: 'พว.ศิริพร ใจดี', source: 'center', status: 'active', recordedBy: 'พว.ศิริพร ใจดี', recordedAt: '2026-08-10T09:28:00' },
+);
+
+/* 69-10010 (1 ปี 4 เดือน · นัดบ่ายวันนี้) — แรกเกิดจาก รพ.อื่น · 2–6 เดือนคละที่ศูนย์/ออกหน่วย · MMR1 จากออกหน่วย */
+DOSE_SEED.push(
+  { id: 'd-1010-1', hn: '69-10010', vaccineId: 'vac-bcg', seq: 1, date: '2025-05-12', time: '13:20', site: 'lt-forearm', lotNo: 'BCG-6812', expiry: '2026-08-20', vialNo: '2', place: 'โรงพยาบาลกลาง', otherFacility: true, facilityName: 'โรงพยาบาลกลาง', reference: 'ใบสรุปการคลอด เลขที่ 68/2210', immediateReaction: '', nurse: 'พว.รพ.กลาง', source: 'hospital', status: 'active', recordedBy: 'พว.นันทวัน ศรีสุข', recordedAt: '2025-05-19T10:05:00' },
+  { id: 'd-1010-2', hn: '69-10010', vaccineId: 'vac-hbv', seq: 1, date: '2025-05-12', time: '13:25', site: 'rt-thigh', lotNo: 'HBV-6740', expiry: '2026-05-31', vialNo: '3', place: 'โรงพยาบาลกลาง', otherFacility: true, facilityName: 'โรงพยาบาลกลาง', reference: 'ใบสรุปการคลอด เลขที่ 68/2210', immediateReaction: '', nurse: 'พว.รพ.กลาง', source: 'hospital', status: 'active', recordedBy: 'พว.นันทวัน ศรีสุข', recordedAt: '2025-05-19T10:06:00' },
+  { id: 'd-1010-3', hn: '69-10010', vaccineId: 'vac-dtphb', seq: 1, date: '2025-07-14', time: '09:30', site: 'lt-thigh', lotNo: 'DTPHB-6905', expiry: '2027-01-31', vialNo: '1', place: 'ศบส.22 วัดปากบ่อ', otherFacility: false, immediateReaction: '', nurse: 'พว.นันทวัน ศรีสุข', source: 'center', status: 'active', recordedBy: 'พว.นันทวัน ศรีสุข', recordedAt: '2025-07-14T09:34:00' },
+  { id: 'd-1010-4', hn: '69-10010', vaccineId: 'vac-opv', seq: 1, date: '2025-07-14', time: '09:32', site: 'oral', lotNo: 'OPV-6907', expiry: '2026-12-31', vialNo: '1', place: 'ศบส.22 วัดปากบ่อ', otherFacility: false, immediateReaction: '', nurse: 'พว.นันทวัน ศรีสุข', source: 'center', status: 'active', recordedBy: 'พว.นันทวัน ศรีสุข', recordedAt: '2025-07-14T09:35:00' },
+  { id: 'd-1010-5', hn: '69-10010', vaccineId: 'vac-dtphb', seq: 2, date: '2025-09-15', time: '10:00', site: 'rt-thigh', lotNo: 'DTPHB-6905', expiry: '2027-01-31', vialNo: '4', place: 'ออกหน่วย ชุมชนหัวหมาก', otherFacility: false, immediateReaction: '', nurse: 'พว.มาลี พงษ์ทอง', source: 'outreach', status: 'active', recordedBy: 'พว.มาลี พงษ์ทอง', recordedAt: '2025-09-15T10:04:00' },
+  { id: 'd-1010-6', hn: '69-10010', vaccineId: 'vac-opv', seq: 2, date: '2025-09-15', time: '10:02', site: 'oral', lotNo: 'OPV-6907', expiry: '2026-12-31', vialNo: '4', place: 'ออกหน่วย ชุมชนหัวหมาก', otherFacility: false, immediateReaction: '', nurse: 'พว.มาลี พงษ์ทอง', source: 'outreach', status: 'active', recordedBy: 'พว.มาลี พงษ์ทอง', recordedAt: '2025-09-15T10:05:00' },
+  { id: 'd-1010-7', hn: '69-10010', vaccineId: 'vac-ipv', seq: 1, date: '2025-09-15', time: '10:04', site: 'lt-thigh', lotNo: 'IPV-6903', expiry: '2027-04-30', vialNo: '1', place: 'ออกหน่วย ชุมชนหัวหมาก', otherFacility: false, immediateReaction: '', nurse: 'พว.มาลี พงษ์ทอง', source: 'outreach', status: 'active', recordedBy: 'พว.มาลี พงษ์ทอง', recordedAt: '2025-09-15T10:06:00' },
+  { id: 'd-1010-8', hn: '69-10010', vaccineId: 'vac-dtphb', seq: 3, date: '2025-11-17', time: '09:15', site: 'lt-thigh', lotNo: 'DTPHB-6905', expiry: '2027-01-31', vialNo: '6', place: 'ศบส.22 วัดปากบ่อ', otherFacility: false, immediateReaction: 'บวมแดงบริเวณที่ฉีด 1.5 ซม.', nurse: 'พว.ศิริพร ใจดี', source: 'center', status: 'active', recordedBy: 'พว.ศิริพร ใจดี', recordedAt: '2025-11-17T09:20:00' },
+  { id: 'd-1010-9', hn: '69-10010', vaccineId: 'vac-opv', seq: 3, date: '2025-11-17', time: '09:17', site: 'oral', lotNo: 'OPV-6907', expiry: '2026-12-31', vialNo: '6', place: 'ศบส.22 วัดปากบ่อ', otherFacility: false, immediateReaction: '', nurse: 'พว.ศิริพร ใจดี', source: 'center', status: 'active', recordedBy: 'พว.ศิริพร ใจดี', recordedAt: '2025-11-17T09:21:00' },
+  { id: 'd-1010-10', hn: '69-10010', vaccineId: 'vac-mmr', seq: 1, date: '2026-02-16', time: '10:30', site: 'lt-deltoid', lotNo: 'MMR-6801', expiry: '2026-08-31', vialNo: '3', place: 'ออกหน่วย ชุมชนหัวหมาก', otherFacility: false, immediateReaction: '', nurse: 'พว.มาลี พงษ์ทอง', source: 'outreach', status: 'active', recordedBy: 'พว.มาลี พงษ์ทอง', recordedAt: '2026-02-16T10:34:00' },
+  { id: 'd-1010-11', hn: '69-10010', vaccineId: 'vac-je', seq: 1, date: '2026-05-18', time: '10:00', site: 'rt-deltoid', lotNo: 'JE-6906', expiry: '2027-05-31', vialNo: '4', place: 'ศบส.22 วัดปากบ่อ', otherFacility: false, immediateReaction: '', nurse: 'พว.ศิริพร ใจดี', source: 'center', status: 'active', recordedBy: 'พว.ศิริพร ใจดี', recordedAt: '2026-05-18T10:04:00' },
+);
 
 const doseOverlay = () => readJson(K.doses, {});
 
@@ -853,6 +903,51 @@ const AEFI_SEED = [
     outcome: 'ไข้ลงภายใน 24 ชม.',
     reportedBy: 'พว.ศิริพร ใจดี', status: 'active',
     recordedBy: 'พว.ศิริพร ใจดี', recordedAt: '2026-06-17T08:40:00',
+  },
+  {
+    id: 'aefi-3', hn: '69-10004', doseId: 'd-1004-9',
+    symptom: 'ผื่นแดงตามลำตัวและแขน ร่วมกับไข้ 38.5 °C หลังรับ MMR 7 วัน',
+    onsetDate: '2026-05-28', onsetTime: '09:00', severity: 'moderate',
+    treatment: 'ให้ Paracetamol syrup · แนะนำเช็ดตัว · นัดดูอาการซ้ำ 2 วัน · รายงาน AEFI ต่อ สคร.',
+    outcome: 'ผื่นและไข้หายภายใน 3 วัน',
+    reportedBy: 'พว.นันทวัน ศรีสุข', status: 'active',
+    recordedBy: 'พว.นันทวัน ศรีสุข', recordedAt: '2026-05-28T10:15:00',
+  },
+  {
+    id: 'aefi-4', hn: '69-10009', doseId: 'd-1009-8',
+    symptom: 'ไข้ต่ำ ๆ 37.6 °C งอแง หลังฉีด DTP-HB เข็ม 2 ประมาณ 30 นาที',
+    onsetDate: '2026-08-10', onsetTime: '09:50', severity: 'mild',
+    treatment: 'สังเกตอาการที่ศูนย์ 30 นาที · เช็ดตัว · แนะนำผู้ปกครองสังเกตอาการต่อที่บ้าน',
+    outcome: 'ไข้ลงก่อนกลับบ้าน ไม่มีอาการซ้ำ',
+    reportedBy: 'พว.ศิริพร ใจดี', status: 'active',
+    recordedBy: 'พว.ศิริพร ใจดี', recordedAt: '2026-08-10T10:30:00',
+  },
+  {
+    id: 'aefi-5', hn: '69-10010', doseId: 'd-1010-8',
+    symptom: 'บวมแดงบริเวณที่ฉีดต้นขาซ้าย 1.5 ซม. กดเจ็บเล็กน้อย',
+    onsetDate: '2025-11-17', onsetTime: '20:00', severity: 'mild',
+    treatment: 'ประคบเย็น · ติดตามทางโทรศัพท์วันถัดไป',
+    outcome: 'ยุบภายใน 2 วัน',
+    reportedBy: 'พว.ศิริพร ใจดี', status: 'active',
+    recordedBy: 'พว.ศิริพร ใจดี', recordedAt: '2025-11-18T08:50:00',
+  },
+  {
+    id: 'aefi-6', hn: '69-10010', doseId: 'd-1010-10',
+    symptom: 'ไข้ 38.0 °C วันที่ 6 หลังรับ MMR ไม่มีผื่น',
+    onsetDate: '2026-02-22', onsetTime: '19:30', severity: 'mild',
+    treatment: 'Paracetamol syrup ตามน้ำหนัก · เช็ดตัว',
+    outcome: 'ไข้ลงภายใน 24 ชม.',
+    reportedBy: 'พว.มาลี พงษ์ทอง', status: 'active',
+    recordedBy: 'พว.มาลี พงษ์ทอง', recordedAt: '2026-02-23T09:05:00',
+  },
+  {
+    id: 'aefi-7', hn: '69-10001', doseId: 'd-1001-3',
+    symptom: 'ไข้ต่ำ ๆ 37.7 °C งอแง หลังรับ HBV เข็ม 2 ที่หน่วยออกชุมชน 30 นาที',
+    onsetDate: '2026-07-03', onsetTime: '11:10', severity: 'mild',
+    treatment: 'สังเกตอาการที่หน่วย 30 นาที · เช็ดตัว · แนะนำผู้ปกครองให้ดูดนมบ่อยขึ้น',
+    outcome: 'ไข้ลงภายใน 12 ชม. ติดตามทางโทรศัพท์วันถัดไปปกติ',
+    reportedBy: 'พว.มาลี พงษ์ทอง', status: 'active',
+    recordedBy: 'พว.มาลี พงษ์ทอง', recordedAt: '2026-07-03T11:30:00',
   },
 ];
 

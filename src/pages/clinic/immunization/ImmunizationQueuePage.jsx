@@ -24,7 +24,6 @@ import {
   IMM_DOCTORS,
   getImmQueueRows,
   getImmScheduledNotArrived,
-  checkInImmAppointment,
   cancelImmQueue,
   restoreImmQueue,
   getImmQueueCancellation,
@@ -44,7 +43,8 @@ import { withEmrRowAction } from '@/components/patient/EmrRowAction';
    โครงเดียวกับ MentalHealthQueuePage / AncQueuePage (search + filter row +
    sort + pagination + per-tab status split) แต่คำศัพท์ตามคู่มือ HCIS
    งานสร้างเสริมภูมิคุ้มกันโรค บทที่ 2: แท็บ "รายชื่อลงทะเบียนส่งตรวจแล้ว" /
-   "ผู้ป่วยนัดที่ยังไม่มาติดต่อ" / "รายชื่อตรวจเสร็จแล้ว".
+   "รายชื่อตรวจเสร็จแล้ว" — แท็บ "นัดแล้วยังไม่มาติดต่อ" ถูกยุบเข้าแท็บ
+   "รายชื่อผู้ป่วยทั้งหมด" (มติผู้ใช้ 3 ก.ย. 69) และไม่มีปุ่มส่งตรวจในหน้าคิวแล้ว.
 
    คอลัมน์ตามคู่มือ: วัน-เวลามาตรวจ · HN · ชื่อ-สกุล · อายุ (ป-ด-ว) · ลำดับคิว ·
    วัคซีนที่ถึงกำหนดวันนี้ · สถานะ — บวกข้อมูลทั่วไปผู้รับบริการ (สิทธิ,
@@ -55,12 +55,14 @@ const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:immunization-queue';
 const PAGE_SIZE = 20;
 const RECORD_PATH = '/clinic/immunization/record';
 
-const buildTabs = (rows, scheduledCount) => [
-  { key: 'all',        label: 'คิววันนี้',                 icon: 'group',           count: rows.length },
-  { key: 'registered', label: 'ลงทะเบียนส่งตรวจแล้ว',      icon: 'how_to_reg',      count: rows.filter((p) => p.statusKey === 'waiting' || p.statusKey === 'progress').length },
-  { key: 'done',       label: 'ตรวจเสร็จแล้ว',            icon: 'check_circle',    count: rows.filter((p) => p.statusKey === 'done').length },
-  { key: 'draft',      label: 'ที่ร่างไว้',                icon: 'save',            count: rows.filter((p) => p.statusKey === 'draft').length },
-  { key: 'scheduled',  label: 'นัดแล้วยังไม่มาติดต่อ',     icon: 'event_available', count: scheduledCount },
+/* แท็บสุดท้ายคือ "รายชื่อผู้ป่วยทั้งหมด" = ทะเบียน ไม่ใช่คิว จึงรวมเด็กที่นัดไว้
+   วันนี้แต่ยังไม่มาติดต่อเข้ามาด้วย (มติผู้ใช้ 3 ก.ย. 69) */
+const buildTabs = (rows, registryCount) => [
+  { key: 'all',        label: 'คิววันนี้',                 icon: 'group',        count: rows.length },
+  { key: 'registered', label: 'ลงทะเบียนส่งตรวจแล้ว',      icon: 'how_to_reg',   count: rows.filter((p) => p.statusKey === 'waiting' || p.statusKey === 'progress').length },
+  { key: 'done',       label: 'ตรวจเสร็จแล้ว',            icon: 'check_circle', count: rows.filter((p) => p.statusKey === 'done').length },
+  { key: 'draft',      label: 'ที่ร่างไว้',                icon: 'save',         count: rows.filter((p) => p.statusKey === 'draft').length },
+  { key: 'directory',  label: 'รายชื่อผู้ป่วยทั้งหมด',      icon: 'groups',       count: registryCount },
 ];
 
 const TAB_STATUS_FILTER = {
@@ -74,9 +76,11 @@ const STATUS_BADGE = {
   progress: { style: 'orange', label: 'กำลังตรวจ'     },
   done:     { style: 'teal',   label: 'ตรวจเสร็จแล้ว' },
   draft:    { style: 'grey',   label: 'ที่ร่างไว้'    },
+  /* เฉพาะแท็บทะเบียน — เด็กที่มีนัดวันนี้แต่ยังไม่มาติดต่อ ยังไม่ได้อยู่ในคิว */
+  scheduled: { style: 'purple', label: 'นัดแล้วยังไม่มา' },
 };
 
-const STATUS_SORT_ORDER = { waiting: 0, progress: 1, done: 2, draft: 3 };
+const STATUS_SORT_ORDER = { waiting: 0, progress: 1, done: 2, draft: 3, scheduled: 4 };
 
 const FILTER_OPTIONS = {
   doctor: [
@@ -223,13 +227,13 @@ const ImmunizationQueuePage = () => {
   const rows = useMemo(() => getImmQueueRows(), [tick]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const scheduledNotArrived = useMemo(() => getImmScheduledNotArrived(), [tick]);
-  const tabs = useMemo(() => buildTabs(rows, scheduledNotArrived.length), [rows, scheduledNotArrived]);
-
-  const handleCheckIn = (hn) => {
-    checkInImmAppointment(hn);
-    setTick((t) => t + 1);
-    setActiveTab('registered');
-  };
+  /* แท็บ "รายชื่อผู้ป่วยทั้งหมด" เป็นทะเบียน ไม่ใช่คิว — จึงรวมเด็กที่นัดไว้วันนี้
+     แต่ยังไม่มาติดต่อ (กลุ่มนี้ยังไม่มีคิว/เวลารอ) */
+  const registryRows = useMemo(() => ([
+    ...rows,
+    ...scheduledNotArrived.map((r) => ({ ...r, statusKey: 'scheduled' })),
+  ]), [rows, scheduledNotArrived]);
+  const tabs = useMemo(() => buildTabs(rows, registryRows.length), [rows, registryRows]);
 
   const summaryCards = useMemo(() => ([
     { key: 'waiting',  label: 'รอตรวจ',        value: rows.filter((p) => p.statusKey === 'waiting').length,  color: 'info',     icon: 'schedule' },
@@ -240,8 +244,7 @@ const ImmunizationQueuePage = () => {
   ]), [rows, tick]);
 
   const filtered = useMemo(() => {
-    if (activeTab === 'scheduled') return [];
-    let result = rows;
+    let result = activeTab === 'directory' ? registryRows : rows;
     const tabPred = TAB_STATUS_FILTER[activeTab];
     if (tabPred) result = result.filter(tabPred);
     if (filters.doctor !== 'all') result = result.filter((r) => r.doctor === filters.doctor);
@@ -264,7 +267,7 @@ const ImmunizationQueuePage = () => {
     }
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, filters, searchQ, tick, rows]);
+  }, [activeTab, filters, searchQ, tick, rows, registryRows]);
 
   const sortedRows = useMemo(() => {
     const sign = sortConfig.direction === 'desc' ? -1 : 1;
@@ -420,7 +423,6 @@ const ImmunizationQueuePage = () => {
         ) : (
           <NeutralSubdueButton
             size='sm'
-            leadingIcon='block'
             disabled={!canWrite}
             onClick={(e) => { e.stopPropagation(); if (canWrite) openCancelPopup(row); }}
           >
@@ -446,51 +448,16 @@ const ImmunizationQueuePage = () => {
     /* ชื่อผู้ให้บริการโชว์เฉพาะแท็บ "ทั้งหมด" (มติผู้ใช้ 2 ก.ย. 69 · ทำไว้ที่คิว
        ฝากครรภ์ก่อน) — แท็บที่เป็นคิวนั้นผู้ใช้เห็นเฉพาะคิวของตัวเอง ชื่อผู้ตรวจจึง
        ซ้ำกันทุกแถว ส่วนแท็บทั้งหมดเป็นรายชื่อข้ามผู้ให้บริการ จึงต้องบอกว่าใครดูแล */
-    ...(activeTab === 'all' ? [{ key: 'doctor',    label: 'แพทย์', flex: true, minWidth: 160 }] : []),
+    ...(activeTab === 'all' || activeTab === 'directory' ? [{ key: 'doctor',    label: 'แพทย์', flex: true, minWidth: 160 }] : []),
     { key: 'telemed',   label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
     { key: 'wait',      label: 'รอนาน', render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',    label: 'สถานะ', render: renderStatus },
     { key: 'actions',   label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
+    /* แท็บทะเบียนตัดคอลัมน์ที่เป็นเรื่องของคิววันนี้ออก — แถวที่นัดไว้แต่ยังไม่มา
+       ยังไม่มีเลขคิว เวลามาตรวจ และเวลารอ */
+  ].filter((c) => !(activeTab === 'directory' && ['queue', 'wait', 'arrivedAt'].includes(c.key)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [tick, canWrite, activeTab]);
-
-  const scheduledColumns = useMemo(() => ([
-    { key: 'appointmentTime', label: 'เวลานัด' },
-    { key: 'hn',              label: 'HN' },
-    {
-      key: 'name', label: 'ชื่อ-นามสกุล', flex: true, minWidth: 180,
-      render: (r) => (
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <MaskedWorklistName name={r.name} recordKey={r.hn} className='truncate' />
-          {r.fromVisitRecord && (
-            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-              นัดจากใบบันทึกการตรวจ{r.bookedBy ? ` · โดย ${r.bookedBy}` : ''}
-            </span>
-          )}
-        </div>
-      ),
-    },
-    { key: 'age',        label: 'อายุ (ป-ด-ว)' },
-    { key: 'cid',        label: 'เลขบัตรประชาชน' },
-    { key: 'insurance',  label: 'สิทธิ', flex: true, minWidth: 180 },
-    { key: 'reason',     label: 'นัดหมายเรื่อง', flex: true, minWidth: 220 },
-    { key: 'due',        label: 'วัคซีนที่ถึงกำหนด', sortable: false, flex: true, minWidth: 200, render: renderDueVaccines },
-    {
-      key: 'checkin', label: 'การดำเนินการ', sortable: false,
-      render: (row) => (
-        <BrandSubdueButton
-          variant='fill'
-          size='sm'
-          leadingIcon='login'
-          disabled={!canWrite}
-          onClick={(e) => { e.stopPropagation(); if (canWrite) handleCheckIn(row.hn); }}
-        >
-          ส่งตรวจ
-        </BrandSubdueButton>
-      ),
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [canWrite]);
+  ), [tick, canWrite, activeTab]);
 
   return (
     <QueuePageShell
@@ -625,21 +592,8 @@ const ImmunizationQueuePage = () => {
           </div>
 
           <SmoothFilterResults opaque={resultsOpaque}>
-{activeTab !== 'scheduled' && (
-            <SearchResultCount found={sortedRows.length} total={rows.length} />
-          )}
+            <SearchResultCount found={sortedRows.length} total={activeTab === 'directory' ? registryRows.length : rows.length} />
 
-          {activeTab === 'scheduled' ? (
-            <Table
-              columns={scheduledColumns}
-              rows={scheduledNotArrived}
-              rowKey={(row) => row.hn}
-              onRowClick={handleRowClick}
-              stickyColCount={3}
-              stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
-              emptyMessage='ไม่มีนัดหมายที่ยังไม่มาติดต่อวันนี้'
-            />
-          ) : (
             <>
               <Table
                 columns={columns}
@@ -652,7 +606,9 @@ const ImmunizationQueuePage = () => {
                 stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
                 emptyMessage={searchQ.trim() || !isAllDefault
                   ? 'ไม่พบรายการที่ตรงกับการค้นหา / ตัวกรอง'
-                  : 'ยังไม่มีคิวคลินิกสุขภาพเด็กดีในวันนี้'}
+                  : (activeTab === 'directory'
+                    ? 'ยังไม่มีรายชื่อเด็กในทะเบียนคลินิกสุขภาพเด็กดี'
+                    : 'ยังไม่มีคิวคลินิกสุขภาพเด็กดีในวันนี้')}
               />
 
               <div
@@ -674,7 +630,6 @@ const ImmunizationQueuePage = () => {
                 <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
               </div>
             </>
-          )}
           </SmoothFilterResults>
         </div>
       </div>

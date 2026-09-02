@@ -28,7 +28,6 @@ import {
   resolveFpClientType,
   getFpQueueRows,
   getFpScheduledNotArrived,
-  checkInFpAppointment,
   cancelFpQueueRegistration,
   reactivateFpQueueRegistration,
   getFpQueueCancellation,
@@ -41,13 +40,14 @@ import {
    1.10.8.1 ข้อมูลทั่วไปผู้รับบริการที่ส่งต่อไปหน้าบันทึก).
 
    กลไกเหมือน AncQueuePage / MentalHealthQueuePage ทุกประการ:
-   tabs ทั้งหมด/รอตรวจ/กำลังตรวจ/ตรวจเสร็จแล้ว/ที่ร่างไว้/นัดแล้วยังไม่มา
-   ติดต่อ · PrimarySearch (HN / ชื่อ / บัตรประชาชน ตามไวยากรณ์ค้นหาใน
+   tabs ทั้งหมด/รอตรวจ/กำลังตรวจ/ตรวจเสร็จแล้ว/ที่ร่างไว้/รายชื่อผู้ป่วย
+   ทั้งหมด · PrimarySearch (HN / ชื่อ / บัตรประชาชน ตามไวยากรณ์ค้นหาใน
    คู่มือ §1.4 ข้อ 8) · FilterTag/FilterDropdown/FilterDateTag ·
    column sort · pagination 20/หน้า
 
    คู่มือ p.2-1: ก่อนบันทึกวางแผนครอบครัวต้อง "ส่งตรวจ" ในระบบห้องบัตรก่อน
-   → แท็บ "นัดแล้วยังไม่มาติดต่อ" มีปุ่ม ส่งตรวจ ที่ย้ายรายการเข้าคิวหลัก
+   → หน้านี้ไม่มีปุ่มส่งตรวจ (มติผู้ใช้ 3 ก.ย. 69) คนที่นัดไว้แต่ยังไม่มาจะเห็นใน
+   แท็บ "รายชื่อผู้ป่วยทั้งหมด" ด้วยสถานะ "นัดแล้วยังไม่มา" เท่านั้น
 
    §1.4.2 ข้อมูลลับ — ชื่อในคิวถูก mask ด้วย MaskedWorklistName เสมอ และ
    คอลัมน์ "วิธีคุมกำเนิด/บริการที่ได้รับ" จะถูกปิดเมื่อผู้ใช้ไม่มีสิทธิ
@@ -61,13 +61,16 @@ const RECORD_PATH = '/clinic/family-planning/record';
 const REGISTRY_PATH = '/clinic/family-planning/registry';
 const MASKED = '••••••••';
 
-const buildTabs = (rows, scheduledCount) => [
-  { key: 'all',       label: 'ทั้งหมด',              icon: 'group',           count: rows.length },
-  { key: 'waiting',   label: 'รอตรวจ',               icon: 'schedule',        count: rows.filter((r) => r.statusKey === 'waiting').length },
-  { key: 'progress',  label: 'กำลังตรวจ',            icon: 'assignment',      count: rows.filter((r) => r.statusKey === 'progress').length },
-  { key: 'done',      label: 'ตรวจเสร็จแล้ว',        icon: 'check_circle',    count: rows.filter((r) => r.statusKey === 'done').length },
-  { key: 'draft',     label: 'ที่ร่างไว้',            icon: 'save',            count: rows.filter((r) => r.statusKey === 'draft').length },
-  { key: 'scheduled', label: 'นัดแล้วยังไม่มาติดต่อ', icon: 'event_available', count: scheduledCount },
+/* แท็บสุดท้ายคือ "รายชื่อผู้ป่วยทั้งหมด" = ทะเบียน ไม่ใช่คิว จึงรวมคนที่นัดไว้
+   วันนี้แต่ยังไม่มาติดต่อเข้ามาด้วย (แท็บ "นัดแล้วยังไม่มาติดต่อ" ที่แยกอยู่เดิม
+   ถูกยุบเข้ามาที่นี่ · มติผู้ใช้ 3 ก.ย. 69) */
+const buildTabs = (rows, registryCount) => [
+  { key: 'all',       label: 'ทั้งหมด',              icon: 'group',        count: rows.length },
+  { key: 'waiting',   label: 'รอตรวจ',               icon: 'schedule',     count: rows.filter((r) => r.statusKey === 'waiting').length },
+  { key: 'progress',  label: 'กำลังตรวจ',            icon: 'assignment',   count: rows.filter((r) => r.statusKey === 'progress').length },
+  { key: 'done',      label: 'ตรวจเสร็จแล้ว',        icon: 'check_circle', count: rows.filter((r) => r.statusKey === 'done').length },
+  { key: 'draft',     label: 'ที่ร่างไว้',            icon: 'save',         count: rows.filter((r) => r.statusKey === 'draft').length },
+  { key: 'directory', label: 'รายชื่อผู้ป่วยทั้งหมด', icon: 'groups',       count: registryCount },
 ];
 
 const TAB_STATUS_FILTER = {
@@ -82,9 +85,11 @@ const STATUS_BADGE = {
   progress: { style: 'orange', label: 'กำลังตรวจ' },
   done:     { style: 'teal',   label: 'ตรวจเสร็จแล้ว' },
   draft:    { style: 'grey',   label: 'ที่ร่างไว้' },
+  /* เฉพาะแท็บทะเบียน — คนที่มีนัดวันนี้แต่ยังไม่มาติดต่อ ยังไม่ได้อยู่ในคิว */
+  scheduled: { style: 'purple', label: 'นัดแล้วยังไม่มา' },
 };
 
-const STATUS_SORT_ORDER = { waiting: 0, progress: 1, done: 2, draft: 3 };
+const STATUS_SORT_ORDER = { waiting: 0, progress: 1, done: 2, draft: 3, scheduled: 4 };
 
 const FILTER_OPTIONS = {
   service: [
@@ -164,13 +169,13 @@ const FamilyPlanningQueuePage = () => {
   const rows = useMemo(() => getFpQueueRows(), [tick]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const scheduledNotArrived = useMemo(() => getFpScheduledNotArrived(), [tick]);
-  const tabs = useMemo(() => buildTabs(rows, scheduledNotArrived.length), [rows, scheduledNotArrived]);
-
-  const handleCheckIn = (hn) => {
-    checkInFpAppointment(hn);
-    setTick((t) => t + 1);
-    setActiveTab('waiting');
-  };
+  /* แท็บ "รายชื่อผู้ป่วยทั้งหมด" เป็นทะเบียน ไม่ใช่คิว — จึงรวมคนที่นัดไว้วันนี้
+     แต่ยังไม่มาติดต่อ (กลุ่มนี้ยังไม่มีคิว/เวลารอ) */
+  const registryRows = useMemo(() => ([
+    ...rows,
+    ...scheduledNotArrived.map((r) => ({ ...r, statusKey: 'scheduled' })),
+  ]), [rows, scheduledNotArrived]);
+  const tabs = useMemo(() => buildTabs(rows, registryRows.length), [rows, registryRows]);
 
   const summaryCards = useMemo(() => ([
     { key: 'total',    label: 'คิวทั้งหมดวันนี้', value: rows.length, color: 'info', icon: 'group' },
@@ -180,8 +185,7 @@ const FamilyPlanningQueuePage = () => {
   ]), [rows]);
 
   const filtered = useMemo(() => {
-    if (activeTab === 'scheduled') return [];
-    let result = rows;
+    let result = activeTab === 'directory' ? registryRows : rows;
     const tabPred = TAB_STATUS_FILTER[activeTab];
     if (tabPred) result = result.filter(tabPred);
     if (filters.service !== 'all') result = result.filter((r) => r.service === filters.service);
@@ -201,7 +205,7 @@ const FamilyPlanningQueuePage = () => {
     }
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, filters, searchQ, tick, rows]);
+  }, [activeTab, filters, searchQ, tick, rows, registryRows]);
 
   const sortedRows = useMemo(() => {
     const sign = sortConfig.direction === 'desc' ? -1 : 1;
@@ -403,7 +407,7 @@ const FamilyPlanningQueuePage = () => {
           {row.statusKey === 'done' ? 'แสดง/แก้ไข' : 'บันทึก'}
         </BrandSubdueButton>
         <NeutralSubdueButton
-          size='sm' leadingIcon='block'
+          size='sm'
           onClick={(e) => { e.stopPropagation(); openCancelPopup(row); }}
         >
           ยกเลิกทะเบียน
@@ -424,40 +428,16 @@ const FamilyPlanningQueuePage = () => {
     /* ชื่อผู้ให้บริการโชว์เฉพาะแท็บ "ทั้งหมด" (มติผู้ใช้ 2 ก.ย. 69 · ทำไว้ที่คิว
        ฝากครรภ์ก่อน) — แท็บที่เป็นคิวนั้นผู้ใช้เห็นเฉพาะคิวของตัวเอง ชื่อผู้ตรวจจึง
        ซ้ำกันทุกแถว ส่วนแท็บทั้งหมดเป็นรายชื่อข้ามผู้ให้บริการ จึงต้องบอกว่าใครดูแล */
-    ...(activeTab === 'all' ? [{ key: 'nurse',      label: 'ผู้ตรวจ',     flex: true, minWidth: 150 }] : []),
+    ...(activeTab === 'all' || activeTab === 'directory' ? [{ key: 'nurse',      label: 'ผู้ตรวจ',     flex: true, minWidth: 150 }] : []),
     { key: 'wait',       label: 'รอนาน',      render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'appointmentNote', label: 'การนัดหมาย', flex: true, minWidth: 160 },
     { key: 'status',     label: 'สถานะ',      render: renderStatus },
     { key: 'actions',    label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
+    /* แท็บทะเบียนตัดคอลัมน์ที่เป็นเรื่องของคิววันนี้ออก — แถวที่นัดไว้แต่ยังไม่มา
+       ยังไม่มีเลขคิวและเวลารอ */
+  ].filter((c) => !(activeTab === 'directory' && (c.key === 'queue' || c.key === 'wait')))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [tick, canRead, activeTab]);
-
-  /* แท็บ "นัดแล้วยังไม่มาติดต่อ" — คนละ row shape (เวลานัดแทนคิว/สถานะ)
-     จึงมี column set ของตัวเอง + ปุ่ม ส่งตรวจ (คู่มือ p.2-1) */
-  const scheduledColumns = useMemo(() => ([
-    { key: 'appointmentTime', label: 'เวลานัด' },
-    { key: 'hn',              label: 'HN' },
-    { key: 'name',            label: 'ชื่อ-สกุล', flex: true, minWidth: 170, render: renderName },
-    { key: 'age',             label: 'อายุ' },
-    { key: 'insurance',       label: 'สิทธิการรักษา', flex: true, minWidth: 180, render: renderRights },
-    { key: 'fpNumber',        label: 'เลขที่วางแผนครอบครัว', render: renderFpNumber },
-    { key: 'service',         label: 'บริการที่นัด', render: renderService },
-    { key: 'clinic',          label: 'ห้องตรวจ' },
-    { key: 'appointmentNote', label: 'หมายเหตุนัด', flex: true, minWidth: 160 },
-    {
-      key: 'checkin', label: 'การดำเนินการ', sortable: false,
-      render: (row) => (
-        <BrandSubdueButton
-          variant='fill' size='sm' leadingIcon='login'
-          disabled={!canRead}
-          onClick={(e) => { e.stopPropagation(); handleCheckIn(row.hn); }}
-        >
-          ส่งตรวจ
-        </BrandSubdueButton>
-      ),
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [tick, canRead]);
+  ), [tick, canRead, activeTab]);
 
   const emptyMessageByTab = {
     all:      'ยังไม่มีผู้รับบริการวางแผนครอบครัวในคิววันนี้',
@@ -465,6 +445,7 @@ const FamilyPlanningQueuePage = () => {
     progress: 'ยังไม่มีรายการที่กำลังตรวจ',
     done:     'ยังไม่มีรายการที่ตรวจเสร็จวันนี้',
     draft:    'ไม่มีบันทึกที่ร่างไว้',
+    directory: 'ยังไม่มีผู้รับบริการในทะเบียนวางแผนครอบครัว',
   };
 
   return (
@@ -587,20 +568,9 @@ const FamilyPlanningQueuePage = () => {
             </OverflowFlexRow>
           </div>
 
-          {activeTab === 'scheduled' ? (
-            <Table
-              columns={scheduledColumns}
-              rows={scheduledNotArrived}
-              rowKey={(row) => row.hn}
-              stickyColCount={3}
-              stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
-              emptyMessage='ไม่มีนัดหมายที่ยังไม่มาติดต่อวันนี้'
-              emptySubtext='รายการที่กด "ส่งตรวจ" แล้วจะย้ายไปอยู่ในแท็บ "รอตรวจ"'
-            />
-          ) : (
-            <SmoothFilterResults opaque={resultsOpaque}>
+          <SmoothFilterResults opaque={resultsOpaque}>
               <>
-              <SearchResultCount found={sortedRows.length} total={rows.length} />
+              <SearchResultCount found={sortedRows.length} total={activeTab === 'directory' ? registryRows.length : rows.length} />
               <Table
                 columns={columns}
                 rows={pageRows}
@@ -641,8 +611,7 @@ const FamilyPlanningQueuePage = () => {
                 <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
               </div>
               </>
-            </SmoothFilterResults>
-          )}
+          </SmoothFilterResults>
         </div>
       </div>
     </QueuePageShell>

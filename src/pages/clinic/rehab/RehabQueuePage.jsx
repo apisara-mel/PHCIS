@@ -29,7 +29,6 @@ import {
   REHAB_THERAPIST_OPTIONS,
   getRehabQueueRows,
   getRehabScheduledNotArrived,
-  checkInRehabAppointment,
   getRehabCancellation,
   getRehabRegistrationByHn,
   imcGoldenPeriod,
@@ -58,13 +57,15 @@ const SUMMARY_TITLE = 'คิวกายภาพบำบัดและเว
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:rehab-queue';
 const PAGE_SIZE = 20;
 
-const buildTabs = (rows, scheduledCount) => [
-  { key: 'all',       label: 'ทั้งหมด',              icon: 'group',           count: rows.length },
-  { key: 'waiting',   label: 'รอตรวจ',               icon: 'schedule',        count: rows.filter((p) => p.statusKey === 'waiting').length },
-  { key: 'progress',  label: 'กำลังตรวจ',            icon: 'assignment',      count: rows.filter((p) => p.statusKey === 'progress').length },
-  { key: 'done',      label: 'ตรวจเสร็จแล้ว',        icon: 'check_circle',    count: rows.filter((p) => p.statusKey === 'done').length },
-  { key: 'draft',     label: 'ที่ร่างไว้',            icon: 'save',            count: rows.filter((p) => p.statusKey === 'draft').length },
-  { key: 'scheduled', label: 'นัดแล้วยังไม่มาติดต่อ', icon: 'event_available', count: scheduledCount },
+/* แท็บสุดท้ายคือ "รายชื่อผู้ป่วยทั้งหมด" = ทะเบียน ไม่ใช่คิว จึงรวมคนที่นัดไว้
+   วันนี้แต่ยังไม่มาติดต่อเข้ามาด้วย (มติผู้ใช้ 3 ก.ย. 69) */
+const buildTabs = (rows, registryCount) => [
+  { key: 'all',       label: 'ทั้งหมด',              icon: 'group',        count: rows.length },
+  { key: 'waiting',   label: 'รอตรวจ',               icon: 'schedule',     count: rows.filter((p) => p.statusKey === 'waiting').length },
+  { key: 'progress',  label: 'กำลังตรวจ',            icon: 'assignment',   count: rows.filter((p) => p.statusKey === 'progress').length },
+  { key: 'done',      label: 'ตรวจเสร็จแล้ว',        icon: 'check_circle', count: rows.filter((p) => p.statusKey === 'done').length },
+  { key: 'draft',     label: 'ที่ร่างไว้',            icon: 'save',         count: rows.filter((p) => p.statusKey === 'draft').length },
+  { key: 'directory', label: 'รายชื่อผู้ป่วยทั้งหมด', icon: 'groups',       count: registryCount },
 ];
 
 const TAB_STATUS_FILTER = {
@@ -79,9 +80,11 @@ const STATUS_BADGE = {
   progress: { style: 'orange', label: 'กำลังทำกายภาพ' },
   done:     { style: 'teal',   label: 'ตรวจเสร็จแล้ว' },
   draft:    { style: 'grey',   label: 'ที่ร่างไว้'    },
+  /* เฉพาะแท็บทะเบียน — คนที่มีนัดวันนี้แต่ยังไม่มาติดต่อ ยังไม่ได้อยู่ในคิว */
+  scheduled: { style: 'purple', label: 'นัดแล้วยังไม่มา' },
 };
 
-const STATUS_SORT_ORDER = { waiting: 0, progress: 1, done: 2, draft: 3 };
+const STATUS_SORT_ORDER = { waiting: 0, progress: 1, done: 2, draft: 3, scheduled: 4 };
 const CAUSE_SORT_ORDER = REHAB_CAUSES.reduce((acc, c, i) => ({ ...acc, [c.key]: i }), {});
 
 const FILTER_OPTIONS = {
@@ -229,18 +232,17 @@ const RehabQueuePage = () => {
   const rows = useMemo(() => getRehabQueueRows(), [tick]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const scheduledNotArrived = useMemo(() => getRehabScheduledNotArrived(), [tick]);
-  const tabs = useMemo(() => buildTabs(rows, scheduledNotArrived.length), [rows, scheduledNotArrived]);
+  /* แท็บ "รายชื่อผู้ป่วยทั้งหมด" เป็นทะเบียน ไม่ใช่คิว — จึงรวมคนที่นัดไว้วันนี้
+     แต่ยังไม่มาติดต่อ (กลุ่มนี้ยังไม่มีคิว/เวลารอ) */
+  const registryRows = useMemo(() => ([
+    ...rows,
+    ...scheduledNotArrived.map((r) => ({ ...r, statusKey: 'scheduled' })),
+  ]), [rows, scheduledNotArrived]);
+  const tabs = useMemo(() => buildTabs(rows, registryRows.length), [rows, registryRows]);
 
-  /* A follow-up booked from the record lands in "นัดแล้วยังไม่มาติดต่อ" as
-     soon as the /appointment store notifies — closes the
-     จอง → มาถึง → ส่งตรวจ loop without leaving the module. */
+  /* A follow-up booked from the record shows up in "รายชื่อผู้ป่วยทั้งหมด" as
+     soon as the /appointment store notifies. */
   useEffect(() => subscribeExtraAppointments(() => setTick((t) => t + 1)), []);
-
-  const handleCheckIn = (hn) => {
-    checkInRehabAppointment(hn);
-    setTick((t) => t + 1);
-    setActiveTab('waiting');
-  };
 
   const summaryCards = useMemo(() => ([
     { key: 'total',   label: 'คิวฟื้นฟูวันนี้',        value: rows.length,                                            color: 'info',        icon: 'accessibility_new' },
@@ -252,8 +254,7 @@ const RehabQueuePage = () => {
   ]), [rows]);
 
   const filtered = useMemo(() => {
-    if (activeTab === 'scheduled') return [];
-    let result = rows;
+    let result = activeTab === 'directory' ? registryRows : rows;
     const tabPred = TAB_STATUS_FILTER[activeTab];
     if (tabPred) result = result.filter(tabPred);
     if (filters.serviceType !== 'all') result = result.filter((r) => r.serviceType === filters.serviceType);
@@ -270,7 +271,7 @@ const RehabQueuePage = () => {
     }
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, filters, searchQ, tick]);
+  }, [activeTab, filters, searchQ, tick, registryRows]);
 
   const sortedRows = useMemo(() => {
     const sign = sortConfig.direction === 'desc' ? -1 : 1;
@@ -424,39 +425,15 @@ const RehabQueuePage = () => {
     /* ชื่อผู้ให้บริการโชว์เฉพาะแท็บ "ทั้งหมด" (มติผู้ใช้ 2 ก.ย. 69 · ทำไว้ที่คิว
        ฝากครรภ์ก่อน) — แท็บที่เป็นคิวนั้นผู้ใช้เห็นเฉพาะคิวของตัวเอง ชื่อผู้ตรวจจึง
        ซ้ำกันทุกแถว ส่วนแท็บทั้งหมดเป็นรายชื่อข้ามผู้ให้บริการ จึงต้องบอกว่าใครดูแล */
-    ...(activeTab === 'all' ? [{ key: 'therapist', label: 'นักกายภาพ / แพทย์ฟื้นฟู', flex: true, minWidth: 160 }] : []),
+    ...(activeTab === 'all' || activeTab === 'directory' ? [{ key: 'therapist', label: 'นักกายภาพ / แพทย์ฟื้นฟู', flex: true, minWidth: 160 }] : []),
     { key: 'wait',    label: 'รอนาน', render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',  label: 'สถานะ', render: renderStatus },
     { key: 'actions', label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
+    /* แท็บทะเบียนตัดคอลัมน์ที่เป็นเรื่องของคิววันนี้ออก — แถวที่นัดไว้แต่ยังไม่มา
+       ยังไม่มีเลขคิว ห้อง และเวลารอ */
+  ].filter((c) => !(activeTab === 'directory' && ['queue', 'wait', 'room'].includes(c.key)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [tick, activeTab]);
-
-  /* "นัดแล้วยังไม่มาติดต่อ" — different row shape (เวลานัด แทน queue/wait/
-     status) + a ส่งตรวจ check-in action (ANC contract). */
-  const scheduledColumns = useMemo(() => ([
-    { key: 'appointmentTime', label: 'เวลานัด' },
-    { key: 'hn',              label: 'HN' },
-    { key: 'name',            label: 'ชื่อ-นามสกุล', flex: true, minWidth: 160 },
-    { key: 'cause',           label: 'สาเหตุหลัก (Dx)', render: renderCause },
-    { key: 'service',         label: 'กลุ่มผู้รับบริการ', render: renderServiceType },
-    { key: 'course',          label: 'Course / ครั้งที่', render: renderCourse },
-    { key: 'clinic',          label: 'ห้อง' },
-    {
-      key: 'source', label: 'ที่มาของนัด', sortable: false,
-      render: (row) => (row.fromRecord
-        ? <ColorfulBadge style='teal' size='small' hierarchy='secondary'>นัดจากบันทึกการฟื้นฟู</ColorfulBadge>
-        : <ColorfulBadge style='grey' size='small' hierarchy='secondary'>นัดล่วงหน้า</ColorfulBadge>),
-    },
-    {
-      key: 'checkin', label: 'การดำเนินการ', sortable: false,
-      render: (row) => (
-        <BrandSubdueButton variant='fill' size='sm' leadingIcon='login' onClick={(e) => { e.stopPropagation(); handleCheckIn(row.hn); }}>
-          ส่งตรวจ
-        </BrandSubdueButton>
-      ),
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), []);
+  ), [tick, activeTab]);
 
   /* Empty states differ by cause — a filtered-out result needs a
      ล้างตัวกรอง escape hatch, an untouched empty tab does not (Nielsen #9:
@@ -550,18 +527,9 @@ const RehabQueuePage = () => {
             </OverflowFlexRow>
           </div>
 
-          {activeTab === 'scheduled' ? (
-            <Table
-              columns={scheduledColumns}
-              rows={scheduledNotArrived}
-              rowKey={(row) => row.hn}
-              stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
-              emptyMessage='ไม่มีนัดหมายที่ยังไม่มาติดต่อวันนี้'
-            />
-          ) : (
-            <SmoothFilterResults opaque={resultsOpaque}>
+          <SmoothFilterResults opaque={resultsOpaque}>
               <>
-              <SearchResultCount found={sortedRows.length} total={rows.length} />
+              <SearchResultCount found={sortedRows.length} total={activeTab === 'directory' ? registryRows.length : rows.length} />
               <Table
                 columns={columns}
                 rows={pageRows}
@@ -593,8 +561,7 @@ const RehabQueuePage = () => {
                 <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
               </div>
               </>
-            </SmoothFilterResults>
-          )}
+          </SmoothFilterResults>
         </div>
       </div>
     </QueuePageShell>

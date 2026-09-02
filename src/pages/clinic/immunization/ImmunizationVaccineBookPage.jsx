@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PatientCard from '@/components/card/PatientCard';
+import CreateConsentRequestHeaderAction from '@/components/consent/CreateConsentRequestHeaderAction';
 import Icon from '@/components/icons/Icon';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
@@ -12,7 +13,6 @@ import SelectableTag from '@/components/forms/SelectableTag';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
-import DangerSubdueButton from '@/components/button/DangerSubdueButton';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
 import Table from '@/components/table/Table';
 import Popup from '@/components/popup/Popup';
@@ -40,6 +40,7 @@ import {
   AEFI_TREATMENT_SUGGESTIONS,
   getImmChild,
   getImmPatientCard,
+  resolveDoseSource,
   getImmIntake,
   getImmRegistrationByHn,
   getImmDoses,
@@ -62,7 +63,6 @@ import {
   formatAgeShort,
   todayIso,
   hasImmunizationRights,
-  setImmunizationRights,
 } from '@/data/immunizationClinic';
 
 /* ImmunizationVaccineBookPage — สมุดวัคซีน / ทะเบียนวัคซีนรายคน
@@ -109,8 +109,15 @@ const TopicHeader = ({ icon, children }) => (
   </div>
 );
 
-const Field = ({ label, required, children, hint, hintTone, width }) => (
-  <div className='flex flex-col gap-1.5 min-w-0' style={{ flex: width ? `0 0 ${width}px` : '1 1 0', minWidth: 180 }}>
+/* `span` = จำนวนคอลัมน์บนกริด 12 ช่องของฟอร์มในป๊อปอัป (ใช้แทน `width` เพื่อให้
+   ทุกแถวชนเส้นกริดเดียวกัน อ่านง่ายและ align ตรงกันทั้งฟอร์ม) */
+const Field = ({ label, required, children, hint, hintTone, width, span }) => (
+  <div
+    className='flex flex-col gap-1.5 min-w-0'
+    style={span
+      ? { gridColumn: `span ${span} / span ${span}`, minWidth: 0 }
+      : { flex: width ? `0 0 ${width}px` : '1 1 0', minWidth: 180 }}
+  >
     <div className='flex items-center text-sm text-ink leading-snug'>
       <span>{label}</span>
       {required && <span className='ml-0.5' style={{ color: 'var(--text-input-require)' }}>*</span>}
@@ -169,7 +176,6 @@ const ImmunizationVaccineBookPage = () => {
   const [activeTab, setActiveTab] = useState('matrix');
   const [tick, setTick] = useState(0);
   const [printTick, setPrintTick] = useState(0);
-  const [showCancelled, setShowCancelled] = useState(true);
 
   /* dose editor */
   const [doseDraft, setDoseDraft] = useState(null);
@@ -201,9 +207,10 @@ const ImmunizationVaccineBookPage = () => {
   const epi = useMemo(() => summarizeEpi(hn), [hn, tick]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const aefiRecords = useMemo(() => getAefiRecords(hn), [hn, tick]);
-  const printLog = useMemo(() => getImmPrintLog(hn), [hn, printTick]);
 
-  const visibleDoses = showCancelled ? doses : doses.filter((d) => d.status !== 'cancelled');
+  /* ชิป "แสดงรายการที่ยกเลิกแล้ว" ถูกตัดออก (มติผู้ใช้ 3 ก.ย. 69) — ตารางประวัติ
+     แสดงทุกแถวรวมที่ยกเลิกแล้ว ซึ่งยังมีป้ายสถานะกำกับอยู่ในแถว */
+  const visibleDoses = doses;
 
   const doPrint = (docType) => { logImmPrint(hn, docType); setPrintTick((t) => t + 1); };
 
@@ -319,15 +326,23 @@ const ImmunizationVaccineBookPage = () => {
     { key: 'expiry', label: 'วันหมดอายุ', render: (r) => formatImmDate(r.expiry) },
     { key: 'vialNo', label: 'ขวดที่', render: (r) => r.vialNo || '—' },
     {
-      key: 'place', label: 'สถานที่รับวัคซีน', flex: true, minWidth: 200,
-      render: (r) => (r.otherFacility ? (
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <ColorfulBadge style='indigo' size='small' hierarchy='secondary'>หน่วยงานอื่น</ColorfulBadge>
-          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-            {r.facilityName}{r.reference ? ` · อ้างอิง ${r.reference}` : ''}
-          </span>
-        </div>
-      ) : (r.place || '—')),
+      /* แหล่งที่มา (มติผู้ใช้ 3 ก.ย. 69) — ป้ายบอกว่าเข็มนี้ฉีดที่ไหน แล้วตามด้วย
+         ชื่อสถานที่จริง/เอกสารอ้างอิงเป็นบรรทัดรอง */
+      key: 'source', label: 'แหล่งที่มา', flex: true, minWidth: 220,
+      render: (r) => {
+        const src = resolveDoseSource(r);
+        const detail = r.otherFacility ? r.facilityName : r.place;
+        return (
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+            <ColorfulBadge style={src.style} size='small' hierarchy='secondary'>{src.label}</ColorfulBadge>
+            {(detail || r.reference) && (
+              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                {detail || ''}{r.reference ? `${detail ? ' · ' : ''}อ้างอิง ${r.reference}` : ''}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     { key: 'nurse', label: 'พยาบาลผู้ให้', flex: true, minWidth: 160, render: (r) => r.nurse || '—' },
     {
@@ -381,8 +396,8 @@ const ImmunizationVaccineBookPage = () => {
               >
                 บันทึก AEFI
               </BrandSubdueButton>
-              <DangerSubdueButton
-                size='sm' leadingIcon='block'
+              <NeutralSubdueButton
+                variant='outline' size='sm' leadingIcon='delete'
                 disabled={!canWrite}
                 onClick={() => {
                   if (!canWrite) return;
@@ -391,8 +406,8 @@ const ImmunizationVaccineBookPage = () => {
                   setDoseCancelTarget(r);
                 }}
               >
-                ยกเลิก
-              </DangerSubdueButton>
+                ลบ
+              </NeutralSubdueButton>
             </>
           )}
         </div>
@@ -448,8 +463,8 @@ const ImmunizationVaccineBookPage = () => {
               <NeutralSubdueButton size='sm' leadingIcon='edit' disabled={!canWrite} onClick={() => canWrite && openEditAefi(r)}>
                 แก้ไข
               </NeutralSubdueButton>
-              <DangerSubdueButton
-                size='sm' leadingIcon='block'
+              <NeutralSubdueButton
+                variant='outline' size='sm' leadingIcon='delete'
                 disabled={!canWrite}
                 onClick={() => {
                   if (!canWrite) return;
@@ -458,8 +473,8 @@ const ImmunizationVaccineBookPage = () => {
                   setAefiCancelTarget(r);
                 }}
               >
-                ยกเลิก
-              </DangerSubdueButton>
+                ลบ
+              </NeutralSubdueButton>
             </>
           )}
         </div>
@@ -468,6 +483,55 @@ const ImmunizationVaccineBookPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]), [canWrite, doses, tick]);
 
+  /* PatientCard ต้องมาก่อนแท็บ (มติผู้ใช้ 3 ก.ย. 69) — วางใน headerInfo
+     ซึ่งเป็นแผงขาวใต้ SubHeader เหนือแถบแท็บ ไม่ใช่ในเนื้อหาของแท็บ */
+  const patientHeader = (
+    <PatientCard
+      patient={cardPatient}
+      title='สมุดวัคซีน'
+      /* แพ้ยา/โรคประจำตัวชิดซ้ายติดกัน + ปุ่ม "ดูทั้งหมด" ที่กางรายการเต็ม
+         — ทรงเดียวกับหน้าบันทึกฝากครรภ์ (มติผู้ใช้ 3 ก.ย. 69) */
+      alertGroupsLeft
+      alertExpandable
+      showMedicalHistory={false}
+      drugAllergies={intake.drugAllergies}
+      chronicDiseases={intake.chronicDiseases}
+      /* ปุ่มของหน้าอยู่บนแถวหัวการ์ด ไม่มีแถบ SubHeader ซ้ำอีกชั้น
+         (ทรงเดียวกับคลินิกฝากครรภ์) */
+      actions={(
+        <>
+          <CreateConsentRequestHeaderAction />
+          <div style={{ minWidth: 280 }}>
+            <Select
+              showLabel={false} searchable size='md'
+              imageSize='var(--dim-size-500, 24px)'
+              value={hn}
+              onChange={(v) => { setHn(v); setTick((t) => t + 1); }}
+              options={IMM_CHILDREN.map((c) => ({ value: c.hn, label: `${c.hn} · ${c.fullName}`, image: c.avatarUrl }))}
+              placeholder='เลือกเด็ก'
+            />
+          </div>
+          <BrandSubdueButton variant='outline' leadingIcon='print' onClick={() => doPrint('สมุดบันทึกการได้รับวัคซีน')}>
+            พิมพ์สมุดวัคซีน
+          </BrandSubdueButton>
+          <BrandSubdueButton variant='outline' leadingIcon='workspace_premium' onClick={() => doPrint('หนังสือรับรองการได้รับวัคซีน')}>
+            พิมพ์หนังสือรับรอง
+          </BrandSubdueButton>
+        </>
+      )}
+      /* ชิปสถานะ EPI + เลขทะเบียนอยู่แถวเดียวกับ แพ้ยา/โรคประจำตัว
+         (มติผู้ใช้ 3 ก.ย. 69) ไม่ใช่แถวหัวการ์ด */
+      alertRowActions={(
+        <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <ColorfulBadge style={epi.style} size='small' hierarchy='secondary'>{`วัคซีน EPI: ${epi.label}`}</ColorfulBadge>
+          {registration
+            ? <ColorfulBadge style='teal' size='small' hierarchy='secondary'>{registration.epiNumber}</ColorfulBadge>
+            : <ColorfulBadge style='grey' size='small' hierarchy='secondary'>ยังไม่มีทะเบียน</ColorfulBadge>}
+        </div>
+      )}
+    />
+  );
+
   const isEditingDose = !!doseDraft?.id;
   const isEditingAefi = !!aefiDraft?.id;
 
@@ -475,34 +539,9 @@ const ImmunizationVaccineBookPage = () => {
     <QueuePageShell
       activeKey='treat'
       breadcrumb={breadcrumb}
-      title='สมุดวัคซีน / ทะเบียนวัคซีนรายบุคคล'
-      actions={(
-        <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <div style={{ minWidth: 280 }}>
-            <Select
-              showLabel={false} searchable size='md'
-              value={hn}
-              onChange={(v) => { setHn(v); setTick((t) => t + 1); }}
-              options={IMM_CHILDREN.map((c) => ({ value: c.hn, label: `${c.hn} · ${c.fullName}` }))}
-              placeholder='เลือกเด็ก'
-            />
-          </div>
-          <NeutralSubdueButton
-            size='sm'
-            leadingIcon={canWrite ? 'lock_open' : 'lock'}
-            onClick={() => { setImmunizationRights(!hasImmunizationRights()); setTick((t) => t + 1); }}
-            title='สลับสิทธิปฏิบัติงานคลินิกเด็กดี (สำหรับทดสอบ)'
-          >
-            {canWrite ? 'สิทธิ: แก้ไขได้' : 'สิทธิ: อ่านอย่างเดียว'}
-          </NeutralSubdueButton>
-          <BrandSubdueButton variant='outline' leadingIcon='print' onClick={() => doPrint('สมุดบันทึกการได้รับวัคซีน')}>
-            พิมพ์สมุดวัคซีน
-          </BrandSubdueButton>
-          <BrandSubdueButton variant='outline' leadingIcon='workspace_premium' onClick={() => doPrint('หนังสือรับรองการได้รับวัคซีน')}>
-            พิมพ์หนังสือรับรอง
-          </BrandSubdueButton>
-        </div>
-      )}
+      headerInfo={patientHeader}
+      /* การ์ดมีเงาของตัวเองแล้ว — ไม่ให้แผงพื้นหลังซ้อนเงาอีกชั้น (มติผู้ใช้ 3 ก.ย. 69) */
+      headerInfoFlat
       tabs={TABS}
       activeTab={activeTab}
       onTabChange={setActiveTab}
@@ -513,7 +552,8 @@ const ImmunizationVaccineBookPage = () => {
         onClose={() => setDoseDraft(null)}
         title={isEditingDose ? 'แก้ไขการได้รับวัคซีน' : 'บันทึกการได้รับวัคซีน'}
         subtitle={`${child?.fullName || ''} · HN ${hn} · อายุ ${formatAgeYMD(child?.birthDate)}`}
-        size='large'
+        size='extraLarge'
+        height='auto'
         tertiaryAction={{ label: 'ยกเลิก', onClick: () => setDoseDraft(null) }}
         primaryAction={{ label: isEditingDose ? 'บันทึกการแก้ไข' : 'บันทึกเข็มวัคซีน', onClick: commitDose }}
       >
@@ -527,29 +567,22 @@ const ImmunizationVaccineBookPage = () => {
               </Banner>
             )}
 
-            <div className='flex items-center gap-2 flex-wrap'>
-              <SelectableTag
-                label='รับวัคซีนจากหน่วยงานอื่น (บันทึกย้อนหลัง)'
-                size='lg'
-                selected={!!doseDraft.otherFacility}
-                onClick={() => setDoseDraft((d) => ({ ...d, otherFacility: !d.otherFacility }))}
-              />
-              <SelectableTag
-                label='ส่งเบิกค่าบริการ'
-                size='lg'
-                selected={!!doseDraft.claimSubmitted}
-                onClick={() => setDoseDraft((d) => ({ ...d, claimSubmitted: !d.claimSubmitted }))}
-              />
-            </div>
-
             {doseDraft.otherFacility && (
               <Banner tone='neutral' icon='info'>
                 เข็มที่รับจากหน่วยงานอื่นจะไม่ตัดสต๊อกของหน่วยบริการ และจะแสดงป้าย &quot;หน่วยงานอื่น&quot; ในสมุดวัคซีน
               </Banner>
             )}
 
-            <div className='flex items-start gap-4 w-full flex-wrap'>
-              <Field label='ชื่อวัคซีน' required>
+            <div
+              className='w-full'
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
+                gap: 'var(--dim-space-400, 16px)',
+                alignItems: 'start',
+              }}
+            >
+              <Field label='ชื่อวัคซีน' required span={6}>
                 <Select
                   showLabel={false} searchable size='lg'
                   value={doseDraft.vaccineId}
@@ -561,7 +594,7 @@ const ImmunizationVaccineBookPage = () => {
                   placeholder='เลือกวัคซีน'
                 />
               </Field>
-              <Field label='ครั้งที่ / เข็มที่' required width={150}>
+              <Field label='ครั้งที่ / เข็มที่' required span={3}>
                 <Select
                   showLabel={false} searchable={false} size='lg'
                   value={String(doseDraft.seq)}
@@ -570,16 +603,13 @@ const ImmunizationVaccineBookPage = () => {
                   placeholder='เลือก'
                 />
               </Field>
-              <Field label='วันที่รับวัคซีน' required>
+              <Field label='วันที่รับวัคซีน' required span={3}>
                 <DatePicker
                   showLabel={false}
                   value={doseDraft.date ? new Date(doseDraft.date) : null}
                   onChange={(d) => setDoseField('date')(d ? d.toISOString().slice(0, 10) : '')}
                   placeholder='เลือกวันที่'
                 />
-              </Field>
-              <Field label='เวลาที่ให้' width={160}>
-                <TimePicker showLabel={false} value={doseDraft.time} onChange={setDoseField('time')} placeholder='--:--' />
               </Field>
             </div>
 
@@ -590,8 +620,19 @@ const ImmunizationVaccineBookPage = () => {
               </Banner>
             )}
 
-            <div className='flex items-start gap-4 w-full flex-wrap'>
-              <Field label='ตำแหน่งที่ให้' required>
+            <div
+              className='w-full'
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
+                gap: 'var(--dim-space-400, 16px)',
+                alignItems: 'start',
+              }}
+            >
+              <Field label='เวลาที่ให้' span={3}>
+                <TimePicker showLabel={false} value={doseDraft.time} onChange={setDoseField('time')} placeholder='--:--' />
+              </Field>
+              <Field label='ตำแหน่งที่ให้' required span={3}>
                 <Select
                   showLabel={false} searchable={false} size='lg'
                   value={doseDraft.site} onChange={setDoseField('site')}
@@ -599,6 +640,7 @@ const ImmunizationVaccineBookPage = () => {
                 />
               </Field>
               <Field
+                span={3}
                 label='Lot No. (จากคลัง)'
                 hint={draftLotWarning
                   ? draftLotWarning.message
@@ -616,7 +658,7 @@ const ImmunizationVaccineBookPage = () => {
                   placeholder={draftLots.length === 0 ? 'คลังไม่มีข้อมูล lot' : 'เลือก Lot No.'}
                 />
               </Field>
-              <Field label='Lot No. (คีย์เอง)' required>
+              <Field label='Lot No. (คีย์เอง)' required span={3}>
                 <InputField
                   showLabel={false} showHelperText={false} showLeadingIcon={false}
                   value={doseDraft.lotNo} onChange={(v) => setDoseField('lotNo')(v)}
@@ -625,8 +667,16 @@ const ImmunizationVaccineBookPage = () => {
               </Field>
             </div>
 
-            <div className='flex items-start gap-4 w-full flex-wrap'>
-              <Field label='วันหมดอายุ' required>
+            <div
+              className='w-full'
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
+                gap: 'var(--dim-space-400, 16px)',
+                alignItems: 'start',
+              }}
+            >
+              <Field label='วันหมดอายุ' required span={3}>
                 <DatePicker
                   showLabel={false}
                   value={doseDraft.expiry ? new Date(doseDraft.expiry) : null}
@@ -634,7 +684,7 @@ const ImmunizationVaccineBookPage = () => {
                   placeholder='เลือกวันหมดอายุ'
                 />
               </Field>
-              <Field label='ขวดที่' width={140}>
+              <Field label='ขวดที่' span={3}>
                 <InputField
                   showLabel={false} showHelperText={false} showLeadingIcon={false}
                   value={doseDraft.vialNo} onChange={(v) => setDoseField('vialNo')(v)}
@@ -643,14 +693,14 @@ const ImmunizationVaccineBookPage = () => {
               </Field>
               {doseDraft.otherFacility ? (
                 <>
-                  <Field label='ชื่อสถานพยาบาล' required>
+                  <Field label='ชื่อสถานพยาบาล' required span={3}>
                     <InputField
                       showLabel={false} showHelperText={false} showLeadingIcon={false}
                       value={doseDraft.facilityName} onChange={(v) => setDoseField('facilityName')(v)}
                       placeholder='เช่น โรงพยาบาลเจริญกรุงประชารักษ์'
                     />
                   </Field>
-                  <Field label='เอกสารอ้างอิง'>
+                  <Field label='เอกสารอ้างอิง' span={3}>
                     <InputField
                       showLabel={false} showHelperText={false} showLeadingIcon={false}
                       value={doseDraft.reference} onChange={(v) => setDoseField('reference')(v)}
@@ -660,14 +710,14 @@ const ImmunizationVaccineBookPage = () => {
                 </>
               ) : (
                 <>
-                  <Field label='สถานที่รับวัคซีน'>
+                  <Field label='สถานที่รับวัคซีน' span={3}>
                     <InputField
                       showLabel={false} showHelperText={false} showLeadingIcon={false}
                       value={doseDraft.place} onChange={(v) => setDoseField('place')(v)}
                       placeholder='ศบส.22 วัดปากบ่อ'
                     />
                   </Field>
-                  <Field label='พยาบาลผู้ให้วัคซีน' required>
+                  <Field label='พยาบาลผู้ให้วัคซีน' required span={3}>
                     <Select
                       showLabel={false} searchable={false} size='lg'
                       value={doseDraft.nurse} onChange={setDoseField('nurse')}
@@ -679,29 +729,39 @@ const ImmunizationVaccineBookPage = () => {
               )}
             </div>
 
-            <div className='flex items-start gap-4 w-full flex-wrap'>
+            <div
+              className='w-full'
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
+                gap: 'var(--dim-space-400, 16px)',
+                alignItems: 'start',
+              }}
+            >
               <Field
                 label='เวลาที่เริ่มมีอาการผิดปกติ'
                 required={!!doseDraft.immediateReaction}
-                width={220}
+                span={3}
                 hint={doseDraft.immediateReaction && !doseDraft.reactionOnsetTime ? 'ต้องระบุเวลาเริ่มมีอาการ' : undefined}
                 hintTone={doseDraft.immediateReaction && !doseDraft.reactionOnsetTime ? 'error' : undefined}
               >
                 <TimePicker showLabel={false} value={doseDraft.reactionOnsetTime} onChange={setDoseField('reactionOnsetTime')} placeholder='--:--' />
               </Field>
+              {/* กล่องอาการอยู่แถวเดียวกับเวลาเริ่มมีอาการ กินคอลัมน์ที่เหลือจนสุดขวา */}
+              <div className='min-w-0' style={{ gridColumn: 'span 9 / span 9' }}>
+                <SuggestibleTextarea
+                  voice
+                  label='อาการผิดปกติหลังได้รับวัคซีน'
+                  value={doseDraft.immediateReaction}
+                  onChange={(e) => setDoseField('immediateReaction')(e.target.value)}
+                  suggestions={AEFI_SYMPTOM_SUGGESTIONS}
+                  minChars={3}
+                  rows={2}
+                  minHeight={64}
+                  placeholder='เช่น ไม่พบอาการผิดปกติหลังสังเกตอาการ 30 นาที'
+                />
+              </div>
             </div>
-
-            <SuggestibleTextarea
-              voice
-              label='อาการผิดปกติหลังได้รับวัคซีน'
-              value={doseDraft.immediateReaction}
-              onChange={(e) => setDoseField('immediateReaction')(e.target.value)}
-              suggestions={AEFI_SYMPTOM_SUGGESTIONS}
-              minChars={3}
-              rows={2}
-              minHeight={64}
-              placeholder='เช่น ไม่พบอาการผิดปกติหลังสังเกตอาการ 30 นาที'
-            />
           </div>
         )}
       </Popup>
@@ -736,7 +796,8 @@ const ImmunizationVaccineBookPage = () => {
         onClose={() => setAefiDraft(null)}
         title={isEditingAefi ? 'แก้ไขบันทึกอาการไม่พึงประสงค์ (AEFI)' : 'บันทึกอาการไม่พึงประสงค์ (AEFI)'}
         subtitle={`${child?.fullName || ''} · HN ${hn}`}
-        size='large'
+        size='extraLarge'
+        height='auto'
         tertiaryAction={{ label: 'ยกเลิก', onClick: () => setAefiDraft(null) }}
         primaryAction={{ label: isEditingAefi ? 'บันทึกการแก้ไข' : 'บันทึก AEFI', onClick: commitAefi }}
       >
@@ -750,8 +811,16 @@ const ImmunizationVaccineBookPage = () => {
               </Banner>
             )}
 
-            <div className='flex items-start gap-4 w-full flex-wrap'>
-              <Field label='เข็มวัคซีนที่อ้างอิง' required>
+            <div
+              className='w-full'
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
+                gap: 'var(--dim-space-400, 16px)',
+                alignItems: 'start',
+              }}
+            >
+              <Field label='เข็มวัคซีนที่อ้างอิง' required span={4}>
                 <Select
                   showLabel={false} searchable size='lg'
                   value={aefiDraft.doseId} onChange={setAefiField('doseId')}
@@ -759,7 +828,7 @@ const ImmunizationVaccineBookPage = () => {
                   placeholder={activeDoses.length === 0 ? 'ยังไม่มีเข็มวัคซีนให้อ้างอิง' : 'เลือกเข็มที่อ้างอิง'}
                 />
               </Field>
-              <Field label='วันที่เริ่มมีอาการ' required>
+              <Field label='วันที่เริ่มมีอาการ' required span={3}>
                 <DatePicker
                   showLabel={false}
                   value={aefiDraft.onsetDate ? new Date(aefiDraft.onsetDate) : null}
@@ -767,10 +836,10 @@ const ImmunizationVaccineBookPage = () => {
                   placeholder='เลือกวันที่'
                 />
               </Field>
-              <Field label='เวลาที่เริ่มมีอาการ' required width={180}>
+              <Field label='เวลาที่เริ่มมีอาการ' required span={2}>
                 <TimePicker showLabel={false} value={aefiDraft.onsetTime} onChange={setAefiField('onsetTime')} placeholder='--:--' />
               </Field>
-              <Field label='ความรุนแรง' required>
+              <Field label='ความรุนแรง' required span={3}>
                 <Select
                   showLabel={false} searchable={false} size='lg'
                   value={aefiDraft.severity} onChange={setAefiField('severity')}
@@ -779,38 +848,53 @@ const ImmunizationVaccineBookPage = () => {
               </Field>
             </div>
 
-            <SuggestibleTextarea
-              voice
-              label='อาการที่พบ'
-              required
-              value={aefiDraft.symptom}
-              onChange={(e) => setAefiField('symptom')(e.target.value)}
-              suggestions={AEFI_SYMPTOM_SUGGESTIONS}
-              minChars={3}
-              placeholder='บรรยายอาการที่พบ ระยะเวลา และความรุนแรง'
-            />
-            <SuggestibleTextarea
-              voice
-              label='การรักษา / การจัดการ'
-              value={aefiDraft.treatment}
-              onChange={(e) => setAefiField('treatment')(e.target.value)}
-              suggestions={AEFI_TREATMENT_SUGGESTIONS}
-              minChars={3}
-              placeholder='การดูแลที่ให้ และคำแนะนำแก่ผู้ปกครอง'
-            />
-            <SuggestibleTextarea
-              voice
-              label='ผลลัพธ์ / การติดตาม'
-              value={aefiDraft.outcome}
-              onChange={(e) => setAefiField('outcome')(e.target.value)}
-              suggestions={['อาการดีขึ้นภายใน 24 ชั่วโมง', 'อาการหายเป็นปกติ ไม่มีภาวะแทรกซ้อน', 'ส่งต่อโรงพยาบาลแม่ข่ายเพื่อดูแลต่อ', 'ติดตามทางโทรศัพท์ครบ 7 วัน อาการปกติ']}
-              minChars={3}
-              rows={2}
-              minHeight={64}
-              placeholder='ผลลัพธ์หลังการดูแล และการติดตาม'
-            />
-            <div className='flex items-start gap-4 w-full flex-wrap'>
-              <Field label='ผู้รายงาน'>
+            {/* อาการที่พบ (ซ้าย) · การรักษา (ขวา) — ใช้ความกว้างของป๊อปอัปให้คุ้ม */}
+            <div
+              className='w-full'
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
+                gap: 'var(--dim-space-400, 16px)',
+                alignItems: 'start',
+              }}
+            >
+              <div className='min-w-0' style={{ gridColumn: 'span 6 / span 6' }}>
+                <SuggestibleTextarea
+                  voice
+                  label='อาการที่พบ'
+                  required
+                  value={aefiDraft.symptom}
+                  onChange={(e) => setAefiField('symptom')(e.target.value)}
+                  suggestions={AEFI_SYMPTOM_SUGGESTIONS}
+                  minChars={3}
+                  placeholder='บรรยายอาการที่พบ ระยะเวลา และความรุนแรง'
+                />
+              </div>
+              <div className='min-w-0' style={{ gridColumn: 'span 6 / span 6' }}>
+                <SuggestibleTextarea
+                  voice
+                  label='การรักษา / การจัดการ'
+                  value={aefiDraft.treatment}
+                  onChange={(e) => setAefiField('treatment')(e.target.value)}
+                  suggestions={AEFI_TREATMENT_SUGGESTIONS}
+                  minChars={3}
+                  placeholder='การดูแลที่ให้ และคำแนะนำแก่ผู้ปกครอง'
+                />
+              </div>
+              <div className='min-w-0' style={{ gridColumn: 'span 8 / span 8' }}>
+                <SuggestibleTextarea
+                  voice
+                  label='ผลลัพธ์ / การติดตาม'
+                  value={aefiDraft.outcome}
+                  onChange={(e) => setAefiField('outcome')(e.target.value)}
+                  suggestions={['อาการดีขึ้นภายใน 24 ชั่วโมง', 'อาการหายเป็นปกติ ไม่มีภาวะแทรกซ้อน', 'ส่งต่อโรงพยาบาลแม่ข่ายเพื่อดูแลต่อ', 'ติดตามทางโทรศัพท์ครบ 7 วัน อาการปกติ']}
+                  minChars={3}
+                  rows={2}
+                  minHeight={64}
+                  placeholder='ผลลัพธ์หลังการดูแล และการติดตาม'
+                />
+              </div>
+              <Field label='ผู้รายงาน' span={4}>
                 <Select
                   showLabel={false} searchable={false} size='lg'
                   value={aefiDraft.reportedBy} onChange={setAefiField('reportedBy')}
@@ -856,21 +940,6 @@ const ImmunizationVaccineBookPage = () => {
           gap: 'var(--dim-space-400, 16px)',
         }}
       >
-        <PatientCard
-          patient={cardPatient}
-          title='สมุดวัคซีน'
-          drugAllergies={intake.drugAllergies}
-          chronicDiseases={intake.chronicDiseases}
-          actions={(
-            <div className='flex items-center' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-              <ColorfulBadge style={epi.style} size='small' hierarchy='secondary'>{`วัคซีน EPI: ${epi.label}`}</ColorfulBadge>
-              {registration
-                ? <ColorfulBadge style='teal' size='small' hierarchy='secondary'>{registration.epiNumber}</ColorfulBadge>
-                : <ColorfulBadge style='grey' size='small' hierarchy='secondary'>ยังไม่มีทะเบียน</ColorfulBadge>}
-            </div>
-          )}
-        />
-
         {!canWrite && (
           <Banner tone='warning' icon='lock'>
             บัญชีของคุณไม่มีสิทธิแก้ไขข้อมูลคลินิกสุขภาพเด็กดี — เปิดดูสมุดวัคซีนได้อย่างเดียว
@@ -879,21 +948,15 @@ const ImmunizationVaccineBookPage = () => {
 
         {activeTab === 'matrix' && (
           <Card>
-            <TopicHeader icon='fact_check'>ตารางความครบถ้วนวัคซีนตามเกณฑ์ EPI</TopicHeader>
-            <div className='flex items-center gap-3 flex-wrap'>
-              <ColorfulBadge style={epi.style} size='small' hierarchy='secondary'>
-                {`${epi.label} · ได้รับแล้ว ${epi.done}/${epi.expected} เข็มที่ถึงกำหนด (${epi.percent}%)`}
-              </ColorfulBadge>
-              <AuditLine>อายุปัจจุบัน {formatAgeYMD(child?.birthDate)}</AuditLine>
+            {/* หัวข้อกับปุ่มบันทึกเข็มอยู่แถวเดียวกัน (มติผู้ใช้ 3 ก.ย. 69) */}
+            <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              <div className='min-w-0 flex-1'>
+                <TopicHeader icon='fact_check'>ตารางความครบถ้วนวัคซีนตามเกณฑ์ EPI</TopicHeader>
+              </div>
+              <BrandSubdueButton variant='outline' size='sm' leadingIcon='add' disabled={!canWrite} onClick={() => canWrite && openNewDose()}>
+                บันทึกเข็มวัคซีน
+              </BrandSubdueButton>
             </div>
-
-            {epi.overdue > 0 && (
-              <Banner tone='danger' icon='warning'>
-                มีเข็มที่เกินกำหนด {epi.overdue} เข็ม — ให้วัคซีนแบบเร่งรัด (catch-up) ตามแนวทางกรมควบคุมโรค
-                โดยไม่ต้องเริ่มนับหนึ่งใหม่ และนัดเข็มถัดไปห่างกันอย่างน้อย 1 เดือน
-              </Banner>
-            )}
-
             <EpiScheduleMatrix
               matrix={matrix}
               onCellClick={(cell) => {
@@ -904,25 +967,19 @@ const ImmunizationVaccineBookPage = () => {
               }}
               emptyMessage='ยังไม่มีรายการวัคซีนในโปรแกรม EPI'
             />
-            <AuditLine>คลิกที่ช่องสถานะเพื่อบันทึกเข็มที่ยังไม่ได้รับ หรือดูประวัติของเข็มที่ได้รับแล้ว</AuditLine>
           </Card>
         )}
 
         {activeTab === 'history' && (
           <Card>
-            <div className='flex items-center justify-between w-full flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-              <TopicHeader icon='history'>ประวัติการได้รับวัคซีนย้อนหลังทั้งหมด</TopicHeader>
-              <div className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                <SelectableTag
-                  label='แสดงรายการที่ยกเลิกแล้ว'
-                  size='md'
-                  selected={showCancelled}
-                  onClick={() => setShowCancelled((v) => !v)}
-                />
-                <BrandSubdueButton variant='outline' size='sm' leadingIcon='domain_add' disabled={!canWrite} onClick={() => canWrite && openNewDose({ otherFacility: true })}>
-                  บันทึกจากหน่วยงานอื่น
-                </BrandSubdueButton>
-                <BrandSubdueButton variant='fill' size='sm' leadingIcon='add' disabled={!canWrite} onClick={() => canWrite && openNewDose()}>
+            {/* หัวข้อกับปุ่มอยู่แถวเดียวกัน (มติผู้ใช้ 3 ก.ย. 69) — TopicHeader กินเต็มแถว
+                จึงต้องครอบด้วยกล่อง min-w-0 แล้วให้ปุ่มไม่ยุบ */}
+            <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              <div className='min-w-0 flex-1'>
+                <TopicHeader icon='history'>ประวัติการได้รับวัคซีนย้อนหลังทั้งหมด</TopicHeader>
+              </div>
+              <div className='flex items-center shrink-0' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                <BrandSubdueButton variant='outline' size='sm' leadingIcon='add' disabled={!canWrite} onClick={() => canWrite && openNewDose()}>
                   บันทึกเข็มวัคซีน
                 </BrandSubdueButton>
               </div>
@@ -973,10 +1030,12 @@ const ImmunizationVaccineBookPage = () => {
 
         {activeTab === 'aefi' && (
           <Card>
-            <div className='flex items-center justify-between w-full flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-              <TopicHeader icon='e911_emergency'>อาการไม่พึงประสงค์ภายหลังได้รับวัคซีน (AEFI)</TopicHeader>
+            <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+              <div className='min-w-0 flex-1'>
+                <TopicHeader icon='e911_emergency'>อาการไม่พึงประสงค์ภายหลังได้รับวัคซีน (AEFI)</TopicHeader>
+              </div>
               <BrandSubdueButton
-                variant='fill' size='sm' leadingIcon='add'
+                variant='outline' size='sm' leadingIcon='add'
                 disabled={!canWrite || activeDoses.length === 0}
                 onClick={() => canWrite && openNewAefi()}
               >
@@ -998,17 +1057,6 @@ const ImmunizationVaccineBookPage = () => {
               stickyColCount={1}
               emptyMessage='ยังไม่มีรายงานอาการไม่พึงประสงค์ของเด็กคนนี้'
             />
-          </Card>
-        )}
-
-        {printLog.length > 0 && (
-          <Card>
-            <TopicHeader icon='print'>ประวัติการพิมพ์เอกสาร</TopicHeader>
-            <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-              {printLog.map((e, i) => (
-                <AuditLine key={`${e.at}-${i}`}>พิมพ์{e.docType} โดย {e.by} · {formatImmDateTime(e.at)}</AuditLine>
-              ))}
-            </div>
           </Card>
         )}
       </div>

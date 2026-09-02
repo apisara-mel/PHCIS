@@ -22,7 +22,6 @@ import {
   MH_DOCTORS,
   getMhQueueRows,
   getMhScheduledNotArrived,
-  checkInMhAppointment,
   cancelMhQueue,
   restoreMhQueue,
   getMhQueueCancellation,
@@ -41,9 +40,9 @@ import { withEmrRowAction } from '@/components/patient/EmrRowAction';
    Mechanics mirror AncQueuePage verbatim (search + filter row + sort +
    pagination + per-tab status split), vocabulary from legacy HCIS
    คู่มือระบบสุขภาพจิต §2.1-2.2: ค้นหาผู้ป่วยด้วย HN / CID / ชื่อ-สกุล,
-   ลำดับคิวซักประวัติ split into ลงทะเบียนส่งตรวจแล้ว (waiting/progress)
-   · ผู้ป่วยนัดที่ยังไม่มาติดต่อ (scheduled tab + ส่งตรวจ check-in) ·
-   ตรวจเสร็จแล้ว (done). ยกเลิกคิว keeps its audit line (ผู้ยกเลิก + เวลา
+   ลำดับคิวซักประวัติ split into ลงทะเบียนส่งตรวจแล้ว (waiting/progress) ·
+   ตรวจเสร็จแล้ว (done) — ผู้ป่วยนัดที่ยังไม่มาติดต่อยุบเข้าแท็บ
+   "รายชื่อผู้ป่วยทั้งหมด" และไม่มีปุ่มส่งตรวจแล้ว (มติผู้ใช้ 3 ก.ย. 69). ยกเลิกคิว keeps its audit line (ผู้ยกเลิก + เวลา
    + เหตุผล) and stays restorable, per playbook §5. */
 
 const breadcrumb = ['บันทึกการรักษา', 'งานสุขภาพจิต'];
@@ -52,13 +51,15 @@ const SUMMARY_TITLE = 'คิวคลินิกสุขภาพจิต';
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:mental-health-queue';
 const PAGE_SIZE = 20;
 
-const buildTabs = (rows, scheduledCount) => [
-  { key: 'all',       label: 'ทั้งหมด',              icon: 'group',           count: rows.length },
-  { key: 'waiting',   label: 'รอตรวจ',               icon: 'schedule',        count: rows.filter((p) => p.statusKey === 'waiting').length },
-  { key: 'progress',  label: 'กำลังตรวจ',            icon: 'assignment',      count: rows.filter((p) => p.statusKey === 'progress').length },
-  { key: 'done',      label: 'ตรวจเสร็จแล้ว',        icon: 'check_circle',    count: rows.filter((p) => p.statusKey === 'done').length },
-  { key: 'draft',     label: 'ที่ร่างไว้',            icon: 'save',            count: rows.filter((p) => p.statusKey === 'draft').length },
-  { key: 'scheduled', label: 'นัดแล้วยังไม่มาติดต่อ', icon: 'event_available', count: scheduledCount },
+/* แท็บสุดท้ายคือ "รายชื่อผู้ป่วยทั้งหมด" = ทะเบียน ไม่ใช่คิว จึงรวมคนที่นัดไว้
+   วันนี้แต่ยังไม่มาติดต่อเข้ามาด้วย (มติผู้ใช้ 3 ก.ย. 69) */
+const buildTabs = (rows, registryCount) => [
+  { key: 'all',       label: 'ทั้งหมด',              icon: 'group',        count: rows.length },
+  { key: 'waiting',   label: 'รอตรวจ',               icon: 'schedule',     count: rows.filter((p) => p.statusKey === 'waiting').length },
+  { key: 'progress',  label: 'กำลังตรวจ',            icon: 'assignment',   count: rows.filter((p) => p.statusKey === 'progress').length },
+  { key: 'done',      label: 'ตรวจเสร็จแล้ว',        icon: 'check_circle', count: rows.filter((p) => p.statusKey === 'done').length },
+  { key: 'draft',     label: 'ที่ร่างไว้',            icon: 'save',         count: rows.filter((p) => p.statusKey === 'draft').length },
+  { key: 'directory', label: 'รายชื่อผู้ป่วยทั้งหมด', icon: 'groups',       count: registryCount },
 ];
 
 const TAB_STATUS_FILTER = {
@@ -73,9 +74,11 @@ const STATUS_BADGE = {
   progress: { style: 'orange', label: 'ตรวจอยู่'      },
   done:     { style: 'teal',   label: 'ตรวจเสร็จแล้ว' },
   draft:    { style: 'grey',   label: 'ที่ร่างไว้'    },
+  /* เฉพาะแท็บทะเบียน — คนที่มีนัดวันนี้แต่ยังไม่มาติดต่อ ยังไม่ได้อยู่ในคิว */
+  scheduled: { style: 'purple', label: 'นัดแล้วยังไม่มา' },
 };
 
-const STATUS_SORT_ORDER = { waiting: 0, progress: 1, done: 2, draft: 3 };
+const STATUS_SORT_ORDER = { waiting: 0, progress: 1, done: 2, draft: 3, scheduled: 4 };
 const WATCH_SORT_ORDER = { suicideRisk: 0, monitor: 1, normal: 2 };
 
 const FILTER_OPTIONS = {
@@ -193,13 +196,13 @@ const MentalHealthQueuePage = () => {
   const rows = useMemo(() => getMhQueueRows(), [tick]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const scheduledNotArrived = useMemo(() => getMhScheduledNotArrived(), [tick]);
-  const tabs = useMemo(() => buildTabs(rows, scheduledNotArrived.length), [rows, scheduledNotArrived]);
-
-  const handleCheckIn = (hn) => {
-    checkInMhAppointment(hn);
-    setTick((t) => t + 1);
-    setActiveTab('waiting');
-  };
+  /* แท็บ "รายชื่อผู้ป่วยทั้งหมด" เป็นทะเบียน ไม่ใช่คิว — จึงรวมคนที่นัดไว้วันนี้
+     แต่ยังไม่มาติดต่อ (กลุ่มนี้ยังไม่มีคิว/เวลารอ) */
+  const registryRows = useMemo(() => ([
+    ...rows,
+    ...scheduledNotArrived.map((r) => ({ ...r, statusKey: 'scheduled' })),
+  ]), [rows, scheduledNotArrived]);
+  const tabs = useMemo(() => buildTabs(rows, registryRows.length), [rows, registryRows]);
 
   const summaryCards = useMemo(() => ([
     { key: 'total',    label: 'คิวทั้งหมดวันนี้',   value: rows.length, color: 'info', icon: 'directions_walk' },
@@ -209,8 +212,7 @@ const MentalHealthQueuePage = () => {
   ]), [rows]);
 
   const filtered = useMemo(() => {
-    if (activeTab === 'scheduled') return [];
-    let result = rows;
+    let result = activeTab === 'directory' ? registryRows : rows;
     const tabPred = TAB_STATUS_FILTER[activeTab];
     if (tabPred) result = result.filter(tabPred);
     if (filters.watch !== 'all') result = result.filter((r) => resolveMhWatchLevel(r).key === filters.watch);
@@ -226,7 +228,7 @@ const MentalHealthQueuePage = () => {
     }
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, filters, searchQ, tick]);
+  }, [activeTab, filters, searchQ, tick, registryRows]);
 
   const sortedRows = useMemo(() => {
     const sign = sortConfig.direction === 'desc' ? -1 : 1;
@@ -385,7 +387,6 @@ const MentalHealthQueuePage = () => {
     ) : (
       <NeutralSubdueButton
         size='sm'
-        leadingIcon='block'
         onClick={(e) => { e.stopPropagation(); openCancelPopup(row); }}
       >
         ยกเลิกคิว
@@ -415,47 +416,16 @@ const MentalHealthQueuePage = () => {
     /* ชื่อผู้ให้บริการโชว์เฉพาะแท็บ "ทั้งหมด" (มติผู้ใช้ 2 ก.ย. 69 · ทำไว้ที่คิว
        ฝากครรภ์ก่อน) — แท็บที่เป็นคิวนั้นผู้ใช้เห็นเฉพาะคิวของตัวเอง ชื่อผู้ตรวจจึง
        ซ้ำกันทุกแถว ส่วนแท็บทั้งหมดเป็นรายชื่อข้ามผู้ให้บริการ จึงต้องบอกว่าใครดูแล */
-    ...(activeTab === 'all' ? [{ key: 'doctor',   label: 'แพทย์',            flex: true, minWidth: 150 }] : []),
+    ...(activeTab === 'all' || activeTab === 'directory' ? [{ key: 'doctor',   label: 'แพทย์',            flex: true, minWidth: 150 }] : []),
     { key: 'telemed',  label: 'Telemedicine', align: 'center', sortable: false, render: renderTelemedicine },
     { key: 'wait',     label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',   label: 'สถานะ', render: renderStatus },
     { key: 'actions',  label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
+    /* แท็บทะเบียนตัดคอลัมน์ที่เป็นเรื่องของคิววันนี้ออก — แถวที่นัดไว้แต่ยังไม่มา
+       ยังไม่มีเลขคิวและเวลารอ */
+  ].filter((c) => !(activeTab === 'directory' && ['queue', 'wait'].includes(c.key)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [tick, activeTab]);
-
-  /* ผู้ป่วยนัดที่ยังไม่มาติดต่อ (manual §2.2 tab 2) — a different row shape
-     (เวลานัด instead of queue/wait/status), so its own columns + ส่งตรวจ. */
-  const scheduledColumns = useMemo(() => ([
-    { key: 'appointmentTime', label: 'เวลานัด' },
-    { key: 'hn',              label: 'HN' },
-    {
-      key: 'name', label: 'ชื่อ-นามสกุล', flex: true, minWidth: 160,
-      render: (r) => (
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
-          <MaskedWorklistName name={r.name} recordKey={r.hn || r.queue} className='truncate' />
-          {/* นัดที่บันทึกจากใบบันทึกสุขภาพจิต — แยกจากนัดที่ตั้งไว้ล่วงหน้า */}
-          {r.fromVisitRecord && (
-            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-              นัดจากใบบันทึกการตรวจ{r.bookedBy ? ` · โดย ${r.bookedBy}` : ''}
-            </span>
-          )}
-        </div>
-      ),
-    },
-    { key: 'cid',             label: 'เลขบัตรประชาชน' },
-    { key: 'insurance',       label: 'สิทธิ' },
-    { key: 'mhNumber',        label: 'เลขที่สุขภาพจิต', render: (r) => r.mhNumber || '—' },
-    { key: 'chiefComplaint',  label: 'นัดหมายเรื่อง', flex: true, minWidth: 200 },
-    {
-      key: 'checkin', label: 'การดำเนินการ', sortable: false,
-      render: (row) => (
-        <BrandSubdueButton variant='fill' size='sm' leadingIcon='login' onClick={(e) => { e.stopPropagation(); handleCheckIn(row.hn); }}>
-          ส่งตรวจ
-        </BrandSubdueButton>
-      ),
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), []);
+  ), [tick, activeTab]);
 
   return (
     <QueuePageShell
@@ -559,17 +529,8 @@ const MentalHealthQueuePage = () => {
             </OverflowFlexRow>
           </div>
 
-          {activeTab === 'scheduled' ? (
-            <Table
-              columns={scheduledColumns}
-              rows={scheduledNotArrived}
-              rowKey={(row) => row.hn}
-              emptyMessage='ไม่มีนัดหมายที่ยังไม่มาติดต่อวันนี้'
-            />
-          ) : (
-            <>
-            <SmoothFilterResults opaque={resultsOpaque}>
-              <SearchResultCount found={sortedRows.length} total={rows.length} />
+          <SmoothFilterResults opaque={resultsOpaque}>
+              <SearchResultCount found={sortedRows.length} total={activeTab === 'directory' ? registryRows.length : rows.length} />
               <Table
                 columns={columns}
                 rows={pageRows}
@@ -600,9 +561,7 @@ const MentalHealthQueuePage = () => {
                 <div className='flex-1' />
                 <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
               </div>
-            </SmoothFilterResults>
-            </>
-          )}
+          </SmoothFilterResults>
         </div>
       </div>
     </QueuePageShell>

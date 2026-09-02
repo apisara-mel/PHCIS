@@ -1,9 +1,8 @@
 import React, { useMemo } from 'react';
 import Table from '@/components/table/Table';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
-import Icon from '@/components/icons/Icon';
 import { EPI_AGE_MILESTONES } from '@/data/immunizationVaccines';
-import { DOSE_STATUS_META, formatImmDate } from '@/data/immunizationClinic';
+import { DOSE_STATUS_META, formatImmDate, resolveDoseSource } from '@/data/immunizationClinic';
 
 /* EpiScheduleMatrix — ตารางความครบถ้วนวัคซีน EPI รายคน (TOR §1.11.2.4):
    แถว = รายการวัคซีน · คอลัมน์ = ช่วงอายุตามตาราง EPI · ช่อง = สถานะเข็ม
@@ -20,10 +19,14 @@ const CellBadge = ({ cell, onCellClick }) => {
     ? `เข็มที่ ${cell.seq} — ได้รับเมื่อ ${formatImmDate(cell.given?.date)}${cell.given?.otherFacility ? ` (${cell.given.facilityName || 'หน่วยงานอื่น'})` : ''}`
     : `เข็มที่ ${cell.seq} — ครบกำหนด ${formatImmDate(cell.dueDate)}`;
 
+  /* เขียนสถานะเป็นคำในช่องไปเลย (มติผู้ใช้ 3 ก.ย. 69) — อ่านง่ายกว่าอ่านจากสี
+     อย่างเดียว และไม่ต้องเทียบกับคำอธิบายสีด้านบนตาราง */
+  /* เข็มที่ไม่ได้ฉีดที่ศูนย์ ต่อท้ายแหล่งที่มา (รพ.อื่น / อนามัยโรงเรียน / ออกหน่วย) */
+  const source = cell.status === 'done' ? resolveDoseSource(cell.given) : null;
   const badge = (
     <ColorfulBadge style={meta.style} size='small' hierarchy='secondary'>
-      {`เข็ม ${cell.seq}`}
-      {cell.status === 'done' && cell.given?.otherFacility ? ' ·นอก' : ''}
+      {`เข็ม ${cell.seq} · ${meta.label}`}
+      {source && source.key !== 'center' ? ` · ${source.short}` : ''}
     </ColorfulBadge>
   );
 
@@ -71,9 +74,8 @@ const EpiScheduleMatrix = ({ matrix = [], onCellClick, emptyMessage = 'ยัง
       sortable: false,
       render: (row) => {
         const cells = row.cells.filter((c) => c.months === m.months);
-        if (cells.length === 0) {
-          return <span style={{ color: 'var(--text-content-quaternary, #ADB2B7)' }}>—</span>;
-        }
+        /* ช่องที่ไม่มีเข็มปล่อยว่าง — ไม่ใส่ขีด (มติผู้ใช้ 3 ก.ย. 69) */
+        if (cells.length === 0) return null;
         return (
           <div className='flex items-center justify-center flex-wrap' style={{ gap: 'var(--dim-space-100, 4px)' }}>
             {cells.map((c) => (
@@ -87,14 +89,6 @@ const EpiScheduleMatrix = ({ matrix = [], onCellClick, emptyMessage = 'ยัง
 
   return (
     <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-        {Object.entries(DOSE_STATUS_META).map(([key, meta]) => (
-          <span key={key} className='inline-flex items-center' style={{ gap: 'var(--dim-space-100, 4px)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-            <Icon name={meta.icon} size={14} />
-            <ColorfulBadge style={meta.style} size='small' hierarchy='secondary'>{meta.label}</ColorfulBadge>
-          </span>
-        ))}
-      </div>
       <Table
         columns={columns}
         rows={matrix}

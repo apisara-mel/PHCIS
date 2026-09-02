@@ -53,6 +53,8 @@ import { MIH_CHROME_MORPH_STEP_BAND } from '@/components/layout/wizardChromeMorp
                         panel flush under SubHeader — e.g. Appointment staff hero
      stickyHeaderInfo — when true, headerInfo sticks under Topbar (or SubHeader)
      headerInfoDense   — tighter collapsed padding on PageHeaderInfoPanel (consent wizard)
+     headerInfoFlat    — แผง headerInfo ไม่มีเส้นขอบล่าง/เงา สำหรับหน้าที่ใส่การ์ด
+                        ที่มีเงาของตัวเองอยู่แล้ว (สมุดวัคซีน)
      belowSummary     — optional slot rendered directly under the summary cards
                         (or under SubHeader when there are no summary cards),
                         above the sticky tab strip — e.g. a cross-module nav row
@@ -126,6 +128,7 @@ const QueuePageShell = ({
   headerInfo,
   stickyHeaderInfo = false,
   headerInfoDense = false,
+  headerInfoFlat = false,
   belowSummary,
   tabs,
   upcoming = null,
@@ -372,10 +375,10 @@ const QueuePageShell = ({
                 background: 'var(--surface-card-100)',
               }}
             >
-              <PageHeaderInfoPanel dense={headerInfoDense}>{headerInfo}</PageHeaderInfoPanel>
+              <PageHeaderInfoPanel dense={headerInfoDense} flat={headerInfoFlat}>{headerInfo}</PageHeaderInfoPanel>
             </div>
           ) : (
-            <PageHeaderInfoPanel dense={headerInfoDense}>{headerInfo}</PageHeaderInfoPanel>
+            <PageHeaderInfoPanel dense={headerInfoDense} flat={headerInfoFlat}>{headerInfo}</PageHeaderInfoPanel>
           )
         ) : null}
 

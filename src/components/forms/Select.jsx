@@ -443,6 +443,8 @@ const Select = React.forwardRef(function Select(
     onConfirmSelection,
     options = [],
     leadingIcon,
+    /** ขนาดรูปในช่องเลือก (opt-in) — ค่าเริ่มต้นวงกลม 32px เท่ากับใน dropdown */
+    imageSize = 'var(--dim-size-600, 32px)',
     badge,
     /* Show/hide flags — match Figma Property panel exactly. */
     showFieldName = true,
@@ -718,8 +720,8 @@ const Select = React.forwardRef(function Select(
             <span
               className='shrink-0 inline-flex items-center justify-center overflow-hidden'
               style={{
-                width: 'var(--dim-size-600, 32px)',
-                height: 'var(--dim-size-600, 32px)',
+                width: imageSize,
+                height: imageSize,
                 borderRadius: '50%',
                 background: 'var(--surface-card-100, #F4FBF8)',
               }}

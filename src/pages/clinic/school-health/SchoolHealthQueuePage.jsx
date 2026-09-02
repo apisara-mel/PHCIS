@@ -25,7 +25,7 @@ import {
 import { schoolOptions, gradeOptionsForSchool } from '@/data/schoolHealthSchools';
 import { getActiveStudents, rightLabel, rightStyle } from '@/data/schoolHealthStudents';
 import {
-  getQueueRows, getScheduledNotArrived, checkInStudent, cancelQueue, restoreQueue,
+  getQueueRows, getScheduledNotArrived, cancelQueue, restoreQueue,
   setQueueStatus, QUEUE_STATUS, SERVICE_TYPES, getDashboardData,
 } from '@/data/schoolHealthServices';
 import {
@@ -98,14 +98,21 @@ const SchoolHealthQueuePage = () => {
     setPage(1);
   });
 
+  /* แท็บ "รายชื่อผู้ป่วยทั้งหมด" เป็นทะเบียน ไม่ใช่คิว — จึงรวมนักเรียนที่นัดไว้
+     วันนี้แต่ยังไม่มาติดต่อ (กลุ่มนี้ยังไม่มีคิว/เวลามาถึง · มติผู้ใช้ 3 ก.ย. 69) */
+  const registryRows = useMemo(() => ([
+    ...rows,
+    ...scheduled.map((r) => ({ ...r, statusKey: 'scheduled' })),
+  ]), [rows, scheduled]);
+
   const tabs = useMemo(() => ([
     { key: 'all', label: 'ทั้งหมด', icon: 'group', count: rows.length },
     { key: 'waiting', label: 'รอตรวจ', icon: 'schedule', count: rows.filter(TAB_PREDICATE.waiting).length },
     { key: 'progress', label: 'กำลังตรวจ', icon: 'assignment', count: rows.filter(TAB_PREDICATE.progress).length },
     { key: 'done', label: 'ตรวจเสร็จแล้ว', icon: 'check_circle', count: rows.filter(TAB_PREDICATE.done).length },
     { key: 'draft', label: 'ที่ร่างไว้', icon: 'save', count: rows.filter(TAB_PREDICATE.draft).length },
-    { key: 'scheduled', label: 'นัดแล้วยังไม่มาติดต่อ', icon: 'event_available', count: scheduled.length },
-  ]), [rows, scheduled]);
+    { key: 'directory', label: 'รายชื่อผู้ป่วยทั้งหมด', icon: 'groups', count: registryRows.length },
+  ]), [rows, registryRows]);
 
   const summaryCards = useMemo(() => ([
     { key: 'students', label: 'นักเรียนในความดูแลทั้งหมด', value: thNum(allStudents.length), color: 'info', icon: 'school' },
@@ -116,8 +123,7 @@ const SchoolHealthQueuePage = () => {
   ]), [allStudents, rows, dashboard]);
 
   const filtered = useMemo(() => {
-    if (activeTab === 'scheduled') return [];
-    let result = rows;
+    let result = activeTab === 'directory' ? registryRows : rows;
     const pred = TAB_PREDICATE[activeTab];
     if (pred) result = result.filter(pred);
     if (filters.school !== 'all') result = result.filter((r) => r.schoolId === filters.school);
@@ -129,7 +135,7 @@ const SchoolHealthQueuePage = () => {
         .some((f) => f && String(f).toLowerCase().includes(q)));
     }
     return result;
-  }, [rows, activeTab, filters, searchQ]);
+  }, [rows, registryRows, activeTab, filters, searchQ]);
 
   const sortedRows = useMemo(() => {
     const sign = sortConfig.direction === 'desc' ? -1 : 1;
@@ -226,9 +232,12 @@ const SchoolHealthQueuePage = () => {
     {
       key: 'status',
       label: 'สถานะ',
-      render: (r) => (r.cancellation
-        ? <ColorfulBadge style='red' size='small' hierarchy='secondary'>ยกเลิกคิวแล้ว</ColorfulBadge>
-        : <ColorfulBadge style={QUEUE_STATUS[r.statusKey]?.style || 'grey'} size='small' hierarchy='secondary'>{QUEUE_STATUS[r.statusKey]?.label || '—'}</ColorfulBadge>),
+      render: (r) => {
+        if (r.cancellation) return <ColorfulBadge style='red' size='small' hierarchy='secondary'>ยกเลิกคิวแล้ว</ColorfulBadge>;
+        /* เฉพาะแท็บทะเบียน — นักเรียนที่นัดไว้แต่ยังไม่มาติดต่อ ยังไม่ได้อยู่ในคิว */
+        if (r.statusKey === 'scheduled') return <ColorfulBadge style='purple' size='small' hierarchy='secondary'>นัดแล้วยังไม่มา</ColorfulBadge>;
+        return <ColorfulBadge style={QUEUE_STATUS[r.statusKey]?.style || 'grey'} size='small' hierarchy='secondary'>{QUEUE_STATUS[r.statusKey]?.label || '—'}</ColorfulBadge>;
+      },
     },
     {
       key: 'actions',
@@ -279,7 +288,6 @@ const SchoolHealthQueuePage = () => {
           ) : (
             <DangerSubdueButton
               size='sm'
-              leadingIcon='block'
               disabled={!canWrite}
               onClick={(e) => {
                 e.stopPropagation();
@@ -295,42 +303,11 @@ const SchoolHealthQueuePage = () => {
         </div>
       ),
     },
+    /* แท็บทะเบียนตัดคอลัมน์ที่เป็นเรื่องของคิววันนี้ออก — แถวที่นัดไว้แต่ยังไม่มา
+       ยังไม่มีเลขคิวและเวลามาถึง */
+  ].filter((c) => !(activeTab === 'directory' && ['queue', 'arriveAt'].includes(c.key)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [canWrite, tick]);
-
-  const scheduledColumns = useMemo(() => ([
-    { key: 'appointmentTime', label: 'เวลานัด' },
-    { key: 'hn', label: 'HN' },
-    { key: 'name', label: 'ชื่อ-นามสกุลนักเรียน', flex: true, minWidth: 190, render: (r) => <MaskedWorklistName name={r.fullName} recordKey={r.hn} /> },
-    { key: 'schoolName', label: 'โรงเรียน', flex: true, minWidth: 190 },
-    { key: 'room', label: 'ชั้น/ห้อง', render: (r) => `${r.gradeName} · ${r.roomName}` },
-    { key: 'serviceLabel', label: 'กิจกรรมบริการ' },
-    { key: 'note', label: 'หมายเหตุ', flex: true, minWidth: 200, sortable: false },
-    {
-      key: 'checkin',
-      label: 'การดำเนินการ',
-      sortable: false,
-      render: (r) => (
-        <BrandSubdueButton
-          variant='fill'
-          size='sm'
-          leadingIcon='login'
-          disabled={!canWrite}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!canWrite) return;
-            checkInStudent(r.studentId, r.serviceType);
-            setTick((t) => t + 1);
-            setActiveTab('waiting');
-            setToast(`ลงทะเบียนรับบริการ ${r.fullName} แล้ว`);
-          }}
-        >
-          ลงทะเบียนรับบริการ
-        </BrandSubdueButton>
-      ),
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [canWrite]);
+  ), [canWrite, tick, activeTab]);
 
   return (
     <QueuePageShell
@@ -469,25 +446,9 @@ const SchoolHealthQueuePage = () => {
           </div>
 
           <SmoothFilterResults opaque={resultsOpaque}>
-            <SearchResultCount found={activeTab === 'scheduled' ? scheduled.length : sortedRows.length} total={rows.length} unit='คิว' />
+            <SearchResultCount found={sortedRows.length} total={activeTab === 'directory' ? registryRows.length : rows.length} unit='คิว' />
 
-            {activeTab === 'scheduled' ? (
-              scheduled.length === 0 ? (
-                <NoticeBar tone='brand' icon='event_available'>
-                  ไม่มีนักเรียนที่นัดไว้แล้วยังไม่มาติดต่อในวันนี้ — รายการจะปรากฏเมื่อมีนัดตามแผนออกให้บริการ
-                </NoticeBar>
-              ) : (
-                <Table
-                  columns={scheduledColumns}
-                  rows={scheduled}
-                  rowKey={(r) => r.id}
-                  stickyColCount={2}
-                  stickyHeaderTop={QUEUE_STICKY_UNDER_TABS}
-                  emptyMessage='ไม่มีนัดหมายที่ยังไม่มาติดต่อ'
-                />
-              )
-            ) : (
-              <>
+            <>
                 <Table
                   columns={columns}
                   rows={pageRows}
@@ -502,8 +463,7 @@ const SchoolHealthQueuePage = () => {
                   emptySubtext='ลองล้างตัวกรอง หรือเลือกแท็บ "ทั้งหมด" เพื่อดูคิวทุกสถานะ'
                 />
                 <PagerRow page={page} pageSize={PAGE_SIZE} total={sortedRows.length} onPageChange={setPage} unit='คิว' sticky />
-              </>
-            )}
+            </>
           </SmoothFilterResults>
         </div>
 

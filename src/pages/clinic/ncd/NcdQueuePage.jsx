@@ -26,7 +26,6 @@ import {
   NCD_DOCTOR_OPTIONS,
   getNcdQueueRows,
   getNcdScheduledNotArrived,
-  checkInNcdAppointment,
   getNcdCancellation,
 } from '@/data/ncdVisits';
 import MaskedWorklistName from '@/components/privacy/MaskedWorklistName';
@@ -38,8 +37,9 @@ import { withEmrRowAction } from '@/components/patient/EmrRowAction';
    ถุงลมโป่งพอง), TOR 1.10.2.1 + 1.10.2.2. Mirrors AncQueuePage (the §1.10.x
    clinic prototype — playbook §3) verbatim in mechanics: PrimarySearch +
    history, tag-filter row, column-header sort, "แสดง X–Y จาก Z รายการ"
-   pagination, and the separate "นัดแล้วยังไม่มาติดต่อ" tab whose ส่งตรวจ
-   check-in moves the appointment into รอตรวจ via sessionStorage + tick.
+   pagination. The separate "นัดแล้วยังไม่มาติดต่อ" tab was folded into
+   "รายชื่อผู้ป่วยทั้งหมด" (มติผู้ใช้ 3 ก.ย. 69) — the queue no longer offers a
+   ส่งตรวจ check-in; front-desk (เวชระเบียน) sends the patient in.
    ANC's G-P / gestational-age / risk columns swap for the NCD disease-group
    badge column (DM · HT · Asthma · COPD) and the Telemedicine videocam
    marker. Registry ยกเลิก state (from NcdRegistryPage) is FLAGGED on the
@@ -52,13 +52,15 @@ const SUMMARY_TITLE = 'คิวกลุ่มโรคเฉพาะ NCD';
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:ncd-queue';
 const PAGE_SIZE = 20;
 
-const buildTabs = (rows, scheduledCount) => [
-  { key: 'all',       label: 'ทั้งหมด',              icon: 'group',           count: rows.length },
-  { key: 'waiting',   label: 'รอตรวจ',               icon: 'schedule',        count: rows.filter((p) => p.statusKey === 'waiting').length },
-  { key: 'progress',  label: 'กำลังตรวจ',            icon: 'assignment',      count: rows.filter((p) => p.statusKey === 'progress').length },
-  { key: 'done',      label: 'ตรวจเสร็จแล้ว',        icon: 'check_circle',    count: rows.filter((p) => p.statusKey === 'done').length },
-  { key: 'draft',     label: 'ที่ร่างไว้',            icon: 'save',            count: rows.filter((p) => p.statusKey === 'draft').length },
-  { key: 'scheduled', label: 'นัดแล้วยังไม่มาติดต่อ', icon: 'event_available', count: scheduledCount },
+/* แท็บสุดท้ายคือ "รายชื่อผู้ป่วยทั้งหมด" = ทะเบียน ไม่ใช่คิว จึงรวมคนที่นัดไว้
+   วันนี้แต่ยังไม่มาติดต่อเข้ามาด้วย (มติผู้ใช้ 3 ก.ย. 69) */
+const buildTabs = (rows, registryCount) => [
+  { key: 'all',       label: 'ทั้งหมด',              icon: 'group',        count: rows.length },
+  { key: 'waiting',   label: 'รอตรวจ',               icon: 'schedule',     count: rows.filter((p) => p.statusKey === 'waiting').length },
+  { key: 'progress',  label: 'กำลังตรวจ',            icon: 'assignment',   count: rows.filter((p) => p.statusKey === 'progress').length },
+  { key: 'done',      label: 'ตรวจเสร็จแล้ว',        icon: 'check_circle', count: rows.filter((p) => p.statusKey === 'done').length },
+  { key: 'draft',     label: 'ที่ร่างไว้',            icon: 'save',         count: rows.filter((p) => p.statusKey === 'draft').length },
+  { key: 'directory', label: 'รายชื่อผู้ป่วยทั้งหมด', icon: 'groups',       count: registryCount },
 ];
 
 const TAB_STATUS_FILTER = {
@@ -73,9 +75,11 @@ const STATUS_BADGE = {
   progress: { style: 'orange', label: 'ตรวจอยู่'      },
   done:     { style: 'teal',   label: 'ตรวจเสร็จแล้ว' },
   draft:    { style: 'grey',   label: 'ที่ร่างไว้'    },
+  /* เฉพาะแท็บทะเบียน — คนที่มีนัดวันนี้แต่ยังไม่มาติดต่อ ยังไม่ได้อยู่ในคิว */
+  scheduled: { style: 'purple', label: 'นัดแล้วยังไม่มา' },
 };
 
-const STATUS_SORT_ORDER = { waiting: 0, progress: 1, done: 2, draft: 3 };
+const STATUS_SORT_ORDER = { waiting: 0, progress: 1, done: 2, draft: 3, scheduled: 4 };
 const GROUP_SORT_ORDER = { dm: 0, ht: 1, asthma: 2, copd: 3 };
 
 const FILTER_OPTIONS = {
@@ -194,18 +198,17 @@ const NcdQueuePage = () => {
   const rows = useMemo(() => getNcdQueueRows(), [tick]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const scheduledNotArrived = useMemo(() => getNcdScheduledNotArrived(), [tick]);
-  const tabs = useMemo(() => buildTabs(rows, scheduledNotArrived.length), [rows, scheduledNotArrived]);
+  /* แท็บ "รายชื่อผู้ป่วยทั้งหมด" เป็นทะเบียน ไม่ใช่คิว — จึงรวมคนที่นัดไว้วันนี้
+     แต่ยังไม่มาติดต่อ (กลุ่มนี้ยังไม่มีคิว/เวลารอ) */
+  const registryRows = useMemo(() => ([
+    ...rows,
+    ...scheduledNotArrived.map((r) => ({ ...r, statusKey: 'scheduled' })),
+  ]), [rows, scheduledNotArrived]);
+  const tabs = useMemo(() => buildTabs(rows, registryRows.length), [rows, registryRows]);
 
-  /* E4 — a follow-up booked from the record lands in "นัดแล้วยังไม่มาติดต่อ"
-     as soon as the /appointment store notifies, closing the
-     จอง → มาถึง → ส่งตรวจ loop without leaving the module. */
+  /* E4 — a follow-up booked from the record shows up in "รายชื่อผู้ป่วยทั้งหมด"
+     as soon as the /appointment store notifies. */
   useEffect(() => subscribeExtraAppointments(() => setTick((t) => t + 1)), []);
-
-  const handleCheckIn = (hn) => {
-    checkInNcdAppointment(hn);
-    setTick((t) => t + 1);
-    setActiveTab('waiting');
-  };
 
   const groupCount = (key) => rows.filter((p) => (p.diseaseGroups || []).includes(key)).length;
   const summaryCards = useMemo(() => ([
@@ -218,8 +221,7 @@ const NcdQueuePage = () => {
   ]), [rows]);
 
   const filtered = useMemo(() => {
-    if (activeTab === 'scheduled') return [];
-    let result = rows;
+    let result = activeTab === 'directory' ? registryRows : rows;
     const tabPred = TAB_STATUS_FILTER[activeTab];
     if (tabPred) result = result.filter(tabPred);
     if (filters.group !== 'all') result = result.filter((r) => (r.diseaseGroups || []).includes(filters.group));
@@ -235,7 +237,7 @@ const NcdQueuePage = () => {
     }
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, filters, searchQ, tick]);
+  }, [activeTab, filters, searchQ, tick, registryRows]);
 
   const sortedRows = useMemo(() => {
     const sign = sortConfig.direction === 'desc' ? -1 : 1;
@@ -375,36 +377,15 @@ const NcdQueuePage = () => {
     /* ชื่อผู้ให้บริการโชว์เฉพาะแท็บ "ทั้งหมด" (มติผู้ใช้ 2 ก.ย. 69 · ทำไว้ที่คิว
        ฝากครรภ์ก่อน) — แท็บที่เป็นคิวนั้นผู้ใช้เห็นเฉพาะคิวของตัวเอง ชื่อผู้ตรวจจึง
        ซ้ำกันทุกแถว ส่วนแท็บทั้งหมดเป็นรายชื่อข้ามผู้ให้บริการ จึงต้องบอกว่าใครดูแล */
-    ...(activeTab === 'all' ? [{ key: 'doctor',  label: 'แพทย์ผู้ดูแล',   flex: true, minWidth: 140 }] : []),
+    ...(activeTab === 'all' || activeTab === 'directory' ? [{ key: 'doctor',  label: 'แพทย์ผู้ดูแล',   flex: true, minWidth: 140 }] : []),
     { key: 'wait',    label: 'รอนาน',  render: (r) => (r.waitMinutes ? `${r.waitMinutes} นาที` : '—') },
     { key: 'status',  label: 'สถานะ', render: renderStatus },
     { key: 'actions', label: 'การดำเนินการ', sortable: false, render: withEmrRowAction(renderActions) },
+    /* แท็บทะเบียนตัดคอลัมน์ที่เป็นเรื่องของคิววันนี้ออก — แถวที่นัดไว้แต่ยังไม่มา
+       ยังไม่มีเลขคิว ห้องตรวจ และเวลารอ */
+  ].filter((c) => !(activeTab === 'directory' && ['queue', 'wait', 'room'].includes(c.key)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [tick, activeTab]);
-
-  /* "นัดแล้วยังไม่มาติดต่อ" — different row shape (เวลานัด instead of
-     queue/wait/status) + a ส่งตรวจ check-in action. */
-  const scheduledColumns = useMemo(() => ([
-    { key: 'appointmentTime', label: 'เวลานัด' },
-    { key: 'hn',              label: 'HN' },
-    { key: 'name',            label: 'ชื่อ-นามสกุล',  flex: true, minWidth: 160 },
-    { key: 'group',           label: 'กลุ่มโรค', render: renderGroups },
-    { key: 'clinic',          label: 'คลินิก' },
-    {
-      key: 'source', label: 'ที่มาของนัด', sortable: false,
-      render: (row) => (row.fromRecord
-        ? <ColorfulBadge style='teal' size='small' hierarchy='secondary'>นัดจากบันทึกการตรวจ</ColorfulBadge>
-        : <ColorfulBadge style='grey' size='small' hierarchy='secondary'>นัดล่วงหน้า</ColorfulBadge>)},
-    {
-      key: 'checkin', label: 'การดำเนินการ', sortable: false,
-      render: (row) => (
-        <BrandSubdueButton variant='fill' size='sm' leadingIcon='login' onClick={(e) => { e.stopPropagation(); handleCheckIn(row.hn); }}>
-          ส่งตรวจ
-        </BrandSubdueButton>
-      ),
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), []);
+  ), [tick, activeTab]);
 
   return (
     <QueuePageShell
@@ -483,17 +464,8 @@ const NcdQueuePage = () => {
             </OverflowFlexRow>
           </div>
 
-          {activeTab === 'scheduled' ? (
-            <Table
-              columns={scheduledColumns}
-              rows={scheduledNotArrived}
-              rowKey={(row) => row.hn}
-              emptyMessage='ไม่มีนัดหมายที่ยังไม่มาติดต่อวันนี้'
-            />
-          ) : (
-            <>
-            <SmoothFilterResults opaque={resultsOpaque}>
-              <SearchResultCount found={sortedRows.length} total={rows.length} />
+          <SmoothFilterResults opaque={resultsOpaque}>
+              <SearchResultCount found={sortedRows.length} total={activeTab === 'directory' ? registryRows.length : rows.length} />
               <Table
                 columns={columns}
                 rows={pageRows}
@@ -524,9 +496,7 @@ const NcdQueuePage = () => {
                 <div className='flex-1' />
                 <Pagination currentPage={page} pageCount={totalPages} onPageChange={setPage} />
               </div>
-            </SmoothFilterResults>
-            </>
-          )}
+          </SmoothFilterResults>
         </div>
       </div>
     </QueuePageShell>
