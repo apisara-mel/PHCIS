@@ -78,7 +78,6 @@ import {
   PAIN_SCALE,
   PRESSURE_SORE_OPTIONS,
   ROLE_NOTE_SECTIONS,
-  CARE_ACTIVITIES,
   FAMILY_RELATIONS,
   FAMILY_HEALTH_OPTIONS,
   HOMEVISIT_ASSESSMENT_SUGGESTIONS,
@@ -113,6 +112,10 @@ import {
   resolveSource,
   HOMEVISIT_SOURCES,
 } from '@/data/homevisitVisits';
+import {
+  getHomeVisitCareActivities,
+  getHomeVisitCareTemplates,
+} from '@/data/homevisitCareTemplates';
 import {
   MNA_ITEMS,
   MNA_MAX_SCORE,
@@ -163,6 +166,21 @@ import {
   EmptyHint,
   AuditStamp,
 } from '@/pages/homevisit/homevisitShared';
+
+const snapshotCarePlan = (template) => ({
+  templateId: template.id,
+  problem: template.problem,
+  goal: template.goal,
+  horizon: template.horizon,
+  activityIds: [...(template.activityIds || [])],
+  evaluation: template.evaluation,
+  professionGroup: template.professionGroup,
+});
+
+const carePlanText = (plans = []) => plans
+  .map((plan) => [plan.problem, plan.goal].filter(Boolean).join(' — '))
+  .filter(Boolean)
+  .join('\n');
 
 /* HomeVisitSteps — เนื้อหา 7 ขั้นตอนของ "บันทึกประเมินการเยี่ยมบ้าน"
    (TOR 1.10.12.2 + 1.10.12.3 + §1.18.3–1.18.10) ที่เสียบเข้า
@@ -2116,6 +2134,33 @@ export const HomeVisitStep7Family = ({
   const [nhsoClaim, setNhsoClaim] = useState(() => (visitId ? getNhsoClaim(visitId) : null));
 
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
+  const activeCareTemplates = getHomeVisitCareTemplates({ activeOnly: true });
+  const careActivities = getHomeVisitCareActivities();
+  const selectedCarePlans = Array.isArray(form.carePlans) ? form.carePlans : [];
+
+  /* เก็บ snapshot ของ template ลงใบเยี่ยม แม่แบบที่สำนักปิดใช้ภายหลังจึงยังอ่าน
+     ประวัติเดิมได้ครบ แต่ไม่ขึ้นเป็นตัวเลือกสำหรับการเยี่ยมครั้งใหม่. */
+  const setCarePlanIds = (ids) => setForm((current) => {
+    const selectedIds = Array.isArray(ids) ? ids : [ids];
+    const existing = Array.isArray(current.carePlans) ? current.carePlans : [];
+    const plans = selectedIds.map((id) => existing.find((plan) => plan.templateId === id)
+      || snapshotCarePlan(activeCareTemplates.find((template) => template.id === id))).filter(Boolean);
+    const activityIds = [...new Set(plans.flatMap((plan) => plan.activityIds || []))];
+    const oldNote = current.carePlanNote ?? current.planNote ?? '';
+    return {
+      ...current,
+      carePlans: plans,
+      activities: Object.fromEntries(activityIds.map((id) => [id, true])),
+      carePlanNote: oldNote,
+      planNote: [carePlanText(plans), oldNote].filter(Boolean).join('\n'),
+    };
+  });
+
+  const setCarePlanNote = (value) => setForm((current) => ({
+    ...current,
+    carePlanNote: value,
+    planNote: [carePlanText(current.carePlans || []), value].filter(Boolean).join('\n'),
+  }));
 
   const addMember = () => setForm((f) => ({
     ...f,
@@ -2198,7 +2243,7 @@ export const HomeVisitStep7Family = ({
       roleNotes: ROLE_NOTE_SECTIONS
         .filter((s) => String(form.roleNotes?.[s.profession] || '').trim())
         .map((s) => [s.label, form.roleNotes[s.profession]]),
-      activities: CARE_ACTIVITIES.filter((a) => form.activities?.[a.key]).map((a) => a.label),
+      activities: getHomeVisitCareActivities().filter((activity) => form.activities?.[activity.key]).map((activity) => activity.label),
       orders: [
         ['ยาและเวชภัณฑ์', (form.drugOrders || []).map(homeVisitOrderLabel).join(' · ') || '—'],
         ['ห้องปฏิบัติการ', (form.labOrders || []).map(homeVisitOrderLabel).join(' · ') || '—'],
@@ -2208,6 +2253,7 @@ export const HomeVisitStep7Family = ({
       familyNote: form.familyNote,
       nextVisitDate: form.nextVisitDate,
       planNote: form.planNote,
+      carePlans: form.carePlans,
       submission,
     });
   };
@@ -2362,6 +2408,55 @@ export const HomeVisitStep7Family = ({
         )}
 
       </StepSection>
+      </SectionCard>
+
+      <SectionCard>
+        <StepSection gap='var(--dim-space-400)'>
+          <TopicHeader icon='checklist'>แผนการดูแลต่อเนื่อง</TopicHeader>
+          <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>
+            เลือก Template กลางที่สำนักอนามัยกำหนดได้หลายชุด เพื่อให้ปัญหา เป้าหมาย กิจกรรม และเกณฑ์ประเมินผลใช้คำเดียวกันทั้งระบบ
+          </span>
+          <Select
+            label='Template กิจกรรม/เป้าหมาย'
+            multiple
+            searchable
+            options={activeCareTemplates.map((template) => ({
+              value: template.id,
+              label: `${template.problem} · ${template.goal}`,
+            }))}
+            value={selectedCarePlans.map((plan) => plan.templateId)}
+            onChange={setCarePlanIds}
+            disabled={readOnly}
+            placeholder='เลือก Template แผนการดูแล'
+            helperText='เลือกได้หลายชุด · มีเฉพาะ Template ที่ผู้ดูแลระบบเปิดใช้'
+          />
+          {selectedCarePlans.length ? (
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
+              {selectedCarePlans.map((plan) => (
+                <div key={plan.templateId} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-100)', padding: 'var(--dim-space-300)', border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary)', borderRadius: 'var(--dim-radius-300)', background: 'var(--surface-brandPrimary-quaternary)' }}>
+                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
+                    <ColorfulBadge style={plan.horizon === 'long' ? 'purple' : 'blue'} size='small' hierarchy='secondary' width='hug'>
+                      {plan.horizon === 'long' ? 'ระยะยาว · 6 เดือน' : 'ระยะสั้น · ≤ 3 เดือน'}
+                    </ColorfulBadge>
+                    <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)' }}>{plan.problem}</span>
+                  </div>
+                  <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)' }}>{`เป้าหมาย: ${plan.goal}`}</span>
+                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>{`กิจกรรม: ${(plan.activityIds || []).map((id) => careActivities.find((activity) => activity.key === id)?.label || id).join(' · ')}`}</span>
+                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary)' }}>{`เกณฑ์ประเมินผล: ${plan.evaluation}`}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <SuggestibleTextarea
+            label='หมายเหตุเพิ่มเติมของบ้านนี้'
+            value={form.carePlanNote ?? (selectedCarePlans.length ? '' : form.planNote)}
+            onChange={(event) => setCarePlanNote(event.target.value)}
+            suggestions={HOMEVISIT_PLAN_SUGGESTIONS}
+            minChars={3}
+            disabled={readOnly}
+            placeholder='บันทึกข้อยกเว้นหรือบริบทเฉพาะของบ้านนี้ (ถ้ามี)'
+          />
+        </StepSection>
       </SectionCard>
 
       {/* ข้อมูลรายบุคคลของสมาชิกในครัวเรือน — เปิดจากแถวในตารางหรือการ์ดในผัง */}

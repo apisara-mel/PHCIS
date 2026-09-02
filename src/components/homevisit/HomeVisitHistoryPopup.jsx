@@ -9,6 +9,7 @@ import {
   formatHomeVisitDate,
   resolveProfession,
 } from '@/data/homevisitVisits';
+import { getHomeVisitCareActivities } from '@/data/homevisitCareTemplates';
 
 /* ประวัติการเยี่ยมบ้าน — ทรงเดียวกับป๊อปอัป "ข้อมูลทางการแพทย์ (EMR)"
    (MedicalHistoryPopup): รางวันที่อยู่ซ้าย เลือกครั้งไหนก็ได้ · รายละเอียดของ
@@ -140,6 +141,18 @@ const addressLine = (a) => {
 
 const listOf = (rows, render) => (rows || []).map(render).filter((v) => text(v)).join('\n');
 
+const carePlanLine = (plans = []) => (plans || [])
+  .map((plan) => [plan.problem, plan.goal].filter(Boolean).join(' — '))
+  .filter(Boolean)
+  .join('\n');
+
+const carePlanActivities = (plans = []) => {
+  const activities = getHomeVisitCareActivities();
+  return listOf(plans, (plan) => (plan.activityIds || [])
+    .map((id) => activities.find((activity) => activity.key === id)?.label || id)
+    .join(' · '));
+};
+
 /** หมวด/แถวทั้งหมดของแบบบันทึก — ตัดแถวที่ว่างทิ้ง แล้วตัดหมวดที่ไม่เหลือแถวทิ้ง */
 const buildFormSections = (form) => {
   if (!form) return [];
@@ -205,6 +218,9 @@ const buildFormSections = (form) => {
         ['สมาชิกในครอบครัว', listOf(form.familyMembers, (m) => [m.name, m.relation, m.age && `${m.age} ปี`].filter(Boolean).join(' · '))],
         ['บันทึก Family Folder', form.familyNote],
         ['นัดเยี่ยมครั้งถัดไป', form.nextVisitDate ? formatHomeVisitDate(form.nextVisitDate) : ''],
+        ['Template กิจกรรม/เป้าหมาย', carePlanLine(form.carePlans)],
+        ['เกณฑ์ประเมินผล', listOf(form.carePlans, (plan) => plan.evaluation)],
+        ['กิจกรรมจาก Template', carePlanActivities(form.carePlans)],
         ['แผนการดูแลต่อเนื่อง', form.planNote],
       ],
     },

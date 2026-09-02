@@ -25,6 +25,9 @@ import {
   writeJson,
   resolveGroup,
 } from '@/data/homevisitVisits';
+import {
+  getNhsoVisitQuota,
+} from '@/data/homevisitQuotaSettings';
 
 /* ═══ §1.18.1 — โควตาการเยี่ยมตามสิทธิ สปสช. รายกลุ่มผู้ป่วย ═══════
    “ระบบต้องแจ้งเตือนหรือล็อกจำนวนครั้งการเยี่ยมตามโควตาที่ สปสช. กำหนด
@@ -32,19 +35,7 @@ import {
 
    นับตามปีงบประมาณ (1 ต.ค. – 30 ก.ย.) ซึ่งเป็นรอบที่ สปสช. ใช้เบิกจ่าย. */
 
-export const NHSO_VISIT_QUOTA = {
-  curable:          { visits: 4,  note: 'เยี่ยมติดตามจนสิ้นสุดการรักษา' },
-  chronic:          { visits: 6,  note: 'ผู้ป่วยเรื้อรังที่บ้าน' },
-  mildDisability:   { visits: 8,  note: 'พิการระยะยาวที่ช่วยเหลือตัวเองได้บ้าง' },
-  severeDisability: { visits: 12, note: 'พิการระยะยาวที่ช่วยเหลือตัวเองไม่ได้' },
-  terminal:         { visits: 24, note: 'ผู้ป่วยระยะสุดท้าย (ประคับประคอง)' },
-  special:          { visits: 6,  note: 'กลุ่มพิเศษตามที่สำนักอนามัยกำหนด' },
-};
-
-export const NHSO_QUOTA_FALLBACK = 6;
-
-export const getVisitQuota = (group) =>
-  NHSO_VISIT_QUOTA[group]?.visits ?? NHSO_QUOTA_FALLBACK;
+export const getVisitQuota = (group) => getNhsoVisitQuota(group);
 
 /** ปีงบประมาณของวันที่ ISO (ต.ค. เป็นต้นไปนับเป็นปีงบถัดไป). */
 export const fiscalYearOf = (iso = todayIsoDate()) => {

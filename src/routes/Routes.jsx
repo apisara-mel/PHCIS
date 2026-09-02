@@ -190,6 +190,7 @@ import SystemRoleCreatePage from '@/pages/system/SystemRoleCreatePage';
 import SystemOverviewPage from '@/pages/system/SystemOverviewPage';
 import SystemCentersPage from '@/pages/system/SystemCentersPage';
 import SystemHolidaysPage from '@/pages/system/SystemHolidaysPage';
+import HomeVisitSettingsPage from '@/pages/system/HomeVisitSettingsPage';
 import SystemDashboardTemplatesPage from '@/pages/system/SystemDashboardTemplatesPage';
 import AddCenterPage from '@/pages/system/AddCenterPage';
 import CenterStructurePage from '@/pages/system/CenterStructurePage';
@@ -331,6 +332,7 @@ export default function Routes() {
         {/* ศูนย์บริการ — health-center registry + 5-step add wizard (Figma 4D3nTx53 · 1:3273). */}
         <Route exact path='/admin/centers'      component={SystemCentersPage} />
         <Route exact path='/admin/holidays'     component={SystemHolidaysPage} />
+        <Route exact path='/admin/homevisit-settings' component={HomeVisitSettingsPage} />
         <Route exact path='/admin/dashboard-templates' component={SystemDashboardTemplatesPage} />
         <Route exact path='/admin/centers/new'  component={AddCenterPage} />
         {/* รูปแบบโครงสร้างศูนย์ — ทะเบียนแม่แบบ แผนก/คลินิก + ห้องตรวจ/เตียง
