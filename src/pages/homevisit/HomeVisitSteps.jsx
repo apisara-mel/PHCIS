@@ -508,7 +508,8 @@ export const HomeVisitStep2Address = ({
         /* บันทึกการเดินทางอยู่ในการ์ด "ที่อยู่ปัจจุบัน" (มติผู้ใช้ 30 ส.ค. 69) —
            เป็นเรื่องของการเดินทางไปยังที่อยู่นั้นโดยตรง ไม่ใช่หัวข้อแยก */
         currentAddressExtra={(
-        <>
+        /* บันทึกการเดินทาง ↔ รูปถ่ายบ้าน ห่างกัน 24px (มติผู้ใช้ 2 ก.ย. 69) */
+        <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600, 24px)' }}>
         <SuggestibleTextarea
           label='บันทึกการเดินทาง'
           required
@@ -529,7 +530,7 @@ export const HomeVisitStep2Address = ({
             "หน้าบ้าน + เลขที่บ้าน" คือหลักฐานว่าไปถึงบ้านถูกหลัง คู่กับหมุด
             ที่บันทึกไว้ด้านบน · เก็บแยกจากรูปประกอบการประเมิน (`form.photos`) */}
         <HomeVisitHousePhotoField form={form} setForm={setForm} readOnly={readOnly} />
-        </>
+        </div>
         )}
       />
 
