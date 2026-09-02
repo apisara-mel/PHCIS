@@ -54,7 +54,7 @@ import {
    คลินิกวางแผนครอบครัว (รายการยังเห็นได้ แต่รายละเอียดวิธีคุมกำเนิดไม่เห็น) */
 
 const breadcrumb = ['บันทึกการรักษา', 'คลินิกวางแผนครอบครัว'];
-const SUMMARY_TITLE = 'คิววางแผนครอบครัว';
+const SUMMARY_TITLE = 'คลินิกวางแผนครอบครัว';
 const SEARCH_HISTORY_KEY = 'mih:primarysearch-history:family-planning-queue';
 const PAGE_SIZE = 20;
 const RECORD_PATH = '/clinic/family-planning/record';

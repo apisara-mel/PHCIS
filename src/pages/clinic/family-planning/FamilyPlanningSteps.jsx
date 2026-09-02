@@ -26,7 +26,6 @@ import {
   FP_CURRENT_USER,
   FP_DOCTORS,
   FP_CLIENT_TYPES,
-  FP_PRIMARY_SERVICE_TYPES,
   FP_LAST_METHODS,
   FP_SERVICES,
   FP_REMOVAL_OPTIONS,
@@ -2557,36 +2556,6 @@ export const FpStep7Documents = ({
    เก็บ component เดิมตามโดเมนไว้ข้างบน แต่หน้า record ใหม่ยุบการเดินงาน
    จาก 7 ขั้นเป็น 5 ขั้นเดียวกับ ANC: เลือกบริการก่อน แล้วจึงแสดงเฉพาะ
    แบบบันทึกที่สัมพันธ์กับบริการนั้น. */
-const PrimaryServicePicker = ({ form, setForm, locked }) => {
-  const selected = form.primaryServices || [];
-  const toggle = (key) => {
-    if (locked) return;
-    setForm((current) => ({
-      ...current,
-      primaryServices: (current.primaryServices || []).includes(key)
-        ? current.primaryServices.filter((item) => item !== key)
-        : [...(current.primaryServices || []), key],
-    }));
-  };
-
-  return (
-    <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-      <TopicHeader icon='medical_services'>เลือกบริการหลัก <span style={{ color: 'var(--text-input-require)' }}>*</span></TopicHeader>
-      <Banner tone='neutral' icon='info'>เลือกได้มากกว่า 1 บริการในวิสิตเดียว ระบบจะแสดงเฉพาะการ์ดที่เกี่ยวข้องในขั้นถัดไป</Banner>
-      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-        {FP_PRIMARY_SERVICE_TYPES.map((service) => (
-          <SelectableTag
-            key={service.key}
-            label={selected.includes(service.key) ? `${service.label} · เลือกแล้ว` : service.label}
-            size='lg'
-            selected={selected.includes(service.key)}
-            onClick={() => toggle(service.key)}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
 
 const ParaScoreFields = ({ form, setForm, locked }) => {
   const para = form.cytologyRequest || {};
@@ -2619,17 +2588,12 @@ export const FpAssessmentStep = (props) => {
   const { form, registration } = props;
   const [openTool, setOpenTool] = useState(null);
 
-  const services = form.primaryServices || [];
-  const isFamilyPlanning = services.includes('familyPlanning');
   const screen = interpretFpScreening(form.screening);
   const para = form.cytologyRequest || {};
   const paraFilled = ['termBirths', 'pretermBirths', 'abortions', 'livingChildren']
     .some((key) => String(para[key] ?? '').trim() !== '');
   const registered = !!registration && registration.status !== 'cancelled';
 
-  /* ทะเบียนกับ PARA ใช้ร่วมทุกบริการ (PARA ผูกกับใบส่งตรวจเซลล์วิทยาด้วย)
-     ส่วนคัดกรอง 11 ข้อ เป็นเกณฑ์จ่ายยาคุมกำเนิด จึงขึ้นเฉพาะเมื่อเลือก
-     "งานวางแผนครอบครัว" */
   const TOOLS = [
     {
       key: 'registry',
@@ -2674,8 +2638,6 @@ export const FpAssessmentStep = (props) => {
 
   return (
     <StepCard>
-      <PrimaryServicePicker {...props} />
-
       <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
         <TopicHeader icon='clipboard-list'>แบบประเมิน</TopicHeader>
           <Table
@@ -2750,12 +2712,6 @@ export const FpAssessmentStep = (props) => {
           {form.doctorConsulted
             ? `บันทึกการส่งปรึกษาแพทย์แล้ว โดย ${form.doctorConsultedBy} · ${formatFpDateTime(form.doctorConsultedAt)} — ปลดล็อกการสั่งยาแล้ว โปรดยืนยันคำสั่งกับแพทย์ก่อนจ่ายจริง`
             : `พบข้อคัดกรองที่ตอบ "มี" ${screen.flagged.length} ข้อ — ห้ามจ่ายยาคุมกำเนิด ต้องบันทึกการส่งปรึกษาแพทย์ในแบบคัดกรองก่อน`}
-        </Banner>
-      )}
-
-      {services.length > 0 && !isFamilyPlanning && (
-        <Banner tone='neutral' icon='info'>
-          เลือกบริการคัดกรอง/หลังคลอดแล้ว — ระบบจะแสดงแบบตรวจเฉพาะบริการที่เลือกในขั้นตรวจร่างกายและวินิจฉัย
         </Banner>
       )}
 
@@ -2859,54 +2815,36 @@ const FpDiagnosisPanel = ({ form, setForm, locked, selected }) => {
   );
 };
 
-/* ทุกขั้นต้องมีเนื้อหาให้ทำงานต่อได้เสมอ (มติผู้ใช้ 3 ก.ย. 69) — เดิมขั้นนี้
-   ขึ้น EmptyState ตันเมื่อยังไม่ได้เลือกบริการหลัก ตอนนี้ยังแสดงการ์ด
-   ตรวจร่างกาย/วินิจฉัยซึ่งไม่ผูกกับบริการใดบริการหนึ่ง แล้วบอกด้วยแบนเนอร์
-   ว่าแบบตรวจเฉพาะบริการจะโผล่เมื่อเลือกในขั้นแบบประเมิน */
-export const FpExaminationDiagnosisStep = ({ form, setForm, locked, ...props }) => {
-  const selected = form.primaryServices || [];
-  return (
-    <div className='flex w-full flex-col min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-      <div className='flex w-full flex-col xl:flex-row items-stretch min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-        <section className='flex flex-col min-w-0 w-full xl:w-auto' style={FP_SPLIT_CARD_STYLE}>
-          <FpSplitCardTitle>ตรวจร่างกาย</FpSplitCardTitle>
-          {(selected.includes('breastScreening') || selected.includes('cervicalScreening')) ? (
-            <FpStep4WomenExam
-              form={form}
-              setForm={setForm}
-              {...props}
-              locked={locked}
-              showBreast={selected.includes('breastScreening')}
-              showCervical={selected.includes('cervicalScreening')}
-            />
-          ) : null}
-        </section>
-        <section className='flex flex-col min-w-0 w-full xl:w-auto' style={FP_SPLIT_CARD_STYLE}>
-          <FpSplitCardTitle>วินิจฉัย</FpSplitCardTitle>
-          <FpDiagnosisPanel form={form} setForm={setForm} locked={locked} selected={selected} />
-        </section>
-      </div>
-      {selected.includes('postpartum') && (
-        <section className='flex flex-col w-full min-w-0' style={{ ...FP_SPLIT_CARD_STYLE, flex: '0 0 auto' }}>
-          <FpSplitCardTitle>ตรวจหลังคลอด</FpSplitCardTitle>
-          <FpStep5Postpartum form={form} setForm={setForm} {...props} locked={locked} />
-        </section>
-      )}
-      {selected.includes('familyPlanning') && (
-        <Banner tone='brand' icon='check-circle'>ข้อมูลคัดกรองพร้อมสำหรับการเลือกวิธีคุมกำเนิดและคำสั่งรักษาในขั้นถัดไป</Banner>
-      )}
+/* ไม่มีตัวเลือก "บริการหลัก" แล้ว (มติผู้ใช้ 3 ก.ย. 69) — คลินิกนี้ทำครบทุก
+   บริการอยู่แล้ว จึงแสดงแบบตรวจทั้งหมดเสมอ: เต้านม · ตรวจภายใน/ปากมดลูก ·
+   หลังคลอด */
+export const FpExaminationDiagnosisStep = ({ form, setForm, locked, ...props }) => (
+  <div className='flex w-full flex-col min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+    <div className='flex w-full flex-col xl:flex-row items-stretch min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+      <section className='flex flex-col min-w-0 w-full xl:w-auto' style={FP_SPLIT_CARD_STYLE}>
+        <FpSplitCardTitle>ตรวจร่างกาย</FpSplitCardTitle>
+        <FpStep4WomenExam form={form} setForm={setForm} {...props} locked={locked} />
+      </section>
+      <section className='flex flex-col min-w-0 w-full xl:w-auto' style={FP_SPLIT_CARD_STYLE}>
+        <FpSplitCardTitle>วินิจฉัย</FpSplitCardTitle>
+        <FpDiagnosisPanel form={form} setForm={setForm} locked={locked} selected={[]} />
+      </section>
     </div>
-  );
-};
+    <section className='flex flex-col w-full min-w-0' style={{ ...FP_SPLIT_CARD_STYLE, flex: '0 0 auto' }}>
+      <FpSplitCardTitle>ตรวจหลังคลอด</FpSplitCardTitle>
+      <FpStep5Postpartum form={form} setForm={setForm} {...props} locked={locked} />
+    </section>
+  </div>
+);
 
 export const FpTreatmentOrderStep = ({ form, ...props }) => {
-  const selected = form.primaryServices || [];
   return (
     <StepCard>
-      {/* คำสั่งยา/หัตถการใช้ได้ทุกบริการ ส่วนการวางแผนคุมกำเนิดขึ้นเฉพาะ
-          "งานวางแผนครอบครัว" — ขั้นนี้จึงไม่เคยว่าง */}
-      {selected.includes('familyPlanning') && <FpStep3Plan form={form} {...props} />}
+      <FpStep3Plan form={form} {...props} />
       <FpStep6Orders form={form} {...props} />
+      {/* ขั้น "นัดหมาย" ถูกถอดออกจากลำดับขั้น — กล่องนัดหมายครั้งถัดไปย้ายมา
+          อยู่ใต้ตารางสั่งการรักษา ทรงเดียวกับคลินิกฝากครรภ์ (มติผู้ใช้ 3 ก.ย. 69) */}
+      <FpAppointmentStep form={form} {...props} />
     </StepCard>
   );
 };
@@ -2936,6 +2874,166 @@ export const FpAppointmentStep = ({ form, setForm, locked }) => {
         onChange={(event) => setAppointment('note')(event.target.value)} minChars={3}
         suggestions={['นัดรับยาเม็ดคุมกำเนิดต่อเนื่อง', 'นัดฟังผลตรวจมะเร็งปากมดลูก', 'นัดตรวจหลังคลอดครั้งถัดไป']}
         placeholder='หมายเหตุการนัดหมาย' />
+    </StepCard>
+  );
+};
+
+/* ══ ขั้น "ตรวจสอบข้อมูล" ═══════════════════════════════════════════
+   นำข้อมูลจากทุกขั้นก่อนหน้ามาแสดงเป็นข้อความธรรมดาเรียงลงมา ทรงเดียวกับ
+   ขั้นตรวจสอบของคลินิกฝากครรภ์ (`AncStep7Card`) — ช่องที่ยังว่างถูกตัดทิ้ง
+   แล้วปิดท้ายด้วยบัตรติดตาม/เอกสารแนบ/ปุ่มยืนยันบันทึก (มติผู้ใช้ 3 ก.ย. 69) */
+const FpReviewSection = ({ title, rows }) => {
+  /* ตัวช่วยฟอร์แมตของคลินิกนี้คืน "—" เมื่อไม่มีค่า — ในหน้าตรวจสอบถือว่าว่าง
+     เหมือนกัน ไม่ต้องแสดงเป็นแถว */
+  const filled = rows.filter(([, value]) => {
+    const text = value === undefined || value === null ? '' : String(value).trim();
+    return text !== '' && text !== '—' && text !== '-';
+  });
+  if (filled.length === 0) return null;
+  return (
+    <div className='flex flex-col w-full min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+      <span style={{ fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default)' }}>
+        {title}
+      </span>
+      {filled.map(([label, value]) => (
+        <div key={label} className='flex items-baseline min-w-0' style={{ gap: 'var(--dim-space-200)' }}>
+          <span style={{ flex: '0 0 240px', fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-tertiary)' }}>{label}</span>
+          <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--type-family-body)', fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default)', whiteSpace: 'pre-wrap' }}>{String(value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const pickLabel = (options, value) => options.find((o) => o.value === value)?.label || '';
+
+export const FpReviewStep = ({ form, registration, cardPatient, ...props }) => {
+  const screen = interpretFpScreening(form.screening);
+  const para = form.cytologyRequest || {};
+  const pv = form.pv || {};
+  const mother = form.postpartumMother || {};
+  const child = form.postpartumChild || {};
+  const appointment = form.appointment || {};
+
+  return (
+    <StepCard>
+      <div className='flex flex-col' style={{ gap: 'var(--dim-space-500, 20px)' }}>
+        <FpReviewSection
+          title='บริการและทะเบียน'
+          rows={[
+            ['HN', cardPatient?.hn],
+            ['ชื่อ-สกุล', cardPatient?.fullName],
+            ['เลขที่วางแผนครอบครัว', registration?.status !== 'cancelled' ? registration?.fpNumber : ''],
+            ['วันที่รับบริการ', formatFpDate(form.serviceDate)],
+            ['ประเภทผู้รับบริการ', resolveFpClientType(form.clientType)],
+          ]}
+        />
+
+        <FpReviewSection
+          title='แบบประเมิน'
+          rows={[
+            ['PARA (T-P-A-L)', [para.termBirths, para.pretermBirths, para.abortions, para.livingChildren].some((v) => String(v ?? '').trim() !== '')
+              ? `${para.termBirths || 0}-${para.pretermBirths || 0}-${para.abortions || 0}-${para.livingChildren || 0}` : ''],
+            ['อายุบุตรคนสุดท้อง', para.youngestChildAge],
+            ['ประวัติการเจ็บป่วย', form.illnessHistory],
+            ['คัดกรอง 11 ข้อ', FP_SCREENING_ITEMS
+              .filter((q) => form.screening?.[q.key])
+              .map((q) => `${q.label}: ${pickLabel(FP_SCREENING_ANSWERS, form.screening[q.key]) || form.screening[q.key]}`)
+              .join('\n')],
+            ['สรุปผลคัดกรอง', screen.answeredAll
+              ? (screen.mustReferDoctor ? `ตอบ "มี" ${screen.flagged.length} ข้อ — ห้ามจ่ายยาคุมกำเนิด` : 'ไม่พบข้อห้าม — จ่ายยาคุมกำเนิดได้')
+              : (screen.answeredCount ? `ตอบแล้ว ${screen.answeredCount}/${FP_SCREENING_ITEMS.length} ข้อ` : '')],
+            ['ส่งปรึกษาแพทย์', form.doctorConsulted ? `บันทึกแล้ว โดย ${form.doctorConsultedBy} · ${formatFpDateTime(form.doctorConsultedAt)}` : ''],
+            ['บันทึกเพิ่มเติมจากการซักประวัติ', form.screeningNote],
+          ]}
+        />
+
+        <FpReviewSection
+          title='ตรวจร่างกายและวินิจฉัย'
+          rows={[
+            ['ความดันโลหิต', form.vitals?.bp],
+            ['ชีพจร', form.vitals?.pulse],
+            ['อุณหภูมิ', form.vitals?.temp],
+            ['น้ำหนัก', form.vitals?.weight ? `${form.vitals.weight} กก.` : ''],
+            ['ส่วนสูง', form.vitals?.height ? `${form.vitals.height} ซม.` : ''],
+            ['ปัสสาวะ — น้ำตาล', form.urineSugar],
+            ['ปัสสาวะ — ไข่ขาว', form.urineAlbumin],
+            ['ผลทดสอบการตั้งครรภ์', pickLabel(FP_PREGNANCY_TEST_OPTIONS, form.pregnancyTest)],
+            ['วันที่ตรวจเต้านม', formatFpDate(form.breastExamDate)],
+            ['ตรวจเต้านม', FP_BREAST_SIDES
+              .filter((side) => form.breast?.[side.key]?.result)
+              .map((side) => `${side.label}: ${pickLabel(FP_EXAM_RESULT_OPTIONS, form.breast[side.key].result) || form.breast[side.key].result}${form.breast[side.key].detail ? ` — ${form.breast[side.key].detail}` : ''}`)
+              .join('\n')],
+            ['วันที่ตรวจภายใน', formatFpDate(form.pvExamDate)],
+            ['ตรวจภายใน (P.V.)', [
+              pv.vagina ? `ช่องคลอด: ${pickLabel(FP_PV_VAGINA_OPTIONS, pv.vagina) || pv.vagina}` : '',
+              pv.cervix ? `ปากมดลูก: ${pickLabel(FP_PV_CERVIX_OPTIONS, pv.cervix) || pv.cervix}` : '',
+              pv.uterusPosition ? `ตำแหน่งมดลูก: ${pickLabel(FP_PV_UTERUS_POSITION_OPTIONS, pv.uterusPosition) || pv.uterusPosition}` : '',
+              pv.uterusSize ? `ขนาดมดลูก: ${pickLabel(FP_PV_UTERUS_SIZE_OPTIONS, pv.uterusSize) || pv.uterusSize}` : '',
+              pv.adnexa ? `ปีกมดลูก: ${pickLabel(FP_PV_ADNEXA_OPTIONS, pv.adnexa) || pv.adnexa}` : '',
+              pv.detail || '',
+            ].filter(Boolean).join('\n')],
+            ['วิธีเก็บสิ่งส่งตรวจ (Pap)', pickLabel(FP_PAP_METHOD_OPTIONS, form.papMethod)],
+            ['ผล Pap smear', pickLabel(FP_PAP_RESULT_OPTIONS, form.papResult)],
+            ['รายละเอียดผล Pap', form.papDetail],
+            ['ผลประเมินทางคลินิก', pickLabel([
+              { value: 'normal', label: 'ไม่พบความผิดปกติ' },
+              { value: 'followUp', label: 'ติดตามอาการ / นัดประเมินซ้ำ' },
+              { value: 'refer', label: 'พบประเด็นต้องส่งปรึกษาแพทย์' },
+            ], form.clinicalAssessment)],
+            ['บันทึกวินิจฉัย', form.diagnosisNote],
+            ['ตรวจหลังคลอด — มารดา', [
+              mother.visitDate ? `วันที่เยี่ยม: ${formatFpDate(mother.visitDate)}` : '',
+              mother.deliveryDate ? `วันคลอด: ${formatFpDate(mother.deliveryDate)}` : '',
+              mother.outcome ? `ผลการตั้งครรภ์: ${pickLabel(FP_PREGNANCY_OUTCOME_OPTIONS, mother.outcome) || mother.outcome}` : '',
+              mother.deliveryMethod ? `วิธีคลอด: ${pickLabel(FP_DELIVERY_METHOD_OPTIONS, mother.deliveryMethod) || mother.deliveryMethod}` : '',
+              mother.deliveryPlace ? `สถานที่คลอด: ${pickLabel(FP_DELIVERY_PLACE_OPTIONS, mother.deliveryPlace) || mother.deliveryPlace}` : '',
+              mother.summary || '',
+              mother.advice ? `คำแนะนำ: ${mother.advice}` : '',
+            ].filter(Boolean).join('\n')],
+            ['ตรวจหลังคลอด — บุตร', [
+              child.visitDate ? `วันที่เยี่ยม: ${formatFpDate(child.visitDate)}` : '',
+              child.birthWeight ? `น้ำหนักแรกเกิด: ${child.birthWeight}` : '',
+              child.weight ? `น้ำหนักปัจจุบัน: ${child.weight}` : '',
+              child.examSummary || '',
+            ].filter(Boolean).join('\n')],
+          ]}
+        />
+
+        <FpReviewSection
+          title='สั่งการรักษา'
+          rows={[
+            ['แพทย์ผู้สั่งการรักษา', form.doctor],
+            ['บริการที่ได้รับ', summarizeFpServices(form.services)],
+            ['การถอด (ห่วง/ยาฝัง)', FP_REMOVAL_OPTIONS.filter((o) => (form.removals || []).includes(o.value ?? o.key)).map((o) => o.label).join('\n')],
+            ['วิธีคุมกำเนิดครั้งสุดท้าย', form.lastMethod === 'other' ? form.lastMethodOther : pickLabel(FP_LAST_METHODS, form.lastMethod)],
+            ['ยาและเวชภัณฑ์ (ชุดมาตรฐาน)', FP_MED_ORDERS.filter((m) => form.medOrders?.[m.key]).map((m) => m.label).join('\n')],
+            ['รายการยาที่สั่ง', (form.medications || []).map((m) => [m.name, m.dosePerTake, m.frequency, m.when, m.quantity].filter(Boolean).join(' · ')).join('\n')],
+            ['คำสั่งตรวจ/หัตถการ', FP_ADVANCE_ORDERS.filter((o) => form.advanceOrders?.[o.key]).map((o) => o.label).join('\n')],
+            ['ส่งปรึกษาภายใน', form.internalReferEnabled
+              ? [pickLabel(FP_INTERNAL_REFER_UNITS, form.internalReferUnit) || form.internalReferUnit, form.internalReferReason].filter(Boolean).join(' — ')
+              : ''],
+            ['ส่งต่อภายนอก', form.externalReferEnabled
+              ? [pickLabel(FP_EXTERNAL_REFER_HOSPITALS, form.externalReferHospital) || form.externalReferHospital, formatFpDate(form.externalReferDate), form.externalReferReason].filter(Boolean).join(' — ')
+              : ''],
+            ['คำแนะนำที่ให้', form.adviceNote],
+          ]}
+        />
+
+        <FpReviewSection
+          title='นัดหมายครั้งถัดไป'
+          rows={[
+            ['ประเภทนัดหมาย', resolveFpAppointmentType(appointment.type)],
+            ['วันนัดหมาย', formatFpDate(appointment.date)],
+            ['เวลานัด', appointment.time],
+            ['สถานะ', appointment.cancelled ? 'ยกเลิกนัดแล้ว' : ''],
+            ['หมายเหตุ', appointment.note],
+          ]}
+        />
+      </div>
+
+      {/* บัตรติดตาม · เอกสารแนบ/e-Document · สรุปและปุ่มยืนยันบันทึก */}
+      <FpStep7Documents form={form} registration={registration} cardPatient={cardPatient} {...props} />
     </StepCard>
   );
 };

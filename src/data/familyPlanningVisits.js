@@ -841,15 +841,16 @@ export const validateFpVisit = (form) => {
   const errs = [];
   const screen = interpretFpScreening(form?.screening);
 
-  if (!(form?.primaryServices || []).length) errs.push('ยังไม่ได้เลือกบริการหลักอย่างน้อย 1 บริการ (ขั้นตอนแบบประเมิน)');
-  const isFamilyPlanningVisit = (form?.primaryServices || []).includes('familyPlanning');
-  if (isFamilyPlanningVisit && !hasText(form?.serviceDate)) errs.push('ยังไม่ได้ระบุวันที่รับบริการ (ขั้นตอนสั่งการรักษา)');
-  if (isFamilyPlanningVisit && !hasText(form?.clientType)) errs.push('ยังไม่ได้เลือกประเภทผู้รับบริการ (ขั้นตอนสั่งการรักษา)');
-  if (isFamilyPlanningVisit && (form?.services || []).length === 0) errs.push('ยังไม่ได้เลือกบริการที่ได้รับ (ขั้นตอนสั่งการรักษา)');
+  /* ถอดตัวเลือก "บริการหลัก" ออกจากขั้นแบบประเมินแล้ว (มติผู้ใช้ 3 ก.ย. 69)
+     คลินิกนี้เป็นงานวางแผนครอบครัวทั้งหมด กฎที่เคยผูกกับบริการหลักจึงใช้กับ
+     ทุกวิสิต */
+  if (!hasText(form?.serviceDate)) errs.push('ยังไม่ได้ระบุวันที่รับบริการ (ขั้นตอนสั่งการรักษา)');
+  if (!hasText(form?.clientType)) errs.push('ยังไม่ได้เลือกประเภทผู้รับบริการ (ขั้นตอนสั่งการรักษา)');
+  if ((form?.services || []).length === 0) errs.push('ยังไม่ได้เลือกบริการที่ได้รับ (ขั้นตอนสั่งการรักษา)');
   if (form?.lastMethod === 'other' && !hasText(form?.lastMethodOther)) {
     errs.push('เลือกวิธีคุมกำเนิดครั้งสุดท้ายเป็น "อื่นๆ" ต้องระบุรายละเอียด (ขั้นตอนที่ 3)');
   }
-  if (isFamilyPlanningVisit && !screen.answeredAll) {
+  if (!screen.answeredAll) {
     errs.push(`ซักประวัติคัดกรองยังไม่ครบ 11 ข้อ (ตอบแล้ว ${screen.answeredCount}/11 — ขั้นตอนที่ 2)`);
   }
   if (screen.mustReferDoctor && !form?.doctorConsulted) {

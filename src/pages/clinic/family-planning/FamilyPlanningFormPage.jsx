@@ -15,8 +15,7 @@ import {
   FpAssessmentStep,
   FpExaminationDiagnosisStep,
   FpTreatmentOrderStep,
-  FpAppointmentStep,
-  FpStep7Documents,
+  FpReviewStep,
 } from '@/pages/clinic/family-planning/FamilyPlanningSteps';
 import { findMrPatientByHn, DEFAULT_MR_PATIENT } from '@/data/mrPatients';
 import { getPatientByHN, DEFAULT_PATIENT } from '@/data/patientProfiles';
@@ -125,22 +124,25 @@ const FamilyPlanningFormPage = () => {
   }, [shownVitals]);
   const para = form.cytologyRequest || {};
 
+  /* ถอดขั้น "นัดหมาย" กับ "บัตรติดตาม" ออกจากลำดับขั้น (มติผู้ใช้ 3 ก.ย. 69)
+     ทรงเดียวกับที่คลินิกฝากครรภ์ยุบขั้นนัดหมายเข้าใต้ตารางสั่งการรักษา —
+     เนื้อหาทั้งสองส่วน (กล่องนัดหมายครั้งถัดไป · เอกสารแนบ/e-Document ·
+     พิมพ์บัตรติดตาม · ยืนยันบันทึก) ย้ายไปต่อท้ายขั้น "สั่งการรักษา"
+     ไม่ได้หายไปจากระบบ */
   const FP_STEPS = [
     { title: 'แบบประเมิน', subtitle: 'Assessment' },
     { title: 'ตรวจร่างกายและวินิจฉัย', subtitle: 'Examination & Diagnosis' },
     { title: 'สั่งการรักษา', subtitle: 'Treatment Order' },
-    { title: 'นัดหมาย', subtitle: 'Appointment' },
-    { title: 'บัตรติดตาม', subtitle: 'Follow-up Card' },
+    { title: 'ตรวจสอบข้อมูล', subtitle: 'Review' },
   ];
-  const STEP_COMPONENTS = [FpAssessmentStep, FpExaminationDiagnosisStep, FpTreatmentOrderStep, FpAppointmentStep, FpStep7Documents];
+  const STEP_COMPONENTS = [FpAssessmentStep, FpExaminationDiagnosisStep, FpTreatmentOrderStep, FpReviewStep];
   const ActiveStep = STEP_COMPONENTS[stepIndex];
   const screening = interpretFpScreening(form.screening);
   const completedSteps = [
-    (form.primaryServices || []).length > 0 && screening.answeredAll,
+    screening.answeredAll,
     stepIndex > 1 || !!form.breast?.left?.result || !!form.breast?.right?.result || !!form.postpartumMother?.visitDate,
     stepIndex > 2 || !!form.clientType || !!form.doctor,
-    !!form.appointment?.date,
-    !!form.cardPrinted,
+    !!form.cardPrinted || !!form.appointment?.date,
   ];
 
   /* เดินขั้นได้อิสระแม้ยังไม่ได้เลือกบริการหลัก — ทุกขั้นมีเนื้อหาที่ทำงานได้
@@ -262,7 +264,7 @@ const FamilyPlanningFormPage = () => {
                 <BrandSubdueButton
                   variant='fill'
                   leadingIcon='credit_card'
-                  onClick={() => handleStepChange(4)}
+                  onClick={() => handleStepChange(3)}
                 >
                   พิมพ์บัตรติดตาม
                 </BrandSubdueButton>

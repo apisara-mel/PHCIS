@@ -2137,6 +2137,8 @@ export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
           onClose={() => setReMedOpen(false)}
           onConfirm={appendPastMedications}
           items={PAST_VISIT_MEDICATIONS}
+          /* แสดงแค่ชื่อยา (มติผู้ใช้ 3 ก.ย. 69) */
+          nameOnly
         />
         <Table
           columns={[

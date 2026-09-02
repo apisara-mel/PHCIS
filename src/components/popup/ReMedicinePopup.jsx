@@ -190,6 +190,8 @@ const ReMedicinePopup = ({
   subtitle = 'เลือกรายการยาจากการรักษาที่ผ่านมาเพื่อสั่งซ้ำ',
   clearLabel = 'ล้างค่า',
   confirmLabel = 'ตกลง',
+  /** แสดงเฉพาะชื่อยา ไม่กางรายละเอียด 8 ช่อง (มติผู้ใช้ 3 ก.ย. 69 · ฝากครรภ์ใช้) */
+  nameOnly = false,
 }) => {
   /* `selections` is a plain object keyed by item id — entry present
      iff the row is checked. Plain object (not Map) so React's
@@ -325,6 +327,7 @@ const ReMedicinePopup = ({
               {/* Info-block row — `flex-wrap` so the 8 pairs fall to a
                   second line on narrower screens; `gap-y` = 16 keeps
                   the second-line spacing readable. */}
+              {!nameOnly && (
               <div
                 className='flex flex-wrap items-start'
                 style={{ columnGap: 'var(--dim-space-600, 24px)', rowGap: 'var(--dim-space-400, 16px)' }}
@@ -338,6 +341,7 @@ const ReMedicinePopup = ({
                 <InfoBlock label='เบิกได้'       value={reimburseText} />
                 <InfoBlock label='การใช้'        value={it.purpose} />
               </div>
+              )}
             </div>
             {/* Checkbox — stops propagation so the row-level onClick
                 doesn't double-fire when the checkbox is the actual
