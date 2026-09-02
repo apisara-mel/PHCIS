@@ -57,6 +57,7 @@ import ColorfulBadge from '@/components/badge/ColorfulBadge';
    (มติผู้ใช้ 30 ส.ค. 69) */
 import VitalsForm from '@/components/forms/VitalsForm';
 import Table from '@/components/table/Table';
+import QueuePatientAvatar from '@/components/patient/QueuePatientAvatar';
 import Popup from '@/components/popup/Popup';
 import {
   HOMEVISIT_TIME_SLOTS,
@@ -143,6 +144,7 @@ import {
 } from '@/data/homevisitCpoe';
 import {
   getVisitHistory, appendVisitHistory, saveFamilyMembers, getFamilyMembers, getHouseholdProfile,
+  familyMemberAvatar,
 } from '@/data/homevisitRegistry';
 import { printHomeVisitSummary } from '@/pages/homevisit/homevisitPrint';
 import {
@@ -2081,7 +2083,19 @@ export const HomeVisitStep7Family = ({
 
         <Table
           columns={[
-            { key: 'name', label: 'ชื่อ-สกุล', flex: true, minWidth: 220 },
+            {
+              key: 'name',
+              label: 'ชื่อ-สกุล',
+              flex: true,
+              minWidth: 260,
+              /* รูปประจำตัวคู่ชื่อเหมือนตารางคิวอื่นในระบบ (มติผู้ใช้ 2 ก.ย. 69) */
+              render: (r) => (
+                <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  <QueuePatientAvatar name={r.name} avatarUrl={familyMemberAvatar(r)} size={32} />
+                  <span>{r.name || '—'}</span>
+                </span>
+              ),
+            },
             { key: 'relation', label: 'ความสัมพันธ์', flex: true, minWidth: 140 },
             { key: 'age', label: 'อายุ (ปี)', flex: true, minWidth: 100 },
             {

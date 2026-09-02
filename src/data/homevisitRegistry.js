@@ -565,6 +565,41 @@ const DEFAULT_MOCK_FAMILY = [
   { name: 'ด.ญ.ปุณิกา มีสุข', relation: 'หลาน', age: '9', health: 'child' },
 ];
 
+/* ─── รูปประจำตัวของสมาชิกในครอบครัว ──────────────────────────────
+   ทะเบียนครัวเรือนไม่ได้เก็บรูปของสมาชิก (คนที่ไม่ใช่ผู้รับบริการยังไม่มีแฟ้ม
+   ของตัวเอง) — ตาราง Family Folder จึงประกอบรูป mock ให้จากชื่อ/ความสัมพันธ์
+   แบบคงที่ต่อคน (มติผู้ใช้ 2 ก.ย. 69) ทีมจะได้จำหน้าคนในบ้านได้จากตาราง
+   ถ้าวันหนึ่งสมาชิกมีรูปจริง ให้เก็บลง `avatarUrl` ของสมาชิกคนนั้น
+   ฟังก์ชันนี้จะคืนรูปจริงก่อนเสมอ */
+const FAMILY_ADULT_AVATARS = [
+  '/avatars/patient-female-a.png',
+  '/avatars/patient-male-d.png',
+  '/avatars/patient-female-c.png',
+  '/avatars/mock-male-asian-a.png',
+  '/avatars/patient-female-e.png',
+  '/avatars/patient-male-e.png',
+  '/avatars/patient-female-b.png',
+  '/avatars/mock-male-asian-c.png',
+];
+
+const CHILD_PREFIX_RE = /^(ด\.ช\.|ด\.ญ\.|เด็กชาย|เด็กหญิง)/u;
+
+const hashOf = (text) => Array.from(String(text || ''))
+  .reduce((acc, ch) => (acc * 31 + ch.codePointAt(0)) % 100000, 7);
+
+/** รูปประจำตัวของสมาชิกในครอบครัว — รูปจริงก่อน แล้วค่อยเป็นรูป mock คงที่ต่อคน. */
+export const familyMemberAvatar = (member) => {
+  if (member?.avatarUrl) return member.avatarUrl;
+  const name = String(member?.name || '');
+  if (CHILD_PREFIX_RE.test(name)) {
+    return /^(ด\.ญ\.|เด็กหญิง)/u.test(name)
+      ? '/avatars/patient-child-girl.png'
+      : '/avatars/patient-child-boy.png';
+  }
+  const seed = hashOf(`${name}|${member?.relation || ''}`);
+  return FAMILY_ADULT_AVATARS[seed % FAMILY_ADULT_AVATARS.length];
+};
+
 /** ข้อมูลครัวเรือนตั้งต้นของ HN ที่ยังไม่อยู่ในทะเบียน — คู่กับ
     `DEFAULT_MOCK_FAMILY` เพื่อให้หัวแฟ้มครอบครัวไม่ขึ้น "—" ทั้งแถว */
 export const DEFAULT_MOCK_HOUSEHOLD = {
