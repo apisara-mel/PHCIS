@@ -41,7 +41,6 @@ import {
   HOMEVISIT_SOURCES,
   HOMEVISIT_PROFESSIONS,
   HOMEVISIT_STAFF,
-  HOMEVISIT_FLAGS,
   HOMEVISIT_ILLNESS_SUGGESTIONS,
   formatHomeVisitDate,
   todayIsoDate,
@@ -96,6 +95,7 @@ import {
   GREYED,
   dateFilterToIsoRange,
 } from '@/pages/homevisit/homevisitShared';
+import { getHomeVisitFlagCatalog } from '@/data/homevisitFlagSettings';
 
 /* HomeVisitRegistryPage — ทะเบียนผู้รับบริการเยี่ยมบ้าน (TOR 1.10.12.1,
    ต่อเนื่องถึง 1.18.2 ปักหมุดตำแหน่งบ้าน).
@@ -1337,13 +1337,13 @@ const HomeVisitRegistryPage = () => {
                   ธงสถานะ (Flag) — แสดงติดตัวผู้รับบริการทุกหน้าจอ
                 </span>
                 <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
-                  {HOMEVISIT_FLAGS.map((f) => (
+                  {getHomeVisitFlagCatalog().filter((f) => f.active || form.flags.includes(f.value)).map((f) => (
                     <SelectableTag
                       key={f.value}
                       label={f.label}
                       size='md'
                       selected={form.flags.includes(f.value)}
-                      onClick={readOnly ? undefined : () => toggleFlag(f.value)}
+                      onClick={readOnly || (!f.active && !form.flags.includes(f.value)) ? undefined : () => toggleFlag(f.value)}
                     />
                   ))}
                   <SelectableTag
