@@ -33,6 +33,10 @@ import { withDoctorAvatars } from '@/pages/appointment/appointmentDoctorRoster';
 import DutyRosterAction from '@/components/patient/DutyRosterAction';
 import { withEmrRowAction } from '@/components/patient/EmrRowAction';
 
+/* ป๊อปอัป EMR ("ดูข้อมูลทางการแพทย์") ดึง TreatmentSteps ทั้งไฟล์มาด้วย —
+   lazy เหมือนที่ EmrRowAction ทำ ไม่ให้ติดไปกับ bundle แรกของหน้าคิว */
+const MedicalHistoryPopupLazy = React.lazy(() => import('@/components/popup/MedicalHistoryPopup'));
+
 /* MIH TreatmentQueuePage — Figma PHCIS-ALL node 2760:140031.
    ระบบบันทึกการรักษา · คิวตรวจรักษาทั่วไป (OPD).
    Summary cards (6, value+label only) · TabUnderline (5 tabs) · PrimarySearch ·
@@ -455,7 +459,13 @@ const TreatmentQueuePage = () => {
      แล้วปิดก็ได้) ถามเฉพาะแถวที่ยังรอตรวจ — แถวที่ตรวจอยู่/เสร็จแล้ว/ร่างไว้
      ผ่านจุดนี้มาแล้ว เข้าไปทำต่อได้เลย */
   const [acceptTarget, setAcceptTarget] = useState(null);
+  /* แท็บ "รายชื่อผู้ป่วยทั้งหมด" เป็นทะเบียนผู้ป่วย ไม่ใช่คิวงานของวันนี้
+     (มติผู้ใช้ 2 ก.ย. 69) — กดแถวแล้วเปิดหน้า EMR (ป๊อปอัปประวัติการรักษา)
+     ที่แกน "ดูตามวันที่รับบริการ" ไม่ใช่เด้งเข้าฟอร์มบันทึกการรักษา/ถามรับ
+     ผู้ป่วยเข้าห้องตรวจ ซึ่งเป็นงานของคิววันนี้ (คนในทะเบียนส่วนใหญ่ไม่ได้มาวันนี้) */
+  const [historyTarget, setHistoryTarget] = useState(null);
   const handleRowClick = (row) => {
+    if (activeTab === 'all') { setHistoryTarget(row); return; }
     if (row.statusKey !== 'waiting') { goRecord(row); return; }
     setAcceptTarget(row);
   };
@@ -659,8 +669,14 @@ const TreatmentQueuePage = () => {
   const columns = useMemo(
     () => [
       /* ช่องชื่อผูก handler ของหน้า (ป๊อปอัปยืนยันรับผู้ป่วย) จึงแทนที่ตรงนี้
-         แทนการฝังใน BASE_COLUMNS ที่เป็นค่าคงที่ระดับโมดูล */
-      ...BASE_COLUMNS.map((c) => (c.key === 'name' ? { ...c, render: makeRenderName(handleRowClick) } : c)),
+         แทนการฝังใน BASE_COLUMNS ที่เป็นค่าคงที่ระดับโมดูล
+
+         คอลัมน์ "แพทย์รักษา" โชว์เฉพาะแท็บ "รายชื่อผู้ป่วยทั้งหมด" (มติผู้ใช้
+         2 ก.ย. 69 · ทำไว้ที่คิวฝากครรภ์ก่อน) — แท็บที่เป็นคิวนั้นผู้ใช้เห็นเฉพาะ
+         คิวของตัวเอง ชื่อแพทย์จึงซ้ำกันทุกแถว */
+      ...BASE_COLUMNS
+        .filter((c) => c.key !== 'doctor' || activeTab === 'all')
+        .map((c) => (c.key === 'name' ? { ...c, render: makeRenderName(handleRowClick) } : c)),
       {
         key: 'actions',
         label: 'การดำเนินการ',
@@ -669,11 +685,27 @@ const TreatmentQueuePage = () => {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [activeTab],
   );
 
   return (
     <>
+    {historyTarget && (
+      <React.Suspense fallback={null}>
+        <MedicalHistoryPopupLazy
+          open
+          patient={getPatientByHN(historyTarget.hn) || {
+            hn: historyTarget.hn,
+            fullName: historyTarget.name,
+            shortName: historyTarget.name,
+          }}
+          /* เปิดมาที่แกน "ดูตามวันที่รับบริการ" — รางวันที่อยู่ซ้าย เลือกวันแล้ว
+             อ่านของวันนั้นทีละหัวข้อ (มติผู้ใช้ 2 ก.ย. 69) */
+          initialViewMode='date'
+          onClose={() => setHistoryTarget(null)}
+        />
+      </React.Suspense>
+    )}
     <ScreeningConfirmPopup
       open={!!acceptTarget}
       patient={acceptTarget ? {

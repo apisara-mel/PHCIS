@@ -1109,6 +1109,11 @@ export const MedicalHistoryReadOnlyLayout = ({
   patient, hideSectionTitle = false, independentScroll = false,
   /** แสดงตัวสลับแกน (ป๊อปอัปประวัติการรักษาใช้ · ขั้นในหน้าคลินิกไม่ใช้) */
   viewModes = false,
+  /** แกนที่เปิดมาเจอเป็นอันแรก — 'order' (ดูตามรายการตรวจ) หรือ 'date'
+      (ดูตามวันที่รับบริการ · รางวันที่โผล่). ผู้เรียกที่เปิดจากทะเบียนผู้ป่วย
+      ส่ง 'date' มา เพราะคำถามที่ถืออยู่คือ "คนนี้เคยมาวันไหนบ้าง" ไม่ใช่
+      "ผลตรวจรายการนี้เปลี่ยนไปยังไง" (มติผู้ใช้ 2 ก.ย. 69) */
+  initialViewMode = 'order',
   form = null, setForm = null, onStepChange = null,
   /* CPOE §1.5 — /treat/record มี 8 ขั้นแล้ว (แทรก SOAP Note) ทำให้ index
      ของ "สั่งการรักษา" เลื่อนจาก 4 → 5. ผู้เรียกที่ส่ง `stepIndexes` มา
@@ -1136,7 +1141,7 @@ export const MedicalHistoryReadOnlyLayout = ({
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activeTab, setActiveTab] = useState(0);
-  const [viewMode, setViewMode] = useState('order');
+  const [viewMode, setViewMode] = useState(initialViewMode);
   /* โหมด "ตามรายการตรวจ" ซ่อนรางวันที่ — แผงที่ผูกกับครั้งเดียว (ภาพรวมการรักษา ·
      ผลแล็บ · ตรวจร่างกาย · วินิจฉัย · สรุปคัดกรอง) ได้ตัวเลือกวันที่แบบดรอปดาวน์
      ไว้ในแผงแทน ส่วนแผงที่รวมข้ามครั้งอยู่แล้ว (X-ray · เปรียบเทียบแล็บ/รังสี ·

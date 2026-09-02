@@ -6,7 +6,7 @@ import { MedicalHistoryReadOnlyLayout } from '@/components/forms/TreatmentSteps'
    PHCIS | CPOE Step 1 + Step 6 (4034:3723). Reuses the same read-only
    layout as the treatment record page. */
 
-const MedicalHistoryPopup = ({ open, onClose, patient }) => (
+const MedicalHistoryPopup = ({ open, onClose, patient, initialViewMode = 'order' }) => (
   <Popup
     open={open}
     onClose={onClose}
@@ -16,7 +16,13 @@ const MedicalHistoryPopup = ({ open, onClose, patient }) => (
     bodyScrollable={false}
     primaryAction={{ label: 'ปิด', onClick: onClose }}
   >
-    <MedicalHistoryReadOnlyLayout patient={patient} hideSectionTitle independentScroll viewModes />
+    <MedicalHistoryReadOnlyLayout
+      patient={patient}
+      hideSectionTitle
+      independentScroll
+      viewModes
+      initialViewMode={initialViewMode}
+    />
   </Popup>
 );
 
