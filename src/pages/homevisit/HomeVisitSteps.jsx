@@ -65,6 +65,9 @@ import FamilyGenogram from '@/components/homevisit/FamilyGenogram';
 import Popup from '@/components/popup/Popup';
 import {
   HOMEVISIT_TIME_SLOTS,
+  HOMEVISIT_SUPPLY_SETS,
+  DIAPER_SIZES,
+  describeSupplyNeed,
   HOMEVISIT_CENTER,
   HOMEVISIT_CENTER_LOCATION,
   VITAL_FIELDS,
@@ -1034,6 +1037,68 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
           หัวข้อย่อยของแต่ละแบบประเมินยังแยก section ชัดเหมือนเดิม */}
       <SectionCard>
         <HomeVisitStep4Assessment form={form} setForm={setForm} readOnly={readOnly} />
+      </SectionCard>
+
+      {/* ความต้องการ/สิ่งที่ควรได้รับ — ชุดผ้าอ้อม/แผ่นรองซับตามแบบฟอร์มกระดาษ
+          ของ ศบส. (มติผู้ใช้ 2 ก.ย. 69) เลือกได้ชุดเดียวเพราะเบิกได้วันละหนึ่งชุด */}
+      <SectionCard icon='clipboard-list' title='มีความต้องการ / ควรได้รับ'>
+        <StepSection gap='var(--dim-space-400, 16px)'>
+          <div className='flex items-start flex-wrap w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+            {HOMEVISIT_SUPPLY_SETS.map((opt) => (
+              <SelectableCardButton
+                key={opt.value}
+                selected={form.supplyNeedSet === opt.value}
+                onClick={readOnly ? undefined : () => set('supplyNeedSet')(
+                  form.supplyNeedSet === opt.value ? '' : opt.value,
+                )}
+                ariaLabel={`${opt.label} ${opt.detail}`}
+                minHeight={64}
+                padX='var(--dim-space-400, 16px)'
+              >
+                <span className='flex flex-col items-start' style={{ gap: 'var(--dim-space-50, 2px)' }}>
+                  <span style={{ fontWeight: 'var(--type-weight-medium)' }}>{opt.label}</span>
+                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                    {[opt.detail, opt.price].filter(Boolean).join(' · ')}
+                  </span>
+                </span>
+              </SelectableCardButton>
+            ))}
+          </div>
+
+          {form.supplyNeedSet === 'other' && (
+            <Field label='ระบุความต้องการ'>
+              <InputField
+                showLabel={false} showHelperText={false}
+                value={form.supplyNeedOther || ''}
+                onChange={set('supplyNeedOther')}
+                disabled={readOnly}
+                placeholder='เช่น แผ่นรองซับขนาดใหญ่ · ถุงมือยาง · สำลี/ผ้าก๊อซทำแผล'
+              />
+            </Field>
+          )}
+
+          {/* ไซซ์ถามเฉพาะชุดที่มีผ้าอ้อมผู้ใหญ่ */}
+          {['A', 'C', 'D', 'E'].includes(form.supplyNeedSet) && (
+            <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+              <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+                ไซซ์ผ้าอ้อมผู้ใหญ่
+              </span>
+              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+                {DIAPER_SIZES.map((size) => (
+                  <SelectableCardButton
+                    key={size}
+                    selected={form.diaperSize === size}
+                    onClick={readOnly ? undefined : () => set('diaperSize')(form.diaperSize === size ? '' : size)}
+                    ariaLabel={`ไซซ์ ${size}`}
+                    padX='var(--dim-space-400, 16px)'
+                  >
+                    {size}
+                  </SelectableCardButton>
+                ))}
+              </div>
+            </div>
+          )}
+        </StepSection>
       </SectionCard>
 
 
@@ -2598,6 +2663,7 @@ export const HomeVisitStepReview = ({ form, hn, registryEntry, appointment, bloc
           ['แผลกดทับ', PRESSURE_SORE_OPTIONS.find((o) => o.value === form.pressureSore)?.label],
           ['ระดับความปวด', Number.isFinite(form.painScore) ? `${form.painScore}/10` : ''],
           ['ADL (ดัชนีบาร์เธล)', adlTotal ? `${adlTotal}/${BARTHEL_MAX_SCORE} · ${adlInterp.label}` : ''],
+          ['ความต้องการ/ควรได้รับ', describeSupplyNeed(form)],
           ['สรุปผลการประเมิน', form.assessmentNote],
           ['รูปถ่ายระหว่างการเยี่ยม', photoCount ? `${photoCount} รูป` : ''],
         ]}

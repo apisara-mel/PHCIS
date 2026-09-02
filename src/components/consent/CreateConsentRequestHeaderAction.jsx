@@ -45,7 +45,7 @@ export default function CreateConsentRequestHeaderAction({ className = '' }) {
         size='sm'
         leadingIcon={CREATE_CONSENT_REQUEST_ICON}
         /* เปิดเมนูอยู่ให้ลูกศรชี้ขึ้น (มติผู้ใช้ 2 ก.ย. 69) */
-        trailingIcon={open ? 'expand_less' : 'expand_more'}
+        trailingIcon={menuOpen ? 'expand_less' : 'expand_more'}
         active={menuOpen}
         className='shrink-0'
         aria-label='คำขอเข้าถึงข้อมูล'
