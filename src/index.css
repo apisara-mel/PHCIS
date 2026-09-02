@@ -820,6 +820,21 @@ a:focus, a:focus-visible,
   --type-size-button-lg: 16px;
   --type-size-button-md: 16px;
   --type-size-button-sm: 14px;
+
+/* ระยะห่างเลื่อนลงหนึ่งขั้นพร้อมขนาดตัวอักษร (มติผู้ใช้ 2 ก.ย. 69) — ย่อแต่
+   ตัวอักษรแล้วช่องไฟยังเท่าเดิม หน้าจอไม่ได้กระชับขึ้นจริง · ค่าทุกตัวยังเป็น
+   ขั้นที่มีอยู่ในสเกล design.md (2 · 4 · 6 · 8 · 12 · 16 · 20 · 24 · 32 · 48 · 96)
+   ไม่ได้คิดเลขใหม่ */
+  --dim-space-100:  2px;
+  --dim-space-150:  4px;
+  --dim-space-200:  6px;
+  --dim-space-300:  8px;
+  --dim-space-400:  12px;
+  --dim-space-500:  16px;
+  --dim-space-600:  20px;
+  --dim-space-800:  24px;
+  --dim-space-1200: 32px;
+  --dim-space-2400: 64px;
 }
 
 [data-font-size="lg"] {
@@ -840,6 +855,18 @@ a:focus, a:focus-visible,
   --type-size-button-lg: 16px;
   --type-size-button-md: 16px;
   --type-size-button-sm: 14px;
+
+/* ระยะห่างเลื่อนขึ้นหนึ่งขั้นพร้อมขนาดตัวอักษร (มติผู้ใช้ 2 ก.ย. 69) */
+  --dim-space-100:  6px;
+  --dim-space-150:  8px;
+  --dim-space-200:  12px;
+  --dim-space-300:  16px;
+  --dim-space-400:  20px;
+  --dim-space-500:  24px;
+  --dim-space-600:  32px;
+  --dim-space-800:  48px;
+  --dim-space-1200: 64px;
+  --dim-space-2400: 128px;
 }
 
 [data-mode="dark"] .hover\:bg-brand-50:hover {

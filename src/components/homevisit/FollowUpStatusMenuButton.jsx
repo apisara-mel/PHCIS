@@ -44,7 +44,8 @@ export default function FollowUpStatusMenuButton({ hn, size = 'sm', className = 
         variant='outline'
         size={size}
         leadingIcon='fact_check'
-        trailingIcon='expand_more'
+        /* เปิดเมนูอยู่ให้ลูกศรชี้ขึ้น (มติผู้ใช้ 2 ก.ย. 69) */
+        trailingIcon={open ? 'expand_less' : 'expand_more'}
         active={open}
         aria-haspopup='menu'
         aria-expanded={open}

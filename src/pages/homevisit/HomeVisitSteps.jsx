@@ -1375,6 +1375,479 @@ export const HomeVisitPhotoSection = ({ form, setForm, readOnly }) => {
   );
 };
 
+/* การ์ดแบบประเมินมาตรฐาน — ทรงเดียวกับการ์ดใบยินยอมของหน้าเวชระเบียน
+   (หัวการ์ดพื้นอ่อน + รหัส/ป้ายเวอร์ชัน + ชื่อ + แถวปุ่มล่าง) แต่ "เวอร์ชัน"
+   ของแบบประเมินคือ *คะแนน* และป้ายคือ *การแปลผล* ซึ่งเป็นสิ่งที่พยาบาลต้อง
+   เห็นก่อนตัดสินใจว่าจะเปิดชุดไหน (มติผู้ใช้ 30 ส.ค. 69) */
+/* แบบประเมินสี่ชุดแสดงเป็นตาราง (มติผู้ใช้ 2 ก.ย. 69) — หัวข้อ/คะแนน/สถานะ/
+   ปุ่มดำเนินการ อยู่ในคอลัมน์ที่ตรงกันทุกแถว ใช้ <Table> ตัวเดียวกับที่อื่น
+   ในระบบ ไม่ได้จัดแถวเอง */
+
+export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }) => {
+  const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
+
+
+  const setAdl = (itemKey, value) => setForm((f) => ({
+    ...f,
+    adlAnswers: { ...f.adlAnswers, [itemKey]: value },
+  }));
+
+  const adlTotal = useMemo(() => scoreBarthel(form.adlAnswers), [form.adlAnswers]);
+  const adlAnswered = useMemo(() => countBarthelAnswered(form.adlAnswers), [form.adlAnswers]);
+  const adlInterp = useMemo(() => interpretBarthel(adlTotal), [adlTotal]);
+
+  const q2Positive = SCREEN_2Q_QUESTIONS.filter((q) => form.screen2q?.[q.key] === true).length;
+  /* เครื่องมือที่กำลังเปิดทำอยู่ในป๊อปอัป — null = ยังไม่เปิด */
+  const [openTool, setOpenTool] = useState(null);
+
+
+  /* ── เครื่องมือมาตรฐาน (มติ คทง.4 ต่อ §1.18.5) ──────────────────
+     MNA-SF · 9Q (เมื่อ 2Q ผลบวก) · PPS — คำนวณคะแนนและแปลผลอัตโนมัติ
+     ทุกตัว ไม่มีช่องให้ผู้บันทึกสรุปเป็น "ดีขึ้น/แย่ลง" เองอีก */
+  const bmi = useMemo(() => calcBmi(form.vitals?.weight, form.vitals?.height), [form.vitals]);
+  const bmiScore = useMemo(() => mnaBmiScore(bmi), [bmi]);
+
+  const mnaTotal = useMemo(() => scoreMna(form.mna), [form.mna]);
+  const mnaAnswered = useMemo(() => countMnaAnswered(form.mna), [form.mna]);
+  const mnaDone = isMnaComplete(form.mna);
+  const mnaInterp = useMemo(() => interpretMna(mnaTotal), [mnaTotal]);
+
+  /** ตอบ MNA — พร้อมเติมผลแปล (`nutrition`) ให้อัตโนมัติเมื่อครบทุกข้อ. */
+  const setMna = (itemKey, value) => setForm((f) => {
+    const mna = { ...f.mna, [itemKey]: value };
+    return {
+      ...f,
+      mna,
+      nutrition: isMnaComplete(mna) ? interpretMna(scoreMna(mna)).nutrition : '',
+    };
+  });
+
+  const applyBmiToMna = () => {
+    if (bmiScore === null) return;
+    setMna('f', bmiScore);
+  };
+
+  const q9Total = useMemo(() => score9q(form.screen9q), [form.screen9q]);
+  const q9Answered = useMemo(() => count9qAnswered(form.screen9q), [form.screen9q]);
+  const q9Done = is9qComplete(form.screen9q);
+  const q9Interp = useMemo(() => interpret9q(q9Total), [q9Total]);
+  const q9Suicidal = has9qSuicidalRisk(form.screen9q);
+
+  const set9q = (key, value) => setForm((f) => ({
+    ...f,
+    screen9q: { ...f.screen9q, [key]: value },
+  }));
+
+  const ppsInterp = useMemo(() => interpretPps(form.pps), [form.pps]);
+
+  /* meta ของการ์ดสี่ใบ — คะแนน/การแปลผลอ่านจากตัวแปรเดียวกับที่ฟอร์มข้างในใช้
+     จึงไม่มีทางที่การ์ดกับป๊อปอัปจะบอกคนละเรื่อง */
+  const q2Answered = SCREEN_2Q_QUESTIONS.filter((q) => typeof form.screen2q?.[q.key] === 'boolean').length;
+  const q2Done = q2Answered === SCREEN_2Q_QUESTIONS.length;
+  const ASSESSMENT_TOOL_CARDS = [
+    {
+      key: '2q',
+      code: '2Q / 9Q',
+      title: 'คัดกรองภาวะซึมเศร้า 2Q',
+      done: q2Done,
+      scoreLabel: q2Done ? `${q2Positive}/${SCREEN_2Q_QUESTIONS.length} ข้อ` : '—',
+      interp: q2Done
+        ? (q2Positive > 0
+          ? { badge: 'orange', label: `2Q ผลบวก ${q2Positive} ข้อ — ต้องทำ 9Q ต่อ` }
+          : { badge: 'green', label: 'ไม่พบความเสี่ยงซึมเศร้า' })
+        : null,
+    },
+    {
+      key: 'mna',
+      code: 'MNA-SF',
+      title: 'ประเมินภาวะโภชนาการ',
+      done: mnaDone,
+      scoreLabel: mnaDone ? `${mnaTotal}/${MNA_MAX_SCORE}` : `${mnaAnswered}/${MNA_ITEMS.length} ข้อ`,
+      interp: mnaDone ? mnaInterp : null,
+    },
+    {
+      key: 'pps',
+      code: 'PPS',
+      title: 'ระดับความสามารถผู้ป่วยประคับประคอง',
+      done: !!ppsInterp,
+      scoreLabel: ppsInterp ? `${form.pps}%` : '—',
+      interp: ppsInterp,
+    },
+    {
+      key: 'adl',
+      code: 'Barthel Index',
+      title: 'ประเมิน ADL — ดัชนีบาร์เธล',
+      done: isBarthelComplete(form.adlAnswers),
+      scoreLabel: `${adlTotal}/${BARTHEL_MAX_SCORE}`,
+      interp: isBarthelComplete(form.adlAnswers) ? adlInterp : null,
+    },
+  ];
+
+  return (
+    <StepCard>
+      {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+
+      {/* ถอด "ประเมินสภาพแวดล้อมในบ้าน" ออกจากงานเยี่ยมบ้าน (มติผู้ใช้ 30 ส.ค. 69)
+          — สภาพบ้าน/สุขาภิบาลเป็นหมวดของ "แบบสำรวจบ้าน" ซึ่งเป็นระบบของทีมอื่น
+          คีย์ `form.environment` ยังอยู่ในโมเดลเผื่อบันทึกเก่า */}
+
+      {/* แบบคัดกรองสุขภาพรายบุคคล — ฟอร์มเดียวกับหน้า "คัดกรองเยี่ยมบ้าน" ที่เคยทำไว้
+          ยกมาไว้ทั้งชุดในขั้น "ประเมินและคัดกรอง" (มติผู้ใช้ 30 ส.ค. 69) ซึ่งเป็นที่ของ
+          เครื่องมือคัดกรองทั้งหมดอยู่แล้ว (ADL/Barthel · MNA-SF · 2Q/9Q · PPS)
+          ช่องที่ระบบมีอยู่แล้วไม่ถูกยกมาซ้ำ: ชื่อ-ที่อยู่-เบอร์-สิทธิ (เวชระเบียน) ·
+          น้ำหนัก/ส่วนสูง/BMI/BP/PR/RR/T (ขั้นสัญญาณชีพ) · รายการยา/อาหารที่แพ้และ
+          โรคประจำตัว (ขั้นประวัติ) · วันที่สำรวจ (ใช้วันที่ให้บริการของบันทึกนี้) */}
+      {/* ถอดแผง "แบบคัดกรองสุขภาพรายบุคคล — ข้อมูลประชากรและสิทธิ" ออก
+          (มติผู้ใช้ 30 ส.ค. 69) — สัญชาติ/เชื้อชาติ/ศาสนา ย้ายไปขั้นข้อมูลส่วนตัว
+          แล้ว ส่วนสถานะบุคคล/สถานะในชุมชน/การใช้สิทธิ ผู้ใช้ให้ตัดออก
+          คีย์ใน `form.homeScreening` ยังอยู่ครบเผื่อบันทึกเก่า */}
+
+      {/* "ความเสี่ยงด้านสุขภาพ 15 ข้อ" ย้ายไปขั้น "พฤติกรรมสุขภาพ" แล้ว
+          (มติผู้ใช้ 30 ส.ค. 69) — เป็นเรื่องพฤติกรรม ไม่ใช่ผลการประเมิน */}
+
+      {/* "น้ำตาลปลายนิ้ว (DTX)" ย้ายไปขั้น "คัดกรอง" แล้ว (มติผู้ใช้ 2 ก.ย. 69)
+          — เจาะ DTX พร้อมวัดสัญญาณชีพตอนเพิ่งถึงบ้าน และเจาะเฉพาะรายที่เป็น
+          เบาหวาน · คีย์ `dtx` / `dtxFasting` ยังอยู่ที่ `form.homeScreening` เดิม */}
+
+      <StepSection>
+        {/* แถวการ์ดต้องมีหัวข้อของตัวเอง (มติผู้ใช้ 2 ก.ย. 69) — เดิมลอยอยู่
+            ใต้ช่องอื่นจนอ่านไม่ออกว่าสี่ใบนี้เป็นชุดเดียวกัน */}
+        <TopicHeader icon='checklist'>แบบประเมิน</TopicHeader>
+
+        {/* แบบประเมินมาตรฐาน 4 ชุดเป็น "การ์ด" ทรงเดียวกับใบยินยอมของหน้า
+            เวชระเบียน (มติผู้ใช้ 30 ส.ค. 69) — เดิมกางเป็นฟอร์มยาวเรียงกันสี่ชุด
+            ในขั้นเดียว ทำให้เลื่อนหาไม่เจอว่าเหลือชุดไหนยังไม่ได้ทำ · การ์ดบอก
+            สถานะ/คะแนน/การแปลผลของแต่ละชุดในบรรทัดเดียว แล้วค่อยกดเข้าไปทำ */}
+        <Table
+          columns={[
+            {
+              key: 'tool',
+              label: 'หัวข้อแบบประเมิน',
+              flex: true,
+              minWidth: 260,
+              render: (t) => (
+                <span className='flex flex-col' style={{ gap: 'var(--dim-space-50, 2px)' }}>
+                  <span style={{ color: 'var(--text-content-default, #363B3F)' }}>{t.title}</span>
+                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                    {t.code}
+                  </span>
+                </span>
+              ),
+            },
+            {
+              key: 'score',
+              label: 'คะแนนประเมิน',
+              minWidth: 140,
+              render: (t) => (
+                <span style={{
+                  color: 'var(--text-brandPrimary-default, #007549)',
+                  fontFamily: 'var(--type-family-heading-content)',
+                }}>
+                  {t.scoreLabel}
+                </span>
+              ),
+            },
+            {
+              key: 'status',
+              label: 'สถานะการประเมิน',
+              minWidth: 220,
+              render: (t) => (t.done && t.interp ? (
+                <ColorfulBadge style={t.interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={260}>
+                  {t.interp.label}
+                </ColorfulBadge>
+              ) : (
+                <ColorfulBadge style='grey' size='small' hierarchy='secondary' width='hug'>
+                  ยังไม่ได้ประเมิน
+                </ColorfulBadge>
+              )),
+            },
+            {
+              key: 'action',
+              label: 'ดำเนินการ',
+              minWidth: 180,
+              render: (t) => (
+                <BrandSubdueButton
+                  variant='outline'
+                  size='sm'
+                  /* ปุ่มของ DS เรนเดอร์ไอคอนเป็น Material Symbols (ligature) —
+                     ชื่อที่ไม่มีในฟอนต์จะโผล่เป็นตัวอักษรบนปุ่ม */
+                  leadingIcon={t.done ? 'edit' : 'assignment'}
+                  onClick={() => setOpenTool(t.key)}
+                >
+                  {readOnly ? 'ดูผลประเมิน' : (t.done ? 'แก้ไข' : 'ทำแบบประเมิน')}
+                </BrandSubdueButton>
+              ),
+            },
+          ]}
+          rows={ASSESSMENT_TOOL_CARDS}
+          rowKey={(t) => t.key}
+        />
+
+        <Popup
+          open={!!openTool}
+          onClose={() => setOpenTool(null)}
+          size='extraLarge'
+          title={ASSESSMENT_TOOL_CARDS.find((t) => t.key === openTool)?.title || ''}
+          primaryAction={{ label: 'เสร็จสิ้น', onClick: () => setOpenTool(null) }}
+        >
+          {/* ระยะจากเนื้อหาถึงขอบป๊อปอัป 24px ทุกด้าน (มติผู้ใช้ 30 ส.ค. 69) */}
+          <div
+            className='flex flex-col w-full'
+            style={{ gap: 'var(--dim-space-600, 24px)', padding: 'var(--dim-space-600, 24px)' }}
+          >
+            {openTool === '2q' && (
+              <>
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+                <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+                  คัดกรองภาวะซึมเศร้า 2Q
+                </span>
+                {SCREEN_2Q_QUESTIONS.map((q, idx) => (
+                  <div key={q.key} className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    <span className='flex-1 min-w-0' style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary, #636B72)' }}>
+                      {idx + 1}. {q.label}
+                    </span>
+                    <SelectableTag
+                      label='มี'
+                      size='md'
+                      selected={form.screen2q?.[q.key] === true}
+                      onClick={readOnly ? undefined : () => setForm((f) => ({ ...f, screen2q: { ...f.screen2q, [q.key]: true } }))}
+                    />
+                    <SelectableTag
+                      label='ไม่มี'
+                      size='md'
+                      selected={form.screen2q?.[q.key] === false}
+                      onClick={readOnly ? undefined : () => setForm((f) => ({ ...f, screen2q: { ...f.screen2q, [q.key]: false } }))}
+                    />
+                  </div>
+                ))}
+                {q2Positive > 0 && (
+                  <NoticeBand tone='warning' icon='psychology'>
+                    คัดกรอง 2Q ผลบวก {q2Positive} ข้อ — ต้องประเมิน 9Q ต่อให้ครบก่อนไปขั้นตอนถัดไป
+                    และส่งต่อคลินิกสุขภาพจิตหากเข้าเกณฑ์
+                  </NoticeBand>
+                )}
+              </div>
+
+              {/* 9Q — บังคับเมื่อ 2Q ผลบวก (มติ คทง.4 ต่อ §1.18.5) */}
+              {q2Positive > 0 && (
+                <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    <span style={{
+                      fontSize: 'var(--type-size-sm)',
+                      fontWeight: 'var(--type-weight-bold)',
+                      color: 'var(--text-content-default, #363B3F)',
+                    }}>
+                      แบบประเมินโรคซึมเศร้า 9Q
+                    </span>
+                    <div className='flex-1' />
+                    <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default, #363B3F)' }}>
+                      {q9Total}/{SCREEN_9Q_MAX_SCORE} คะแนน
+                    </span>
+                    {q9Done && (
+                      <ColorfulBadge style={q9Interp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
+                        {q9Interp.label}
+                      </ColorfulBadge>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                    ถามความถี่ของอาการใน 2 สัปดาห์ที่ผ่านมา ระบบรวมคะแนนและแปลผลระดับความรุนแรงให้อัตโนมัติ
+                    (ตอบแล้ว {q9Answered}/{SCREEN_9Q_QUESTIONS.length} ข้อ)
+                  </span>
+                  {SCREEN_9Q_QUESTIONS.map((q, idx) => (
+                    <div key={q.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+                      <span style={{
+                        fontSize: 'var(--type-size-sm)',
+                        color: q.critical ? 'var(--text-pill-red, #B91C1C)' : 'var(--text-content-default, #363B3F)',
+                      }}>
+                        {idx + 1}. {q.label}
+                      </span>
+                      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                        {SCREEN_9Q_FREQUENCY.map((opt) => (
+                          <SelectableTag
+                            key={opt.value}
+                            label={`${opt.label} (${opt.value})`}
+                            size='md'
+                            selected={form.screen9q?.[q.key] === opt.value}
+                            onClick={readOnly ? undefined : () => set9q(q.key, opt.value)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  {q9Suicidal && (
+                    <NoticeBand tone='danger' icon='crisis_alert'>
+                      ผู้รับบริการตอบข้อ 9 (คิดทำร้ายตนเอง) — ต้องประเมินความเสี่ยงฆ่าตัวตาย (8Q)
+                      และส่งต่อจิตแพทย์ทันทีในการเยี่ยมครั้งนี้ ห้ามรอรอบเยี่ยมถัดไป
+                    </NoticeBand>
+                  )}
+                  {q9Done && !q9Suicidal && (
+                    <NoticeBand tone={q9Interp.key === 'none' ? 'info' : 'warning'} icon='psychology_alt'>
+                      {q9Interp.label} — {q9Interp.advice}
+                    </NoticeBand>
+                  )}
+                </div>
+              )}
+              </>
+            )}
+            {openTool === 'mna' && (
+              <>
+              <TopicHeader
+                icon='nutrition'
+                aside={(
+                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default, #363B3F)' }}>
+                      {mnaTotal}/{MNA_MAX_SCORE} คะแนน
+                    </span>
+                    <ColorfulBadge style={mnaInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
+                      {mnaDone ? mnaInterp.label : `ตอบแล้ว ${mnaAnswered}/${MNA_ITEMS.length} ข้อ`}
+                    </ColorfulBadge>
+                  </div>
+                )}
+              >
+                ประเมินภาวะโภชนาการ — MNA-SF
+              </TopicHeader>
+              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                ใช้แบบประเมินมาตรฐานแทนการเลือก “ดี/เสี่ยง/ขาดสารอาหาร” เอง — ระบบรวมคะแนน แปลผล
+                และเติมช่อง “ภาวะโภชนาการ” ด้านบนให้อัตโนมัติเมื่อตอบครบทั้ง {MNA_ITEMS.length} ข้อ
+              </span>
+              {MNA_ITEMS.map((item, idx) => (
+                <div key={item.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  <div className='flex items-center w-full flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    <span className='flex-1 min-w-0' style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+                      {idx + 1}. {item.label}
+                    </span>
+                    {item.autoFromBmi && bmiScore !== null && form.mna?.f !== bmiScore && !readOnly && (
+                      <NeutralSubdueButton variant='outline' size='sm' leadingIcon='calculate' onClick={applyBmiToMna}>
+                        ใช้ค่า BMI {bmi} ที่ระบบคำนวณ
+                      </NeutralSubdueButton>
+                    )}
+                  </div>
+                  {item.autoFromBmi && bmiScore === null && (
+                    <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                      ยังไม่มีค่า BMI — กรอกน้ำหนักและส่วนสูงในขั้นตอนสัญญาณชีพ แล้วกลับมากดใช้ค่าอัตโนมัติได้
+                    </span>
+                  )}
+                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    {item.options.map((opt) => (
+                      <SelectableTag
+                        key={opt.value}
+                        label={`${opt.label} (${opt.value})`}
+                        size='md'
+                        selected={form.mna?.[item.key] === opt.value}
+                        onClick={readOnly ? undefined : () => setMna(item.key, opt.value)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {mnaDone && (
+                <NoticeBand tone={mnaInterp.key === 'normal' ? 'info' : 'warning'} icon='restaurant'>
+                  {mnaInterp.label} — {mnaInterp.advice}
+                </NoticeBand>
+              )}
+              </>
+            )}
+            {openTool === 'pps' && (
+              <>
+              <TopicHeader
+                icon='monitor_heart'
+                aside={ppsInterp ? (
+                  <ColorfulBadge style={ppsInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
+                    {ppsInterp.label}
+                  </ColorfulBadge>
+                ) : undefined}
+              >
+                ระดับความสามารถ — PPS (Palliative Performance Scale)
+              </TopicHeader>
+              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                เลือกระดับที่ตรงกับผู้รับบริการมากที่สุด — ระบบใช้ผลนี้เสนอรอบการเยี่ยมครั้งถัดไปให้อัตโนมัติ
+              </span>
+              <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-150, 6px)' }}>
+                {PPS_LEVELS.map((level) => (
+                  <SelectableTag
+                    key={level.value}
+                    label={level.label}
+                    size='md'
+                    selected={Number(form.pps) === level.value && form.pps !== ''}
+                    onClick={readOnly ? undefined : () => set('pps')(level.value)}
+                  />
+                ))}
+              </div>
+              {ppsInterp && (
+                <NoticeBand tone={ppsInterp.key === 'stable' ? 'info' : 'warning'} icon='event_repeat'>
+                  {ppsInterp.label} — {ppsInterp.advice}
+                  {ppsInterp.followUpDays ? ` (ระบบเสนอรอบเยี่ยมถัดไปทุก ${ppsInterp.followUpDays} วัน)` : ''}
+                </NoticeBand>
+              )}
+              </>
+            )}
+            {openTool === 'adl' && (
+              <>
+              <TopicHeader
+                icon='accessible'
+                aside={(
+                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    <span style={{ fontSize: 'var(--type-size-sm)', fontWeight: 'var(--type-weight-bold)', color: 'var(--text-content-default, #363B3F)' }}>
+                      {adlTotal}/{BARTHEL_MAX_SCORE} คะแนน
+                    </span>
+                    <ColorfulBadge style={adlInterp.badge} size='small' hierarchy='secondary' width='hug' maxWidth={420}>
+                      {adlInterp.label}
+                    </ColorfulBadge>
+                  </div>
+                )}
+              >
+                ประเมิน ADL — ดัชนีบาร์เธล (Barthel Index)
+              </TopicHeader>
+              <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+                ตอบครบทุกข้อ ระบบคำนวณคะแนนรวมและแปลผลกลุ่มติดสังคม/ติดบ้าน/ติดเตียงให้อัตโนมัติ
+                และส่งคะแนนไปแสดงเป็นแนวโน้มในหน้าติดตามการเยี่ยมบ้าน (ตอบแล้ว {adlAnswered}/{BARTHEL_ITEMS.length} ข้อ)
+              </span>
+              {BARTHEL_ITEMS.map((item, idx) => (
+                <div key={item.key} className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>
+                    {idx + 1}. {item.label}
+                  </span>
+                  <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                    {item.options.map((opt) => (
+                      <SelectableTag
+                        key={opt.value}
+                        label={`${opt.label} (${opt.value})`}
+                        size='md'
+                        selected={form.adlAnswers?.[item.key] === opt.value}
+                        onClick={readOnly ? undefined : () => setAdl(item.key, opt.value)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              </>
+            )}
+          </div>
+        </Popup>
+
+      </StepSection>
+
+      <StepSection>
+        {/* หัวข้อ "สรุปผลการประเมินการเยี่ยมบ้าน" ถูกถอดออก (มติผู้ใช้ 2 ก.ย. 69)
+            — ป้ายของช่องกรอกบอกอยู่แล้วว่าเป็นสรุปผลการประเมิน */}
+        <SuggestibleTextarea
+          label='สรุปผลการประเมิน'
+          required
+          voice
+          value={form.assessmentNote}
+          onChange={(e) => set('assessmentNote')(e.target.value)}
+          suggestions={HOMEVISIT_ASSESSMENT_SUGGESTIONS}
+          minChars={3}
+          disabled={readOnly}
+          placeholder='สภาพผู้รับบริการ สภาพแวดล้อม ผู้ดูแล และปัญหาที่ต้องแก้ไขเร่งด่วน'
+        />
+      </StepSection>
+
+      {/* "รูปถ่ายระหว่างการเยี่ยม" แยกเป็นการ์ดของตัวเอง (มติผู้ใช้ 2 ก.ย. 69) —
+          ถูกย้ายไปเรนเดอร์ที่ขั้น "ประเมินอาการป่วย" นอกการ์ดแบบประเมิน */}
+    </StepCard>
+  );
+};
 /* ── Step 6 — สั่งการรักษา (CPOE · TOR 1.18.6) ────────────────────────
    รายการทั้งหมดมาจากแคตตาล็อกกลางชุดเดียวกับหน้าจอ CPOE (`labCatalog` ·
    `xrayCatalog` · ICD-9-CM · รายการยา/เวชภัณฑ์ของ Step5Orders) และส่งต่อ
