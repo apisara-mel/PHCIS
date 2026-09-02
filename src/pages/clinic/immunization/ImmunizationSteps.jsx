@@ -667,7 +667,7 @@ export const ImmStep3Growth = ({ form, setForm, immHn, child, locked }) => {
         />
       </div>
 
-      <ImmGrowthCharts form={form} immHn={immHn} child={child} />
+      {/* กราฟ/ตารางการเจริญเติบโตย้ายไปอยู่ในป๊อปอัป "ดูการเจริญเติบโต" บนแถบ vital signs (มติผู้ใช้ 3 ก.ย. 69) */}
     </StepCard>
   );
 };

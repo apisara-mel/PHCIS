@@ -302,7 +302,7 @@ const ImmVitalsTextRow = ({ form, intake, immHn, child }) => {
         primaryAction={{ label: 'ปิด', onClick: () => setChartOpen(false) }}
       >
         <div style={{ padding: 'var(--dim-space-600, 24px)' }}>
-          <ImmGrowthCharts form={form} immHn={immHn} child={child} showTitle={false} chartHeight={480} legendAlign='center' showHistory />
+          <ImmGrowthCharts form={form} immHn={immHn} child={child} showTitle={false} chartHeight={340} legendAlign='center' showHistory />
         </div>
       </Popup>
     </div>
