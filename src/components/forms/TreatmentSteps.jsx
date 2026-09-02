@@ -3483,7 +3483,7 @@ const FREQUENT_ORDER_CHIPS_BY_TAB = {
   ],
 };
 
-const FrequentOrdersCard = ({ onInsertChip, selectedLabels }) => {
+export const FrequentOrdersCard = ({ onInsertChip, selectedLabels }) => {
   const [activeTab, setActiveTab] = useState(FREQUENT_ORDER_TABS[0].key);
   /* Normalize the caller's `selectedLabels` into a Set for O(1) lookup
      during the chip render. Accepting either a Set or an Array means

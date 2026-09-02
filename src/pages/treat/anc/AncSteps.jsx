@@ -8,7 +8,9 @@ import SelectableTag from '@/components/forms/SelectableTag';
 import RadioButton from '@/components/radio/RadioButton';
 import Checkbox from '@/components/checkbox/Checkbox';
 import { SNOMED_CONCEPTS } from '@/data/treatmentSnomed';
-import { DEFAULT_ICD_SUGGESTIONS } from '@/data/treatmentVisits';
+import { DEFAULT_ICD_SUGGESTIONS, PAST_VISIT_MEDICATIONS } from '@/data/treatmentVisits';
+import ReMedicinePopup from '@/components/popup/ReMedicinePopup';
+import { FrequentOrdersCard } from '@/components/forms/TreatmentSteps';
 import { ICD9_PROCEDURES } from '@/pages/treat/panels/ProcedureOrderPanel';
 import { Field, FieldGrid } from '@/components/forms/Fields';
 import CarriedScreeningPanel from '@/components/screening/CarriedScreeningPanel';
@@ -1940,6 +1942,32 @@ export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
   const setField = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
   const setLabResult = (key) => (value) => setForm((f) => ({ ...f, labResults: { ...f.labResults, [key]: value } }));
 
+  /* Re-Medicine — สั่งยาซ้ำจากการรักษาที่ผ่านมา (มติผู้ใช้ 3 ก.ย. 69) ปุ่มอยู่บนตาราง */
+  const [reMedOpen, setReMedOpen] = useState(false);
+  const appendPastMedications = (picked) => {
+    if (!picked || picked.length === 0) return;
+    setForm((f) => ({
+      ...f,
+      medications: [
+        ...(f.medications || []),
+        ...picked.map((p, i) => ({
+          id: `anc-remed-${Date.now()}-${i}`,
+          kind: 'drug',
+          name: p.name,
+          image: p.image || resolveMedicationImage(p.name),
+          usage: p.usage || '',
+          dosePerTake: p.dosePerTake || '',
+          frequency: p.frequency || '',
+          when: p.when || '',
+          quantity: p.quantity || '',
+          purpose: p.purpose || medicationRegistryDefaults(p.name).purpose,
+          warning: p.warning || medicationRegistryDefaults(p.name).warning,
+        })),
+      ],
+    }));
+    setReMedOpen(false);
+  };
+
   const addMedication = (med) => {
     setForm((f) => ({ ...f, medications: [...(f.medications || []), { ...med, id: `anc-med-${Date.now()}` }] }));
     setMedOpen(false);
@@ -2100,7 +2128,16 @@ export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
               />
             </Field>
           </div>
+          <BrandSubdueButton variant='outline' leadingIcon='history' onClick={() => setReMedOpen(true)}>
+            Re-Medicine
+          </BrandSubdueButton>
         </div>
+        <ReMedicinePopup
+          open={reMedOpen}
+          onClose={() => setReMedOpen(false)}
+          onConfirm={appendPastMedications}
+          items={PAST_VISIT_MEDICATIONS}
+        />
         <Table
           columns={[
             { key: 'kind', label: 'ประเภท', render: (r) => ANC_ORDER_KIND_LABEL[r.kind] || 'ยา' },
@@ -2145,6 +2182,13 @@ export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
           rows={form.medications || []}
           rowKey={(r) => r.id || r.name}
           emptyMessage='ยังไม่มีรายการยา — เพิ่มได้จากปุ่มด้านบน'
+        />
+
+        {/* ชุดยาที่สั่งบ่อย (ที่ฉันบันทึกไว้ / แพทย์มักสั่ง / ผู้ป่วยรายนี้ใช้บ่อย) ใต้ตาราง
+            — ชุดเดียวกับขั้นสั่งการรักษาของ OPD (มติผู้ใช้ 3 ก.ย. 69) */}
+        <FrequentOrdersCard
+          onInsertChip={(chip) => addFromRegistry(chip?.label || chip)}
+          selectedLabels={(form.medications || []).map((m) => m.name)}
         />
       </div>
 
