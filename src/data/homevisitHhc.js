@@ -28,6 +28,7 @@ import {
 import {
   getNhsoVisitQuota,
 } from '@/data/homevisitQuotaSettings';
+import { getHomeVisitNhsoFields } from '@/data/homevisitClaimSettings';
 
 /* ═══ §1.18.1 — โควตาการเยี่ยมตามสิทธิ สปสช. รายกลุ่มผู้ป่วย ═══════
    “ระบบต้องแจ้งเตือนหรือล็อกจำนวนครั้งการเยี่ยมตามโควตาที่ สปสช. กำหนด
@@ -125,8 +126,15 @@ export const NHSO_REQUIRED_FIELDS = [
 ];
 
 /** ตรวจความครบถ้วนก่อนส่ง — คืนรายการที่ยังขาด. */
+const resolveNhsoSource = (source, context) => ({
+  'entry.nationalId': context.entry?.nationalId,
+  'entry.group': context.entry?.group,
+  'form.serviceDate': context.form?.serviceDate,
+  'form.arrivalTime': context.form?.arrivalTime,
+  adlComplete: context.adlComplete ? 'ok' : '',
+}[source]);
 export const checkNhsoClaimReady = (context = {}) =>
-  NHSO_REQUIRED_FIELDS.filter((f) => !String(f.get(context) || '').trim());
+  getHomeVisitNhsoFields({ requiredOnly: true, activeOnly: true }).filter((field) => !String(resolveNhsoSource(field.source, context) || '').trim());
 
 /**
  * ส่งข้อมูลการเยี่ยมเข้าชุดข้อมูล สปสช. (mock API).
