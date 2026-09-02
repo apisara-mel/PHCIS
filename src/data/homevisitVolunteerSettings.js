@@ -1,0 +1,21 @@
+/* กฎจ่ายงานและเพดาน อสส. ระดับสำนักอนามัย ตามมติ คทง.4 ต่อ TOR §2.2.2 */
+const SETTINGS_KEY = 'mih:homevisit:volunteer-settings';
+const ASSIGNMENTS_KEY = 'mih:homevisit:volunteer-assignments';
+const clone = (v) => JSON.parse(JSON.stringify(v));
+const hasSession = () => typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined';
+const read = (key, fallback) => { if (!hasSession()) return fallback; try { return JSON.parse(window.sessionStorage.getItem(key) || 'null') ?? fallback; } catch { return fallback; } };
+const write = (key, value) => { if (hasSession()) window.sessionStorage.setItem(key, JSON.stringify(value)); };
+const stamp = () => new Date().toISOString();
+export const HOMEVISIT_VOLUNTEER_SEED = { caps: { householdsMin: 15, householdsMax: 30, workDaysPerMonth: 4, allowanceBaht: 2000, blockConfidential: true, countBy: 'household' }, assign: { assignerRoles: ['staff'], unit: 'household', allowOverCap: false } };
+const normalize = (source = {}) => ({ caps: { ...HOMEVISIT_VOLUNTEER_SEED.caps, ...(source.caps || {}) }, assign: { ...HOMEVISIT_VOLUNTEER_SEED.assign, ...(source.assign || {}) } });
+const state = () => read(SETTINGS_KEY, { settings: normalize(), audit: [], savedBy: null, savedAt: null });
+export const getHomeVisitVolunteerSettings = () => clone(normalize(state().settings));
+export const getHomeVisitVolunteerAudit = () => clone(state().audit).sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+export const householdKeyOf = (row = {}) => String(row.householdKey || row.address || `${row.community || ''}:${row.district || ''}`).trim().toLowerCase();
+export const getVolunteerAssignments = () => read(ASSIGNMENTS_KEY, []);
+export const countVolunteerHouseholds = (volunteerId) => new Set(getVolunteerAssignments().filter((row) => row.volunteerId === volunteerId).map((row) => row.householdKey)).size;
+export const canAssignHousehold = ({ volunteerId, householdKey, confidential } = {}) => { const settings = getHomeVisitVolunteerSettings(); const used = countVolunteerHouseholds(volunteerId); const cap = settings.caps.householdsMax; if (confidential && settings.caps.blockConfidential) return { ok: false, reason: 'เคสข้อมูลลับไม่สามารถจ่ายให้อสส.ได้', used, cap }; if (getVolunteerAssignments().some((row) => row.volunteerId === volunteerId && row.householdKey === householdKey)) return { ok: false, reason: 'ครัวเรือนนี้ถูกจ่ายให้อสส.คนนี้แล้ว', used, cap }; if (used >= cap && !settings.assign.allowOverCap) return { ok: false, reason: 'ถึงเพดานครัวเรือนต่อ อสส. แล้ว', used, cap }; return { ok: true, reason: '', used, cap }; };
+export const assignVolunteerHousehold = ({ volunteerId, householdKey, assignedBy, confidential } = {}) => { const result = canAssignHousehold({ volunteerId, householdKey, confidential }); if (!result.ok) throw new Error(result.reason); const next = { householdKey, volunteerId, assignedBy: assignedBy || 'เจ้าหน้าที่ศูนย์บริการ', assignedAt: stamp() }; const assignments = [...getVolunteerAssignments(), next]; write(ASSIGNMENTS_KEY, assignments); return clone(next); };
+export const removeVolunteerAssignment = ({ volunteerId, householdKey } = {}) => { const next = getVolunteerAssignments().filter((row) => !(row.volunteerId === volunteerId && row.householdKey === householdKey)); write(ASSIGNMENTS_KEY, next); return next; };
+export const saveHomeVisitVolunteerSettings = (next, { reason, by } = {}) => { const previous = state(); const settings = normalize(next); if (settings.caps.householdsMin < 15 || settings.caps.householdsMin > settings.caps.householdsMax || !Number.isInteger(Number(settings.caps.workDaysPerMonth)) || Number(settings.caps.workDaysPerMonth) < 1) throw new Error('ตรวจสอบช่วงเพดานครัวเรือนและวันปฏิบัติงานให้ถูกต้อง'); const changed = JSON.stringify(previous.settings) !== JSON.stringify(settings); const clean = String(reason || '').trim(); if (changed && !clean) throw new Error('กรุณาระบุเหตุผลเมื่อปรับกฎหรือเพดาน อสส.'); const at = stamp(); const savedBy = by || 'ผู้ดูแลระบบ'; const audit = changed ? [...previous.audit, { id: `hv-volunteer-${Date.now()}`, before: previous.settings, after: settings, by: savedBy, at, reason: clean }] : previous.audit; const nextState = { settings, audit, savedBy, savedAt: at }; write(SETTINGS_KEY, nextState); return clone({ state: nextState, audit }); };
+

@@ -122,6 +122,7 @@ import {
   getHomeVisitCareActivities,
   getHomeVisitCareTemplates,
 } from '@/data/homevisitCareTemplates';
+import { resolveLtcGroup } from '@/data/homevisitLtcSettings';
 import {
   MNA_ITEMS,
   MNA_MAX_SCORE,
@@ -1505,6 +1506,9 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
   const adlTotal = useMemo(() => scoreBarthel(form.adlAnswers), [form.adlAnswers]);
   const adlAnswered = useMemo(() => countBarthelAnswered(form.adlAnswers), [form.adlAnswers]);
   const adlInterp = useMemo(() => interpretBarthel(adlTotal), [adlTotal]);
+  const ltcResult = useMemo(() => isBarthelComplete(form.adlAnswers)
+    ? resolveLtcGroup({ barthel: adlTotal, hasCareManager: form.hasCareManager, hasCareGiver: form.hasCareGiver })
+    : { eligible: false, group: null, visitsPerMonth: null }, [adlTotal, form.adlAnswers, form.hasCareManager, form.hasCareGiver]);
 
   const q2Positive = SCREEN_2Q_QUESTIONS.filter((q) => form.screen2q?.[q.key] === true).length;
   /* เครื่องมือที่กำลังเปิดทำอยู่ในป๊อปอัป — null = ยังไม่เปิด */
@@ -1596,6 +1600,11 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
   return (
     <StepCard>
       {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+      {isBarthelComplete(form.adlAnswers) && (
+        <NoticeBand tone={ltcResult.eligible ? 'info' : 'neutral'} icon='health_and_safety'>
+          {ltcResult.eligible ? `คำนวณอัตโนมัติ: LTC กลุ่ม ${ltcResult.group} · ความถี่ ${ltcResult.visitsPerMonth} ครั้ง/เดือน · ตามมติควรเข้าสู่แบบ Long-Term Care (HW02)` : 'ผล Barthel นี้ไม่เข้าเกณฑ์ LTC หรือยังไม่มี Care Manager / Care Giver ครบตามเกณฑ์'}
+        </NoticeBand>
+      )}
 
       {/* ถอด "ประเมินสภาพแวดล้อมในบ้าน" ออกจากงานเยี่ยมบ้าน (มติผู้ใช้ 30 ส.ค. 69)
           — สภาพบ้าน/สุขาภิบาลเป็นหมวดของ "แบบสำรวจบ้าน" ซึ่งเป็นระบบของทีมอื่น

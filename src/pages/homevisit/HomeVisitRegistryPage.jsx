@@ -96,6 +96,7 @@ import {
   dateFilterToIsoRange,
 } from '@/pages/homevisit/homevisitShared';
 import { getHomeVisitFlagCatalog } from '@/data/homevisitFlagSettings';
+import { resolveLtcGroup } from '@/data/homevisitLtcSettings';
 
 /* HomeVisitRegistryPage — ทะเบียนผู้รับบริการเยี่ยมบ้าน (TOR 1.10.12.1,
    ต่อเนื่องถึง 1.18.2 ปักหมุดตำแหน่งบ้าน).
@@ -153,6 +154,10 @@ const EMPTY_FORM = {
   illnessHistory: '',
   contactName: '',
   contactPhone: '',
+  hasCareManager: false,
+  hasCareGiver: false,
+  ltcGroup: null,
+  ltcEligible: false,
   flags: [],
   confidential: false,
   note: '',
@@ -310,6 +315,10 @@ const HomeVisitRegistryPage = () => {
     illnessHistory: row.illnessHistory || '',
     contactName: row.contactName || '',
     contactPhone: row.contactPhone || '',
+    hasCareManager: !!row.hasCareManager,
+    hasCareGiver: !!row.hasCareGiver,
+    ltcGroup: row.ltcGroup || null,
+    ltcEligible: !!row.ltcEligible,
     flags: row.flags || [],
     confidential: !!row.confidential,
     note: row.note || '',
@@ -410,6 +419,11 @@ const HomeVisitRegistryPage = () => {
     () => (editingRow ? getQuotaUsage(editingRow, getVisitHistory(editingRow.hn)) : null),
     [editingRow],
   );
+  const ltcAssessment = useMemo(() => {
+    const historyRows = form.hn ? getVisitHistory(form.hn) : [];
+    const latest = historyRows.slice().reverse().find((item) => Number.isFinite(Number(item.adl)));
+    return latest ? resolveLtcGroup({ barthel: Number(latest.adl), hasCareManager: form.hasCareManager, hasCareGiver: form.hasCareGiver }) : { eligible: false, group: null, visitsPerMonth: null };
+  }, [form.hn, form.hasCareManager, form.hasCareGiver, tick]);
   const sourceLocked = isAutoReceivedSource(form.source) && editing !== 'new';
 
   const profile = useMemo(() => (form.hn ? getPatientByHN(form.hn) : null), [form.hn]);
@@ -515,6 +529,10 @@ const HomeVisitRegistryPage = () => {
       illnessHistory: form.illnessHistory.trim(),
       contactName: form.contactName.trim(),
       contactPhone: form.contactPhone.trim(),
+      hasCareManager: !!form.hasCareManager,
+      hasCareGiver: !!form.hasCareGiver,
+      ltcGroup: ltcAssessment.group,
+      ltcEligible: ltcAssessment.eligible,
       flags: form.flags,
       confidential: form.confidential,
       note: form.note.trim(),
@@ -1331,6 +1349,12 @@ const HomeVisitRegistryPage = () => {
                   <Field label='เบอร์ติดต่อ'>
                     <InputField showLabel={false} showHelperText={false} value={form.contactPhone} onChange={setField('contactPhone')} disabled={readOnly} placeholder='08x-xxx-xxxx' />
                   </Field>
+                </div>
+                <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
+                  <span style={TEXT}>เกณฑ์ LTC</span>
+                  <Switch checked={form.hasCareManager} disabled={readOnly} onChange={(value) => setField('hasCareManager')(value)} aria-label='มี Care Manager' /><span style={SUBTEXT}>มี Care Manager</span>
+                  <Switch checked={form.hasCareGiver} disabled={readOnly} onChange={(value) => setField('hasCareGiver')(value)} aria-label='มี Care Giver' /><span style={SUBTEXT}>มี Care Giver</span>
+                  <ColorfulBadge style={ltcAssessment.eligible ? 'teal' : 'grey'} size='small' hierarchy='secondary' width='hug'>{ltcAssessment.eligible ? `LTC กลุ่ม ${ltcAssessment.group} · ${ltcAssessment.visitsPerMonth} ครั้ง/เดือน` : 'ไม่เข้าเกณฑ์ LTC'}</ColorfulBadge>
                 </div>
 
                 <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-default, #363B3F)' }}>

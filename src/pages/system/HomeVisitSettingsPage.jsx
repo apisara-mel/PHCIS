@@ -13,7 +13,6 @@ import Popup from '@/components/popup/Popup';
 import UnsavedChangesPopup from '@/components/popup/UnsavedChangesPopup';
 import Footer from '@/components/layout/Footer';
 import ColorfulBadge from '@/components/badge/ColorfulBadge';
-import Icon from '@/components/icons/Icon';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import SYSTEM_NAV from '@/pages/system/systemNav';
 import { HOMEVISIT_GROUPS } from '@/data/homevisitVisits';
@@ -35,6 +34,8 @@ import {
 } from '@/data/homevisitFlagSettings';
 import { COLORFUL_BADGE_STYLES } from '@/components/badge/ColorfulBadge';
 import { currentUserName, isBureauAdmin } from '@/pages/users/usersShared';
+import { getHomeVisitLtcSettings, getHomeVisitLtcAudit, saveHomeVisitLtcSettings } from '@/data/homevisitLtcSettings';
+import { getHomeVisitVolunteerSettings, getHomeVisitVolunteerAudit, saveHomeVisitVolunteerSettings, countVolunteerHouseholds } from '@/data/homevisitVolunteerSettings';
 
 /* ระบบจัดการระบบ · ตั้งค่าการเยี่ยมบ้าน
    มาสเตอร์เพดาน สปสช. ระดับสำนักอนามัยตามมติ คทง.4 ครั้งที่ 6 ต่อ TOR §1.18.1.
@@ -45,6 +46,8 @@ const PAGE_TABS = [
   { key: 'quota', label: 'ตั้งค่าโควตา' },
   { key: 'templates', label: 'เทมเพลตกิจกรรม/เป้าหมาย' },
   { key: 'flags', label: 'Flag เยี่ยมบ้าน' },
+  { key: 'ltc', label: 'เกณฑ์ LTC กลุ่ม 1–4' },
+  { key: 'volunteer', label: 'กฎจ่ายงานและเพดาน อสส.' },
   { key: 'audit', label: 'ประวัติการแก้ไข' },
 ];
 
@@ -127,6 +130,17 @@ export default function HomeVisitSettingsPage() {
   const [flagReasonPopupOpen, setFlagReasonPopupOpen] = useState(false);
   const [flagReason, setFlagReason] = useState('');
   const [flagErrors, setFlagErrors] = useState({});
+  const [ltcSettings, setLtcSettings] = useState(() => getHomeVisitLtcSettings());
+  const [savedLtcSettings, setSavedLtcSettings] = useState(() => getHomeVisitLtcSettings());
+  const [ltcAuditRows, setLtcAuditRows] = useState(() => getHomeVisitLtcAudit());
+  const [ltcReason, setLtcReason] = useState('');
+  const [ltcReasonOpen, setLtcReasonOpen] = useState(false);
+  const [ltcErrors, setLtcErrors] = useState({});
+  const [volunteerSettings, setVolunteerSettings] = useState(() => getHomeVisitVolunteerSettings());
+  const [savedVolunteerSettings, setSavedVolunteerSettings] = useState(() => getHomeVisitVolunteerSettings());
+  const [volunteerAuditRows, setVolunteerAuditRows] = useState(() => getHomeVisitVolunteerAudit());
+  const [volunteerReason, setVolunteerReason] = useState('');
+  const [volunteerReasonOpen, setVolunteerReasonOpen] = useState(false);
   const [templatePopupOpen, setTemplatePopupOpen] = useState(false);
   const [templateDraft, setTemplateDraft] = useState(null);
   const [templateReasonPopupOpen, setTemplateReasonPopupOpen] = useState(false);
@@ -149,6 +163,8 @@ export default function HomeVisitSettingsPage() {
   const dirty = !sameRows(draftRows, settings.rows);
   const careDirty = !sameCatalog(careCatalog, savedCareCatalog);
   const flagDirty = !sameCatalog(flagCatalog, savedFlagCatalog);
+  const ltcDirty = !sameCatalog(ltcSettings, savedLtcSettings);
+  const volunteerDirty = !sameCatalog(volunteerSettings, savedVolunteerSettings);
 
   const updateRow = (group, field, raw) => {
     if (!isAdmin) return;
@@ -212,6 +228,8 @@ export default function HomeVisitSettingsPage() {
       templates: savedCareCatalog.templates.map((template) => ({ ...template, activityIds: [...template.activityIds] })),
     });
     setFlagCatalog(savedFlagCatalog.map((row) => ({ ...row })));
+    setLtcSettings(JSON.parse(JSON.stringify(savedLtcSettings)));
+    setVolunteerSettings(JSON.parse(JSON.stringify(savedVolunteerSettings)));
     setReason('');
     setErrors({});
     if (pendingTab) setActiveTab(pendingTab);
@@ -221,13 +239,21 @@ export default function HomeVisitSettingsPage() {
 
   const handleTabChange = (tab) => {
     if (tab === activeTab) return;
-    if ((activeTab === 'quota' && dirty) || (activeTab === 'templates' && careDirty) || (activeTab === 'flags' && flagDirty)) {
+    if ((activeTab === 'quota' && dirty) || (activeTab === 'templates' && careDirty) || (activeTab === 'flags' && flagDirty) || (activeTab === 'ltc' && ltcDirty) || (activeTab === 'volunteer' && volunteerDirty)) {
       setPendingTab(tab);
       setUnsavedOpen(true);
       return;
     }
     setActiveTab(tab);
   };
+
+  const patchLtc = (path, value) => setLtcSettings((current) => ({ ...current, [path]: value }));
+  const patchLtcGroup = (group, key, value) => setLtcSettings((current) => ({ ...current, groups: current.groups.map((row) => row.group === group ? { ...row, [key]: value } : row) }));
+  const saveLtc = () => {
+    if (!ltcReason.trim()) { setLtcErrors({ reason: 'ระบุเหตุผลการปรับเกณฑ์ LTC' }); return; }
+    try { const saved = saveHomeVisitLtcSettings(ltcSettings, { reason: ltcReason, by: currentUserName() }); setLtcSettings(saved.state.settings); setSavedLtcSettings(saved.state.settings); setLtcAuditRows(saved.audit); setLtcReason(''); setLtcReasonOpen(false); setToast(`บันทึกเกณฑ์ LTC แล้ว · ${saved.state.savedBy}`); if (pendingTab) setActiveTab(pendingTab); setPendingTab(null); } catch (error) { setLtcErrors({ reason: error.message || 'บันทึกเกณฑ์ LTC ไม่สำเร็จ' }); }
+  };
+  const saveVolunteer = () => { if (!volunteerReason.trim()) return; try { const saved = saveHomeVisitVolunteerSettings(volunteerSettings, { reason: volunteerReason, by: currentUserName() }); setVolunteerSettings(saved.state.settings); setSavedVolunteerSettings(saved.state.settings); setVolunteerAuditRows(saved.audit); setVolunteerReason(''); setVolunteerReasonOpen(false); setToast(`บันทึกกฎจ่ายงาน อสส. แล้ว · ${saved.state.savedBy}`); } catch (error) { setToast(error.message); } };
 
   const patchFlagDraft = (field, value) => {
     setFlagDraft((current) => ({ ...current, [field]: value }));
@@ -495,6 +521,13 @@ export default function HomeVisitSettingsPage() {
     { key: 'edit', label: '', sortable: false, render: (row) => <BrandSubdueButton variant='outline' size='sm' leadingIcon='edit' disabled={!isAdmin} onClick={() => { setFlagDraft({ ...row }); setFlagErrors({}); setFlagPopupOpen(true); }}>แก้ไข</BrandSubdueButton> },
   ], [isAdmin]);
 
+  const ltcColumns = useMemo(() => [
+    { key: 'group', label: 'กลุ่ม LTC', render: (row) => <ColorfulBadge style={row.group === 1 ? 'red' : 'blue'} size='small' hierarchy='secondary' width='hug'>กลุ่ม {row.group}</ColorfulBadge> },
+    { key: 'range', label: 'ช่วง ADL (0–20)', render: (row) => <InputField showLabel={false} showHelperText={false} value={row.adlMin == null ? 'เกณฑ์เพิ่ม' : `${row.adlMin} – ${row.adlMax}`} disabled={!isAdmin || row.group === 4} onChange={(value) => { const m = String(value).match(/(\d+)\s*[-–]\s*(\d+)/); if (m) { patchLtcGroup(row.group, 'adlMin', Number(m[1])); patchLtcGroup(row.group, 'adlMax', Number(m[2])); } }} /> },
+    { key: 'visitsPerMonth', label: 'ความถี่ (ครั้ง/เดือน)', render: (row) => <Stepper aria-label={`ความถี่กลุ่ม ${row.group}`} value={row.visitsPerMonth} min={1} step={1} size='large' disabled={!isAdmin} onChange={(value) => patchLtcGroup(row.group, 'visitsPerMonth', value || 1)} /> },
+    { key: 'extraRule', label: 'เกณฑ์เพิ่ม', flex: true, render: (row) => <Textarea showLabel={false} showHelperText={false} value={row.extraRule} disabled={!isAdmin} onChange={(value) => patchLtcGroup(row.group, 'extraRule', value)} placeholder='ระบุเกณฑ์เพิ่มเติม' /> },
+  ], [isAdmin]);
+
   const careAuditColumns = useMemo(() => [
     {
       key: 'entity', label: 'รายการ',
@@ -542,7 +575,9 @@ export default function HomeVisitSettingsPage() {
       after: row.after?.label || 'ปิดใช้รายการ',
       by: row.by, at: row.at, reason: row.reason,
     })),
-  ].sort((left, right) => String(right.at || '').localeCompare(String(left.at || ''))), [auditRows, careAuditRows, flagAuditRows]);
+    ...ltcAuditRows.map((row) => ({ id: `ltc-${row.id}`, type: 'ltc', item: 'เกณฑ์ LTC กลุ่ม 1–4', before: `ประตู ${row.before.gate.barthelMax} · กลุ่ม 1 ${row.before.groups[0].visitsPerMonth} ครั้ง/เดือน`, after: `ประตู ${row.after.gate.barthelMax} · กลุ่ม 1 ${row.after.groups[0].visitsPerMonth} ครั้ง/เดือน`, by: row.by, at: row.at, reason: row.reason })),
+    ...volunteerAuditRows.map((row) => ({ id: `volunteer-${row.id}`, type: 'volunteer', item: 'กฎจ่ายงานและเพดาน อสส.', before: `${row.before.caps.householdsMin}–${row.before.caps.householdsMax} ครัวเรือน · ${row.before.caps.workDaysPerMonth} วัน/เดือน`, after: `${row.after.caps.householdsMin}–${row.after.caps.householdsMax} ครัวเรือน · ${row.after.caps.workDaysPerMonth} วัน/เดือน`, by: row.by, at: row.at, reason: row.reason })),
+  ].sort((left, right) => String(right.at || '').localeCompare(String(left.at || ''))), [auditRows, careAuditRows, flagAuditRows, ltcAuditRows, volunteerAuditRows]);
 
   const combinedAuditColumns = useMemo(() => [
     { key: 'at', label: 'วันเวลา', render: (row) => <span style={SUBTEXT}>{auditTime(row.at)}</span> },
@@ -550,7 +585,7 @@ export default function HomeVisitSettingsPage() {
       key: 'type', label: 'ประเภทการแก้ไข', sortable: false,
       render: (row) => (
         <ColorfulBadge style={row.type === 'quota' ? 'blue' : row.type === 'template' ? 'purple' : 'orange'} size='small' hierarchy='secondary' width='hug'>
-          {row.type === 'quota' ? 'โควตาและรอบติดตาม' : row.type === 'template' ? 'เทมเพลตกิจกรรม/เป้าหมาย' : 'Flag เยี่ยมบ้าน'}
+          {row.type === 'quota' ? 'โควตาและรอบติดตาม' : row.type === 'template' ? 'เทมเพลตกิจกรรม/เป้าหมาย' : row.type === 'flag' ? 'Flag เยี่ยมบ้าน' : row.type === 'ltc' ? 'เกณฑ์ LTC กลุ่ม 1–4' : 'กฎจ่ายงานและเพดาน อสส.'}
         </ColorfulBadge>
       ),
     },
@@ -656,7 +691,7 @@ export default function HomeVisitSettingsPage() {
           {activeTab === 'flags' ? (
             <section className='w-full flex flex-col' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
               <div className='flex items-start justify-between flex-wrap' style={{ gap: 'var(--dim-space-300)' }}>
-                <div className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-100)' }}><h2 style={{ color: 'var(--text-content-primary)', fontFamily: 'var(--type-family-heading-content)', fontSize: 'var(--type-size-lg)', fontWeight: 'var(--type-weight-bold)' }}>Flag เยี่ยมบ้าน</h2><span style={SUBTEXT}>แคตตาล็อกชนิดธงตาม TOR §1.10.12.1 และ §1.1.3.1 · ไม่ใช่ Flag เวชระเบียน โควตา หรือป้ายกลุ่มระยะสุดท้าย/กลุ่มพิเศษ</span></div>
+                <div className='flex flex-col flex-1 min-w-0' style={{ gap: 'var(--dim-space-100)' }}><h2 style={{ color: 'var(--text-content-primary)', fontFamily: 'var(--type-family-heading-content)', fontSize: 'var(--type-size-lg)', fontWeight: 'var(--type-weight-bold)' }}>Flag เยี่ยมบ้าน</h2></div>
                 {isAdmin ? <BrandSubdueButton variant='fill' size='md' leadingIcon='add' onClick={() => { setFlagDraft(emptyFlag(flagCatalog.length + 1)); setFlagErrors({}); setFlagPopupOpen(true); }}>เพิ่ม Flag</BrandSubdueButton> : null}
               </div>
               {flagDirty ? <ColorfulBadge style='orange' size='small' hierarchy='secondary' width='hug'>มีการแก้ไขที่ยังไม่บันทึก</ColorfulBadge> : null}
@@ -664,10 +699,31 @@ export default function HomeVisitSettingsPage() {
             </section>
           ) : null}
 
+          {activeTab === 'ltc' ? (
+            <section className='w-full flex flex-col' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}><h2 style={{ color: 'var(--text-content-primary)', fontFamily: 'var(--type-family-heading-content)', fontSize: 'var(--type-size-lg)', fontWeight: 'var(--type-weight-bold)' }}>เกณฑ์ LTC กลุ่ม 1–4</h2></div>
+              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300)' }}><span style={TEXT}>ประตูเข้า LTC: ADL 0 ถึง</span><Stepper aria-label='ADL สูงสุดของประตู LTC' value={ltcSettings.gate.barthelMax} min={0} max={20} step={1} size='large' disabled={!isAdmin} onChange={(value) => patchLtc('gate', { ...ltcSettings.gate, barthelMax: value || 0 })} /><Switch checked={ltcSettings.gate.requireCareManager} disabled={!isAdmin} onChange={(value) => patchLtc('gate', { ...ltcSettings.gate, requireCareManager: value })} /><span style={TEXT}>บังคับมี Care Manager</span><Switch checked={ltcSettings.gate.requireCareGiver} disabled={!isAdmin} onChange={(value) => patchLtc('gate', { ...ltcSettings.gate, requireCareGiver: value })} /><span style={TEXT}>บังคับมี Care Giver</span></div>
+              <Table columns={ltcColumns} rows={ltcSettings.groups} rowKey={(row) => row.group} pagination={false} stickyColCount={1} stickyShadow emptyMessage='ไม่พบเกณฑ์ LTC' />
+              {ltcDirty ? <ColorfulBadge style='orange' size='small' hierarchy='secondary' width='hug'>ค่าที่ปรับอาจทำให้ความถี่นัดของผู้เข้าเกณฑ์เปลี่ยนทันที</ColorfulBadge> : null}
+            </section>
+          ) : null}
+
+          {activeTab === 'volunteer' ? (
+            <section className='w-full flex flex-col' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-100)' }}><h2 style={{ color: 'var(--text-content-primary)', fontFamily: 'var(--type-family-heading-content)', fontSize: 'var(--type-size-lg)', fontWeight: 'var(--type-weight-bold)' }}>กฎจ่ายงานและเพดาน อสส.</h2></div>
+              <div className='flex flex-col' style={{ gap: 'var(--dim-space-600)' }}>
+                <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}><span style={{ ...TEXT, minWidth: 'var(--dim-size-2200, 192px)' }}>ครัวเรือนขั้นต่ำ</span><Stepper value={volunteerSettings.caps.householdsMin} min={15} step={1} size='large' disabled={!isAdmin} onChange={(value) => setVolunteerSettings((s) => ({ ...s, caps: { ...s.caps, householdsMin: value || 15 } }))} /></div>
+                <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}><span style={{ ...TEXT, minWidth: 'var(--dim-size-2200, 192px)' }}>ครัวเรือนสูงสุด</span><Stepper value={volunteerSettings.caps.householdsMax} min={15} step={1} size='large' disabled={!isAdmin} onChange={(value) => setVolunteerSettings((s) => ({ ...s, caps: { ...s.caps, householdsMax: value || 15 } }))} /></div>
+                <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}><span style={{ ...TEXT, minWidth: 'var(--dim-size-2200, 192px)' }}>วันทำงานต่อเดือน</span><Stepper value={volunteerSettings.caps.workDaysPerMonth} min={1} step={1} size='large' disabled={!isAdmin} onChange={(value) => setVolunteerSettings((s) => ({ ...s, caps: { ...s.caps, workDaysPerMonth: value || 1 } }))} /></div>
+              </div>
+              <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}><Switch checked={volunteerSettings.caps.blockConfidential} disabled={!isAdmin} onChange={(value) => setVolunteerSettings((s) => ({ ...s, caps: { ...s.caps, blockConfidential: value } }))} /><span style={TEXT}>ห้ามจ่ายเคสข้อมูลลับ</span><Switch checked={volunteerSettings.assign.allowOverCap} disabled={!isAdmin} onChange={(value) => setVolunteerSettings((s) => ({ ...s, assign: { ...s.assign, allowOverCap: value } }))} /><span style={TEXT}>อนุญาตจ่ายเกินเพดานเมื่อมีเหตุผล</span></div>
+              <ColorfulBadge style='blue' size='small' hierarchy='secondary' width='hug'>หน่วยนับ: ครัวเรือน · ค่าป่วยการอ้างอิง {volunteerSettings.caps.allowanceBaht.toLocaleString()} บาท/เดือน</ColorfulBadge>
+            </section>
+          ) : null}
+
           {activeTab === 'audit' ? (
             <section className='w-full flex flex-col' style={{ ...CARD, padding: 'var(--dim-space-600)', gap: 'var(--dim-space-500)' }}>
               <div className='flex items-center' style={{ gap: 'var(--dim-space-300)' }}>
-                <Icon name='history' size={20} style={{ color: 'var(--icon-brandPrimary-default)' }} />
                 <div className='flex flex-col'>
                   <h2 style={{ color: 'var(--text-content-primary)', fontFamily: 'var(--type-family-heading-content)', fontSize: 'var(--type-size-lg)', fontWeight: 'var(--type-weight-bold)' }}>
                     ประวัติการแก้ไข
@@ -680,6 +736,8 @@ export default function HomeVisitSettingsPage() {
                 <FilterTag value='โควตาและรอบติดตาม' size='md' selected={auditTypeFilter === 'quota'} onClick={() => setAuditTypeFilter('quota')} />
                 <FilterTag value='เทมเพลตกิจกรรม/เป้าหมาย' size='md' selected={auditTypeFilter === 'template'} onClick={() => setAuditTypeFilter('template')} />
                 <FilterTag value='Flag เยี่ยมบ้าน' size='md' selected={auditTypeFilter === 'flag'} onClick={() => setAuditTypeFilter('flag')} />
+                <FilterTag value='เกณฑ์ LTC กลุ่ม 1–4' size='md' selected={auditTypeFilter === 'ltc'} onClick={() => setAuditTypeFilter('ltc')} />
+                <FilterTag value='กฎจ่ายงานและเพดาน อสส.' size='md' selected={auditTypeFilter === 'volunteer'} onClick={() => setAuditTypeFilter('volunteer')} />
               </div>
               <Table
                 columns={combinedAuditColumns}
@@ -694,7 +752,7 @@ export default function HomeVisitSettingsPage() {
             </section>
           ) : null}
         </div>
-        {(activeTab === 'quota' || activeTab === 'templates' || activeTab === 'flags') && isAdmin ? (
+        {(activeTab === 'quota' || activeTab === 'templates' || activeTab === 'flags' || activeTab === 'ltc' || activeTab === 'volunteer') && isAdmin ? (
           <Footer
             type='with BTN'
             sticky
@@ -702,10 +760,10 @@ export default function HomeVisitSettingsPage() {
             showAutoSave={false}
             showButton2={false}
             showButton3={false}
-            button1Label={activeTab === 'templates' ? 'บันทึกเทมเพลตทั้งชุด' : activeTab === 'flags' ? 'บันทึกแคตตาล็อก Flag ทั้งชุด' : 'บันทึกการตั้งค่าทั้งชุด'}
+            button1Label={activeTab === 'templates' ? 'บันทึกเทมเพลตทั้งชุด' : activeTab === 'flags' ? 'บันทึกแคตตาล็อก Flag ทั้งชุด' : activeTab === 'ltc' ? 'บันทึกเกณฑ์ LTC ทั้งชุด' : activeTab === 'volunteer' ? 'บันทึกกฎจ่ายงาน อสส.' : 'บันทึกการตั้งค่าทั้งชุด'}
             button1Icon='save'
-            button1Disabled={activeTab === 'templates' ? !careDirty : activeTab === 'flags' ? !flagDirty : !dirty}
-            onButton1Click={activeTab === 'templates' ? requestCareSave : activeTab === 'flags' ? () => { setUnsavedOpen(false); setFlagReasonPopupOpen(true); } : () => requestSave(false)}
+            button1Disabled={activeTab === 'templates' ? !careDirty : activeTab === 'flags' ? !flagDirty : activeTab === 'ltc' ? !ltcDirty : activeTab === 'volunteer' ? !volunteerDirty : !dirty}
+            onButton1Click={activeTab === 'templates' ? requestCareSave : activeTab === 'flags' ? () => { setUnsavedOpen(false); setFlagReasonPopupOpen(true); } : activeTab === 'ltc' ? () => { setUnsavedOpen(false); setLtcReasonOpen(true); } : activeTab === 'volunteer' ? () => { setUnsavedOpen(false); setVolunteerReasonOpen(true); } : () => requestSave(false)}
           />
         ) : null}
       </QueuePageShell>
@@ -713,11 +771,12 @@ export default function HomeVisitSettingsPage() {
       <UnsavedChangesPopup
         open={unsavedOpen}
         onClose={() => setUnsavedOpen(false)}
-        onSave={() => (activeTab === 'templates' ? requestCareSave() : activeTab === 'flags' ? (() => { setUnsavedOpen(false); setFlagReasonPopupOpen(true); })() : requestSave(true))}
+        onSave={() => (activeTab === 'templates' ? requestCareSave() : activeTab === 'flags' ? (() => { setUnsavedOpen(false); setFlagReasonPopupOpen(true); })() : activeTab === 'ltc' ? (() => { setUnsavedOpen(false); setLtcReasonOpen(true); })() : activeTab === 'volunteer' ? (() => { setUnsavedOpen(false); setVolunteerReasonOpen(true); })() : requestSave(true))}
         onDiscard={discardAndLeave}
         description={activeTab === 'templates'
           ? 'เทมเพลตหรือแคตตาล็อกกิจกรรมที่ยังไม่บันทึกจะไม่พร้อมให้ทีมเยี่ยมบ้านเลือกใช้'
           : activeTab === 'flags' ? 'แคตตาล็อก Flag ที่ยังไม่บันทึกจะยังไม่มีผลกับทะเบียนและคิวเยี่ยมบ้าน'
+          : activeTab === 'ltc' ? 'เกณฑ์ LTC ที่ยังไม่บันทึกจะยังไม่มีผลกับการคำนวณกลุ่มและความถี่นัด'
           : 'การปรับเพดานหรือรอบติดตามที่ยังไม่บันทึกจะไม่มีผลกับการล็อกสิทธิในคิวเยี่ยมบ้าน'}
       />
 
@@ -752,6 +811,13 @@ export default function HomeVisitSettingsPage() {
 
       <Popup open={flagReasonPopupOpen} onClose={() => setFlagReasonPopupOpen(false)} title='บันทึกแคตตาล็อก Flag เยี่ยมบ้าน' subtitle='ระบุเหตุผลเพื่อบันทึก audit ค่าเดิมและค่าใหม่' primaryAction={{ label: 'บันทึกแคตตาล็อก Flag', disabled: !flagReason.trim(), onClick: saveFlags }} secondaryAction={{ label: 'ยกเลิก', onClick: () => setFlagReasonPopupOpen(false) }}>
         <Textarea label='เหตุผลการปรับแคตตาล็อก Flag' required value={flagReason} onChange={(value) => { setFlagReason(value); setFlagErrors((current) => ({ ...current, reason: undefined })); }} error={flagErrors.reason} helperText='บังคับระบุเมื่อมีการเปลี่ยนแปลง' placeholder='เช่น เพิ่ม Flag ตามแนวทางการดูแลผู้ป่วยที่บ้าน' />
+      </Popup>
+
+      <Popup open={ltcReasonOpen} onClose={() => setLtcReasonOpen(false)} title='บันทึกเกณฑ์ LTC กลุ่ม 1–4' subtitle='ระบุเหตุผลเพื่อบันทึก audit ค่าเดิมและค่าใหม่' primaryAction={{ label: 'บันทึกเกณฑ์ LTC ทั้งชุด', disabled: !ltcReason.trim(), onClick: saveLtc }} secondaryAction={{ label: 'ยกเลิก', onClick: () => setLtcReasonOpen(false) }}>
+        <Textarea label='เหตุผลการปรับเกณฑ์ LTC' required value={ltcReason} onChange={(value) => { setLtcReason(value); setLtcErrors({}); }} error={ltcErrors.reason} helperText='บังคับระบุเมื่อมีการเปลี่ยนแปลง' placeholder='เช่น ปรับเกณฑ์ตามแนวทาง LTC ของสำนักอนามัย' />
+      </Popup>
+      <Popup open={volunteerReasonOpen} onClose={() => setVolunteerReasonOpen(false)} title='บันทึกกฎจ่ายงานและเพดาน อสส.' subtitle='ระบุเหตุผลเพื่อบันทึก audit ค่าเดิมและค่าใหม่' primaryAction={{ label: 'บันทึกกฎจ่ายงาน อสส.', disabled: !volunteerReason.trim(), onClick: saveVolunteer }} secondaryAction={{ label: 'ยกเลิก', onClick: () => setVolunteerReasonOpen(false) }}>
+        <Textarea label='เหตุผลการปรับกฎจ่ายงานหรือเพดาน อสส.' required value={volunteerReason} onChange={setVolunteerReason} placeholder='เช่น ปรับจำนวนครัวเรือนตามแนวทางสำนักอนามัย' />
       </Popup>
 
       <Popup open={flagPopupOpen} onClose={() => { setFlagPopupOpen(false); setFlagDraft(null); }} size='extraLarge' title={flagDraft && flagCatalog.some((row) => row.value === flagDraft.value) ? 'แก้ไข Flag เยี่ยมบ้าน' : 'เพิ่ม Flag เยี่ยมบ้าน'} subtitle='กำหนดชนิดธงกลางสำหรับการติดธงรายบุคคลในทะเบียนเยี่ยมบ้าน' primaryAction={{ label: 'เก็บไว้ในชุดที่กำลังแก้ไข', disabled: !flagDraftReady, onClick: saveFlagDraft }} secondaryAction={{ label: 'ยกเลิก', onClick: () => { setFlagPopupOpen(false); setFlagDraft(null); } }}>
