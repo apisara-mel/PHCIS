@@ -1323,7 +1323,7 @@ export const FpStep5Postpartum = ({ form, setForm, locked }) => {
         <EmptyState
           icon='child_care'
           title='ไม่มีข้อมูลหลังคลอด'
-          subtitle='ผู้รับบริการรายนี้ไม่มีประวัติการคลอดที่ต้องติดตามในครั้งนี้ — เปิดบันทึกได้หากเป็นการเยี่ยมหลังคลอด (คู่มือ §2.1.4 / §2.1.5)'
+          subtitle='ผู้รับบริการรายนี้ไม่มีประวัติการคลอดที่ต้องติดตามในครั้งนี้'
           action={(
             <BrandDashedAddButton
               disabled={locked}
