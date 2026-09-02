@@ -7,6 +7,7 @@ import DatePicker from '@/components/forms/DatePicker';
 import SelectableTag from '@/components/forms/SelectableTag';
 import RadioButton from '@/components/radio/RadioButton';
 import Checkbox from '@/components/checkbox/Checkbox';
+import Icd10SearchPopup from '@/components/popup/Icd10SearchPopup';
 import { Field, FieldGrid } from '@/components/forms/Fields';
 import CarriedScreeningPanel from '@/components/screening/CarriedScreeningPanel';
 import CarriedDentalPanel from '@/components/dental/CarriedDentalPanel';
@@ -1656,6 +1657,9 @@ export const AncStep3Examination = ({ form, setForm, ancHn, cardPatient }) => {
    ระดับความเสี่ยงเป็นตัวขับเส้นทางนัดหมายในขั้นที่ 6 + คำแนะนำที่ระบบเลือก
    หัวข้อตามอายุครรภ์ให้ (มติ คทง.2) */
 export const AncStep4Diagnosis = ({ form, setForm }) => {
+  /* ตัวช่วยค้นหารหัสวินิจฉัย ICD-10 ข้างหัวข้อบันทึกวินิจฉัย (มติผู้ใช้ 3 ก.ย. 69) —
+     เลือกแล้วต่อท้าย "รหัส ชื่อโรค" ลงในช่องบันทึก */
+  const [icdOpen, setIcdOpen] = useState(false);
   const gestationalAge = calculateGestationalAge(form.lmp);
   const weeks = gestationalAge?.weeks;
   const tier = getAncVisitTier(weeks);
@@ -1694,7 +1698,26 @@ export const AncStep4Diagnosis = ({ form, setForm }) => {
       </div>
 
       <div className='flex flex-col gap-3'>
-        <TopicHeader icon='file-text' small tone='neutral'>บันทึกวินิจฉัย</TopicHeader>
+        <div className='flex items-center w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+          <div className='min-w-0 flex-1'>
+            <TopicHeader icon='file-text' small tone='neutral'>บันทึกวินิจฉัย</TopicHeader>
+          </div>
+          <BrandSubdueButton variant='outline' size='sm' leadingIcon='search' onClick={() => setIcdOpen(true)}>
+            ค้นหารหัสวินิจฉัย
+          </BrandSubdueButton>
+        </div>
+        <Icd10SearchPopup
+          open={icdOpen}
+          onClose={() => setIcdOpen(false)}
+          onSelect={(pick) => {
+            const line = `${pick.code} ${pick.name}`;
+            setForm((f) => ({
+              ...f,
+              diagnosisNote: f.diagnosisNote?.trim() ? `${f.diagnosisNote.trim()}\n${line}` : line,
+            }));
+            setIcdOpen(false);
+          }}
+        />
         <SuggestibleTextarea
           voice
           value={form.diagnosisNote}
