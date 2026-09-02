@@ -518,7 +518,7 @@ const useImmGrowthRecords = (immHn, form) => useMemo(() => {
 
 /* กราฟการเจริญเติบโต (percentile) — แยกออกมาให้แถบ vital signs ของหน้าบันทึก
    เปิดดูในป๊อปอัปได้ด้วย (มติผู้ใช้ 3 ก.ย. 69) */
-export const ImmGrowthCharts = ({ form, immHn, child, showTitle = true }) => {
+export const ImmGrowthCharts = ({ form, immHn, child, showTitle = true, chartHeight, legendAlign }) => {
   const [chartKey, setChartKey] = useState(GROWTH_CHART_DEFS[0].key);
   const records = useImmGrowthRecords(immHn, form);
   const months = ageInMonths(child?.birthDate);
@@ -548,6 +548,8 @@ export const ImmGrowthCharts = ({ form, immHn, child, showTitle = true }) => {
           />
         </div>
         <GrowthPercentileChart
+          height={chartHeight}
+          legendAlign={legendAlign}
           title={activeDef.title}
           unit={activeDef.unit}
           axisLabel={activeDef.axisLabel}

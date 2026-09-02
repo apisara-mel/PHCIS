@@ -68,6 +68,8 @@ const GrowthPercentileChart = ({
   height = 220,
   latestEvaluation = null,
   emptyMessage = 'ยังไม่มีข้อมูลการเจริญเติบโตในช่วงนี้',
+  /** จัดแถวคำอธิบายสัญลักษณ์ (ป๊อปอัปใช้ 'center') */
+  legendAlign = 'start',
 }) => {
   const [hoverIdx, setHoverIdx] = useState(null);
 
@@ -232,7 +234,7 @@ const GrowthPercentileChart = ({
         )}
       </div>
 
-      <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
+      <div className='flex items-center flex-wrap' style={{ justifyContent: legendAlign === 'center' ? 'center' : 'flex-start', gap: 'var(--dim-space-300, 12px)', fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
         <span className='inline-flex items-center' style={{ gap: 'var(--dim-space-100, 4px)' }}>
           <span style={{ width: 16, height: 2, background: MEDIAN_LINE, display: 'inline-block' }} />
           เส้นกลาง P50
