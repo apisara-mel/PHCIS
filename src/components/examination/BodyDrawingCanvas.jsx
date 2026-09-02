@@ -2277,6 +2277,10 @@ export const BodyViewSelector = ({
 
 export const BodyImageGroup = ({
   viewKey,
+  /* รูปร่างกายเปลี่ยนได้ตามงาน (มติผู้ใช้ 2 ก.ย. 69) — คลินิกฝากครรภ์ใช้รูป
+     หญิงตั้งครรภ์ ค่าเริ่มต้นยังเป็นรูปเดิม หน้าอื่นจึงไม่เปลี่ยน */
+  frontSrc = FRONT_IMG,
+  backSrc = BACK_IMG,
   markers = [],
   drawings = [],
   height = 448,
@@ -3235,7 +3239,7 @@ export const BodyImageGroup = ({
       {showFront && (
         <BodyFigure
           ref={frontFigureRef}
-          src={FRONT_IMG}
+          src={frontSrc}
           alt='มุมมองด้านหน้า'
           side='front'
           {...figureProps}
@@ -3244,7 +3248,7 @@ export const BodyImageGroup = ({
       {showBack && (
         <BodyFigure
           ref={backFigureRef}
-          src={BACK_IMG}
+          src={backSrc}
           alt='มุมมองด้านหลัง'
           side='back'
           {...figureProps}
@@ -4320,6 +4324,8 @@ const BODY_DIAGRAM_EXPANDED_MIN_HEIGHT = 360;
 const BODY_DIAGRAM_EXPANDED_VIEW_OFFSET = 48;
 
 const BodyDiagramExpandedPopup = ({
+  frontSrc = FRONT_IMG,
+  backSrc = BACK_IMG,
   open,
   onClose,
   title,
@@ -4426,6 +4432,10 @@ const BodyDiagramExpandedPopup = ({
             className='w-full min-h-0'
           >
             <BodyImageGroup
+            frontSrc={frontSrc}
+            backSrc={backSrc}
+              frontSrc={frontSrc}
+              backSrc={backSrc}
               viewKey={viewKey}
               markers={markers}
               drawings={drawings}
@@ -4452,6 +4462,8 @@ const BodyDiagramExpandedPopup = ({
 
 /* Embedded diagram card — Figma 150:36340 */
 export const BodyDiagramCard = ({
+  frontSrc = FRONT_IMG,
+  backSrc = BACK_IMG,
   viewKey,
   onViewChange,
   markers = [],
@@ -4525,6 +4537,10 @@ export const BodyDiagramCard = ({
             className='w-full h-full'
           >
             <BodyImageGroup
+            frontSrc={frontSrc}
+            backSrc={backSrc}
+              frontSrc={frontSrc}
+              backSrc={backSrc}
               viewKey={viewKey}
               markers={markers}
               drawings={drawings}
@@ -4546,6 +4562,8 @@ export const BodyDiagramCard = ({
         />
       </div>
       <BodyDiagramExpandedPopup
+        frontSrc={frontSrc}
+        backSrc={backSrc}
         open={expandedOpen}
         onClose={() => setExpandedOpen(false)}
         title={expandedTitle}
@@ -4569,6 +4587,8 @@ const BODY_DRAWING_CANVAS_OVERLAY_TOP = 48;
 
 /* Modal drawing canvas — Figma 75:34452 */
 const BodyDrawingCanvas = ({
+  frontSrc = FRONT_IMG,
+  backSrc = BACK_IMG,
   viewKey,
   onViewChange,
   markers: markersProp = [],
@@ -5186,6 +5206,8 @@ const BodyDrawingCanvas = ({
           className={`w-full min-h-0 ${fillHeight ? 'flex-1' : ''}`}
         >
           <BodyImageGroup
+            frontSrc={frontSrc}
+            backSrc={backSrc}
             viewKey={viewKey}
             markers={markers}
             height={canvasHeight}

@@ -13,6 +13,9 @@ import {
 
 const BodyDiagramPanel = ({
   systemKey = 'heent',
+  /* รูปร่างกายเฉพาะงาน — ส่งต่อให้ทั้งการ์ดและป๊อปอัปวาด (มติผู้ใช้ 2 ก.ย. 69) */
+  frontSrc,
+  backSrc,
   viewKey = 'both',
   markers = [],
   onMarkersChange,
@@ -47,6 +50,8 @@ const BodyDiagramPanel = ({
 
   const bodyCard = (
     <BodyDiagramCard
+      frontSrc={frontSrc}
+      backSrc={backSrc}
       viewKey={viewKey}
       onViewChange={onViewChange}
       markers={draftMarkers}
@@ -98,6 +103,8 @@ const BodyDiagramPanel = ({
       )}
 
       <BodyRecordPopup
+        frontSrc={frontSrc}
+        backSrc={backSrc}
         open={recordOpen}
         onClose={() => setRecordOpen(false)}
         onSave={(nextMarkers, nextDrawings) => {

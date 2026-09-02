@@ -15,6 +15,10 @@ import BodyDrawingCanvas from '@/components/examination/BodyDrawingCanvas';
    the remaining props through. */
 
 const DrawingCanvasPopup = ({
+  /* รูปร่างกายของงานนั้น ๆ (คลินิกฝากครรภ์ใช้รูปหญิงตั้งครรภ์) —
+     ไม่ส่งมาก็ใช้รูปเดิมของระบบ (มติผู้ใช้ 2 ก.ย. 69) */
+  frontSrc,
+  backSrc,
   open,
   onClose,
   onSave,
@@ -115,6 +119,8 @@ const DrawingCanvasPopup = ({
         }}
       >
         <BodyDrawingCanvas
+          frontSrc={frontSrc}
+          backSrc={backSrc}
           fillHeight
           viewKey={viewKey}
           onViewChange={handleViewChange}

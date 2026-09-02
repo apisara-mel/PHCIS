@@ -792,6 +792,10 @@ export const getNextAncAppointmentPlan = (gestWeeks, riskLevel) => {
 };
 
 export const DEFAULT_ANC_APPOINTMENT = {
+  /* ขั้นนัดหมายของงานฝากครรภ์เหลือช่องบันทึกข้อความช่องเดียว (มติผู้ใช้
+     2 ก.ย. 69) — คีย์ที่เหลือด้านล่างยังอยู่เพื่อให้บันทึกเก่าอ่านกลับได้
+     และเผื่อการนัดผ่านระบบนัดหมายกลางในภายหลัง */
+  note: '',
   facility: undefined,   // 'pcu' | 'hospital' — prefilled from getNextAncAppointmentPlan
   date: '',
   parentSchool: false,   // "โรงเรียนพ่อแม่" education activity
@@ -1292,7 +1296,8 @@ export const getAncCompletedSteps = (form, stepIndex = 0) => [
   stepIndex > 2,                                                    // Step 3 — exam (no hard requirement)
   !!form?.riskLevel,                                                // Step 4 — risk level chosen
   stepIndex > 4,                                                    // Step 5 — orders optional
-  !!form?.appointment?.date,                                        // Step 6 — next appointment booked
+  /* นัดหมายถือว่าบันทึกแล้วเมื่อมีข้อความนัด (หรือวันนัดของบันทึกเก่า) */
+  !!(form?.appointment?.date || String(form?.appointment?.note || '').trim()), // Step 6
   !!form?.cardConfirmed,                                            // Step 7 — ANC card confirmed
 ];
 

@@ -4,7 +4,6 @@ import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
 import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import DatePicker from '@/components/forms/DatePicker';
-import TimePicker from '@/components/forms/TimePicker';
 import SelectableTag from '@/components/forms/SelectableTag';
 import RadioButton from '@/components/radio/RadioButton';
 import Checkbox from '@/components/checkbox/Checkbox';
@@ -22,8 +21,12 @@ import Table from '@/components/table/Table';
 import DragAndDrop from '@/components/form-builder/DragAndDrop';
 import Popup from '@/components/popup/Popup';
 import AddMedicationPopup from '@/components/popup/AddMedicationPopup';
+import {
+  MEDICATION_NAME_OPTIONS,
+  medicationRegistryDefaults,
+  resolveMedicationImage,
+} from '@/data/medicationCatalog';
 import { LineChart } from '@/components/graph/Charts';
-import { useTelemedCall } from '@/components/telemed/TelemedCallProvider';
 import {
   SCREEN_9Q_QUESTIONS,
   SCREEN_9Q_FREQUENCY,
@@ -102,8 +105,8 @@ import {
   ANC_CURRENT_PREGNANCY_SUGGESTIONS,
   ANC_RISK_SCREENING_SUGGESTIONS,
   getAncVisitTier,
-  summarizeAncProcedures,
   getNextAncAppointmentPlan,
+  summarizeAncProcedures,
   getAncVisitHistoryByHn,
   saveAncVisitRecord,
   saveAncRegistration,
@@ -1518,56 +1521,56 @@ export const AncStep3Examination = ({ form, setForm, ancHn, cardPatient }) => {
       </SectionAnchor>
 
 
-      {/* คัดกรองไตรมาส 2 และผล Ultrasound ย้ายมาอยู่ขั้นตรวจร่างกายและวินิจฉัย
-          (มติผู้ใช้ 2 ก.ย. 69) — เป็นผลการตรวจของครรภ์นี้ ไม่ใช่คำสั่งจ่าย/ส่งตรวจ */}
-      {tier === 'secondTrimesterScreening' && (
-        <SectionAnchor ref={bind('secondTrimester')}>
-          <TopicHeader icon='biotech' small tone='neutral'>คัดกรองไตรมาสที่ 2 (14-18 สัปดาห์)</TopicHeader>
-          <div className='flex items-center gap-3 flex-wrap'>
-            {ANC_SECOND_TRIMESTER_SCREENING.map((item) => (
-              <SelectableTag
-                key={item.key}
-                label={`${item.th} (${item.en})`}
-                size='lg'
-                selected={!!form.secondTrimesterScreening?.[item.key]}
-                onClick={() => setForm((f) => ({
+      {/* คัดกรองไตรมาส 2 และ Ultrasound — เป็นดรอปดาวน์อยู่แถวเดียวกัน
+          (มติผู้ใช้ 2 ก.ย. 69) สองช่องแรกขึ้นเฉพาะช่วง 12–19 สัปดาห์ตามแผนภูมิ
+          ฝากครรภ์คุณภาพ ส่วนช่อง Ultrasound ของครรภ์นี้แสดงทุกช่วง */}
+      <SectionAnchor ref={bind('screeningUltrasound')}>
+        <TopicHeader icon='biotech' small tone='neutral'>การคัดกรองและการตรวจ Ultrasound</TopicHeader>
+        <FieldGrid cols={3} rowGap='var(--dim-space-600, 24px)' columnGap='var(--dim-space-600, 24px)'>
+          {tier === 'secondTrimesterScreening' && ANC_SECOND_TRIMESTER_SCREENING.map((item) => (
+            <Field key={item.key} label={item.th}>
+              <Select
+                showLabel={false} searchable={false} size='lg'
+                value={form.secondTrimesterScreening?.[item.key] ? 'done' : ''}
+                onChange={(v) => setForm((f) => ({
                   ...f,
-                  secondTrimesterScreening: {
-                    ...f.secondTrimesterScreening,
-                    [item.key]: !f.secondTrimesterScreening?.[item.key],
-                  },
+                  secondTrimesterScreening: { ...f.secondTrimesterScreening, [item.key]: v === 'done' },
                 }))}
+                options={[{ value: 'done', label: 'ตรวจแล้ว' }, { value: 'pending', label: 'ยังไม่ได้ตรวจ' }]}
+                placeholder='เลือกสถานะ'
               />
-            ))}
-          </div>
-          {/* มติ คทง.2 — รองรับผลคัดกรองดาวน์ทั้ง Quadruple test และ NIPT */}
-          {form.secondTrimesterScreening?.downSyndrome2 && (
-            <FieldGrid cols={3} rowGap='var(--dim-space-600, 24px)' columnGap='var(--dim-space-600, 24px)'>
-              <Field label='วิธีคัดกรองกลุ่มอาการดาวน์'>
-                <Select
-                  showLabel={false} searchable={false} size='lg'
-                  value={form.downScreeningMethod}
-                  onChange={setField('downScreeningMethod')}
-                  options={ANC_DOWN_SCREENING_METHODS}
-                  placeholder='เลือกวิธีตรวจ'
-                />
-              </Field>
-            </FieldGrid>
-          )}
-        </SectionAnchor>
-      )}
+            </Field>
+          ))}
+          <Field label='การตรวจ Ultrasound ในครรภ์นี้'>
+            <Select
+              showLabel={false} searchable={false} size='lg'
+              value={form.ultrasoundDone ? 'done' : ''}
+              onChange={(v) => setForm((f) => ({ ...f, ultrasoundDone: v === 'done' }))}
+              options={[
+                { value: 'done', label: 'ได้รับการตรวจแล้วอย่างน้อย 1 ครั้ง' },
+                { value: 'pending', label: 'ยังไม่ได้ตรวจ' },
+              ]}
+              placeholder='เลือกสถานะ'
+            />
+          </Field>
+        </FieldGrid>
 
-      {/* มติ คทง.2 — Ultrasound บันทึกว่าได้รับการตรวจอย่างน้อย 1 ครั้ง พร้อม
-          อายุครรภ์ ณ วันที่ตรวจ (ศูนย์ฯ ทำก่อน 12 สัปดาห์ได้ยาก จึงไม่ผูกกับ
-          ช่วงอายุครรภ์ใดช่วงหนึ่ง) */}
-      <SectionAnchor ref={bind('ultrasound')}>
-        <TopicHeader icon='activity' small tone='neutral'>การตรวจด้วยคลื่นเสียงความถี่สูง (Ultrasound)</TopicHeader>
-        <SelectableTag
-          label='ได้รับการตรวจ Ultrasound แล้วอย่างน้อย 1 ครั้งในครรภ์นี้'
-          size='lg'
-          selected={form.ultrasoundDone}
-          onClick={() => setForm((f) => ({ ...f, ultrasoundDone: !f.ultrasoundDone }))}
-        />
+        {/* มติ คทง.2 — รองรับผลคัดกรองดาวน์ทั้ง Quadruple test และ NIPT */}
+        {tier === 'secondTrimesterScreening' && form.secondTrimesterScreening?.downSyndrome2 && (
+          <FieldGrid cols={3} rowGap='var(--dim-space-600, 24px)' columnGap='var(--dim-space-600, 24px)'>
+            <Field label='วิธีคัดกรองกลุ่มอาการดาวน์'>
+              <Select
+                showLabel={false} searchable={false} size='lg'
+                value={form.downScreeningMethod}
+                onChange={setField('downScreeningMethod')}
+                options={ANC_DOWN_SCREENING_METHODS}
+                placeholder='เลือกวิธีตรวจ'
+              />
+            </Field>
+          </FieldGrid>
+        )}
+
+        {/* มติ คทง.2 — บันทึกอายุครรภ์ ณ วันที่ตรวจด้วย (ศูนย์ฯ ทำก่อน 12 สัปดาห์ได้ยาก) */}
         {form.ultrasoundDone && (
           <>
             <FieldGrid cols={3} rowGap='var(--dim-space-600, 24px)' columnGap='var(--dim-space-600, 24px)'>
@@ -1852,6 +1855,26 @@ export const AncStepExamDiagnosis = ({ form, setForm, ancHn, cardPatient, ...res
   );
 };
 
+/* รายการที่ค้นได้ในช่องค้นหาของขั้นสั่งการรักษา (มติผู้ใช้ 2 ก.ย. 69) —
+   สามกลุ่มในช่องเดียว: ยาจากทะเบียนยากลาง + ยาเสริมของงานฝากครรภ์ · วัคซีนที่
+   ให้ระหว่างตั้งครรภ์ · หัตถการที่ทำในคลินิก ทุกตัวเลือกกดเพิ่มแล้วลงตาราง
+   เดียวกัน โดยมีคอลัมน์ "ประเภท" กำกับว่ามาจากกลุ่มไหน */
+const ANC_ORDER_KIND_LABEL = { drug: 'ยา', vaccine: 'วัคซีน', procedure: 'หัตถการ' };
+
+const ANC_ORDER_SEARCH_OPTIONS = [
+  ...MEDICATION_NAME_OPTIONS.map((o) => ({ value: o.value, kind: 'drug', image: o.image })),
+  ...ANC_DISPENSE_ITEMS.map((o) => ({ value: o.label, kind: 'drug', image: resolveMedicationImage(o.label) })),
+  ...ANC_VACCINE_DOSES.map((o) => ({ value: o.label, kind: 'vaccine' })),
+  ...ANC_VACCINES.map((o) => ({ value: `${o.th}`, kind: 'vaccine' })),
+  ...ANC_TERM_ASSESSMENT.map((o) => ({ value: `${o.th}`, kind: 'procedure' })),
+  /* งานทันตกรรมนับเป็นหัตถการ (มติผู้ใช้ 2 ก.ย. 69) — ทั้งการส่งตรวจและ
+     หัตถการที่ทำเองในคลินิก ค้นได้จากช่องเดียวกัน */
+  { value: 'ส่งตรวจสุขภาพช่องปาก (ทันตกรรม)', kind: 'procedure' },
+  { value: 'ขัดทำความสะอาดฟัน', kind: 'procedure' },
+  { value: 'ฝึกแปรงฟันแบบลงมือปฏิบัติ', kind: 'procedure' },
+  { value: 'ตรวจ Ultrasound', kind: 'procedure' },
+].filter((o, i, arr) => arr.findIndex((x) => x.value === o.value) === i);
+
 /* ── ขั้นที่ 5 — สั่งการรักษา ────────────────────────────────────────
    ชุดคำสั่งเปลี่ยนตามอายุครรภ์ของครั้งนี้ (`getAncVisitTier`) ตามแผนภูมิ
    ฝากครรภ์คุณภาพ กรมอนามัย 2565 หน้า 4-8 · Workflow Lab ตามมติ คทง.2:
@@ -1862,6 +1885,10 @@ export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
   const tier = getAncVisitTier(gestationalAge?.weeks);
   const [medOpen, setMedOpen] = useState(false);
   const [removeMed, setRemoveMed] = useState(null);
+  /* ค้นยาจากทะเบียนแล้วกดเพิ่มลงตารางได้ทันที (มติผู้ใช้ 2 ก.ย. 69) — ใช้
+     ทะเบียนยาเดียวกับ OPD (`medicationCatalog`) และเติม "การใช้"/"คำเตือน"
+     จากทะเบียนให้เอง ไม่ให้ผู้สั่งพิมพ์เองจนข้อความของยาตัวเดียวกันไม่ตรงกัน */
+  const [medQuery, setMedQuery] = useState('');
 
   const toggle = (group) => (key) => setForm((f) => ({ ...f, [group]: { ...f[group], [key]: !f[group]?.[key] } }));
   const setField = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
@@ -1870,6 +1897,32 @@ export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
   const addMedication = (med) => {
     setForm((f) => ({ ...f, medications: [...(f.medications || []), { ...med, id: `anc-med-${Date.now()}` }] }));
     setMedOpen(false);
+  };
+  /* กดที่รายการในลิสต์แล้วเพิ่มลงตารางทันที (มติผู้ใช้ 2 ก.ย. 69) — ไม่ต้อง
+     เลือกแล้วกดปุ่มอีกชั้น ช่องค้นหาจึงล้างตัวเองหลังเพิ่มเสร็จ พร้อมค้นตัวถัดไป */
+  const addFromRegistry = (picked_name) => {
+    const name = String(picked_name ?? medQuery).trim();
+    if (!name) return;
+    const picked = ANC_ORDER_SEARCH_OPTIONS.find((o) => o.value === name);
+    const kind = picked?.kind || 'drug';
+    const meta = kind === 'drug' ? medicationRegistryDefaults(name) : { purpose: '', warning: '' };
+    setForm((f) => ({
+      ...f,
+      medications: [...(f.medications || []), {
+        id: `anc-order-${Date.now()}`,
+        kind,
+        name,
+        image: picked?.image || resolveMedicationImage(name),
+        usage: '',
+        dosePerTake: '',
+        frequency: '',
+        when: '',
+        quantity: '',
+        purpose: meta.purpose,
+        warning: meta.warning,
+      }],
+    }));
+    setMedQuery('');
   };
   const confirmRemoveMed = () => {
     setForm((f) => ({ ...f, medications: (f.medications || []).filter((m) => m.id !== removeMed.id) }));
@@ -1982,37 +2035,60 @@ export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
           กับ OPD (AddMedicationPopup) เพื่อให้ห้องยาได้รายการชุดเดียวกัน */}
       <div className='flex flex-col gap-3'>
         <TopicHeader icon='pill'>การจ่ายยา</TopicHeader>
-        <FieldGrid cols={2}>
-          {ANC_DISPENSE_ITEMS.map((item) => (
-            <Checkbox
-              key={item.key}
-              label={item.label}
-              checked={!!form.dispenseItems[item.key]}
-              onChange={() => toggle('dispenseItems')(item.key)}
-            />
-          ))}
-        </FieldGrid>
-        <InputField
-          value={form.dispenseOtherNote}
-          onChange={setField('dispenseOtherNote')}
-          placeholder='ยาอื่นๆ (ระบุ)'
-        />
-        <div className='flex items-center gap-3 flex-wrap'>
-          <BrandSubdueButton variant='outline' size='md' leadingIcon='plus' onClick={() => setMedOpen(true)}>
-            เพิ่มรายการยาเข้าใบสั่งยา
-          </BrandSubdueButton>
-          <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-            รายการในตารางนี้คือใบสั่งยาที่ส่งถึงห้องยา
-          </span>
+        {/* ค้นจากทะเบียนยา แล้วกด "เพิ่ม" เพื่อส่งลงตารางด้านล่างทันที */}
+        <div className='flex items-end gap-3 w-full flex-wrap'>
+          <div style={{ flex: '1 1 320px', minWidth: 240 }}>
+            <Field label='ค้นหายา วัคซีน และหัตถการจากทะเบียน'>
+              <Select
+                showLabel={false}
+                searchable
+                size='lg'
+                value={medQuery}
+                onChange={addFromRegistry}
+                options={ANC_ORDER_SEARCH_OPTIONS.map((o) => ({
+                  value: o.value,
+                  label: `${o.value} · ${ANC_ORDER_KIND_LABEL[o.kind]}`,
+                  image: o.image || undefined,
+                }))}
+                placeholder='พิมพ์ชื่อยา วัคซีน หรือหัตถการเพื่อค้นหา'
+              />
+            </Field>
+          </div>
         </div>
         <Table
           columns={[
-            { key: 'name', label: 'ชื่อยา', flex: true, minWidth: 220 },
-            { key: 'usage', label: 'วิธีใช้', flex: true, minWidth: 140 },
-            { key: 'dosePerTake', label: 'ครั้งละ' },
-            { key: 'frequency', label: 'ความถี่', flex: true, minWidth: 140 },
-            { key: 'when', label: 'เวลาใช้ยา', flex: true, minWidth: 130 },
-            { key: 'quantity', label: 'จำนวน' },
+            { key: 'kind', label: 'ประเภท', render: (r) => ANC_ORDER_KIND_LABEL[r.kind] || 'ยา' },
+            {
+              key: 'name',
+              label: 'รายการ',
+              flex: true,
+              minWidth: 240,
+              /* รูปยาจากทะเบียนแสดงคู่กับชื่อ (มติผู้ใช้ 2 ก.ย. 69) — วัคซีน/
+                 หัตถการไม่มีรูปในทะเบียน จึงแสดงเฉพาะชื่อ */
+              render: (r) => (
+                <span className='flex items-center' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+                  {r.image && (
+                    <img
+                      src={r.image}
+                      alt=''
+                      style={{
+                        width: 'var(--dim-size-600, 32px)',
+                        height: 'var(--dim-size-600, 32px)',
+                        borderRadius: 'var(--dim-radius-full, 9999px)',
+                        objectFit: 'cover',
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
+                  <span className='min-w-0'>{r.name}</span>
+                </span>
+              ),
+            },
+            /* คอลัมน์ที่ทะเบียนยาตอบได้เอง (มติผู้ใช้ 2 ก.ย. 69 · D-057 — ข้อมูล
+               ระดับยามาจากทะเบียน ไม่ใช่สิ่งที่ผู้สั่งพิมพ์เอง) เดิมเป็นช่อง
+               วิธีใช้/ครั้งละ/ความถี่/จำนวน ซึ่งทะเบียนไม่มีข้อมูล จึงว่างทุกแถว */
+            { key: 'purpose', label: 'การใช้', flex: true, minWidth: 180, render: (r) => r.purpose || '—' },
+            { key: 'warning', label: 'คำเตือน', flex: true, minWidth: 260, render: (r) => r.warning || '—' },
             {
               key: 'actions', label: 'การดำเนินการ', sortable: false,
               render: (row) => (
@@ -2026,80 +2102,6 @@ export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
         />
       </div>
 
-      {/* มติ คทง.2 — วัคซีนเป็น checkbox พร้อมช่องวันที่ฉีดของแต่ละเข็ม
-          จำนวนเข็ม dT ที่ควรได้มาจากประวัติในป๊อปอัป 'ลงทะเบียนฝากครรภ์' (ขั้นแบบประเมิน) */}
-      <div className='flex flex-col gap-3'>
-        <TopicHeader icon='clipboard'>การให้วัคซีน</TopicHeader>
-        {form.tetanusDoseCount !== '' && (() => {
-          const currentYearBE = new Date().getFullYear() + 543;
-          const lastYear = Number(form.tetanusLastDoseYear);
-          const yearsAgo = form.tetanusLastDoseYear && Number.isFinite(lastYear) ? currentYearBE - lastYear : null;
-          const plan = getTetanusVaccinePlan(form.tetanusDoseCount, yearsAgo);
-          return (
-            <ColorfulBadge style={plan.doseCount === 0 ? 'green' : 'yellow'} size='small' hierarchy='secondary' width='hug' maxWidth={640}>
-              {`แผนวัคซีน dT จากประวัติ: ${plan.label}`}
-            </ColorfulBadge>
-          );
-        })()}
-        <div className='flex flex-col gap-3'>
-          {ANC_VACCINE_DOSES.map((v) => (
-            <div key={v.key} className='flex items-center gap-4 w-full flex-wrap'>
-              <div style={{ minWidth: 280 }}>
-                <Checkbox
-                  label={v.label}
-                  checked={!!form.vaccineDoses[v.key]}
-                  onChange={() => toggle('vaccineDoses')(v.key)}
-                />
-              </div>
-              {form.vaccineDoses[v.key] && (
-                <div style={{ minWidth: 220 }}>
-                  <DatePicker
-                    label='วันที่ฉีด'
-                    value={form.vaccineDoseDates?.[v.key] ? new Date(form.vaccineDoseDates[v.key]) : null}
-                    onChange={(d) => setForm((f) => ({
-                      ...f,
-                      vaccineDoseDates: { ...f.vaccineDoseDates, [v.key]: d ? d.toISOString().slice(0, 10) : '' },
-                    }))}
-                    placeholder='เลือกวันที่ฉีด'
-                    minDate={new Date(1900, 0, 1)}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-        {tier === 'lab2AndVaccines' && (
-          <ChipGroup icon='clipboard' title='วัคซีนอื่นตามช่วงอายุครรภ์' items={ANC_VACCINES} values={form.vaccines} onToggle={toggle('vaccines')} />
-        )}
-      </div>
-
-      {/* มติ คทง.6 — ส่งตรวจทันตกรรมเป็นการสร้างคำขอ ไม่เปิด Visit ทันตกรรมใหม่
-          และตรวจในหน้านี้แล้วส่งเบิกได้โดยไม่ต้องเปิดห้องส่งเสริมทันตกรรมแยก */}
-      <div className='flex flex-col gap-3'>
-        <TopicHeader icon='clipboard-list'>หัตถการทันตกรรมในครั้งนี้</TopicHeader>
-        <div className='flex items-center gap-3 flex-wrap'>
-          <SelectableTag
-            label='ส่งตรวจสุขภาพช่องปาก'
-            size='lg'
-            selected={form.dentalReferral}
-            onClick={() => setForm((f) => ({ ...f, dentalReferral: !f.dentalReferral }))}
-          />
-          <SelectableTag
-            label='ขัดทำความสะอาดฟันแล้ว'
-            size='lg'
-            selected={form.dentalCleaningDone}
-            onClick={() => setForm((f) => ({ ...f, dentalCleaningDone: !f.dentalCleaningDone }))}
-          />
-          <SelectableTag
-            label='ฝึกแปรงฟันแบบลงมือปฏิบัติแล้ว'
-            size='lg'
-            selected={form.dentalBrushingPractice}
-            onClick={() => setForm((f) => ({ ...f, dentalBrushingPractice: !f.dentalBrushingPractice }))}
-          />
-        </div>
-      </div>
-
-      <AddMedicationPopup open={medOpen} onClose={() => setMedOpen(false)} onConfirm={addMedication} />
       <Popup
         open={!!removeMed}
         onClose={() => setRemoveMed(null)}
@@ -2117,248 +2119,49 @@ export const AncStep5Orders = ({ form, setForm, isFollowUp = false }) => {
 };
 
 /* ── ขั้นที่ 6 — นัดหมาย ────────────────────────────────────────────
-   เส้นทางนัดมาจาก `getNextAncAppointmentPlan` (ความเสี่ยงปานกลาง/สูงส่ง
-   รพ.แม่ข่ายทันที · ความเสี่ยงต่ำพบแพทย์ที่ ≤12 / 20 / ≥32 สัปดาห์) และ
-   ครบสี่กริยาตาม TOR 1.10.7.5 — บันทึก · แสดง · แก้ไข · ยกเลิก */
-export const AncStep6Appointment = ({ form, setForm, cardPatient }) => {
-  const gestationalAge = useMemo(() => calculateGestationalAge(form.lmp), [form.lmp]);
-  const plan = useMemo(
-    () => getNextAncAppointmentPlan(gestationalAge?.weeks, form.riskLevel),
-    [gestationalAge, form.riskLevel],
-  );
-  const telemed = useTelemedCall();
-  const [cancelOpen, setCancelOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
+   เหลือช่องบันทึกข้อความช่องเดียว (มติผู้ใช้ 2 ก.ย. 69) — แผนนัดตามอายุครรภ์/
+   ความเสี่ยง สถานที่ รูปแบบ และ Telemedicine ถูกถอดออกจากขั้นนี้ทั้งหมด
+   โค้ดเดิมอยู่ในประวัติ git ถ้าจะเอากลับ */
+export const AncStep6Appointment = ({ form, setForm }) => {
+  const ga = calculateGestationalAge(form.lmp);
+  /* placeholder เป็นแนวทางให้แพทย์กรอก (มติผู้ใช้ 2 ก.ย. 69) — ประกอบจากแผน
+     นัดตามอายุครรภ์และระดับความเสี่ยงของผู้รับบริการรายนี้ (แผนภูมิฝากครรภ์
+     คุณภาพ กรมอนามัย 2565) ไม่ใช่ข้อความตายตัว */
+  const plan = getNextAncAppointmentPlan(ga?.weeks, form.riskLevel);
+  const guideline = plan
+    ? [
+      `แนวทาง: ${plan.facilityLabel}`,
+      plan.suggestedWeek ? `นัดช่วงอายุครรภ์ ${plan.suggestedWeek} สัปดาห์` : '',
+      plan.label,
+      'ระบุวัน–เวลา สถานที่ และสิ่งที่ต้องเตรียมมา',
+    ].filter(Boolean).join(' · ')
+    : 'ระบุวัน–เวลา สถานที่นัด และสิ่งที่ต้องเตรียมมา';
 
-  /* เติมสถานพยาบาลให้ครั้งแรกที่มีแผน และยังไม่มีใครเลือกเอง */
-  useEffect(() => {
-    if (plan && !form.appointment.facility) {
-      setForm((f) => ({ ...f, appointment: { ...f.appointment, facility: plan.facility } }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan]);
-
-  const setAppt = (key) => (value) => setForm((f) => ({ ...f, appointment: { ...f.appointment, [key]: value } }));
-  const appt = form.appointment;
-  const facilityLabel = appt.facility === 'pcu' ? 'หน่วยปฐมภูมิ / รพ.สต.' : appt.facility === 'hospital' ? 'โรงพยาบาล (รพ.แม่ข่าย)' : '—';
-
-  /* การ์ดสรุปหลังกดบันทึก — ฟอร์มกลับมาเมื่อกด "แก้ไขนัดหมาย" */
-  if (appt.saved && !appt.cancelled) {
-    return (
-      <StepCard>
-        <div className='flex flex-col gap-3'>
-          <TopicHeader icon='calendar'>นัดหมายครั้งถัดไป</TopicHeader>
-          <div
-            className='flex flex-col w-full'
-            style={{
-              gap: 'var(--dim-space-200)',
-              padding: 'var(--dim-space-600)',
-              borderRadius: 'var(--dim-radius-400, 12px)',
-              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
-              background: 'var(--surface-card-100, #FFFFFF)',
-            }}
-          >
-            <div className='flex items-center gap-2 flex-wrap'>
-              <Icon name='calendar' size={20} />
-              <span style={{ fontWeight: 'var(--type-weight-bold)', fontSize: 'var(--type-size-base)', color: 'var(--text-brandPrimary-default, #007549)' }}>
-                {formatAncDate(appt.date)}{appt.time ? ` · ${appt.time} น.` : ''}
-              </span>
-              {appt.mode === 'telemedicine' && (
-                <ColorfulIconBadge style='blue' size='medium' fill='default' icon='videocam' />
-              )}
-            </div>
-            <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
-              สถานที่: {facilityLabel}
-              {appt.mode === 'telemedicine' ? ' · รูปแบบ: ปรึกษาทางไกล (Telemedicine)' : ' · รูปแบบ: เข้ารับบริการที่คลินิก'}
-            </span>
-            {(appt.parentSchool || appt.kickCountEducation) && (
-              <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>
-                กิจกรรม: {[appt.parentSchool && 'โรงเรียนพ่อแม่', appt.kickCountEducation && 'สอนการนับลูกดิ้น'].filter(Boolean).join(' · ')}
-              </span>
-            )}
-          </div>
-          <div className='flex items-center gap-3 flex-wrap'>
-            <BrandSubdueButton variant='outline' size='md' leadingIcon='edit' onClick={() => setAppt('saved')(false)}>
-              แก้ไขนัดหมาย
-            </BrandSubdueButton>
-            <NeutralSubdueButton size='md' leadingIcon='close' onClick={() => setCancelOpen(true)}>
-              ยกเลิกนัดหมาย
-            </NeutralSubdueButton>
-          </div>
-        </div>
-
-        <AppointmentCancelPopup
-          open={cancelOpen}
-          reason={cancelReason}
-          onReason={setCancelReason}
-          onClose={() => setCancelOpen(false)}
-          onConfirm={() => {
-            setForm((f) => ({
-              ...f,
-              appointment: { ...f.appointment, cancelled: true, cancelReason: cancelReason.trim(), saved: false },
-            }));
-            setCancelOpen(false);
-          }}
-        />
-      </StepCard>
-    );
-  }
+  const suggestions = [
+    plan?.label,
+    plan?.suggestedWeek ? `นัดตรวจครรภ์ครั้งถัดไปที่อายุครรภ์ ${plan.suggestedWeek} สัปดาห์` : '',
+    'นัดฟังผลตรวจทางห้องปฏิบัติการ',
+    'นัดตรวจ Ultrasound',
+    'นัดเข้าโรงเรียนพ่อแม่ (เตรียมตัวคลอด / การเลี้ยงลูกด้วยนมแม่)',
+    'ให้มาก่อนนัดหากมีเลือดออกทางช่องคลอด ปวดท้องรุนแรง หรือลูกดิ้นน้อยลง',
+  ].filter(Boolean);
 
   return (
     <StepCard>
       <div className='flex flex-col gap-3'>
-        <TopicHeader icon='calendar'>นัดหมายครั้งถัดไป</TopicHeader>
-
-        {appt.cancelled && (
-          <NoticeLine tone='warning' icon='info'>
-            นัดหมายถูกยกเลิก — เหตุผล: {appt.cancelReason || 'ไม่ระบุ'} · บันทึกนัดใหม่ได้จากฟอร์มด้านล่าง
-          </NoticeLine>
-        )}
-
-        {plan && (
-          <div
-            className='flex items-start gap-3'
-            style={{
-              padding: 'var(--dim-space-400, 16px)',
-              borderRadius: 'var(--dim-radius-200, 8px)',
-              background: 'var(--surface-brandPrimary-quaternary, #F4FBF8)',
-              border: 'var(--dim-stroke-100) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
-            }}
-          >
-            <Icon name='calendar' size={20} />
-            <div className='flex flex-col gap-1'>
-              <span style={{ fontWeight: 'var(--type-weight-medium)', color: 'var(--text-content-default, #363B3F)' }}>
-                {plan.facilityLabel}{plan.suggestedWeek ? ` · แนะนำอายุครรภ์ ${plan.suggestedWeek} สัปดาห์` : ''}
-              </span>
-              <span style={{ fontSize: 'var(--type-size-sm)', color: 'var(--text-content-secondary)' }}>{plan.label}</span>
-            </div>
-          </div>
-        )}
-
-        <FieldGrid cols={3}>
-          <Field label='สถานที่นัดหมาย'>
-            <div className='flex items-center gap-2 flex-wrap'>
-              <SelectableTag label='หน่วยปฐมภูมิ / รพ.สต.' size='lg' selected={appt.facility === 'pcu'} onClick={() => setAppt('facility')('pcu')} />
-              <SelectableTag label='โรงพยาบาล' size='lg' selected={appt.facility === 'hospital'} onClick={() => setAppt('facility')('hospital')} />
-            </div>
-          </Field>
-          {/* ห้ามนัดย้อนหลัง — DatePicker ตั้งพื้นเป็นวันนี้อยู่แล้วเมื่อไม่ส่ง minDate */}
-          <Field label='วันนัดหมายครั้งถัดไป' required hint='เลือกได้ตั้งแต่วันนี้เป็นต้นไป'>
-            <DatePicker
-              value={appt.date ? new Date(appt.date) : null}
-              onChange={(d) => setAppt('date')(d ? d.toISOString().slice(0, 10) : '')}
-              placeholder='เลือกวันที่'
-              showLabel={false}
-            />
-          </Field>
-          <Field label='เวลานัดหมาย'>
-            <TimePicker showLabel={false} value={appt.time} onChange={setAppt('time')} placeholder='HH:MM' minuteStep={5} />
-          </Field>
-        </FieldGrid>
-
-        <Field label='รูปแบบการนัดหมาย'>
-          <div className='flex items-center gap-2 flex-wrap'>
-            <SelectableTag
-              label='เข้ารับบริการที่คลินิก'
-              size='lg'
-              selected={appt.mode !== 'telemedicine'}
-              onClick={() => setForm((f) => ({ ...f, appointment: { ...f.appointment, mode: 'onsite', telemedStatus: 'none' } }))}
-            />
-            <SelectableTag label='ปรึกษาผ่าน Telemedicine' size='lg' selected={appt.mode === 'telemedicine'} onClick={() => setAppt('mode')('telemedicine')} />
-          </div>
-        </Field>
-
-        {/* TOR 1.10.7.7 Telemedicine — ใช้ overlay กลางจาก TelemedCallProvider
-            (Routes.jsx) ชุดเดียวกับ OPD/คลินิกอื่น ไม่สร้างกลไกใหม่ */}
-        {appt.mode === 'telemedicine' && (
-          <div className='flex items-center gap-3 flex-wrap'>
-            {appt.telemedStatus === 'completed' ? (
-              <ColorfulBadge style='green' size='small' hierarchy='secondary'>ปรึกษาทางไกลเสร็จสิ้นแล้ว</ColorfulBadge>
-            ) : appt.telemedStatus === 'started' ? (
-              <>
-                <ColorfulBadge style='blue' size='small' hierarchy='secondary'>กำลังปรึกษาทางไกล</ColorfulBadge>
-                <BrandSubdueButton variant='outline' size='md' leadingIcon='videocam' onClick={() => telemed.start(cardPatient?.hn)}>
-                  กลับเข้าห้องปรึกษา
-                </BrandSubdueButton>
-                <NeutralSubdueButton size='md' leadingIcon='call_end' onClick={() => setAppt('telemedStatus')('completed')}>
-                  บันทึกจบการปรึกษา
-                </NeutralSubdueButton>
-              </>
-            ) : (
-              <>
-                <ColorfulBadge style='grey' size='small' hierarchy='secondary'>ยังไม่เริ่มการปรึกษา</ColorfulBadge>
-                <BrandSubdueButton
-                  variant='fill'
-                  size='md'
-                  leadingIcon='videocam'
-                  onClick={() => {
-                    telemed.start(cardPatient?.hn);
-                    setAppt('telemedStatus')('started');
-                  }}
-                >
-                  เข้าห้องปรึกษาทางไกล
-                </BrandSubdueButton>
-              </>
-            )}
-          </div>
-        )}
-
-        <div className='flex items-center gap-3 flex-wrap'>
-          <SelectableTag
-            label='โรงเรียนพ่อแม่ (การเตรียมตัวคลอด / การเลี้ยงลูกด้วยนมแม่)'
-            size='lg'
-            selected={appt.parentSchool}
-            onClick={() => setAppt('parentSchool')(!appt.parentSchool)}
-          />
-          {/* ทารกดิ้นให้รู้สึกได้ราว 18-20 สัปดาห์ขึ้นไป (คู่มือหน้า 15) */}
-          {(gestationalAge?.weeks ?? 0) >= 18 && (
-            <SelectableTag
-              label='สอนการนับลูกดิ้น'
-              size='lg'
-              selected={appt.kickCountEducation}
-              onClick={() => setAppt('kickCountEducation')(!appt.kickCountEducation)}
-            />
-          )}
-        </div>
-
-        <div className='flex items-center gap-3 flex-wrap'>
-          <BrandSubdueButton
-            variant='fill'
-            size='md'
-            leadingIcon='check'
-            disabled={!appt.date}
-            onClick={() => setForm((f) => ({ ...f, appointment: { ...f.appointment, saved: true, cancelled: false } }))}
-          >
-            บันทึกนัดหมาย
-          </BrandSubdueButton>
-          {!appt.date && (
-            <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-content-tertiary, #858C92)' }}>
-              เลือกวันนัดก่อนจึงจะบันทึกได้ — ข้ามขั้นนี้ไปก่อนได้ถ้ายังไม่นัด
-            </span>
-          )}
-        </div>
+        <TopicHeader icon='calendar' small tone='neutral'>นัดหมายครั้งถัดไป</TopicHeader>
+        <SuggestibleTextarea
+          voice
+          value={form.appointment?.note || ''}
+          onChange={(e) => setForm((f) => ({ ...f, appointment: { ...f.appointment, note: e.target.value } }))}
+          suggestions={suggestions}
+          minChars={2}
+          placeholder={guideline}
+        />
       </div>
     </StepCard>
   );
 };
-
-/** ยกเลิกนัดหมายต้องมีเหตุผล — บันทึกไว้ให้ครั้งถัดไปอ่านออกว่าทำไมไม่มีนัด */
-const AppointmentCancelPopup = ({ open, reason, onReason, onClose, onConfirm }) => (
-  <Popup
-    open={open}
-    onClose={onClose}
-    title='ยกเลิกนัดหมาย'
-    subtitle='ระบุเหตุผลเพื่อให้ประวัติการนัดอ่านได้ว่าเกิดอะไรขึ้น'
-    tertiaryAction={{ label: 'ไม่ยกเลิก', onClick: onClose }}
-    primaryAction={{ label: 'ยืนยันยกเลิกนัด', onClick: onConfirm, disabled: !reason.trim(), tone: 'danger' }}
-  >
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-300)' }}>
-      <Field label='เหตุผลในการยกเลิก' required>
-        <InputField value={reason} onChange={onReason} placeholder='เช่น ผู้รับบริการขอเลื่อน / ส่งต่อ รพ.แม่ข่าย' />
-      </Field>
-    </div>
-  </Popup>
-);
 
 /* ── ขั้นที่ 7 — ใบฝากครรภ์ ─────────────────────────────────────────
    สรุปทั้งวิสิตแบบอ่านอย่างเดียวก่อนยืนยัน (TOR 1.10.7.5/.6) — การยืนยัน
@@ -2442,19 +2245,7 @@ export const AncStep7Card = ({ form, setForm, patient, cardPatient, ancHn, visit
             <span>น้ำหนักครั้งนี้: {form.vitals?.weight ? `${form.vitals.weight} กก.` : '—'}</span>
             <span>ความดันโลหิต: {form.vitals?.bp || '—'}</span>
             <span>ผล Lab: {summarizeLabResults(form.labResults)}</span>
-            <span>
-              นัดหมายครั้งถัดไป: {form.appointment.cancelled
-                ? 'ยกเลิกแล้ว'
-                : `${formatAncDate(form.appointment.date) || '—'}${form.appointment.time ? ` · ${form.appointment.time} น.` : ''}`}
-            </span>
-            <span>
-              สถานที่นัด: {form.appointment.facility === 'pcu' ? 'หน่วยปฐมภูมิ / รพ.สต.' : form.appointment.facility === 'hospital' ? 'โรงพยาบาล' : '—'}
-            </span>
-            {form.appointment.mode === 'telemedicine' && (
-              <span>
-                Telemedicine: {form.appointment.telemedStatus === 'completed' ? 'ปรึกษาเสร็จสิ้นแล้ว' : form.appointment.telemedStatus === 'started' ? 'กำลังปรึกษา' : 'ยังไม่เริ่ม'}
-              </span>
-            )}
+            <span>นัดหมายครั้งถัดไป: {form.appointment?.note?.trim() || formatAncDate(form.appointment?.date) || '—'}</span>
           </div>
           {adviceGiven.length > 0 && (
             <div className='flex flex-col gap-1' style={{ fontSize: 'var(--type-size-sm)' }}>
