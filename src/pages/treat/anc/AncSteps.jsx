@@ -7,7 +7,9 @@ import DatePicker from '@/components/forms/DatePicker';
 import SelectableTag from '@/components/forms/SelectableTag';
 import RadioButton from '@/components/radio/RadioButton';
 import Checkbox from '@/components/checkbox/Checkbox';
-import Icd10SearchPopup from '@/components/popup/Icd10SearchPopup';
+import { SNOMED_CONCEPTS } from '@/data/treatmentSnomed';
+import { DEFAULT_ICD_SUGGESTIONS } from '@/data/treatmentVisits';
+import { ICD9_PROCEDURES } from '@/pages/treat/panels/ProcedureOrderPanel';
 import { Field, FieldGrid } from '@/components/forms/Fields';
 import CarriedScreeningPanel from '@/components/screening/CarriedScreeningPanel';
 import CarriedDentalPanel from '@/components/dental/CarriedDentalPanel';
@@ -1657,9 +1659,22 @@ export const AncStep3Examination = ({ form, setForm, ancHn, cardPatient }) => {
    ระดับความเสี่ยงเป็นตัวขับเส้นทางนัดหมายในขั้นที่ 6 + คำแนะนำที่ระบบเลือก
    หัวข้อตามอายุครรภ์ให้ (มติ คทง.2) */
 export const AncStep4Diagnosis = ({ form, setForm }) => {
-  /* ตัวช่วยค้นหารหัสวินิจฉัย ICD-10 ข้างหัวข้อบันทึกวินิจฉัย (มติผู้ใช้ 3 ก.ย. 69) —
-     เลือกแล้วต่อท้าย "รหัส ชื่อโรค" ลงในช่องบันทึก */
+  /* ตัวช่วยค้นหารหัสวินิจฉัย (มติผู้ใช้ 3 ก.ย. 69) — กดปุ่มแล้วกางแถวค้นหาใต้หัวข้อ:
+     ดรอปดาวน์เลือกระบบรหัส (ICD-9 · ICD-10 · SNOMED CT) อยู่หน้ากล่องค้นหา
+     เลือกรายการแล้วต่อท้าย "รหัส ชื่อโรค" ลงในช่องบันทึก แถวยังเปิดค้างให้ค้นตัวถัดไป */
   const [icdOpen, setIcdOpen] = useState(false);
+  const [codeSystem, setCodeSystem] = useState('icd10');
+  const codeOptions = useMemo(() => {
+    if (codeSystem === 'icd9') return ICD9_PROCEDURES.map((p) => ({ value: p.code, label: `${p.code} · ${p.nameTh}`, badge: { style: 'orange', label: 'ICD-9' } }));
+    if (codeSystem === 'snomed') return SNOMED_CONCEPTS.map((c) => ({ value: c.code, label: `${c.code} · ${c.termTh} (${c.term})`, badge: { style: 'purple', label: 'SNOMED' } }));
+    return DEFAULT_ICD_SUGGESTIONS.map((d) => ({ value: d.code, label: `${d.code} · ${d.name}`, badge: { style: 'blue', label: 'ICD-10' } }));
+  }, [codeSystem]);
+  const appendCode = (value) => {
+    const opt = codeOptions.find((o) => o.value === value);
+    if (!opt) return;
+    const line = opt.label.replace(' · ', ' ');
+    setForm((f) => ({ ...f, diagnosisNote: f.diagnosisNote?.trim() ? `${f.diagnosisNote.trim()}\n${line}` : line }));
+  };
   const gestationalAge = calculateGestationalAge(form.lmp);
   const weeks = gestationalAge?.weeks;
   const tier = getAncVisitTier(weeks);
@@ -1702,22 +1717,35 @@ export const AncStep4Diagnosis = ({ form, setForm }) => {
           <div className='min-w-0 flex-1'>
             <TopicHeader icon='file-text' small tone='neutral'>บันทึกวินิจฉัย</TopicHeader>
           </div>
-          <BrandSubdueButton variant='outline' size='sm' leadingIcon='search' onClick={() => setIcdOpen(true)}>
+          <BrandSubdueButton variant='outline' size='sm' leadingIcon='search' onClick={() => setIcdOpen((v) => !v)}>
             ค้นหารหัสวินิจฉัย
           </BrandSubdueButton>
         </div>
-        <Icd10SearchPopup
-          open={icdOpen}
-          onClose={() => setIcdOpen(false)}
-          onSelect={(pick) => {
-            const line = `${pick.code} ${pick.name}`;
-            setForm((f) => ({
-              ...f,
-              diagnosisNote: f.diagnosisNote?.trim() ? `${f.diagnosisNote.trim()}\n${line}` : line,
-            }));
-            setIcdOpen(false);
-          }}
-        />
+        {icdOpen && (
+          <div className='flex items-start w-full' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+            <div style={{ flex: '0 0 170px' }}>
+              <Select
+                showLabel={false} searchable={false} size='lg'
+                value={codeSystem}
+                onChange={setCodeSystem}
+                options={[
+                  { value: 'icd10', label: 'ICD-10' },
+                  { value: 'icd9', label: 'ICD-9' },
+                  { value: 'snomed', label: 'SNOMED CT' },
+                ]}
+              />
+            </div>
+            <div className='min-w-0 flex-1'>
+              <Select
+                showLabel={false} searchable size='lg'
+                value=''
+                onChange={appendCode}
+                options={codeOptions}
+                placeholder='พิมพ์รหัสหรือชื่อโรคเพื่อค้นหา แล้วเลือกเพื่อเพิ่มลงบันทึก'
+              />
+            </div>
+          </div>
+        )}
         <SuggestibleTextarea
           voice
           value={form.diagnosisNote}
