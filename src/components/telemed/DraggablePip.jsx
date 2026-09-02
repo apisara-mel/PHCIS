@@ -55,10 +55,14 @@ const DraggablePip = ({
 
   const beginDrag = (event) => {
     if (event.button != null && event.button !== 0) return;
+    /* `closest` ไต่ขึ้นไปถึงตัว PiP เองด้วย ซึ่งมี role="dialog" — ถ้าไม่กันไว้
+       การกดที่ใดก็ตามในกรอบจะถูกตีความว่ากดองค์ประกอบที่ห้ามลาก แล้วลากไม่ได้
+       ทั้งหน้าต่าง (บั๊กที่ผู้ใช้เจอ 2 ก.ย. 69) — เงื่อนไขนี้มีไว้กันเฉพาะ
+       ปุ่ม/ช่องกรอก/ไดอะล็อกที่ "ซ้อนอยู่ข้างใน" เท่านั้น */
     const interactive = event.target?.closest?.(
       'button, a, input, textarea, select, label, [data-no-drag], [role="button"], [role="radio"], [role="dialog"]',
     );
-    if (interactive) return;
+    if (interactive && interactive !== panelRef.current) return;
 
     const boundary = getBoundaryRect();
     const panel = panelRef.current?.getBoundingClientRect();

@@ -1,6 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
+import FollowUpStatusMenuButton from '@/components/homevisit/FollowUpStatusMenuButton';
+import { useTelemedCall } from '@/components/telemed/TelemedCallProvider';
 import Header, { SubHeader } from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import PatientCard from '@/components/card/PatientCard';
@@ -56,28 +58,25 @@ const HOMEVISIT_STEPS = [
      (มติผู้ใช้ 30 ส.ค. 69) */
   { title: 'แบบฟอร์มความยินยอม',        subtitle: 'Consent Forms' },
   { title: 'ข้อมูลส่วนตัว',             subtitle: 'Personal Information' },
-  /* ที่อยู่ + ปักหมุด + บันทึกการเดินทาง แยกเป็นขั้นของตัวเอง
-     (มติผู้ใช้ 30 ส.ค. 69) */
-  { title: 'ที่อยู่และการเดินทาง',       subtitle: 'Address & GPS Check-in' },
-  /* ต่อจากที่อยู่ ตามลำดับเดียวกับหน้าเวชระเบียน (มติผู้ใช้ 30 ส.ค. 69) */
-  { title: 'ข้อมูลการติดต่อ',            subtitle: 'Contact Information' },
+  /* ที่อยู่ + ปักหมุด + บันทึกการเดินทาง + ข้อมูลการติดต่อ อยู่ขั้นเดียวกัน
+     (มติผู้ใช้ 2 ก.ย. 69 — เดิมแยกเป็นขั้น "ที่อยู่และการเดินทาง" กับ
+     "ข้อมูลการติดต่อ") */
+  { title: 'ที่อยู่และการติดต่อ',        subtitle: 'Address & Contact' },
   { title: 'สิทธิการรักษา',              subtitle: 'Healthcare Rights' },
-  /* สัญญาณชีพมาก่อนอาการป่วย (มติผู้ใช้ 30 ส.ค. 69) — ถึงบ้านแล้ววัดสัญญาณชีพ
-     เป็นอย่างแรก แล้วค่อยซักอาการโดยมีค่าที่วัดได้อยู่ตรงหน้า */
-  { title: 'สัญญาณชีพ',                  subtitle: 'Vital Signs' },
-  /* ประวัติการแพ้/โรคประจำตัวเป็นขั้นของตัวเองต่อจากสัญญาณชีพ
-     (มติผู้ใช้ 30 ส.ค. 69) */
-  { title: 'ประวัติการแพ้ / โรคประจำตัว', subtitle: 'Allergies & Chronic Conditions' },
+  /* คัดกรอง = สัญญาณชีพ + ประวัติการแพ้/โรคประจำตัว (มติผู้ใช้ 2 ก.ย. 69) —
+     ถึงบ้านแล้ววัดสัญญาณชีพและทวนประวัติแพ้/โรคประจำตัวเป็นชุดเดียวกัน
+     ก่อนเริ่มซักอาการโดยมีค่าที่วัดได้อยู่ตรงหน้า */
+  { title: 'คัดกรอง',                    subtitle: 'Screening' },
   { title: 'ประเมินอาการป่วย',            subtitle: 'Chief Complaint & History' },
   /* ลำดับเดียวกับจุดคัดกรอง OPD: อาการป่วย → พฤติกรรมสุขภาพ → ประเมิน
      (มติผู้ใช้ 30 ส.ค. 69) */
   { title: 'พฤติกรรมสุขภาพ',             subtitle: 'Health Behaviour' },
-  { title: 'บันทึกตามบทบาท/กิจกรรม',     subtitle: 'Care Records' },
-  { title: 'Family Folder และส่งศูนย์ฯ', subtitle: 'Family Folder & Submit' },
+  { title: 'Family Folder',              subtitle: 'Family Folder & Submit' },
 ];
 
 const HomeVisitRecordPage = () => {
   const history = useHistory();
+  const { start: startTelemedCall } = useTelemedCall();
   const { state: navState } = useLocation();
 
   /* นัดเยี่ยมที่กำลังบันทึก — คิวส่ง visitId มาให้; ถ้าเปิดตรงด้วย hn
@@ -147,10 +146,12 @@ const HomeVisitRecordPage = () => {
     }) || null;
   }, [hn, visitId]);
 
-  const setForm = (updater) => {
+  /* identity ต้องคงที่ — RegistrationSteps ใส่ `setForm` ไว้ใน deps ของ
+     เอฟเฟกต์ mirror ที่อยู่ ถ้าสร้างใหม่ทุกเรนเดอร์จะวนไม่รู้จบ */
+  const setForm = useCallback((updater) => {
     setDirty(true);
     setFormRaw(updater);
-  };
+  }, []);
 
   /* บันทึกร่างอัตโนมัติทุกครั้งที่ข้อมูลเปลี่ยน (TreatmentFormShell ไม่มี
      callback ของปุ่ม "บันทึกร่าง") — เปิดใหม่จะกลับมาที่ขั้นล่าสุด. */
@@ -261,22 +262,22 @@ const HomeVisitRecordPage = () => {
               variant='fill'
               size='sm'
               leadingIcon='videocam'
+              /* เปิด "ห้องตรวจรักษาออนไลน์" เป็นป๊อปอัปทับหน้าเดิม (มติผู้ใช้
+                 2 ก.ย. 69) — เดิมพาออกไปหน้า /telemed/worklist ทำให้บันทึกที่
+                 กรอกค้างไว้หายไปจากจอ ทีมต้องเดินทางกลับเข้ามาใหม่ทุกครั้ง
+                 ป๊อปอัปมาจาก TelemedCallProvider ซึ่ง mount อยู่เหนือ router */
               onClick={() => {
                 saveHomeVisitDraft(visitId, formRef.current, stepIndex);
                 setForm((f) => ({ ...f, telemedRequested: true }));
-                history.push({
-                  pathname: '/telemed/worklist',
-                  state: {
-                    hn,
-                    name: registryEntry?.name || appointment?.name,
-                    from: 'homevisit',
-                    reason: 'ปรึกษาแพทย์ทางไกลระหว่างการเยี่ยมบ้าน',
-                  },
-                });
+                startTelemedCall({ visitId });
               }}
             >
               ปรึกษาแพทย์ทางไกล
             </BrandSubdueButton>
+            {/* ติดตามสถานะโครงการที่ผู้รับบริการเข้าร่วม — ตอนนี้มีโครงการผ้าอ้อม
+                (มติผู้ใช้ 2 ก.ย. 69) ที่บ้านมักถามเรื่องรอบการรับของ ทีมจึงต้อง
+                ตอบได้โดยไม่ต้องออกจากบันทึกการเยี่ยม */}
+            <FollowUpStatusMenuButton hn={hn} />
             <BrandSubdueButton
               variant='outline'
               size='sm'
@@ -451,7 +452,7 @@ const HomeVisitRecordPage = () => {
                  เลื่อนมาจาก index 3 ตอนสลับกับสัญญาณชีพ */
               /* ขั้นที่เนื้อหาเป็นการ์ดของตัวเอง: ยินยอม · ข้อมูลส่วนตัว · ที่อยู่ ·
                  ติดต่อ · สิทธิ · อาการป่วย */
-              plainBodySteps={[0, 1, 2, 3, 4, 6, 7, 8]}
+              plainBodySteps={[0, 1, 2, 3, 4, 5, 6]}
               stepIndex={stepIndex}
               onStepChange={setStepIndex}
               completedSteps={completedSteps}

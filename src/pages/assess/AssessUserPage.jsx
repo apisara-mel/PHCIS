@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useActiveCenter } from '@/pages/users/usersShared';
 import { useHistory } from 'react-router-dom';
 import QueuePageShell from '@/templates/QueuePageShell';
 import { SummaryCard } from '@/components/layout/SummaryCardsBar';
@@ -112,7 +113,10 @@ export default function AssessUserPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [accessOf, setAccessOf] = useState(null);
-  const [filterCenter, setFilterCenter] = useState('');
+  /* ทะเบียนบุคลากรผูกกับศูนย์ที่เลือกไว้บน Header (มติผู้ใช้ 2 ก.ย. 69) —
+     ทั้งโมดูลจัดการระบบทำงานในขอบเขตศูนย์เดียว ชิปตัวกรอง "ศูนย์:" ในหน้า
+     จึงถูกถอดออก เพราะเลือกสวนทางกับชิปบน Header แล้วอ่านไม่ออกว่ากำลังดูของใคร */
+  const { center: activeCenter } = useActiveCenter();
   const [filterRole, setFilterRole] = useState('');
   const [filterDept, setFilterDept] = useState('');
   const [filterPosition, setFilterPosition] = useState('');
@@ -132,15 +136,23 @@ export default function AssessUserPage() {
 
   /* บัญชีที่ถูกลบเป็น soft delete เพื่อเก็บเหตุผลสำหรับตรวจสอบ จึงไม่กลับมา
      ปรากฏในทะเบียน/ยอดสรุปของบุคลากรที่ยังบริหารจัดการอยู่. */
+  /* ทุกตัวเลขบนหน้านี้ (การ์ดสรุป · จำนวนบนแท็บ · ตาราง) นับเฉพาะบุคลากรของ
+     ศูนย์ที่เลือกบน Header — `records` ยังเก็บทั้งทะเบียนไว้เพื่อให้การบันทึก
+     (persist) ไม่ลบข้อมูลศูนย์อื่นทิ้ง */
+  const centerRecords = useMemo(
+    () => records.filter((record) => primaryAssignment(record)?.centerId === activeCenter),
+    [records, activeCenter],
+  );
+
   const directoryRecords = useMemo(
-    () => records.filter((record) => record.accountStatus !== 'deleted'),
-    [records],
+    () => centerRecords.filter((record) => record.accountStatus !== 'deleted'),
+    [centerRecords],
   );
   /* ...แต่ต้องมีที่ให้เปิดดูจริง ไม่งั้นเหตุผลที่บังคับกรอกตอนลบก็เขียนทิ้งเปล่า
      แท็บนี้จึงเป็นปลายทางเดียวของ deletionReason / deletedAt */
   const deletedRecords = useMemo(
-    () => records.filter((record) => record.accountStatus === 'deleted'),
-    [records],
+    () => centerRecords.filter((record) => record.accountStatus === 'deleted'),
+    [centerRecords],
   );
   const isDeletedTab = tab === 'deleted';
   const stats = useMemo(() => computeAssessUserStats(directoryRecords), [directoryRecords]);
@@ -167,7 +179,6 @@ export default function AssessUserPage() {
     return (isDeletedTab ? deletedRecords : directoryRecords).filter((r) => {
       const primary = primaryAssignment(r);
       if (!isDeletedTab && (tab === 'draft') !== !!r.draft) return false;
-      if (filterCenter && primary?.centerId !== filterCenter) return false;
       if (filterRole && primary?.subActivityId !== filterRole) return false;
       if (filterDept && primary?.departmentId !== filterDept) return false;
       if (filterPosition && primary?.positionId !== filterPosition) return false;
@@ -175,17 +186,16 @@ export default function AssessUserPage() {
       const hay = [fullName(r), r.email, r.licenseNo, r.nameEn, r.surnameEn].join(' ').toLowerCase();
       return hay.includes(q);
     });
-  }, [directoryRecords, deletedRecords, isDeletedTab, search, tab, filterCenter, filterRole, filterDept, filterPosition]);
+  }, [directoryRecords, deletedRecords, isDeletedTab, search, tab, filterRole, filterDept, filterPosition]);
 
   /* ทะเบียนที่เหลือแต่บัญชีที่ถูกลบยังต้องมีแท็บให้กดเข้าไปดูประวัติได้
      ไม่งั้นภาพ empty state จะกลืนหลักฐานการลบไปทั้งชุด */
   const hasRecords = directoryRecords.length > 0 || deletedRecords.length > 0;
-  const filtersActive = !!(filterCenter || filterRole || filterDept || filterPosition || search.trim());
+  const filtersActive = !!(filterRole || filterDept || filterPosition || search.trim());
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     filtersActive,
     () => {
       setSearch('');
-      setFilterCenter('');
       setFilterRole('');
       setFilterDept('');
       setFilterPosition('');
@@ -478,7 +488,6 @@ export default function AssessUserPage() {
                 <div className='flex-1' />
               </div>
               <div className='flex items-center flex-wrap' style={{ gap: 'var(--dim-space-200)' }}>
-                <FilterDropdown prefix='ศูนย์:' options={filterOpts.center} value={filterCenter} onChange={setFilterCenter} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='ตำแหน่ง:' options={filterOpts.pos} value={filterPosition} onChange={setFilterPosition} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='บทบาท:' options={filterOpts.role} value={filterRole} onChange={setFilterRole} placeholder='ทั้งหมด' />
                 <FilterDropdown prefix='แผนก:' options={filterOpts.dept} value={filterDept} onChange={setFilterDept} placeholder='ทั้งหมด' />

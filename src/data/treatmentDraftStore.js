@@ -61,7 +61,7 @@ export const loadTreatmentRecord = (hn, visitKey) => (
   read(encounterKey(RECORD_PREFIX, hn, visitKey))
 );
 
-/* จุด Exist Nurse รู้แค่ HN — ไม่รู้ `visitKey` ของ visit ที่แพทย์เพิ่งปิด
+/* จุด Exit Nurse รู้แค่ HN — ไม่รู้ `visitKey` ของ visit ที่แพทย์เพิ่งปิด
    (มติผู้ใช้ 31 ส.ค. 69) จึงต้องกวาดคีย์ทั้งหมดของ HN นั้นแล้วเอาใบที่บันทึก
    ล่าสุด · คีย์ถูก encode ไว้ตอนเขียน จึงเทียบด้วยรูปแบบเดียวกัน ไม่ใช่ substring
    ของ HN ดิบ (HN "67-00001" กับ "67-000010" จะชนกัน) */

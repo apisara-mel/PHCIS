@@ -131,7 +131,6 @@ export const NHSO_REQUIRED_FIELDS = [
   { key: 'serviceDate', label: 'วันที่ให้บริการ',        get: (c) => c.form?.serviceDate },
   { key: 'arrivalTime', label: 'เวลาที่ถึงบ้านผู้รับบริการ', get: (c) => c.form?.arrivalTime },
   { key: 'adl',        label: 'คะแนน ADL (ดัชนีบาร์เธล)', get: (c) => (c.adlComplete ? 'ok' : '') },
-  { key: 'activities', label: 'กิจกรรมการดูแลอย่างน้อย 1 รายการ', get: (c) => (Object.values(c.form?.activities || {}).some(Boolean) ? 'ok' : '') },
 ];
 
 /** ตรวจความครบถ้วนก่อนส่ง — คืนรายการที่ยังขาด. */

@@ -222,14 +222,37 @@ export default function SystemOverviewPage({ activeKey = 'system-overview' }) {
     () => setPageDate({ quick: 'thisyear' }),
   );
 
-  const centers = useMemo(() => readCenters(), []);
+  /* ทั้งโมดูล "จัดการระบบ" ทำงานในขอบเขตศูนย์ที่เลือกบน Header (มติผู้ใช้
+     2 ก.ย. 69) — เดิมแดชบอร์ดนับรวมทั้ง 69 ศูนย์ทั้งที่ชิปบอกว่ากำลังดู
+     ศูนย์เดียว · ทะเบียนที่เป็นแคตตาล็อกกลางของสำนัก (โครงสร้าง · บทบาท ·
+     ตำแหน่ง · วันหยุด) ไม่มี `centerId` จึงยังนับทั้งระบบตามเดิม */
+  const scoped = scopeCenter !== 'all';
+  const allCenters = useMemo(() => readCenters(), []);
+  /* ทะเบียนศูนย์ใช้ id ของตัวเอง (`center-4`) ส่วนชิปบน Header ใช้ `hc-4`
+     — เทียบด้วยเลขศูนย์ที่อยู่ท้าย id ทั้งสองฝั่ง */
+  const centers = useMemo(() => {
+    if (!scoped) return allCenters;
+    const no = String(scopeCenter).replace('hc-', '');
+    return allCenters.filter((c) => String(c.id).replace('center-', '') === no
+      || String(c.code) === no);
+  }, [allCenters, scoped, scopeCenter]);
   const structures = useMemo(() => readStructures(), []);
   const activities = useMemo(() => readActivities(), []);
   const positions = useMemo(() => readPositions(), []);
-  const departments = useMemo(() => readDepartments(), []);
+  const departments = useMemo(
+    () => (scoped ? readDepartments(scopeCenter) : readDepartments()),
+    [scoped, scopeCenter],
+  );
   const holidays = useMemo(() => readHolidays(), []);
-  const accessControls = useMemo(() => readAccessControls(), []);
-  const users = useMemo(() => readAssessUsers(), []);
+  const accessControls = useMemo(() => {
+    const rows = readAccessControls();
+    return scoped ? rows.filter((r) => !r.centerId || r.centerId === scopeCenter) : rows;
+  }, [scoped, scopeCenter]);
+  const users = useMemo(() => {
+    const rows = readAssessUsers();
+    if (!scoped) return rows;
+    return rows.filter((u) => primaryAssignment(u)?.centerId === scopeCenter);
+  }, [scoped, scopeCenter]);
 
   const centerStats = useMemo(() => {
     const active = centers.filter((c) => c.active !== false && !c.draft).length;

@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
+import {
+  buildDistrictFilterOptions, resolveDistrictFilter,
+} from '@/data/centerDistricts';
+import { useActiveCenter } from '@/pages/users/usersShared';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
@@ -33,7 +37,6 @@ import {
   HOMEVISIT_SOURCES,
   HOMEVISIT_PROFESSIONS,
   HOMEVISIT_TIME_SLOTS,
-  HOMEVISIT_DISTRICTS,
   HOMEVISIT_CANCEL_REASONS,
   GROUP_FOLLOWUP_DAYS,
   addDaysIso,
@@ -162,6 +165,13 @@ const HomeVisitQueuePage = () => {
   const [page, setPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
+  /* เขตที่เลือกได้ = เขตที่ศูนย์บน Header รับผิดชอบ (มติผู้ใช้ 2 ก.ย. 69) —
+     สลับศูนย์แล้วเขตที่ค้างอยู่ซึ่งไม่ใช่ของศูนย์ใหม่จะตกกลับเป็น "ทุกเขต"
+     เองผ่าน `resolveDistrictFilter` ไม่ต้องล้างตัวกรองเอง */
+  const { center } = useActiveCenter();
+  const districtOptions = useMemo(() => buildDistrictFilterOptions(center), [center]);
+  const districtFilter = resolveDistrictFilter(center, filters.district);
+
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
@@ -234,7 +244,7 @@ const HomeVisitQueuePage = () => {
       if (filters.group !== 'all' && r.group !== filters.group) return false;
       if (filters.profession !== 'all' && r.profession !== filters.profession) return false;
       if (filters.source !== 'all' && r.source !== filters.source) return false;
-      if (filters.district !== 'all' && r.district !== filters.district) return false;
+      if (districtFilter !== 'all' && r.district !== districtFilter) return false;
       /* ไม่กรองตามวันนัด/ช่วงเวลาแล้ว — ตัวกรองสองตัวถูกถอดออกจากหน้าจอ
          (มติผู้ใช้ 30 ส.ค. 69) ถ้ายังกรองอยู่เบื้องหลัง แท็บอื่นจะขึ้นศูนย์รายการ
          ทั้งที่มีข้อมูล และผู้ใช้จะแก้อะไรไม่ได้เพราะไม่มีชิปให้กด */
@@ -394,7 +404,7 @@ const HomeVisitQueuePage = () => {
     || filters.group !== 'all'
     || filters.profession !== 'all'
     || filters.source !== 'all'
-    || filters.district !== 'all';
+    || districtFilter !== 'all';
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     filtersActive,
     () => {
@@ -408,7 +418,7 @@ const HomeVisitQueuePage = () => {
     filters.group === 'all' ? null : resolveGroup(filters.group)?.label,
     filters.profession === 'all' ? null : `วิชาชีพ ${resolveProfession(filters.profession)?.label}`,
     filters.source === 'all' ? null : `แหล่งรับเข้า ${resolveSource(filters.source)?.short}`,
-    filters.district === 'all' ? null : filters.district,
+    districtFilter === 'all' ? null : districtFilter,
     searchQ.trim() ? `ค้นหา "${searchQ.trim()}"` : null,
   ].filter(Boolean).join(' · ');
 
@@ -842,8 +852,8 @@ const HomeVisitQueuePage = () => {
                 />
                 <FilterDropdown
                   prefix='เขต:'
-                  options={[{ value: 'all', label: 'ทุกเขต' }, ...HOMEVISIT_DISTRICTS.map((d) => ({ value: d, label: d }))]}
-                  value={filters.district}
+                  options={districtOptions}
+                  value={districtFilter}
                   onChange={(v) => setFilters((f) => ({ ...f, district: v }))}
                 />
                 {/* ถอดตัวกรอง "วันนัด" และ "ช่วงเวลา" ออก (มติผู้ใช้ 30 ส.ค. 69) —

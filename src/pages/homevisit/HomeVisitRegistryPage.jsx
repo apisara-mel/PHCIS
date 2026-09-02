@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
+import {
+  getCenterDistricts, buildDistrictFilterOptions, resolveDistrictFilter,
+} from '@/data/centerDistricts';
+import { useActiveCenter } from '@/pages/users/usersShared';
 import QueuePageShell from '@/templates/QueuePageShell';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
@@ -37,7 +41,6 @@ import {
   HOMEVISIT_SOURCES,
   HOMEVISIT_PROFESSIONS,
   HOMEVISIT_STAFF,
-  HOMEVISIT_DISTRICTS,
   HOMEVISIT_FLAGS,
   HOMEVISIT_ILLNESS_SUGGESTIONS,
   formatHomeVisitDate,
@@ -200,6 +203,14 @@ const HomeVisitRegistryPage = () => {
   const [filters, setFilters] = useState(FILTER_DEFAULTS);
   const [page, setPage] = useState(1);
 
+  /* เขตที่เลือกได้ = เขตที่ศูนย์บน Header รับผิดชอบ (มติผู้ใช้ 2 ก.ย. 69) —
+     สลับศูนย์แล้วเขตที่ค้างอยู่ซึ่งไม่ใช่ของศูนย์ใหม่จะตกกลับเป็น "ทุกเขต"
+     เองผ่าน `resolveDistrictFilter` ไม่ต้องล้างตัวกรองเอง */
+  const { center } = useActiveCenter();
+  const centerDistricts = useMemo(() => getCenterDistricts(center), [center]);
+  const districtOptions = useMemo(() => buildDistrictFilterOptions(center), [center]);
+  const districtFilter = resolveDistrictFilter(center, filters.district);
+
   /* null = list only · 'new' = create · row id = edit that row */
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -254,7 +265,7 @@ const HomeVisitRegistryPage = () => {
       }
       if (filters.group !== 'all' && r.group !== filters.group) return false;
       if (filters.source !== 'all' && r.source !== filters.source) return false;
-      if (filters.district !== 'all' && r.district !== filters.district) return false;
+      if (districtFilter !== 'all' && r.district !== districtFilter) return false;
       if (filters.responsible !== 'all' && r.responsible !== filters.responsible) return false;
       if (dateRange) {
         if (!r.registeredDate) return false;
@@ -565,7 +576,7 @@ const HomeVisitRegistryPage = () => {
   const filtersActive = searchQ.trim() !== ''
     || filters.group !== 'all'
     || filters.source !== 'all'
-    || filters.district !== 'all'
+    || districtFilter !== 'all'
     || filters.responsible !== 'all'
     || (filters.dateValue?.quick || 'all') !== 'all'
     || activeTab !== 'all';
@@ -588,7 +599,7 @@ const HomeVisitRegistryPage = () => {
         : (activeTab === 'cancelled' ? 'ยกเลิกแล้ว' : resolveGroup(activeTab)?.label)),
     filters.group === 'all' ? null : resolveGroup(filters.group)?.label,
     filters.source === 'all' ? null : `แหล่งรับเข้า ${resolveSource(filters.source)?.short}`,
-    filters.district === 'all' ? null : filters.district,
+    districtFilter === 'all' ? null : districtFilter,
     filters.responsible === 'all' ? null : `ผู้รับผิดชอบ ${filters.responsible}`,
     dateRange ? `ลงทะเบียน ${formatHomeVisitDate(dateRange.from)} – ${formatHomeVisitDate(dateRange.to)}` : null,
     searchQ.trim() ? `ค้นหา "${searchQ.trim()}"` : null,
@@ -1239,7 +1250,7 @@ const HomeVisitRegistryPage = () => {
                     <Select
                       showLabel={false} showHelperText={false} searchable={false} size='lg'
                       value={form.district} onChange={setField('district')} disabled={readOnly}
-                      options={HOMEVISIT_DISTRICTS.map((d) => ({ value: d, label: d }))}
+                      options={centerDistricts.map((d) => ({ value: d, label: d }))}
                       placeholder='เลือกเขต'
                       error={errors.district ? ' ' : undefined}
                     />
@@ -1448,8 +1459,8 @@ const HomeVisitRegistryPage = () => {
                 />
                 <FilterDropdown
                   prefix='เขต:'
-                  options={[{ value: 'all', label: 'ทุกเขต' }, ...HOMEVISIT_DISTRICTS.map((d) => ({ value: d, label: d }))]}
-                  value={filters.district}
+                  options={districtOptions}
+                  value={districtFilter}
                   onChange={(v) => setFilters((f) => ({ ...f, district: v }))}
                 />
                 <FilterDropdown

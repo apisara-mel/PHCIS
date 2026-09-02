@@ -1451,6 +1451,12 @@ const ADDRESS_TEXT_KEYS = ['zip', 'province', 'district', 'subdistrict', 'road',
    ปลายทางเสมอ ชื่อพารามิเตอร์เป็น `source` เพราะตอนนี้ต้นทางเป็นได้ทั้ง
    ทะเบียนบ้านและที่อยู่ปัจจุบัน */
 const copyRegisteredInto = (registered, target) => {
+  /* คืน reference เดิมเมื่อค่าตรงกันอยู่แล้ว — เอฟเฟกต์ mirror ด้านล่างใช้
+     ผลลัพธ์นี้เทียบก่อนเรียก setForm ถ้าสร้างอ็อบเจกต์ใหม่ทุกครั้ง
+     setForm จะยิงทุกเรนเดอร์จนเกิด "Maximum update depth exceeded" */
+  if (target && ADDRESS_TEXT_KEYS.every((k) => (target[k] ?? '') === (registered?.[k] ?? ''))) {
+    return target;
+  }
   const next = { ...target };
   ADDRESS_TEXT_KEYS.forEach((k) => { next[k] = registered?.[k] ?? ''; });
   return next;
@@ -1518,22 +1524,30 @@ export const Step2Address = ({
      ที่อยู่ตามทะเบียนบ้าน into the target address slice. */
   useEffect(() => {
     if (!form.useRegisteredForCurrent) return;
+    if (copyRegisteredInto(form.addressRegistered, form.addressCurrent)
+      === form.addressCurrent) return;
     setForm((s) => ({
       ...s,
       addressCurrent: copyRegisteredInto(s.addressRegistered, s.addressCurrent),
     }));
-  }, [form.addressRegistered, form.useRegisteredForCurrent, setForm]);
+  }, [form.addressRegistered, form.addressCurrent, form.useRegisteredForCurrent, setForm]);
 
   useEffect(() => {
     if (!form.useRegisteredForContact) return;
+    if (copyRegisteredInto(form.addressRegistered, form.addressContact)
+      === form.addressContact) return;
     setForm((s) => ({
       ...s,
       addressContact: copyRegisteredInto(s.addressRegistered, s.addressContact),
     }));
-  }, [form.addressRegistered, form.useRegisteredForContact, setForm]);
+  }, [form.addressRegistered, form.addressContact, form.useRegisteredForContact, setForm]);
 
   useEffect(() => {
     if (!form.useCurrentForContact) return;
+    if (copyRegisteredInto(
+      form.useRegisteredForCurrent ? form.addressRegistered : form.addressCurrent,
+      form.addressContact,
+    ) === form.addressContact) return;
     setForm((s) => ({
       ...s,
       addressContact: copyRegisteredInto(
@@ -1541,8 +1555,8 @@ export const Step2Address = ({
         s.addressContact,
       ),
     }));
-  }, [form.addressCurrent, form.addressRegistered, form.useRegisteredForCurrent,
-    form.useCurrentForContact, setForm]);
+  }, [form.addressCurrent, form.addressContact, form.addressRegistered,
+    form.useRegisteredForCurrent, form.useCurrentForContact, setForm]);
 
   /* ที่อยู่ปัจจุบันถูกล้างจนไม่ครบ — ธง "เหมือนที่อยู่ปัจจุบัน" ต้องหลุดตาม */
   useEffect(() => {
