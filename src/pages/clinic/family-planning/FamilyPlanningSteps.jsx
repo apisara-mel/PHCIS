@@ -558,11 +558,6 @@ export const FpStep2Screening = ({ form, setForm, locked }) => {
 
   return (
     <StepCard>
-      <Banner tone='neutral' icon='rule'>
-        กฎการจ่ายยา (คู่มือ หน้า 2-5): ตอบ <strong>"ไม่มี" ทุกข้อ → จ่ายยาได้</strong> ·
-        ตอบ <strong>"มี" แม้เพียงข้อเดียว → ห้ามจ่ายยาเด็ดขาด ต้องส่งไปปรึกษาแพทย์ก่อน</strong>
-      </Banner>
-
       {screen.mustReferDoctor && !form.doctorConsulted && (
         <Banner tone='danger' icon='e911_emergency'>
           พบข้อคัดกรองที่ตอบ "มี" {screen.flagged.length} ข้อ — ห้ามจ่ายยาคุมกำเนิด
@@ -2589,11 +2584,6 @@ const PrimaryServicePicker = ({ form, setForm, locked }) => {
           />
         ))}
       </div>
-      {!selected.length && (
-        <span style={{ fontSize: 'var(--type-size-xs)', color: 'var(--text-danger-default, #B91C1C)' }}>
-          ต้องเลือกอย่างน้อย 1 บริการก่อนดำเนินการขั้นถัดไป
-        </span>
-      )}
     </div>
   );
 };
@@ -2663,7 +2653,7 @@ export const FpAssessmentStep = (props) => {
       pendingLabel: 'ยังไม่ได้บันทึก',
       openLabel: 'บันทึก PARA',
     },
-    ...(isFamilyPlanning ? [{
+    {
       key: 'screening',
       title: 'ซักประวัติการเจ็บป่วยและตรวจร่างกาย',
       code: `คู่มือ หน้า 2-5 · ${FP_SCREENING_ITEMS.length} ข้อ`,
@@ -2677,7 +2667,7 @@ export const FpAssessmentStep = (props) => {
           ? { badge: 'green', label: 'ไม่พบข้อห้าม — จ่ายยาคุมกำเนิดได้' }
           : null),
       openLabel: 'ทำแบบคัดกรอง',
-    }] : []),
+    },
   ];
 
   const openTool_ = TOOLS.find((t) => t.key === openTool);
@@ -2686,9 +2676,8 @@ export const FpAssessmentStep = (props) => {
     <StepCard>
       <PrimaryServicePicker {...props} />
 
-      {services.length > 0 && (
-        <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
-          <TopicHeader icon='clipboard-list'>แบบประเมิน</TopicHeader>
+      <div className='flex flex-col' style={{ gap: 'var(--dim-space-300, 12px)' }}>
+        <TopicHeader icon='clipboard-list'>แบบประเมิน</TopicHeader>
           <Table
             columns={[
               {
@@ -2749,15 +2738,14 @@ export const FpAssessmentStep = (props) => {
                 ),
               },
             ]}
-            rows={TOOLS}
-            rowKey={(t) => t.key}
-          />
-        </div>
-      )}
+          rows={TOOLS}
+          rowKey={(t) => t.key}
+        />
+      </div>
 
       {/* กฎห้ามจ่ายยาเป็นข้อมูลความปลอดภัย ต้องเห็นบนหน้าขั้นตอน ไม่ใช่ซ่อน
           อยู่ในป๊อปอัปแบบคัดกรอง (คู่มือ หน้า 2-5) */}
-      {isFamilyPlanning && screen.mustReferDoctor && (
+      {screen.mustReferDoctor && (
         <Banner tone={form.doctorConsulted ? 'warning' : 'danger'} icon={form.doctorConsulted ? 'medical_services' : 'e911_emergency'}>
           {form.doctorConsulted
             ? `บันทึกการส่งปรึกษาแพทย์แล้ว โดย ${form.doctorConsultedBy} · ${formatFpDateTime(form.doctorConsultedAt)} — ปลดล็อกการสั่งยาแล้ว โปรดยืนยันคำสั่งกับแพทย์ก่อนจ่ายจริง`
@@ -2871,11 +2859,12 @@ const FpDiagnosisPanel = ({ form, setForm, locked, selected }) => {
   );
 };
 
+/* ทุกขั้นต้องมีเนื้อหาให้ทำงานต่อได้เสมอ (มติผู้ใช้ 3 ก.ย. 69) — เดิมขั้นนี้
+   ขึ้น EmptyState ตันเมื่อยังไม่ได้เลือกบริการหลัก ตอนนี้ยังแสดงการ์ด
+   ตรวจร่างกาย/วินิจฉัยซึ่งไม่ผูกกับบริการใดบริการหนึ่ง แล้วบอกด้วยแบนเนอร์
+   ว่าแบบตรวจเฉพาะบริการจะโผล่เมื่อเลือกในขั้นแบบประเมิน */
 export const FpExaminationDiagnosisStep = ({ form, setForm, locked, ...props }) => {
   const selected = form.primaryServices || [];
-  if (!selected.length) {
-    return <EmptyState icon='medical_services' title='เลือกบริการหลักก่อน' subtitle='กลับไปที่ขั้นแบบประเมินเพื่อเลือกบริการของวิสิตนี้' />;
-  }
   return (
     <div className='flex w-full flex-col min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
       <div className='flex w-full flex-col xl:flex-row items-stretch min-w-0' style={{ gap: 'var(--dim-space-400, 16px)' }}>
@@ -2890,11 +2879,7 @@ export const FpExaminationDiagnosisStep = ({ form, setForm, locked, ...props }) 
               showBreast={selected.includes('breastScreening')}
               showCervical={selected.includes('cervicalScreening')}
             />
-          ) : (
-            <Banner tone='neutral' icon='monitor_heart'>
-              ใช้สัญญาณชีพที่บันทึกจากจุดคัดกรองในแถบด้านบน และบันทึกการตรวจเฉพาะบริการที่เลือกในขั้นนี้
-            </Banner>
-          )}
+          ) : null}
         </section>
         <section className='flex flex-col min-w-0 w-full xl:w-auto' style={FP_SPLIT_CARD_STYLE}>
           <FpSplitCardTitle>วินิจฉัย</FpSplitCardTitle>
@@ -2916,11 +2901,10 @@ export const FpExaminationDiagnosisStep = ({ form, setForm, locked, ...props }) 
 
 export const FpTreatmentOrderStep = ({ form, ...props }) => {
   const selected = form.primaryServices || [];
-  if (!selected.length) {
-    return <EmptyState icon='medical_services' title='เลือกบริการหลักก่อน' subtitle='กลับไปที่ขั้นแบบประเมินเพื่อเลือกบริการของวิสิตนี้' />;
-  }
   return (
     <StepCard>
+      {/* คำสั่งยา/หัตถการใช้ได้ทุกบริการ ส่วนการวางแผนคุมกำเนิดขึ้นเฉพาะ
+          "งานวางแผนครอบครัว" — ขั้นนี้จึงไม่เคยว่าง */}
       {selected.includes('familyPlanning') && <FpStep3Plan form={form} {...props} />}
       <FpStep6Orders form={form} {...props} />
     </StepCard>

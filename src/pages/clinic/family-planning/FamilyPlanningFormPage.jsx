@@ -143,11 +143,10 @@ const FamilyPlanningFormPage = () => {
     !!form.cardPrinted,
   ];
 
+  /* เดินขั้นได้อิสระแม้ยังไม่ได้เลือกบริการหลัก — ทุกขั้นมีเนื้อหาที่ทำงานได้
+     ด้วยตัวเองแล้ว (มติผู้ใช้ 3 ก.ย. 69) ส่วนกติกา "ต้องเลือกอย่างน้อย 1
+     บริการ" ยังบังคับตอนจบการบันทึกผ่าน `validateFpVisit` เหมือนเดิม */
   const handleStepChange = (nextIndex) => {
-    if (nextIndex > stepIndex && stepIndex === 0 && !(form.primaryServices || []).length) {
-      setFinishErrors(['เลือกบริการหลักอย่างน้อย 1 บริการในขั้นแบบประเมินก่อน']);
-      return;
-    }
     setFinishErrors([]);
     setStepIndex(nextIndex);
   };
