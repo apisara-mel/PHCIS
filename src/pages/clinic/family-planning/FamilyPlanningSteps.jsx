@@ -31,6 +31,8 @@ import {
   ANC_TERM_ASSESSMENT,
   ANC_VACCINE_DOSES,
   ANC_DISPENSE_ITEMS,
+  ANC_RISK_LEVELS,
+  ANC_ADVICE_TOPICS,
   summarizeLabResults,
   summarizeAncProcedures,
   formatAncDate,
@@ -2760,6 +2762,16 @@ export const FpReviewStep = ({ form, registration, cardPatient, ...props }) => {
             ['เลขที่วางแผนครอบครัว', registration?.status !== 'cancelled' ? registration?.fpNumber : ''],
             ['วันที่รับบริการ', formatFpDate(form.serviceDate)],
             ['ประเภทผู้รับบริการ', resolveFpClientType(form.clientType)],
+            ['วิธีคุมกำเนิดครั้งสุดท้าย', form.lastMethod === 'other'
+              ? (form.lastMethodOther || pickLabel(FP_LAST_METHODS, form.lastMethod))
+              : pickLabel(FP_LAST_METHODS, form.lastMethod)],
+            ['บริการที่ได้รับ', (form.services || []).map((key) => resolveFpService(key)?.label).filter(Boolean).join(' · ')],
+            ['การถอด', (form.removals || []).map((key) => FP_REMOVAL_OPTIONS.find((r) => r.key === key)?.label).filter(Boolean).join(' · ')],
+            ['จ่ายยาคุมกำเนิดในครั้งนี้', form.dispensed ? 'จ่ายแล้ว' : ''],
+            ['ประวัติการคลอด / แท้ง', form.lastDeliveryType && form.lastDeliveryType !== 'none'
+              ? `${form.lastDeliveryType === 'abortion' ? 'แท้งบุตร' : 'คลอดบุตร'}${form.lastDeliveryMonth || form.lastDeliveryYear ? ` เมื่อ ${form.lastDeliveryMonth || '—'}/${form.lastDeliveryYear || '—'}` : ''}`
+              : (form.lastDeliveryType === 'none' ? 'ไม่เคยคลอด/แท้ง' : '')],
+            ['ประจำเดือนครั้งสุดท้าย (LMP)', formatFpDate(form.lmp)],
           ]}
         />
 
@@ -2815,7 +2827,11 @@ export const FpReviewStep = ({ form, registration, cardPatient, ...props }) => {
               { value: 'followUp', label: 'ติดตามอาการ / นัดประเมินซ้ำ' },
               { value: 'refer', label: 'พบประเด็นต้องส่งปรึกษาแพทย์' },
             ], form.clinicalAssessment)],
+            ['ผลประเมินความเสี่ยง', pickLabel(ANC_RISK_LEVELS, form.riskLevel)],
             ['บันทึกวินิจฉัย', form.diagnosisNote],
+            ['คำแนะนำการวางแผนครอบครัว', form.externalExamResults],
+            ['หัวข้อที่ให้คำแนะนำ', ANC_ADVICE_TOPICS.filter((t) => form.adviceTopics?.[t.key]).map((t) => t.label).join('\n')],
+            ['รายละเอียดคำแนะนำ', form.adviceNote],
             ['ตรวจหลังคลอด — มารดา', [
               mother.visitDate ? `วันที่เยี่ยม: ${formatFpDate(mother.visitDate)}` : '',
               mother.deliveryDate ? `วันคลอด: ${formatFpDate(mother.deliveryDate)}` : '',

@@ -749,11 +749,11 @@ export const DEFAULT_FP_VISIT = {
   /* บริการหลักของวิสิต (มติ คทง.2) — ต้องเลือกก่อนเดินขั้นถัดไป */
   primaryServices: [],
   /* S1 — ประวัติการรักษา (1.10.8.3) */
-  illnessHistory: '',
+  illnessHistory: 'ปฏิเสธโรคประจำตัว ไม่มีประวัติแพ้ยา · ผ่าตัดคลอดบุตรคนแรกเมื่อ พ.ศ. 2565',
   vitalsOverride: false,
-  vitals: { bp: '', pulse: '', temp: '', weight: '', height: '' },
-  urineSugar: '',
-  urineAlbumin: '',
+  vitals: { bp: '118/76', pulse: '78', temp: '36.7', weight: '54', height: '158' },
+  urineSugar: 'Negative',
+  urineAlbumin: 'Negative',
 
   /* S2 — คัดกรอง 11 ข้อ (คู่มือ p.2-5) — ค่าตั้งต้นเป็น mock ของวิสิตนี้ (มติผู้ใช้
      3 ก.ย. 69) เพื่อให้ขั้น "ตรวจสอบ" มีข้อมูลจากขั้น 1-3 ให้ทวนจริง */
@@ -765,18 +765,18 @@ export const DEFAULT_FP_VISIT = {
 
   /* S3 — วางแผนครอบครัวและคำแนะนำ (1.10.8.7) */
   serviceDate: todayIso(),
-  clientType: 'old',
+  clientType: 'oldContinue',
   lastMethod: 'pill',
   lastMethodOther: '',
-  services: [],                    /* บริการที่ได้รับ — array ของ FP_SERVICES key */
+  services: ['pill'],              /* บริการที่ได้รับ — array ของ FP_SERVICES key */
   removals: [],                    /* ถอดห่วง / ถอดยาฝัง */
-  dispensed: false,                /* จ่ายยาคุมกำเนิดจริงในครั้งนี้ */
+  dispensed: true,                 /* จ่ายยาคุมกำเนิดจริงในครั้งนี้ */
   pregnancyTest: 'negative',
-  lastDeliveryMonth: '',
-  lastDeliveryYear: '',
-  lastDeliveryType: '',            /* 'delivery' | 'abortion' */
-  lmp: '',
-  adviceNote: '',
+  lastDeliveryMonth: '4',
+  lastDeliveryYear: '2565',
+  lastDeliveryType: 'delivery',    /* 'delivery' | 'abortion' */
+  lmp: '2026-08-19',
+  adviceNote: 'กินยาเม็ดคุมกำเนิดเวลาเดิมทุกวัน · หากลืมเกิน 12 ชั่วโมงให้ใช้ถุงยางร่วมด้วย 7 วัน · มาตามนัดรับยาต่อเนื่อง',
 
   /* S4 — ตรวจสตรี (มะเร็งเต้านม + ตรวจภายใน/ปากมดลูก) */
   breastExamDate: todayIso(),
@@ -788,9 +788,9 @@ export const DEFAULT_FP_VISIT = {
   breastDrawings: [],
   /* ข้อสรุปทางคลินิกของวิสิตนี้ ใช้กับแผงวินิจฉัยในขั้น 2 โดยไม่ปะปน
      กับ diagnosis ของ ANC หรือผล Pap จากห้องปฏิบัติการ */
-  clinicalAssessment: '',
+  clinicalAssessment: 'normal',
   diagnosisNote: 'ผู้รับบริการวางแผนครอบครัวรายเก่า ไม่พบข้อห้ามการใช้ฮอร์โมน ตรวจเต้านมและตรวจภายในปกติ',
-  pvExamDate: '',
+  pvExamDate: todayIso(),
   pvPatientType: '',
   counselingReceived: '',
   counselingType: '',
@@ -799,9 +799,9 @@ export const DEFAULT_FP_VISIT = {
     vagina: 'normal', cervix: 'normal', uterusPosition: 'anteverted', uterusSize: 'normal',
     adnexa: 'free', detail: 'ตรวจภายในปกติ ไม่พบรอยโรค',
   },
-  papMethod: '',
-  papResult: '',
-  papDetail: '',
+  papMethod: 'papSmear',
+  papResult: 'normal',
+  papDetail: 'ไม่พบเซลล์ผิดปกติ · นัดตรวจซ้ำตามรอบ 3 ปี',
   papSmearBy: '',
   papExaminedBy: '',
   papSentToLab: false,
@@ -814,11 +814,11 @@ export const DEFAULT_FP_VISIT = {
   cytologyRequest: {
     specimenTypes: [],
     specimenOther: '',
-    termBirths: '',
-    pretermBirths: '',
-    abortions: '',
-    livingChildren: '',
-    youngestChildAge: '',
+    termBirths: '1',
+    pretermBirths: '0',
+    abortions: '0',
+    livingChildren: '1',
+    youngestChildAge: '4 ปี',
     lmpYears: '',
     lmpDays: '',
     lmpOther: '',
@@ -863,7 +863,10 @@ export const DEFAULT_FP_VISIT = {
   /* §1.10.8.7 — ยาที่สั่งผ่าน AddMedicationPopup พร้อมขนาด/วิธีใช้/จำนวน
      ชุด chip บอกได้แค่ "สั่ง/ไม่สั่ง" ซึ่งไม่พอสำหรับใบสั่งยาจริง
      [{ id, name, usage, dosePerTake, frequency, when, quantity, image }] */
-  medications: [],
+  medications: [
+    { id: 'fp-med-1', name: 'Ethinylestradiol 0.03 mg + Levonorgestrel 0.15 mg (ยาเม็ดคุมกำเนิด)', usage: 'รับประทาน', dosePerTake: '1 เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'ก่อนนอน เวลาเดิมทุกวัน', quantity: '3 แผง' },
+    { id: 'fp-med-2', name: 'Ferrous fumarate 200 mg', usage: 'รับประทาน', dosePerTake: '1 เม็ด', frequency: 'วันละ 1 ครั้ง', when: 'หลังอาหารเช้า', quantity: '30 เม็ด' },
+  ],
   advanceOrders: {},
   internalReferEnabled: false,
   internalReferUnit: '',
@@ -875,10 +878,13 @@ export const DEFAULT_FP_VISIT = {
 
   /* ขั้นสั่งการรักษาใช้ของคลินิกฝากครรภ์ทั้งก้อน (`AncStep5Orders`) จึงต้องมี
      state ชุดเดียวกับ DEFAULT_ANC_VISIT ของขั้นนั้น (มติผู้ใช้ 3 ก.ย. 69) */
-  riskLevel: 'low',
   lab1Orders: {},
   lab2Orders: {},
-  labResults: {},
+  labResults: {
+    bloodGroup: 'O', rh: 'Positive', hb: '12.4', hct: '37',
+    urineResult: 'ปกติ', vdrlResult: 'Non-reactive',
+    antiHivResult: 'Negative', hbsAgResult: 'Negative',
+  },
   diabetesScreening: {},
   supplements: {},
   termAssessment: {},
@@ -891,13 +897,16 @@ export const DEFAULT_FP_VISIT = {
   eDocuments: [],
   /* legacy alias — บล็อกของเอกสารใบแรก เผื่อโค้ดเดิมที่อ่าน field นี้ */
   eDocBlocks: [],
-  appointment: { date: '', time: '', type: '', note: '', cancelled: false },
+  appointment: {
+    date: '', time: '', type: '', cancelled: false,
+    note: 'นัดรับยาเม็ดคุมกำเนิดต่อเนื่องอีก 3 เดือน · หากมีเลือดออกกะปริดกะปรอยหรือปวดศีรษะรุนแรงให้มาก่อนนัด',
+  },
   cardPrinted: false,
   /* แผงวินิจฉัยใช้ชุดเดียวกับคลินิกฝากครรภ์ (มติผู้ใช้ 3 ก.ย. 69) — คีย์ต้องครบตาม
      DEFAULT_ANC_VISIT ไม่งั้นช่องในแผงนั้นจะไม่มี state รองรับ */
-  riskLevel: '',
+  riskLevel: 'low',
   gdmConfirmed: false,
-  externalExamResults: '',
+  externalExamResults: 'นำผลตรวจมะเร็งปากมดลูกจากโรงพยาบาลเอกชนมาแสดง ผลปกติ ตรวจเมื่อ 12 ก.พ. 2569',
   externalExamAttachments: [],
   adviceTopics: {},
   plannedDeliveryMode: '',
