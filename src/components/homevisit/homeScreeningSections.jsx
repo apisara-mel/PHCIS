@@ -141,8 +141,11 @@ export const PersonalProfileFields = ({ value, onChange, readOnly }) => {
 export const DtxFields = ({ value, onChange, readOnly }) => {
   const { v, set } = useSetters(value, onChange);
   return (
-    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-400, 16px)' }}>
-      <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+    /* ค่าน้ำตาลอ่านไม่ได้ถ้าไม่รู้ว่าอดอาหารมาหรือเปล่า จึงเป็นคู่กันเสมอ —
+       และอยู่บรรทัดเดียวกัน (มติผู้ใช้ 2 ก.ย. 69) ช่องตัวเลขสั้น ๆ ไม่ควรกิน
+       ทั้งบรรทัดแล้วดันสถานะการอดอาหารลงไปอีกแถว */
+    <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-400, 16px)' }}>
+      <div className='flex flex-col' style={{ flex: '0 0 240px', minWidth: 160 }}>
         <Field label='DTX (mg%)'>
           <InputField
             showLabel={false}
@@ -154,7 +157,6 @@ export const DtxFields = ({ value, onChange, readOnly }) => {
           />
         </Field>
       </div>
-      {/* ค่าน้ำตาลอ่านไม่ได้ถ้าไม่รู้ว่าอดอาหารมาหรือเปล่า จึงเป็นคู่กันเสมอ */}
       <ChoiceRow label='สถานะการอดอาหารก่อนเจาะ DTX' options={DTX_FASTING_OPTIONS} value={v.dtxFasting} onChange={set('dtxFasting')} readOnly={readOnly} />
     </div>
   );
