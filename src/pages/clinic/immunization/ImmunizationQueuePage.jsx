@@ -31,7 +31,6 @@ import {
   getDueVaccineLabels,
   summarizeEpi,
   hasImmunizationRights,
-  setImmunizationRights,
   formatImmDate,
   formatImmDateTime,
 } from '@/data/immunizationClinic';
@@ -579,14 +578,6 @@ const ImmunizationQueuePage = () => {
                 defaultQuick={FILTER_DEFAULTS.dateValue.quick}
                 quickLabels={DATE_CHIP_LABELS}
               />
-              <NeutralSubdueButton
-                size='sm'
-                leadingIcon={canWrite ? 'lock_open' : 'lock'}
-                onClick={() => { setImmunizationRights(!hasImmunizationRights()); setTick((t) => t + 1); }}
-                title='สลับสิทธิปฏิบัติงานคลินิกเด็กดี (สำหรับทดสอบ)'
-              >
-                {canWrite ? 'สิทธิ: แก้ไขได้' : 'สิทธิ: อ่านอย่างเดียว'}
-              </NeutralSubdueButton>
             </OverflowFlexRow>
             <ClearFiltersTag active={showClearChip} onClear={clearFilters} />
           </div>
