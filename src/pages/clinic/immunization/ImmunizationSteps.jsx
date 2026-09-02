@@ -7,6 +7,7 @@ import SuggestibleTextarea from '@/components/forms/SuggestibleTextarea';
 import DatePicker from '@/components/forms/DatePicker';
 import TimePicker from '@/components/forms/TimePicker';
 import SelectableTag from '@/components/forms/SelectableTag';
+import Checkbox from '@/components/checkbox/Checkbox';
 import FileUploadField from '@/components/forms/FileUploadField';
 import TabCapsule from '@/components/tab/TabCapsule';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
@@ -1331,11 +1332,11 @@ export const ImmStep6GeneralExam = ({ form, setForm, immHn, child, locked, showD
             ยังไม่ได้แปรงสีฟัน — ต้องให้คำแนะนำการทำความสะอาดช่องปากแก่ผู้ปกครองก่อนกลับ
           </ColorfulBadge>
         )}
-        <SelectableTag
+        <Checkbox
           label='ให้คำแนะนำการดูแลช่องปากแก่ผู้ปกครองแล้ว'
-          size='lg'
-          selected={!!form.oralCareAdvice}
-          onClick={() => { if (!locked) setForm((f) => ({ ...f, oralCareAdvice: !f.oralCareAdvice })); }}
+          checked={!!form.oralCareAdvice}
+          disabled={locked}
+          onChange={() => { if (!locked) setForm((f) => ({ ...f, oralCareAdvice: !f.oralCareAdvice })); }}
         />
         {/* หน้าบันทึกเด็กดีวางแผงทันตกรรมไว้เต็มความกว้างใต้การ์ดซ้าย/ขวาเอง
             (ทรงเดียวกับฝากครรภ์ · มติผู้ใช้ 3 ก.ย. 69) จึงปิดตรงนี้ได้ */}
@@ -1350,29 +1351,6 @@ export const ImmStep6GeneralExam = ({ form, setForm, immHn, child, locked, showD
         )}
       </div>
 
-      <div className='flex flex-col gap-3'>
-        <TopicHeader icon='history_edu'>ประวัติการเจ็บป่วยและการแพ้</TopicHeader>
-        <SuggestibleTextarea
-          voice
-          label='ประวัติการเจ็บป่วย'
-          disabled={locked}
-          value={form.illnessHistory}
-          onChange={(e) => setForm((f) => ({ ...f, illnessHistory: e.target.value }))}
-          suggestions={ILLNESS_HISTORY_SUGGESTIONS}
-          minChars={3}
-          placeholder='เช่น เคยนอนโรงพยาบาลด้วยไข้สูงชัก 1 ครั้ง'
-        />
-        <SuggestibleTextarea
-          voice
-          label='ประวัติการแพ้ยา / แพ้อาหาร / แพ้วัคซีน'
-          disabled={locked}
-          value={form.allergyNote}
-          onChange={(e) => setForm((f) => ({ ...f, allergyNote: e.target.value }))}
-          suggestions={ALLERGY_NOTE_SUGGESTIONS}
-          minChars={3}
-          placeholder='เช่น ไม่มีประวัติแพ้ยาและแพ้วัคซีน'
-        />
-      </div>
     </StepCard>
   );
 };
