@@ -192,7 +192,8 @@ const RowActionButton = ({ action }) => (
       whiteSpace: 'nowrap',
     }}
   >
-    <Icon name={action.active ? 'check_box' : 'check_box_outline_blank'} size={16} />
+    {/* เลือกแล้ว = กล่องกาทึบ (FILL 1) ให้ต่างจากตอนยังไม่เลือกชัดเจน (มติผู้ใช้ 3 ก.ย. 69) */}
+    <Icon name={action.active ? 'check_box' : 'check_box_outline_blank'} size={16} fill={action.active ? 1 : 0} />
     {action.active ? action.activeLabel : action.label}
   </button>
 );
@@ -293,6 +294,7 @@ const DropdownRow = ({ label, subtext, icon, image, colorfulBadgeStyle, badge, s
           ) : (
             <span style={dropdownRowLabelStyle}>{label}</span>
           )}
+          {action && <RowActionButton action={action} />}
           {selected && (
             <span
               className='shrink-0 inline-flex items-center justify-center'
