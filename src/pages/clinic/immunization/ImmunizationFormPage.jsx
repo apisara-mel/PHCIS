@@ -290,12 +290,12 @@ const ImmVitalsTextRow = ({ form, intake, immHn, child }) => {
       ))}
       <div className='flex-1' />
       <BrandSubdueButton variant='outline' size='sm' leadingIcon='show_chart' onClick={() => setChartOpen(true)}>
-        ดูกราฟการเจริญเติบโต
+        ดูการเจริญเติบโต
       </BrandSubdueButton>
       <Popup
         open={chartOpen}
         onClose={() => setChartOpen(false)}
-        title='กราฟการเจริญเติบโต'
+        title='การเจริญเติบโต'
         subtitle={child ? `${child.fullName} · HN ${immHn}` : ''}
         size='extraLarge'
         height='auto'
