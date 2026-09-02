@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import {
-  buildDistrictFilterOptions, resolveDistrictFilter,
+  getCenterDistricts, buildDistrictFilterOptions, resolveDistrictFilter,
 } from '@/data/centerDistricts';
 import { useActiveCenter } from '@/pages/users/usersShared';
 import QueuePageShell from '@/templates/QueuePageShell';
+import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
+import InputField from '@/components/forms/InputField';
+import Select from '@/components/forms/Select';
+import { Field } from '@/components/forms/Fields';
 import FollowUpStatusMenuButton from '@/components/homevisit/FollowUpStatusMenuButton';
 import PrimarySearch from '@/components/search/PrimarySearch';
 import SearchResultCount from '@/components/search/SearchResultCount';
@@ -35,6 +39,8 @@ import ScreeningConfirmPopup from '@/components/popup/ScreeningConfirmPopup';
 import { getPatientByHN } from '@/data/patientProfiles';
 import {
   HOMEVISIT_GROUPS,
+  HOMEVISIT_STATUSES,
+  upsertHomeVisitAppointment,
   HOMEVISIT_SOURCES,
   HOMEVISIT_PROFESSIONS,
   HOMEVISIT_TIME_SLOTS,
@@ -98,6 +104,9 @@ const FILTER_DEFAULTS = {
   profession: 'all',
   source: 'all',
   district: 'all',
+  /* กรองตามสถานะการเยี่ยมได้จากแถวตัวกรองด้วย (มติผู้ใช้ 2 ก.ย. 69) — แท็บ
+     ด้านบนแบ่งชุดงานหยาบ ๆ ส่วนชิปนี้ไว้เจาะสถานะภายในแท็บที่เปิดอยู่ */
+  status: 'all',
 };
 
 const DATE_CHIP_LABELS = { today: 'วันนี้', yesterday: 'เมื่อวาน', tomorrow: 'พรุ่งนี้' };
@@ -171,6 +180,37 @@ const HomeVisitQueuePage = () => {
      เองผ่าน `resolveDistrictFilter` ไม่ต้องล้างตัวกรองเอง */
   const { center } = useActiveCenter();
   const districtOptions = useMemo(() => buildDistrictFilterOptions(center), [center]);
+  const centerDistrictOptions = useMemo(
+    () => getCenterDistricts(center).map((d) => ({ value: d, label: d })),
+    [center],
+  );
+
+  /* เพิ่มผู้ป่วยใหม่เข้าคิวเยี่ยมบ้านจากหัวหน้าจอ (มติผู้ใช้ 2 ก.ย. 69) —
+     บันทึกลงทะเบียนนัดชุดเดียวกับแถวอื่น (`upsertHomeVisitAppointment`)
+     กดบันทึกแล้วแถวจึงขึ้นในตารางทันที */
+  const [addOpen, setAddOpen] = useState(false);
+  const [newPatient, setNewPatient] = useState({ name: '', hn: '', group: '', district: '', appointmentTime: '' });
+  const canSaveNewPatient = String(newPatient.name || '').trim() !== '';
+  const saveNewPatient = () => {
+    if (!canSaveNewPatient) return;
+    upsertHomeVisitAppointment({
+      hn: newPatient.hn || `HV-${Date.now().toString().slice(-5)}`,
+      name: newPatient.name.trim(),
+      group: newPatient.group || 'chronic',
+      source: 'walkin',
+      statusKey: 'toDepart',
+      district: newPatient.district || getCenterDistricts(center)[0],
+      appointmentTime: newPatient.appointmentTime || '',
+      timeSlot: 'morning',
+      visitDate: null,
+      visitCount: 0,
+      confidential: false,
+      flags: [],
+    });
+    setNewPatient({ name: '', hn: '', group: '', district: '', appointmentTime: '' });
+    setAddOpen(false);
+    setTick((t) => t + 1);
+  };
   const districtFilter = resolveDistrictFilter(center, filters.district);
 
   const [cancelTarget, setCancelTarget] = useState(null);
@@ -245,6 +285,7 @@ const HomeVisitQueuePage = () => {
       if (filters.group !== 'all' && r.group !== filters.group) return false;
       if (filters.profession !== 'all' && r.profession !== filters.profession) return false;
       if (filters.source !== 'all' && r.source !== filters.source) return false;
+      if (filters.status !== 'all' && r.statusKey !== filters.status) return false;
       if (districtFilter !== 'all' && r.district !== districtFilter) return false;
       /* ไม่กรองตามวันนัด/ช่วงเวลาแล้ว — ตัวกรองสองตัวถูกถอดออกจากหน้าจอ
          (มติผู้ใช้ 30 ส.ค. 69) ถ้ายังกรองอยู่เบื้องหลัง แท็บอื่นจะขึ้นศูนย์รายการ
@@ -405,6 +446,7 @@ const HomeVisitQueuePage = () => {
     || filters.group !== 'all'
     || filters.profession !== 'all'
     || filters.source !== 'all'
+    || filters.status !== 'all'
     || districtFilter !== 'all';
   const { showClearChip, resultsOpaque, clearFilters } = useSmoothClearFilters(
     filtersActive,
@@ -656,6 +698,11 @@ const HomeVisitQueuePage = () => {
          (Sidebar subItems ของ "ระบบการเยี่ยมบ้าน") อยู่แล้ว
          เหลือไว้ปุ่มเดียวคือ "ติดตามสถานะ" (มติผู้ใช้ 2 ก.ย. 69) — หัวหน้าทีมเปิด
          ดูสถานะโครงการของทั้งคิวได้โดยไม่ต้องเข้าไปในบันทึกของใครคนหนึ่งก่อน */
+      leadingActions={(
+        <BrandPrimaryButton size='sm' leadingIcon='person_add' onClick={() => setAddOpen(true)}>
+          เพิ่มผู้ป่วยใหม่
+        </BrandPrimaryButton>
+      )}
       actions={<FollowUpStatusMenuButton />}
       summaryCards={summaryCards}
       /* แถบสถานะเป็น underline tab และอยู่ใต้การ์ดสรุป (มติผู้ใช้ 30 ส.ค. 69)
@@ -670,6 +717,60 @@ const HomeVisitQueuePage = () => {
         />
       )}
     >
+      <Popup
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        title='เพิ่มผู้ป่วยใหม่เข้าคิวเยี่ยมบ้าน'
+        subtitle='บันทึกแล้วแถวจะขึ้นในตารางคิวทันที'
+        tertiaryAction={{ label: 'ยกเลิก', onClick: () => setAddOpen(false) }}
+        primaryAction={{ label: 'เพิ่มเข้าคิว', onClick: saveNewPatient, disabled: !canSaveNewPatient }}
+      >
+        <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-600, 24px)' }}>
+          <Field label='ชื่อ-สกุล' required>
+            <InputField
+              showLabel={false} showHelperText={false}
+              value={newPatient.name}
+              onChange={(v) => setNewPatient((p) => ({ ...p, name: v }))}
+              placeholder='ชื่อผู้รับบริการ'
+            />
+          </Field>
+          <Field label='HN'>
+            <InputField
+              showLabel={false} showHelperText={false}
+              value={newPatient.hn}
+              onChange={(v) => setNewPatient((p) => ({ ...p, hn: v }))}
+              placeholder='เว้นว่างได้ ระบบจะออกเลขชั่วคราวให้'
+            />
+          </Field>
+          <Field label='กลุ่มผู้รับบริการ'>
+            <Select
+              showLabel={false} showHelperText={false} searchable={false} size='lg'
+              value={newPatient.group}
+              onChange={(v) => setNewPatient((p) => ({ ...p, group: v }))}
+              options={HOMEVISIT_GROUPS.map((g) => ({ value: g.value, label: g.label }))}
+              placeholder='เลือกกลุ่ม'
+            />
+          </Field>
+          <Field label='เขต'>
+            <Select
+              showLabel={false} showHelperText={false} searchable={false} size='lg'
+              value={newPatient.district}
+              onChange={(v) => setNewPatient((p) => ({ ...p, district: v }))}
+              options={centerDistrictOptions}
+              placeholder='เลือกเขต'
+            />
+          </Field>
+          <Field label='เวลานัด'>
+            <InputField
+              showLabel={false} showHelperText={false}
+              value={newPatient.appointmentTime}
+              onChange={(v) => setNewPatient((p) => ({ ...p, appointmentTime: v }))}
+              placeholder='เช่น 09:00'
+            />
+          </Field>
+        </div>
+      </Popup>
+
       <Popup
         open={!!cancelTarget}
         onClose={() => setCancelTarget(null)}
@@ -853,6 +954,12 @@ const HomeVisitQueuePage = () => {
                   options={[{ value: 'all', label: 'ทุกแหล่ง' }, ...HOMEVISIT_SOURCES.map((s) => ({ value: s.value, label: s.short }))]}
                   value={filters.source}
                   onChange={(v) => setFilters((f) => ({ ...f, source: v }))}
+                />
+                <FilterDropdown
+                  prefix='สถานะ:'
+                  options={[{ value: 'all', label: 'ทุกสถานะ' }, ...HOMEVISIT_STATUSES.map((st) => ({ value: st.value, label: st.label }))]}
+                  value={filters.status}
+                  onChange={(v) => setFilters((f) => ({ ...f, status: v }))}
                 />
                 <FilterDropdown
                   prefix='เขต:'

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import InputField from '@/components/forms/InputField';
 import Select from '@/components/forms/Select';
@@ -20,7 +20,7 @@ import {
   HealthRiskFields,
   MinorIllnessFields,
 } from '@/components/homevisit/homeScreeningSections';
-import { PATIENT_GROUP_OPTIONS, MOBILITY_OPTIONS } from '@/data/registrationForm';
+import { PATIENT_GROUP_OPTIONS, MOBILITY_OPTIONS, buildMockRightsGroups } from '@/data/registrationForm';
 import { MEDICATION_NAME_OPTIONS } from '@/data/medicationCatalog';
 import {
   NATIONALITY_OPTIONS,
@@ -1180,12 +1180,26 @@ export const HomeVisitStep3Vitals = ({ form, setForm, readOnly, blockedMsg, hn }
    (มติผู้ใช้ 30 ส.ค. 69) — ทีมเยี่ยมบ้านเป็นคนที่เห็นบัตรสิทธิที่บ้าน จึงควร
    แก้ได้ตรงนั้นด้วยหน้าตาเดียวกับห้องบัตร · ขั้น "ข้อมูลการติดต่อ" ถูกยุบเข้า
    ขั้นที่อยู่แล้ว (มติผู้ใช้ 2 ก.ย. 69) */
-export const HomeVisitStepRights = ({ form, setForm, blockedMsg }) => (
-  <StepCard>
-    {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
-    <RegistrationRightsStep form={form} setForm={setForm} />
-  </StepCard>
-);
+export const HomeVisitStepRights = ({ form, setForm, blockedMsg }) => {
+  /* ที่บ้านตรวจสอบสิทธิออนไลน์ไม่ได้ทุกครั้ง และผู้รับบริการอยู่ในทะเบียนเยี่ยมบ้าน
+     อยู่แล้ว — ขั้นนี้จึงกางรายการสิทธิให้เลย ไม่ต้องกด "ตรวจสอบสิทธิ" ก่อน
+     (มติผู้ใช้ 2 ก.ย. 69) · ยังกดตรวจสอบซ้ำได้จากแผงด้านบนของผลลัพธ์ */
+  useEffect(() => {
+    if (form.rightsLookupDone) return;
+    setForm((f) => (f.rightsLookupDone ? f : {
+      ...f,
+      rightsLookupDone: true,
+      rightsGroups: (f.rightsGroups || []).length ? f.rightsGroups : buildMockRightsGroups(),
+    }));
+  }, [form.rightsLookupDone, setForm]);
+
+  return (
+    <StepCard>
+      {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+      <RegistrationRightsStep form={form} setForm={setForm} />
+    </StepCard>
+  );
+};
 
 /* ── Step 8 — พฤติกรรมสุขภาพ ───────────────────────────────────── */
 export const HomeVisitStepBehaviour = ({ form, setForm, readOnly, hn, blockedMsg }) => (
@@ -2202,11 +2216,11 @@ export const HomeVisitStep7Family = ({
               variant='outline' size='sm' leadingIcon='edit'
               onClick={openFamilyEdit}
             >
-              แก้ไข Family Folder
+              แก้ไขข้อมูลสุขภาพครอบครัว
             </BrandSubdueButton>
           )}
         >
-          Family Folder — แฟ้มครอบครัว
+          ข้อมูลสุขภาพครอบครัว
         </TopicHeader>
         {/* แถวหัวแฟ้ม (ที่อยู่ครัวเรือน · ชุมชน · เขต · ผู้ติดต่อ) ถูกถอดออก
             (มติผู้ใช้ 2 ก.ย. 69) — ข้อมูลชุดนี้อยู่ที่ขั้น "ที่อยู่และการติดต่อ"
@@ -2320,9 +2334,9 @@ export const HomeVisitStep7Family = ({
         open={familyEditOpen}
         onClose={() => setFamilyEditOpen(false)}
         size='extraLarge'
-        title='แก้ไข Family Folder'
+        title='แก้ไขข้อมูลสุขภาพครอบครัว'
         tertiaryAction={{ label: 'ยกเลิก', onClick: () => setFamilyEditOpen(false) }}
-        primaryAction={{ label: 'บันทึกแฟ้มครอบครัว', onClick: saveFamily }}
+        primaryAction={{ label: 'บันทึกข้อมูลสุขภาพครอบครัว', onClick: saveFamily }}
       >
         <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-600, 24px)' }}>
           {familyRows.map((m) => (
@@ -2355,7 +2369,7 @@ export const HomeVisitStep7Family = ({
           <BrandDashedAddButton onClick={addMember}>เพิ่มสมาชิกในครอบครัว</BrandDashedAddButton>
 
           <SuggestibleTextarea
-            label='บันทึก Family Folder'
+            label='บันทึกข้อมูลสุขภาพครอบครัว'
             voice
             value={form.familyNote}
             onChange={(e) => set('familyNote')(e.target.value)}
@@ -2512,7 +2526,7 @@ const REVIEW_EDIT_SECTIONS = {
   address: { title: 'ที่อยู่และการติดต่อ', Step: HomeVisitStep2Address },
   screening: { title: 'คัดกรอง', Step: HomeVisitStepScreening },
   illness: { title: 'ประเมินอาการป่วย', Step: HomeVisitStep2History },
-  family: { title: 'Family Folder', Step: HomeVisitStep7Family },
+  family: { title: 'ข้อมูลสุขภาพครอบครัว', Step: HomeVisitStep7Family },
 };
 
 export const HomeVisitStepReview = ({ form, hn, registryEntry, appointment, blockedMsg, ...props }) => {
@@ -2591,13 +2605,13 @@ export const HomeVisitStepReview = ({ form, hn, registryEntry, appointment, bloc
 
       <ReviewCard
         icon='family_restroom'
-        title='Family Folder'
+        title='ข้อมูลสุขภาพครอบครัว'
         onEdit={() => setEditing('family')}
         items={[
           ['สมาชิกในครัวเรือน', (form.familyMembers || [])
             .map((m) => [m.name, m.relation, m.age && `${m.age} ปี`].filter(Boolean).join(' · '))
             .join('\n')],
-          ['บันทึก Family Folder', form.familyNote],
+          ['บันทึกข้อมูลสุขภาพครอบครัว', form.familyNote],
         ]}
       />
 
