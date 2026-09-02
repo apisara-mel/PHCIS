@@ -520,6 +520,9 @@ const useImmGrowthRecords = (immHn, form) => useMemo(() => {
    เปิดดูในป๊อปอัปได้ด้วย (มติผู้ใช้ 3 ก.ย. 69) */
 export const ImmGrowthCharts = ({ form, immHn, child, showTitle = true, chartHeight, legendAlign, showHistory = false }) => {
   const [chartKey, setChartKey] = useState(GROWTH_CHART_DEFS[0].key);
+  /* ป๊อปอัปสลับมุมมอง กราฟ ↔ ตาราง (มติผู้ใช้ 3 ก.ย. 69) — ไม่โชว์สองอย่างซ้อนกัน */
+  const [view, setView] = useState('chart');
+  const showChart = !showHistory || view === 'chart';
   const records = useImmGrowthRecords(immHn, form);
   const months = ageInMonths(child?.birthDate);
   const availableCharts = GROWTH_CHART_DEFS.filter((d) => {
@@ -537,6 +540,14 @@ export const ImmGrowthCharts = ({ form, immHn, child, showTitle = true, chartHei
   return (
     <div className='flex flex-col gap-3'>
       {showTitle && <TopicHeader icon='show_chart'>กราฟการเจริญเติบโต</TopicHeader>}
+      {showHistory && (
+        <div className='flex items-center gap-2'>
+          <TabCapsule variant='filter' label='กราฟ' selected={view === 'chart'} onClick={() => setView('chart')} />
+          <TabCapsule variant='filter' label='ตาราง' selected={view === 'table'} onClick={() => setView('table')} />
+        </div>
+      )}
+      {showChart && (
+        <>
         {/* เลือกกราฟด้วยดรอปดาวน์แทนชิป (มติผู้ใช้ 3 ก.ย. 69) */}
         <div style={{ maxWidth: 420 }}>
           <Select
@@ -558,7 +569,9 @@ export const ImmGrowthCharts = ({ form, immHn, child, showTitle = true, chartHei
           latestEvaluation={evaluation}
           emptyMessage='ยังไม่มีข้อมูลการเจริญเติบโตของเด็กในช่วงอายุนี้ — กรอกน้ำหนัก/ส่วนสูงด้านบนเพื่อลงจุดแรก'
         />
-        {showHistory && (
+        </>
+      )}
+        {showHistory && view === 'table' && (
         <div className='flex flex-col gap-3'>
           <TopicHeader icon='table_chart'>ตารางบันทึกการเจริญเติบโตย้อนหลัง</TopicHeader>
           <Table
