@@ -399,6 +399,19 @@ export const HomeVisitStep1Service = ({ form, setForm, readOnly, hn, blockedMsg,
    เพราะเป็นหลักฐานของ "บ้านหลังนี้" ไม่ใช่ของการเยี่ยมครั้งใดครั้งหนึ่ง */
 export const HOMEVISIT_HOUSE_PHOTO_LIMIT = 5;
 
+/* ลำดับรูปที่ทีมต้องถ่าย (มติผู้ใช้ 2 ก.ย. 69) — บอกกำกับไว้ทั้งบนปุ่มถ่ายและ
+   ใต้รูปที่ถ่ายแล้ว จะได้ไม่ต้องจำว่ารูปไหนคือรูปอะไร */
+const HOUSE_PHOTO_GUIDES = [
+  'บริเวณรอบบ้าน',
+  'ป้ายเลขที่บ้าน',
+];
+const houseGuideOf = (index) => HOUSE_PHOTO_GUIDES[index] || 'รูปเพิ่มเติม';
+
+/* กรอบรูปบ้านเป็นสัดส่วน 4:3 (มติผู้ใช้ 2 ก.ย. 69) — ตรงกับภาพที่ได้จากกล้อง
+   มือถือแนวนอน ไม่ต้องครอบตัดจนเลขที่บ้านหาย */
+const HOUSE_PHOTO_W = 192;
+const HOUSE_PHOTO_H = 144;
+
 const HomeVisitHousePhotoField = ({ form, setForm, readOnly }) => {
   const photos = form.housePhotos || [];
   const remaining = HOMEVISIT_HOUSE_PHOTO_LIMIT - photos.length;
@@ -417,15 +430,23 @@ const HomeVisitHousePhotoField = ({ form, setForm, readOnly }) => {
       }}>
         รูปถ่ายบ้าน (หน้าบ้าน + เลขที่บ้าน)
       </span>
-      <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+      <span style={{
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-xs)',
+        color: 'var(--text-content-tertiary, #858C92)',
+      }}>
+        รูปที่ 1: บริเวณรอบบ้าน (เห็นทางเข้าและสภาพแวดล้อม) · รูปที่ 2: ถ่ายติดป้ายเลขที่บ้าน
+      </span>
+      <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-300, 12px)' }}>
         <PhotoUploadField
-          label={photos.length
-            ? `เพิ่มรูป (${photos.length}/${HOMEVISIT_HOUSE_PHOTO_LIMIT} รูป)`
-            : 'ถ่าย/อัปโหลดรูปบ้าน'}
+          label={remaining > 0
+            ? `ถ่ายรูปที่ ${photos.length + 1} — ${houseGuideOf(photos.length)}`
+            : `ครบ ${HOMEVISIT_HOUSE_PHOTO_LIMIT} รูปแล้ว`}
           icon='photo_camera'
           capture='environment'
           multiple
           disabled={readOnly || remaining <= 0}
+          style={{ width: HOUSE_PHOTO_W, height: HOUSE_PHOTO_H }}
           /* data URL เหมือนรูปประกอบการเยี่ยม — blob URL ตายหลังบันทึกร่าง */
           onFiles={(files) => {
             Array.from(files).slice(0, Math.max(0, remaining)).forEach((file, i) => {
@@ -443,30 +464,40 @@ const HomeVisitHousePhotoField = ({ form, setForm, readOnly }) => {
           }}
         />
         {photos.map((photo, i) => (
-          <div key={photo.id || `${photo.name}-${i}`} className='relative shrink-0'>
-            <img
-              src={photo.previewUrl}
-              alt={photo.name || 'รูปถ่ายบ้าน'}
-              style={{
-                width: 96,
-                height: 96,
-                objectFit: 'cover',
-                borderRadius: 'var(--dim-radius-300, 10px)',
-                border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
-                display: 'block',
-              }}
-            />
-            {!readOnly && (
-              <span style={{ position: 'absolute', top: 'var(--dim-space-100, 4px)', right: 'var(--dim-space-100, 4px)' }}>
-                <NeutralIconButton
-                  icon='close'
-                  variant='ghost'
-                  size='sm'
-                  aria-label={`ลบรูป ${photo.name || i + 1}`}
-                  onClick={() => removeAt(i)}
-                />
-              </span>
-            )}
+          <div key={photo.id || `${photo.name}-${i}`} className='flex flex-col' style={{ gap: 'var(--dim-space-100, 4px)' }}>
+            <div className='relative shrink-0'>
+              <img
+                src={photo.previewUrl}
+                alt={`${houseGuideOf(i)} — ${photo.name || ''}`.trim()}
+                style={{
+                  width: HOUSE_PHOTO_W,
+                  height: HOUSE_PHOTO_H,
+                  objectFit: 'cover',
+                  borderRadius: 'var(--dim-radius-300, 10px)',
+                  border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
+                  display: 'block',
+                }}
+              />
+              {!readOnly && (
+                <span style={{ position: 'absolute', top: 'var(--dim-space-100, 4px)', right: 'var(--dim-space-100, 4px)' }}>
+                  <NeutralIconButton
+                    icon='close'
+                    variant='ghost'
+                    size='sm'
+                    aria-label={`ลบรูป ${houseGuideOf(i)}`}
+                    onClick={() => removeAt(i)}
+                  />
+                </span>
+              )}
+            </div>
+            <span style={{
+              fontFamily: 'var(--type-family-body)',
+              fontSize: 'var(--type-size-xs)',
+              color: 'var(--text-content-tertiary, #858C92)',
+              maxWidth: HOUSE_PHOTO_W,
+            }}>
+              {`รูปที่ ${i + 1} · ${houseGuideOf(i)}`}
+            </span>
           </div>
         ))}
       </div>

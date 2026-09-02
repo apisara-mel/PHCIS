@@ -230,11 +230,13 @@ const PatientStatusSection = ({
       <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-600)' }}>
         <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
           <PatientStatusSubTitle>สถานะการ Active</PatientStatusSubTitle>
+          {/* ปุ่มในกลุ่มเดียวกันชิดกว่าระยะระหว่างกลุ่ม (8px ต่อ 24px) —
+              มติผู้ใช้ 2 ก.ย. 69 */}
           <div
             role='radiogroup'
             aria-label='สถานะผู้รับบริการ'
             className='flex items-center flex-wrap'
-            style={{ gap: 'var(--dim-space-400)' }}
+            style={{ gap: 'var(--dim-space-200)' }}
           >
             <PatientStatusOption
               name='patient-active-status'
@@ -265,7 +267,7 @@ const PatientStatusSection = ({
               role='radiogroup'
               aria-label='สถานะการมีชีวิต'
               className='flex items-center flex-wrap'
-              style={{ gap: 'var(--dim-space-400)' }}
+              style={{ gap: 'var(--dim-space-200)' }}
             >
               <PatientStatusOption
                 name='patient-life-status'
