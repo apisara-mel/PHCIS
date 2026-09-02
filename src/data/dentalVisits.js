@@ -288,8 +288,13 @@ export const COMPLETED_DENTAL_VISITS = {
     toothMarks: { permanent: {}, primary: {} },
     otherServices: [],
     diagnoses: [],
-    /* ตรวจ+ให้คำแนะนำอย่างเดียว ยังไม่มีหัตถการ (ทารกยังไม่มีฟัน) */
-    procedures: [],
+    procedures: [
+      {
+        id: 'pr-imm-1001-1', procedureId: 'oral-exam', teeth: [], surfaces: [],
+        quantity: 1, unitPrice: 0, reimbursable: true,
+        recordedBy: 'ทพญ.กมลชนก ศรีสุวรรณ', recordedAt: '10 ส.ค. 2569 · 10:20',
+      },
+    ],
     consumables: [],
     savedBy: 'ทพญ.กมลชนก ศรีสุวรรณ',
     savedAt: '10 ส.ค. 2569 · 10:30',

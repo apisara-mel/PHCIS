@@ -124,8 +124,6 @@ const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo, compact = fal
         /* แคบลงอีกและดันไปชิดขวาสุดของแถว (มติผู้ใช้ 2 ก.ย. 69) */
         ? {
           flex: '0 0 auto',
-          width: 220,
-          minWidth: 180,
           gap: 'var(--dim-space-300, 12px)',
         }
         : {
@@ -157,7 +155,11 @@ const AncPregnancyProgress = ({ form, cardPatient, ancHn, visitNo, compact = fal
       )}
 
       {/* Trimester timeline — 0 to 40 weeks, marker at current GA */}
-      <div className='relative w-full min-w-0' style={{ height: sp.box }}>
+      <div
+        className='relative w-full min-w-0'
+        /* โหมดย่อ: เส้นเวลากว้างคงที่ 220px ให้ป้ายเตือนวางต่อท้ายได้โดยไม่ซ้อนกัน */
+        style={compact ? { height: sp.box, flex: '0 0 220px', width: 220, minWidth: 180 } : { height: sp.box }}
+      >
         <div
           className='absolute flex flex-col items-center'
           style={{ left: pctOf(gestWeeks), transform: 'translateX(-50%)', top: 0 }}

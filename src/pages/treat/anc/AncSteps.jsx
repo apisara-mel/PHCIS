@@ -1685,11 +1685,10 @@ export const AncStep4Diagnosis = ({ form, setForm }) => {
           </Field>
         </FieldGrid>
         {showGdmToggle && (
-          <SelectableTag
+          <Checkbox
             label='ยืนยันเบาหวานขณะตั้งครรภ์ (GDM) จากผล OGTT'
-            size='lg'
-            selected={form.gdmConfirmed}
-            onClick={() => setForm((f) => ({ ...f, gdmConfirmed: !f.gdmConfirmed }))}
+            checked={!!form.gdmConfirmed}
+            onChange={() => setForm((f) => ({ ...f, gdmConfirmed: !f.gdmConfirmed }))}
           />
         )}
       </div>
@@ -1753,18 +1752,20 @@ export const AncStep4Diagnosis = ({ form, setForm }) => {
       {/* แผนการคลอดคุยกันเมื่อใกล้กำหนด (คู่มือหน้า 59-60) */}
       {(weeks ?? 0) >= 28 && (
         <div className='flex flex-col gap-3'>
-          <TopicHeader icon='clipboard-list' small tone='neutral'>แผนการคลอด</TopicHeader>
-          <div className='flex items-center gap-3 flex-wrap'>
-            {ANC_DELIVERY_MODE_OPTIONS.map((opt) => (
-              <SelectableTag
-                key={opt.value}
-                label={opt.label}
+          {/* ดรอปดาวน์แทนชิป (มติผู้ใช้ 3 ก.ย. 69) */}
+          <FieldGrid cols={2}>
+            <Field label='แผนการคลอด'>
+              <Select
+                showLabel={false}
+                searchable={false}
                 size='lg'
-                selected={form.plannedDeliveryMode === opt.value}
-                onClick={() => setForm((f) => ({ ...f, plannedDeliveryMode: opt.value }))}
+                value={form.plannedDeliveryMode}
+                onChange={(v) => setForm((f) => ({ ...f, plannedDeliveryMode: v }))}
+                options={ANC_DELIVERY_MODE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+                placeholder='เลือกแผนการคลอด'
               />
-            ))}
-          </div>
+            </Field>
+          </FieldGrid>
         </div>
       )}
     </StepCard>

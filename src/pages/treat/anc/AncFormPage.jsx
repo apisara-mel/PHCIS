@@ -286,6 +286,8 @@ const AncFormPage = () => {
              และปุ่มผลตรวจสองใบอยู่หน้าปุ่ม EMR (มติผู้ใช้ 2 ก.ย. 69) */
           alertGroupsLeft
           alertExpandable
+          /* แถวแพ้ยา/โรคประจำตัวต้องมีเสมอ แม้รายนี้ไม่มีข้อมูล (มติผู้ใช้ 3 ก.ย. 69) */
+          forceAlertRow
           alertRowActions={(
             <>
               <BrandSubdueButton variant='outline' size='sm' leadingIcon='biotech' onClick={() => setResultPopup('lab')}>

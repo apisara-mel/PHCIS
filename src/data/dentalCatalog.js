@@ -109,6 +109,13 @@ export const DENTAL_ICD_SUGGESTIONS = DENTAL_DIAGNOSES.slice(0, 8);
                        procedure (drives the แนะนำหัตถการ capsules) */
 export const DENTAL_PROCEDURES = [
   {
+    /* ตรวจสุขภาพช่องปาก + ให้คำแนะนำ — บริการที่คลินิกเด็กดี/อนามัยโรงเรียนส่งมาบ่อยที่สุด */
+    id: 'oral-exam', icd9: '89.31', icd10tm: '387-10-00',
+    name: 'ตรวจสุขภาพช่องปากและให้คำแนะนำ', unit: 'ครั้ง', price: 0,
+    toothSpecific: false, coverage: ['uc', 'sso', 'csmbs', 'lgo'],
+    suggestFor: [],
+  },
+  {
     id: 'filling-amalgam', icd9: '23.2', icd10tm: '387-30-11',
     name: 'อุดฟันด้วยอมัลกัม (ต่อด้าน)', unit: 'ด้าน', price: 400,
     toothSpecific: true, coverage: ['uc', 'sso', 'csmbs', 'lgo'],
