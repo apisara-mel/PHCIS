@@ -524,34 +524,6 @@ export const HomeVisitStepAllergy = ({ form, setForm, readOnly, blockedMsg }) =>
   );
 };
 
-/* ── Step 5 — คัดกรอง (สัญญาณชีพ + ประวัติการแพ้/โรคประจำตัว) ─────
-   สองขั้นนี้คือ "สิ่งที่ทีมทำทันทีที่ถึงบ้าน ก่อนเริ่มซักอาการ" จึงยุบเป็นขั้นเดียว
-   (มติผู้ใช้ 2 ก.ย. 69) — คอมโพเนนต์เดิมทั้งสองตัวยังอยู่ครบ ขั้นนี้แค่วางต่อกัน
-   ไม่ได้คัดลอกเนื้อหามาเขียนใหม่ */
-export const HomeVisitStepScreening = ({ blockedMsg, ...props }) => (
-  <StepCard>
-    {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
-
-    {/* สัญญาณชีพกับประวัติการแพ้เป็นคนละการ์ด (มติผู้ใช้ 2 ก.ย. 69) — `VitalsForm`
-        เป็นการ์ดที่มนเฉพาะมุมล่าง (เดิมวางต่อจากหัวการ์ดของ shell) จึงต้องห่อ
-        ให้มนครบสี่มุมเมื่อยืนเป็นการ์ดของตัวเอง */}
-    <div
-      className='w-full'
-      style={{
-        background: 'var(--surface-card-100, #FFFFFF)',
-        borderRadius: 'var(--dim-radius-500, 16px)',
-        border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
-        boxShadow: 'var(--shadow-card-strong)',
-        overflow: 'hidden',
-      }}
-    >
-      <HomeVisitStep3Vitals {...props} blockedMsg='' />
-    </div>
-
-    <HomeVisitStepAllergy {...props} blockedMsg='' />
-  </StepCard>
-);
-
 /* ── ปรึกษาแพทย์ทางไกล (Telemedicine · TOR 1.18.10) ────────────────
    ย้ายมาอยู่ในขั้น "ประเมินอาการป่วย" (มติผู้ใช้ 30 ส.ค. 69) — ทีมตัดสินใจว่า
    ต้องปรึกษาแพทย์ตอนที่กำลังประเมินอาการอยู่ ไม่ใช่ตอนพิมพ์บันทึกตามบทบาท
@@ -2203,16 +2175,48 @@ export const HomeVisitStep7Family = ({
   );
 };
 
+/* ── Step 5 — คัดกรอง (สัญญาณชีพ · ประวัติการแพ้/โรคประจำตัว · พฤติกรรมสุขภาพ) ─
+   สองขั้นนี้คือ "สิ่งที่ทีมทำทันทีที่ถึงบ้าน ก่อนเริ่มซักอาการ" จึงยุบเป็นขั้นเดียว
+   (มติผู้ใช้ 2 ก.ย. 69) — คอมโพเนนต์เดิมทั้งสองตัวยังอยู่ครบ ขั้นนี้แค่วางต่อกัน
+   ไม่ได้คัดลอกเนื้อหามาเขียนใหม่ */
+export const HomeVisitStepScreening = ({ blockedMsg, ...props }) => (
+  <StepCard>
+    {blockedMsg && <NoticeBand tone='danger' icon='error'>{blockedMsg}</NoticeBand>}
+
+    {/* สัญญาณชีพกับประวัติการแพ้เป็นคนละการ์ด (มติผู้ใช้ 2 ก.ย. 69) — `VitalsForm`
+        เป็นการ์ดที่มนเฉพาะมุมล่าง (เดิมวางต่อจากหัวการ์ดของ shell) จึงต้องห่อ
+        ให้มนครบสี่มุมเมื่อยืนเป็นการ์ดของตัวเอง */}
+    <div
+      className='w-full'
+      style={{
+        background: 'var(--surface-card-100, #FFFFFF)',
+        borderRadius: 'var(--dim-radius-500, 16px)',
+        border: 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-quaternary, #E2F3EB)',
+        boxShadow: 'var(--shadow-card-strong)',
+        overflow: 'hidden',
+      }}
+    >
+      <HomeVisitStep3Vitals {...props} blockedMsg='' />
+    </div>
+
+    <HomeVisitStepAllergy {...props} blockedMsg='' />
+
+    {/* พฤติกรรมสุขภาพย้ายมารวมในขั้นคัดกรอง (มติผู้ใช้ 2 ก.ย. 69) — สูบบุหรี่/
+        ดื่มสุรา/ออกกำลังกาย เป็นชุดคำถามคัดกรองชุดเดียวกับที่จุดคัดกรอง OPD
+        ถามไปพร้อมกับสัญญาณชีพและประวัติการแพ้ตอนเพิ่งถึงบ้าน */}
+    <HomeVisitStepBehaviour {...props} blockedMsg='' />
+  </StepCard>
+);
+
 export const HOMEVISIT_STEP_RENDERERS = [
   HomeVisitStep0Consent,
   HomeVisitStep1Service,
   HomeVisitStep2Address,
   HomeVisitStepRights,
-  /* สัญญาณชีพ + ประวัติการแพ้/โรคประจำตัว = ขั้น "คัดกรอง" ขั้นเดียว
-     (มติผู้ใช้ 2 ก.ย. 69) */
+  /* สัญญาณชีพ + ประวัติการแพ้/โรคประจำตัว + พฤติกรรมสุขภาพ = ขั้น "คัดกรอง"
+     ขั้นเดียว (มติผู้ใช้ 2 ก.ย. 69) */
   HomeVisitStepScreening,
   HomeVisitStep2History,
-  HomeVisitStepBehaviour,
   /* ขั้น "ประเมิน" ถูกยุบเข้าไปในขั้น "ประเมินอาการป่วย" แล้ว
      (มติผู้ใช้ 30 ส.ค. 69) — `HomeVisitStep4Assessment` ยัง export อยู่และถูก
      เรียกจากขั้นนั้นโดยตรง */
