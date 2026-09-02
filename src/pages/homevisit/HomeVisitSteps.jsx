@@ -394,6 +394,86 @@ export const HomeVisitStep1Service = ({ form, setForm, readOnly, hn, blockedMsg,
   );
 };
 
+/* รูปถ่ายบ้าน (หน้าบ้าน + เลขที่บ้าน) — อยู่คู่กับบันทึกการเดินทางในขั้นที่อยู่
+   (มติผู้ใช้ 2 ก.ย. 69) เก็บที่ `form.housePhotos` แยกจากรูปประกอบการประเมิน
+   เพราะเป็นหลักฐานของ "บ้านหลังนี้" ไม่ใช่ของการเยี่ยมครั้งใดครั้งหนึ่ง */
+export const HOMEVISIT_HOUSE_PHOTO_LIMIT = 5;
+
+const HomeVisitHousePhotoField = ({ form, setForm, readOnly }) => {
+  const photos = form.housePhotos || [];
+  const remaining = HOMEVISIT_HOUSE_PHOTO_LIMIT - photos.length;
+
+  const removeAt = (index) => setForm((f) => ({
+    ...f,
+    housePhotos: (f.housePhotos || []).filter((_, i) => i !== index),
+  }));
+
+  return (
+    <div className='flex flex-col w-full' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+      <span style={{
+        fontFamily: 'var(--type-family-body)',
+        fontSize: 'var(--type-size-sm)',
+        color: 'var(--text-content-default, #363B3F)',
+      }}>
+        รูปถ่ายบ้าน (หน้าบ้าน + เลขที่บ้าน)
+      </span>
+      <div className='flex items-start flex-wrap' style={{ gap: 'var(--dim-space-200, 8px)' }}>
+        <PhotoUploadField
+          label={photos.length
+            ? `เพิ่มรูป (${photos.length}/${HOMEVISIT_HOUSE_PHOTO_LIMIT} รูป)`
+            : 'ถ่าย/อัปโหลดรูปบ้าน'}
+          icon='photo_camera'
+          capture='environment'
+          multiple
+          disabled={readOnly || remaining <= 0}
+          /* data URL เหมือนรูปประกอบการเยี่ยม — blob URL ตายหลังบันทึกร่าง */
+          onFiles={(files) => {
+            Array.from(files).slice(0, Math.max(0, remaining)).forEach((file, i) => {
+              const entryId = `hv-house-${Date.now()}-${i}`;
+              const push = (previewUrl) => setForm((f) => ({
+                ...f,
+                housePhotos: [...(f.housePhotos || []), { id: entryId, name: file.name, previewUrl }],
+              }));
+              if (typeof FileReader === 'undefined') { push(''); return; }
+              const reader = new FileReader();
+              reader.onload = () => push(String(reader.result || ''));
+              reader.onerror = () => push('');
+              reader.readAsDataURL(file);
+            });
+          }}
+        />
+        {photos.map((photo, i) => (
+          <div key={photo.id || `${photo.name}-${i}`} className='relative shrink-0'>
+            <img
+              src={photo.previewUrl}
+              alt={photo.name || 'รูปถ่ายบ้าน'}
+              style={{
+                width: 96,
+                height: 96,
+                objectFit: 'cover',
+                borderRadius: 'var(--dim-radius-300, 10px)',
+                border: 'var(--dim-stroke-100, 1px) solid var(--border-card-default, #E2E4E6)',
+                display: 'block',
+              }}
+            />
+            {!readOnly && (
+              <span style={{ position: 'absolute', top: 'var(--dim-space-100, 4px)', right: 'var(--dim-space-100, 4px)' }}>
+                <NeutralIconButton
+                  icon='close'
+                  variant='ghost'
+                  size='sm'
+                  aria-label={`ลบรูป ${photo.name || i + 1}`}
+                  onClick={() => removeAt(i)}
+                />
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 /* ── Step 3 — ที่อยู่และการติดต่อ ──────────────────────────────────
    หน้าตาเหมือนขั้น "ที่อยู่" ของหน้าเวชระเบียนทุกอย่าง (ใช้คอมโพเนนต์ตัวเดียวกัน)
    ต่างแค่ต่อท้ายด้วยตำแหน่งบ้าน/เวลาถึงบ้าน และบันทึกการเดินทาง
@@ -428,6 +508,7 @@ export const HomeVisitStep2Address = ({
         /* บันทึกการเดินทางอยู่ในการ์ด "ที่อยู่ปัจจุบัน" (มติผู้ใช้ 30 ส.ค. 69) —
            เป็นเรื่องของการเดินทางไปยังที่อยู่นั้นโดยตรง ไม่ใช่หัวข้อแยก */
         currentAddressExtra={(
+        <>
         <SuggestibleTextarea
           label='บันทึกการเดินทาง'
           required
@@ -443,6 +524,12 @@ export const HomeVisitStep2Address = ({
           disabled={readOnly}
           placeholder='เส้นทาง อุปสรรคการเข้าถึงบ้าน และข้อมูลที่ทีมครั้งถัดไปควรรู้'
         />
+
+        {/* รูปถ่ายบ้าน — อยู่ใต้บันทึกการเดินทาง (มติผู้ใช้ 2 ก.ย. 69)
+            "หน้าบ้าน + เลขที่บ้าน" คือหลักฐานว่าไปถึงบ้านถูกหลัง คู่กับหมุด
+            ที่บันทึกไว้ด้านบน · เก็บแยกจากรูปประกอบการประเมิน (`form.photos`) */}
+        <HomeVisitHousePhotoField form={form} setForm={setForm} readOnly={readOnly} />
+        </>
         )}
       />
 
@@ -861,6 +948,12 @@ export const HomeVisitStep2History = ({ form, setForm, readOnly, visitId, hn, ap
           หัวข้อย่อยของแต่ละแบบประเมินยังแยก section ชัดเหมือนเดิม */}
       <SectionCard>
         <HomeVisitStep4Assessment form={form} setForm={setForm} readOnly={readOnly} />
+      </SectionCard>
+
+      {/* รูปถ่ายระหว่างการเยี่ยมเป็นการ์ดของตัวเอง (มติผู้ใช้ 2 ก.ย. 69) —
+          เป็นหลักฐานประกอบคนละชนิดกับแบบประเมิน ไม่ควรอยู่ท้ายการ์ดเดียวกัน */}
+      <SectionCard>
+        <HomeVisitPhotoSection form={form} setForm={setForm} readOnly={readOnly} />
       </SectionCard>
 
       {/* การ์ด "ปรึกษาแพทย์ทางไกล" ถูกถอดออก (มติผู้ใช้ 30 ส.ค. 69) — ปุ่มเดียวกัน
@@ -1733,7 +1826,8 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
       </StepSection>
 
       <StepSection>
-        <TopicHeader icon='clipboard-list'>สรุปผลการประเมินการเยี่ยมบ้าน</TopicHeader>
+        {/* หัวข้อ "สรุปผลการประเมินการเยี่ยมบ้าน" ถูกถอดออก (มติผู้ใช้ 2 ก.ย. 69)
+            — ป้ายของช่องกรอกบอกอยู่แล้วว่าเป็นสรุปผลการประเมิน */}
         <SuggestibleTextarea
           label='สรุปผลการประเมิน'
           required
@@ -1747,7 +1841,8 @@ export const HomeVisitStep4Assessment = ({ form, setForm, readOnly, blockedMsg }
         />
       </StepSection>
 
-      <HomeVisitPhotoSection form={form} setForm={setForm} readOnly={readOnly} />
+      {/* "รูปถ่ายระหว่างการเยี่ยม" แยกเป็นการ์ดของตัวเอง (มติผู้ใช้ 2 ก.ย. 69) —
+          ถูกย้ายไปเรนเดอร์ที่ขั้น "ประเมินอาการป่วย" นอกการ์ดแบบประเมิน */}
     </StepCard>
   );
 };

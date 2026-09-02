@@ -17,6 +17,7 @@ import BrandPrimaryButton from '@/components/button/BrandPrimaryButton';
 import BrandButton from '@/components/button/BrandButton';
 import BrandSubdueButton from '@/components/button/BrandSubdueButton';
 import NeutralSubdueButton from '@/components/button/NeutralSubdueButton';
+import NeutralIconButton from '@/components/button/NeutralIconButton';
 import PendingConsentFormCard from '@/components/consent/PendingConsentFormCard';
 import ConsentDisclosureFillPopup from '@/components/consent/ConsentDisclosureFillPopup';
 import ConsentFormPrintConfirmDialog from '@/components/consent/ConsentFormPrintConfirmDialog';
@@ -195,7 +196,6 @@ const PatientStatusSection = ({
   onDeceasedDateChange,
 }) => {
   const setStatus = onPatientStatusChange || (() => {});
-  const hnLabel = hn || '—';
   const showLifeStatus = typeof onLifeStatusChange === 'function';
   return (
     <div
@@ -220,75 +220,78 @@ const PatientStatusSection = ({
           <ColorfulBadge badgeStyle='teal' hierarchy='primary' size='default' width='hug'>
             {patientTypeLabel}
           </ColorfulBadge>
-          <ColorfulBadge badgeStyle='teal' hierarchy='secondary' size='default' width='hug'>
-            HN: {hnLabel}
-          </ColorfulBadge>
+          {/* ป้าย "HN:" ถูกถอดออก (มติผู้ใช้ 2 ก.ย. 69) — หัวแฟ้มผู้รับบริการ
+              ด้านบนของทุกหน้าบอก HN อยู่แล้ว ทั้งหน้าลงทะเบียนและหน้าเยี่ยมบ้าน */}
         </div>
       </div>
-      <div
-        role='radiogroup'
-        aria-label='สถานะผู้รับบริการ'
-        className='flex items-center flex-wrap'
-        style={{ gap: 'var(--dim-space-400)' }}
-      >
-        <PatientStatusOption
-          name='patient-active-status'
-          icon='sentiment_satisfied'
-          label='ยังคง Active'
-          tone='active'
-          value='active'
-          checked={patientStatus === 'active'}
-          onChange={setStatus}
-        />
-        <PatientStatusOption
-          name='patient-active-status'
-          icon='sentiment_calm'
-          label='ไม่ Active แล้ว'
-          tone='inactive'
-          value='inactive'
-          checked={patientStatus === 'inactive'}
-          onChange={setStatus}
-        />
-      </div>
-
-      {/* TOR 1.1.1.2 — สถานะการมีชีวิต + วันที่เสียชีวิต (บังคับเมื่อเสียชีวิต) */}
-      {showLifeStatus && (
-        <div
-          className='flex flex-col w-full'
-          style={{
-            /* ไม่มีเส้นคั่นกับ "สถานะผู้รับบริการ" ด้านบน (มติผู้ใช้ 28 ส.ค. 69)
-               — สองหัวข้อนี้อยู่ในการ์ดเดียวกันและอ่านต่อเนื่องกันอยู่แล้ว
-               เส้นคั่นทำให้ดูเป็นคนละเรื่อง */
-            gap: 'var(--dim-space-300)',
-            paddingTop: 'var(--dim-space-300)',
-          }}
-        >
-          <PatientStatusSubTitle>สถานะการมีชีวิต</PatientStatusSubTitle>
+      {/* สองกลุ่มสถานะอยู่บรรทัดเดียวกัน แต่ละกลุ่มมีหัวข้อของตัวเอง
+          (มติผู้ใช้ 2 ก.ย. 69) — เดิมเรียงลงล่างสองแถว ทั้งที่เป็นตัวเลือกสั้น ๆ
+          ชุดละสองใบ · ใช้ทั้งหน้าลงทะเบียนและหน้าเยี่ยมบ้าน (คอมโพเนนต์เดียวกัน) */}
+      <div className='flex items-start w-full flex-wrap' style={{ gap: 'var(--dim-space-600)' }}>
+        <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+          <PatientStatusSubTitle>สถานะการ Active</PatientStatusSubTitle>
           <div
             role='radiogroup'
-            aria-label='สถานะการมีชีวิต'
+            aria-label='สถานะผู้รับบริการ'
             className='flex items-center flex-wrap'
             style={{ gap: 'var(--dim-space-400)' }}
           >
             <PatientStatusOption
-              name='patient-life-status'
-              icon='favorite'
-              label='มีชีวิตอยู่'
+              name='patient-active-status'
+              icon='sentiment_satisfied'
+              label='ยังคง Active'
               tone='active'
-              value='alive'
-              checked={(lifeStatus || 'alive') === 'alive'}
-              onChange={onLifeStatusChange}
+              value='active'
+              checked={patientStatus === 'active'}
+              onChange={setStatus}
             />
             <PatientStatusOption
-              name='patient-life-status'
-              icon='heart_broken'
-              label='เสียชีวิต'
+              name='patient-active-status'
+              icon='sentiment_calm'
+              label='ไม่ Active แล้ว'
               tone='inactive'
-              value='deceased'
-              checked={lifeStatus === 'deceased'}
-              onChange={onLifeStatusChange}
+              value='inactive'
+              checked={patientStatus === 'inactive'}
+              onChange={setStatus}
             />
           </div>
+        </div>
+
+        {/* TOR 1.1.1.2 — สถานะการมีชีวิต + วันที่เสียชีวิต (บังคับเมื่อเสียชีวิต) */}
+        {showLifeStatus && (
+          <div className='flex flex-col' style={{ gap: 'var(--dim-space-300)' }}>
+            <PatientStatusSubTitle>สถานะการมีชีวิต</PatientStatusSubTitle>
+            <div
+              role='radiogroup'
+              aria-label='สถานะการมีชีวิต'
+              className='flex items-center flex-wrap'
+              style={{ gap: 'var(--dim-space-400)' }}
+            >
+              <PatientStatusOption
+                name='patient-life-status'
+                icon='favorite'
+                label='มีชีวิตอยู่'
+                tone='active'
+                value='alive'
+                checked={(lifeStatus || 'alive') === 'alive'}
+                onChange={onLifeStatusChange}
+              />
+              <PatientStatusOption
+                name='patient-life-status'
+                icon='heart_broken'
+                label='เสียชีวิต'
+                tone='inactive'
+                value='deceased'
+                checked={lifeStatus === 'deceased'}
+                onChange={onLifeStatusChange}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showLifeStatus && (
+        <div className='flex flex-col w-full'>
           {lifeStatus === 'deceased' && (
             /* การ์ดนี้กว้างเต็มแถว ส่วน "ข้อมูลส่วนตัว" อยู่ในคอลัมน์ซ้ายที่แคบกว่า
                (มีการ์ดรูปกว้าง 384 + gap 48 อยู่ขวา) ถ้าใช้ 3 คอลัมน์ตรง ๆ ช่อง

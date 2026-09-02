@@ -38,7 +38,7 @@ const CONNECTOR = 'var(--dim-stroke-100, 1px) solid var(--border-brandPrimary-te
 /* การ์ดสมาชิก — ชี้เมาส์ค้างแล้วขึ้นรายละเอียดรายคน (มติผู้ใช้ 2 ก.ย. 69)
    ผังบอกโครงสร้างครัวเรือนได้เร็ว แต่พื้นที่ในการ์ดจำกัด รายละเอียดที่เหลือ
    (ภาวะสุขภาพเต็มข้อความ · HN ของผู้รับบริการ) จึงอยู่ในทูลทิป */
-const PersonCard = ({ name, relation, age, health, avatarUrl, hn, primary = false, onClick }) => {
+const PersonCard = ({ name, relation, age, health, avatarUrl, hn, primary = false, onClick, tipAbove = false }) => {
   const [hovered, setHovered] = useState(false);
   const details = [
     ['ชื่อ-สกุล', name],
@@ -107,7 +107,7 @@ const PersonCard = ({ name, relation, age, health, avatarUrl, hn, primary = fals
         className='flex flex-col'
         style={{
           position: 'absolute',
-          top: 'calc(100% + var(--dim-space-200, 8px))',
+          [tipAbove ? 'bottom' : 'top']: 'calc(100% + var(--dim-space-200, 8px))',
           left: 0,
           zIndex: 'var(--sm-z-tooltip, 1500)',
           minWidth: 232,
@@ -175,11 +175,12 @@ const FamilyGenogram = ({ members = [], patientName, patientHn, patientAvatarUrl
     <div
       className='flex flex-col items-center w-full'
       /* ไม่มีกรอบ/พื้นหลังรองอีกชั้น (มติผู้ใช้ 2 ก.ย. 69) — ผังอยู่ในการ์ดขาว
-         ของ Family Folder อยู่แล้ว พื้นสีเทารองทำให้เป็นกล่องซ้อนกล่อง */
-      style={{
-        gap: 'var(--dim-space-200, 8px)',
-        overflowX: 'auto',
-      }}
+         ของ Family Folder อยู่แล้ว พื้นสีเทารองทำให้เป็นกล่องซ้อนกล่อง
+
+         ⚠️ ห้ามใส่ `overflow: auto` ที่กล่องนี้ — การ์ดจัดแถวแบบ wrap อยู่แล้ว
+         ไม่ต้องเลื่อนแนวนอน และ overflow จะตัดทูลทิปของการ์ดแถวล่างหายไปทั้งใบ
+         (บั๊กที่ผู้ใช้เจอ 2 ก.ย. 69) */
+      style={{ gap: 'var(--dim-space-200, 8px)' }}
     >
       {upper.length > 0 && (
         <>
@@ -211,7 +212,7 @@ const FamilyGenogram = ({ members = [], patientName, patientHn, patientAvatarUrl
           <Connector />
           <GenerationRow label='รุ่นถัดไป'>
             {lower.map((m) => (
-              <PersonCard key={m.id} {...m} avatarUrl={familyMemberAvatar(m)} onClick={onSelect ? () => onSelect(m) : undefined} />
+              <PersonCard key={m.id} {...m} tipAbove avatarUrl={familyMemberAvatar(m)} onClick={onSelect ? () => onSelect(m) : undefined} />
             ))}
           </GenerationRow>
         </>
@@ -222,7 +223,7 @@ const FamilyGenogram = ({ members = [], patientName, patientHn, patientAvatarUrl
           <Connector />
           <GenerationRow label='สมาชิกอื่นในครัวเรือน'>
             {others.map((m) => (
-              <PersonCard key={m.id} {...m} avatarUrl={familyMemberAvatar(m)} onClick={onSelect ? () => onSelect(m) : undefined} />
+              <PersonCard key={m.id} {...m} tipAbove avatarUrl={familyMemberAvatar(m)} onClick={onSelect ? () => onSelect(m) : undefined} />
             ))}
           </GenerationRow>
         </>
