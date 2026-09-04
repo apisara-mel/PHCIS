@@ -12,6 +12,7 @@ import Icon from '@/components/icons/Icon';
 import Table from '@/components/table/Table';
 import { ClinicFilterProvider } from '@/components/layout/HeaderClinicContext';
 import TreatmentFormShell from '@/templates/TreatmentFormShell';
+import { AncStep5Orders } from '@/pages/treat/anc/AncSteps';
 import CarriedDentalPanel from '@/components/dental/CarriedDentalPanel';
 import {
   ImmStep1General,
@@ -22,8 +23,6 @@ import {
   ImmStep6GeneralExam,
   ImmStepDiagnosis,
   ImmGrowthCharts,
-  ImmStep7Orders,
-  ImmStep8Summary,
 } from '@/pages/clinic/immunization/ImmunizationSteps';
 import {
   NUTRITION_STATUS_OPTIONS,
@@ -57,8 +56,7 @@ const IMM_STEPS = [
   { title: 'แบบประเมิน', subtitle: 'Assessment' },
   { title: 'ตรวจร่างกายและวินิจฉัย', subtitle: 'Examination & Diagnosis' },
   { title: 'สั่งการรักษา', subtitle: 'Treatment Order' },
-  { title: 'นัดหมาย', subtitle: 'Appointment' },
-  { title: 'สมุดวัคซีน', subtitle: 'Vaccine Book' },
+  { title: 'ตรวจสอบข้อมูล', subtitle: 'Review' },
 ];
 
 /* ย้ายเฉพาะโครง ไม่คัดลอกเนื้อหาฝากครรภ์: component เก่าถูกจัดกลุ่มใหม่ตาม
@@ -214,36 +212,27 @@ const ImmStepExamDiagnosis = (props) => (
   </div>
 );
 
-const ImmStepTreatmentOrder = (props) => (
-  <>
-    <ImmStep5Vaccine {...props} />
-    <ImmStep7Orders {...props} />
-  </>
+
+/* ขั้นสั่งการรักษาใช้ของคลินิกฝากครรภ์ทั้งก้อน (มติผู้ใช้ 3 ก.ย. 69) —
+   content เดิมของเด็กดี (ตารางให้วัคซีน · ตาราง EPI · คำสั่งยา/แล็บของคลินิก ·
+   กล่องนัดหมาย) ถูกถอดออกทั้งหมด แล้วเรียก `AncStep5Orders` ตรง ๆ ไม่ก๊อป
+   ไม่ดัดแปลง จึงได้ครบทุกบล็อกตามลำดับเดิมของฝากครรภ์ รวมกล่องนัดหมาย
+   ครั้งถัดไปที่อยู่ท้ายขั้นนั้นแล้ว */
+const ImmStepTreatmentOrder = ({ form, setForm, isFollowUp = false }) => (
+  <AncStep5Orders form={form} setForm={setForm} isFollowUp={isFollowUp} showLab1={false} />
 );
 
-const ImmStepAppointment = (props) => (
-  <ImmStep8Summary
-    {...props}
-    showDocuments={false}
-    showSummary={false}
-    showPrint={false}
-    showConfirm={false}
-  />
-);
 
-const ImmStepVaccineBook = (props) => (
-  <ImmStep8Summary
-    {...props}
-    showAppointment={false}
-  />
-);
+/* ขั้น "ตรวจสอบข้อมูล" — content เดิม (เอกสารแนบ · สรุปการให้บริการ ·
+   พิมพ์เอกสาร · ปุ่มยืนยันบันทึก) ถูกลบออกทั้งหมดตามคำสั่ง (มติผู้ใช้
+   3 ก.ย. 69) การบันทึกย้ายไปผูกกับปุ่ม "จบการบันทึก" ที่แถบล่างของเปลือกแทน */
+const ImmStepReview = () => null;
 
 const STEP_RENDERERS = [
   ImmStepAssessment,
   ImmStepExamDiagnosis,
   ImmStepTreatmentOrder,
-  ImmStepAppointment,
-  ImmStepVaccineBook,
+  ImmStepReview,
 ];
 
 const cloneDefaultVisit = () => JSON.parse(JSON.stringify(DEFAULT_IMM_VISIT));
@@ -404,8 +393,7 @@ const ImmunizationFormPage = () => {
     return [
       completed.includes(0) || completed.includes(1) || completed.includes(3),
       completed.includes(2) || completed.includes(5),
-      completed.includes(4) || completed.includes(6),
-      completed.includes(7),
+      completed.includes(4) || completed.includes(6) || completed.includes(7),
       saved || completed.includes(7),
     ];
   }, [form, stepIndex, saved]);
@@ -597,6 +585,7 @@ const ImmunizationFormPage = () => {
             fromDepartment='คลินิกสุขภาพเด็กดี'
             onSaveDraft={() => { if (!locked) saveImmDraft(immHn, form, stepIndex); }}
             finishLabel='จบการบันทึก'
+            onFinish={() => { if (!saved && !locked) confirmSave(); return true; }}
             hideCancelAfterFirst
           >
             <ActiveStep

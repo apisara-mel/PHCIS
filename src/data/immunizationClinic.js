@@ -1580,6 +1580,18 @@ export const DEFAULT_IMM_VISIT = {
   /* สั่งการรักษา — EMR / CPOE / Telemedicine */
   labOrders: {}, medOrders: {}, orderNote: '',
   telemedStatus: '', doctor: '',
+  /* ขั้นสั่งการรักษาใช้ของคลินิกฝากครรภ์ทั้งก้อน (`AncStep5Orders`) จึงต้องมี
+     state ชุดเดียวกับ DEFAULT_ANC_VISIT ของขั้นนั้น (มติผู้ใช้ 3 ก.ย. 69) */
+  lmp: '',
+  riskLevel: 'low',
+  lab1Orders: {},
+  lab2Orders: {},
+  labResults: {},
+  diabetesScreening: {},
+  supplements: {},
+  termAssessment: {},
+  medications: [],
+
   /* นัดหมาย + สมุดวัคซีน */
   documents: [],
   appointment: { date: '', time: '', type: '', note: '', cancelled: false },
