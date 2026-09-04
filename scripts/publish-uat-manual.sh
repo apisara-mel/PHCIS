@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Manual publish → https://bma-health.mih.co.th
+# Manual publish → https://PHCIS.mih.co.th
 # รันบน office-202 (หรือเครื่องที่ nginx/cloudflared เสิร์ฟ web root จริง)
 #
 # ดึงของจาก GitHub Release tag `uat-latest` — ไม่ใช่ Actions artifact อีกแล้ว
@@ -16,14 +16,14 @@
 #   FORCE_MEDIA=1 ./scripts/publish-uat-manual.sh   # บังคับลง media ใหม่
 #
 # ปรับค่า (optional):
-#   WEB_ROOT=/var/www/bma-health DEPLOY_URL=https://bma-health.mih.co.th ./scripts/publish-uat-manual.sh
+#   WEB_ROOT=/var/www/bma-health DEPLOY_URL=https://PHCIS.mih.co.th ./scripts/publish-uat-manual.sh
 
 set -euo pipefail
 
 REPO="${REPO:-namonlims/bma.health}"
 TAG="${TAG:-uat-latest}"
 WEB_ROOT="${WEB_ROOT:-/var/www/bma-health}"
-DEPLOY_URL="${DEPLOY_URL:-https://bma-health.mih.co.th}"
+DEPLOY_URL="${DEPLOY_URL:-https://PHCIS.mih.co.th}"
 FORCE_MEDIA="${FORCE_MEDIA:-}"
 
 log() { printf '\033[36m[%s]\033[0m %s\n' "$(date '+%H:%M:%S')" "$*"; }

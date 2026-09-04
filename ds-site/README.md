@@ -12,7 +12,7 @@ npx serve dist-ds         # or any static server, to check before publishing
 | file | what it is |
 |---|---|
 | `index.html` | Token browser. Every token in `src/styles/tokens.css` with a swatch the **browser resolves live**, so brand / dark switching shows what the apps actually render. |
-| `reference.html` | `design.md` rendered, **plus a live component preview** — each Components-Library entry iframes `https://bma-health.mih.co.th/components/<slug>?embed=1`. Built from `docs/design-system.html`. |
+| `reference.html` | `design.md` rendered, **plus a live component preview** — each Components-Library entry iframes `https://PHCIS.mih.co.th/components/<slug>?embed=1`. Built from `docs/design-system.html`. |
 | `tokens.css` | verbatim copy of `src/styles/tokens.css` |
 | `design.md` | verbatim copy of `design.md` (the page fetches it at runtime) |
 | `vendor/marked.esm.js` | markdown renderer, vendored so the site needs no CDN |

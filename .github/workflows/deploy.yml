@@ -1,6 +1,6 @@
 name: Deploy to production
 
-# Publish ขึ้น UAT (https://bma-health.mih.co.th) เฉพาะเมื่อสั่งเองเท่านั้น —
+# Publish ขึ้น UAT (https://PHCIS.mih.co.th) เฉพาะเมื่อสั่งเองเท่านั้น —
 # merge เข้า main ไม่ trigger workflow นี้ เพื่อให้ทีมรวมโค้ดบน main ได้โดยที่
 # หน้าเว็บจริง (มีคนอื่นดูอยู่) ยังไม่เปลี่ยนจนกว่าจะ publish
 #
@@ -37,7 +37,7 @@ name: Deploy to production
 #     DEPLOY_USER            ชื่อ user ที่ ssh เข้า
 #     DEPLOY_PATH            web root ที่ nginx เสิร์ฟ เช่น /var/www/bma-health
 #     DEPLOY_PORT            ssh port (ไม่ใส่ = 22)
-#     DEPLOY_URL             URL สำหรับตรวจหลัง deploy (ไม่ใส่ = https://bma-health.mih.co.th)
+#     DEPLOY_URL             URL สำหรับตรวจหลัง deploy (ไม่ใส่ = https://PHCIS.mih.co.th)
 #     DEPLOY_RSYNC_DELETE    ใส่ 'true' ถ้าต้องการลบไฟล์ส่วนเกินบนเซิร์ฟเวอร์ (ดู note ที่ step rsync)
 
 on:
@@ -155,7 +155,7 @@ jobs:
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" \
               --title "UAT build ล่าสุด" \
-              --notes "ก้อน build ล่าสุดสำหรับ https://bma-health.mih.co.th — tag นี้ถูกทับทุกครั้งที่ publish (ไม่ใช่ release ของเวอร์ชันโปรแกรม)" \
+              --notes "ก้อน build ล่าสุดสำหรับ https://PHCIS.mih.co.th — tag นี้ถูกทับทุกครั้งที่ publish (ไม่ใช่ release ของเวอร์ชันโปรแกรม)" \
               --latest=false
           fi
 
@@ -257,7 +257,7 @@ jobs:
         env:
           DEPLOY_URL: ${{ vars.DEPLOY_URL }}
         run: |
-          URL="${DEPLOY_URL:-https://bma-health.mih.co.th}"
+          URL="${DEPLOY_URL:-https://PHCIS.mih.co.th}"
           EXPECTED="${{ steps.pack.outputs.bundle }}"
           echo "คาดว่าจะเจอ: $EXPECTED"
           for i in 1 2 3 4 5 6; do
