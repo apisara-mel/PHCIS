@@ -34,7 +34,7 @@ const ROOT = join(HERE, '..');
 const OUT = join(ROOT, 'dist-ds');
 
 /* Live PHCIS app that hosts /components/<slug>. Component previews iframe it. */
-const LIVE_DEFAULT = 'https://bma-health.mih.co.th';
+const LIVE_DEFAULT = 'https://PHCIS.mih.co.th';
 
 /* ────────────────────────────────────────────────────────────
    1. Parse tokens.css

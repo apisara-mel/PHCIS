@@ -1064,8 +1064,8 @@ export function TelemedConsultOverlay({ visitId = null, minimized = false, onMin
   const pinned = participants.find((p) => p.id === pinnedId) || null;
   const togglePin = (id) => setPinnedId((cur) => (cur === id ? null : id));
   const [linkCopied, setLinkCopied] = useState(false);
-  /* ลิงก์เข้าห้องต้องเป็นของ bma.health ไม่ใช่ผู้ให้บริการภายนอก */
-  const meetingLink = 'https://bma-health.mih.co.th/telemed/join/TM-8842-2024';
+  /* ลิงก์เข้าห้องต้องเป็นของ PHCIS ไม่ใช่ผู้ให้บริการภายนอก */
+  const meetingLink = 'https://PHCIS.mih.co.th/telemed/join/TM-8842-2024';
   const copyLink = () => {
     try { navigator.clipboard?.writeText(meetingLink); } catch (e) { /* ignore */ }
     setLinkCopied(true);
