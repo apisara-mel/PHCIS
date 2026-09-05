@@ -46,8 +46,7 @@ const CONNECTOR_TRANSITION = `background-color 220ms ${SMOOTH_EASE}`;
 const CHECK_PATH_LENGTH = 14;
 const AnimatedCheck = ({ active, size = 16 }) => (
   <svg
-    width={size}
-    height={size}
+    style={{ width: size, height: size }}
     viewBox='0 0 16 16'
     fill='none'
     aria-hidden

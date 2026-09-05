@@ -12,7 +12,7 @@ import CommunitySidebar from './CommunitySidebar';
    prog__title + breadcrumb in every community/*.html <header class="header">).
    Every converted page composes this Layout around its own content. */
 
-const CommunityLayout = ({ activeKey, breadcrumb, headerActions, children }) => (
+const CommunityLayout = ({ activeKey, breadcrumb, headerActions, footer, children }) => (
   <ClinicFilterProvider>
     <div
       style={{
@@ -52,6 +52,12 @@ const CommunityLayout = ({ activeKey, breadcrumb, headerActions, children }) => 
           {headerActions}
           {children}
         </main>
+
+        {/* Optional sticky action footer (ยกเลิก/ย้อนกลับ · บันทึกร่าง · ถัดไป)
+            for step-form pages (e.g. ChcAddPage) — sits full-bleed outside
+            `main`'s padding, same slot Header occupies above it. Plain list/
+            dashboard pages simply omit this prop. */}
+        {footer}
       </div>
     </div>
   </ClinicFilterProvider>

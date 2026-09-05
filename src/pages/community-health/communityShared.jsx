@@ -51,7 +51,7 @@ export const CommunityComingSoon = ({ title }) => (
     </span>
     <span
       style={{
-        color: 'var(--text-content-primary)',
+        color: 'var(--text-content-default)',
         fontFamily: 'var(--type-family-body)',
         fontSize: 'var(--type-size-sm, 14px)',
         fontWeight: 'var(--type-weight-medium, 500)',
