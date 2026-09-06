@@ -22,6 +22,26 @@ import AppointmentTypeCatalogPage from '@/pages/appointment/AppointmentTypeCatal
 import AppointmentSettingsPage from '@/pages/appointment/AppointmentSettingsPage';
 import SchedulePage from '@/pages/schedule/SchedulePage';
 import ScheduleEditorPage from '@/pages/schedule/ScheduleEditorPage';
+/* ระบบงานสาธารณสุขและระบบงานควบคุมป้องกันและส่งเสริมสุขภาพในชุมชน (Community)
+   — ported from claude/Community's static prototype, one page at a time. */
+import CommunityDashboardPage from '@/pages/community-health/CommunityDashboardPage';
+import CommunityRegisterPage from '@/pages/community-health/CommunityRegisterPage';
+import CommunityAddPage from '@/pages/community-health/CommunityAddPage';
+import CommunityDetailPage from '@/pages/community-health/CommunityDetailPage';
+import CommunityHouseholdPage from '@/pages/community-health/CommunityHouseholdPage';
+import HouseholdAddPage from '@/pages/community-health/HouseholdAddPage';
+import HouseholdDetailPage from '@/pages/community-health/HouseholdDetailPage';
+import MemberAddPage from '@/pages/community-health/MemberAddPage';
+import CommunityChcPage from '@/pages/community-health/CommunityChcPage';
+import ChcAddPage from '@/pages/community-health/ChcAddPage';
+import ChcDetailPage from '@/pages/community-health/ChcDetailPage';
+import CommunityVolunteerPage from '@/pages/community-health/CommunityVolunteerPage';
+import VolunteerAddPage from '@/pages/community-health/VolunteerAddPage';
+import VolunteerDetailPage from '@/pages/community-health/VolunteerDetailPage';
+import CommunityAssessPage from '@/pages/community-health/CommunityAssessPage';
+import AssessAddPage from '@/pages/community-health/AssessAddPage';
+import CommunityGisPage from '@/pages/community-health/CommunityGisPage';
+import CommunityReportPage from '@/pages/community-health/CommunityReportPage';
 import ScreeningPage from '@/pages/opd/ScreeningPage';
 import QueuePage from '@/pages/opd/QueuePage';
 import OpdWalkinRequestPage from '@/pages/opd/OpdWalkinRequestPage';
@@ -409,6 +429,30 @@ export default function Routes() {
             Figma PHCIS-ALL · entered from hub card 2149:104214. No PhcisChrome — owns its shell. */}
         <Route exact path='/schedule'        component={SchedulePage} />
         <Route exact path='/schedule/:id'    component={ScheduleEditorPage} />
+        {/* ระบบงานสาธารณสุขและระบบงานควบคุมป้องกันและส่งเสริมสุขภาพในชุมชน
+            (Community) — TOP-LEVEL system, sibling of PHCIS (SYSTEM_CATALOG key
+            'community-health'). Ported from claude/Community's static prototype
+            one page at a time (see src/pages/community-health/communityShared.jsx
+            for the stub pattern used while a page is still being converted). */}
+        <Route exact path='/community-health/dashboard'          component={CommunityDashboardPage} />
+        <Route exact path='/community-health/register'           component={CommunityRegisterPage} />
+        <Route exact path='/community-health/register/new'       component={CommunityAddPage} />
+        <Route exact path='/community-health/register/:id'       component={CommunityDetailPage} />
+        <Route exact path='/community-health/household'          component={CommunityHouseholdPage} />
+        <Route exact path='/community-health/household/new'      component={HouseholdAddPage} />
+        <Route exact path='/community-health/household/:id'      component={HouseholdDetailPage} />
+        <Route exact path='/community-health/household/:id/member/new' component={MemberAddPage} />
+        <Route exact path='/community-health/chc'                component={CommunityChcPage} />
+        <Route exact path='/community-health/chc/new'            component={ChcAddPage} />
+        <Route exact path='/community-health/chc/:id'            component={ChcDetailPage} />
+        <Route exact path='/community-health/volunteer'          component={CommunityVolunteerPage} />
+        <Route exact path='/community-health/volunteer/new'      component={VolunteerAddPage} />
+        <Route exact path='/community-health/volunteer/:id'      component={VolunteerDetailPage} />
+        <Route exact path='/community-health/assess'             component={CommunityAssessPage} />
+        <Route exact path='/community-health/assess/new'         component={AssessAddPage} />
+        <Route exact path='/community-health/gis'                component={CommunityGisPage} />
+        <Route exact path='/community-health/report'             component={CommunityReportPage} />
+        <Redirect exact from='/community-health' to='/community-health/dashboard' />
         {/* ระบบรายงานและแพลตฟอร์มวิเคราะห์ข้อมูล (TOR §1.20) —
               /dashboard                   = ภาพรวมโรงพยาบาล (เดิม)
               /dashboard/reports           = ศูนย์รวมรายงาน + ทะเบียนแม่แบบ/คำขอรายงานใหม่ (§1.20.11)

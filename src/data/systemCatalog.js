@@ -20,7 +20,11 @@ export const SYSTEM_CATALOG = [
     gridLabel: 'งานสาธารณสุชุมชน',
     desc: 'แพลตฟอร์มจัดการข้อมูลงานสาธารณสุข การเฝ้าระวังโรคติดต่อ และการส่งเสริมสุขภาพเชิงรุกในระดับพื้นที่และชุมชน',
     lastUsed: 'วันนี้, 08:30 น.',
-    route: null,
+    /* ระบบ Community — ต้นฉบับพอร์ตมาจาก claude/Community (static prototype)
+       เป็น React ทีละหน้าใต้ src/pages/community-health/ ตามกฎ token ของ
+       CLAUDE.md. แดชบอร์ดพอร์ตแล้ว; หน้าที่เหลือเป็น stub ระหว่างพอร์ต (ดู
+       communityShared.jsx → CommunityStubPage). */
+    route: '/community-health/dashboard',
   },
   {
     key: 'school-health',
