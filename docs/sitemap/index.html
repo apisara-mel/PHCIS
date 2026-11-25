@@ -2872,7 +2872,7 @@ const DATA = {"generatedAt":"2026-11-25T04:04:06.633Z","scanned":235,"roles":[{"
     h += '</div>';
     if (!shown) h += '<div class="note">ไม่มีเมนูที่ตรงกับบทบาท/คำค้นนี้</div>';
     p.innerHTML = h; p.classList.remove('hidden');
-    const cols = p.querySelector('.cols'); if (cols) cols.style.setProperty('--cols', Math.max(1, Math.min(shown, 6)));
+    const cols = p.querySelector('.cols'); if (cols) cols.style.setProperty('--cols', Math.max(1, shown)); /* เรียงซ้าย→ขวาแถวเดียว (ผู้ใช้ 25 พ.ย. 69) */
   }
   function detail(id) {
     const o = nodes[id]; if (!o) return;
@@ -2942,7 +2942,7 @@ const DATA = {"generatedAt":"2026-11-25T04:04:06.633Z","scanned":235,"roles":[{"
   function fitWidth() {
     const r = cv.getBoundingClientRect(); const w = st.offsetWidth;
     const minZ = r.width < 768 ? 0.6 : 0.85;
-    z = Math.min(1, Math.max(minZ, (r.width - 16) / w)); tx = (r.width - w * z) / 2; ty = 8; apply();
+    z = Math.min(1, Math.max(minZ, (r.width - 16) / w)); tx = w * z > r.width ? 8 : (r.width - w * z) / 2; ty = 8; apply();
   }
   function fitAll() {
     const r = cv.getBoundingClientRect(); const w = st.offsetWidth, h = st.offsetHeight;
